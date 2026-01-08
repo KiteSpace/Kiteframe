@@ -1,6 +1,7 @@
 import type { Node, Edge } from '../../types';
 import type { DiagnosticIssue, DiagnosticType, DiagnosticSeverity, RepairInfo } from './types';
 import { detectLoops, isLoopDetectionEnabled } from '@/ai/analysis/loopDetection';
+import { detectTerminalIntent, isSemanticTerminalInferenceEnabled } from '@/ai/semantics/detectTerminalIntent';
 
 interface GraphInput {
   nodes: Node[];
@@ -173,17 +174,66 @@ function detectMissingEndState(input: GraphInput, adjacency: AdjacencyMaps): Dia
   return issues;
 }
 
-function detectDeadEndNodes(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
+function detectDeadEndNodes(input: GraphInput, adjacency: AdjacencyMaps, edges: Edge[]): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
+  const semanticTerminalEnabled = isSemanticTerminalInferenceEnabled();
   
   for (const [nodeId, node] of Array.from(adjacency.nodeMap.entries())) {
     if (isTerminalNode(node) || isCanvasObject(node)) continue;
     
-    const outgoing = adjacency.outgoing.get(nodeId) || [];
-    const incoming = adjacency.incoming.get(nodeId) || [];
+    const outgoingNodeIds = adjacency.outgoing.get(nodeId) || [];
+    const incomingNodeIds = adjacency.incoming.get(nodeId) || [];
     
-    if (outgoing.length === 0 && incoming.length > 0) {
+    if (outgoingNodeIds.length === 0 && incomingNodeIds.length > 0) {
       const label = (node.data as { label?: string })?.label || node.type;
+      
+      if (semanticTerminalEnabled) {
+        const incomingEdges = edges.filter(e => e.target === nodeId);
+        const outgoingEdges = edges.filter(e => e.source === nodeId);
+        
+        const signal = detectTerminalIntent({
+          node,
+          incomingEdges,
+          outgoingEdges,
+          nodesById: adjacency.nodeMap,
+        });
+        
+        if (signal.isLikelyTerminal && signal.confidence === 'high') {
+          issues.push(createSemanticTerminalIssue(
+            input,
+            nodeId,
+            label || 'Unknown',
+            signal.confidence,
+            signal.reasons,
+            signal.matchedRules
+          ));
+          continue;
+        }
+        
+        if (signal.isLikelyTerminal && signal.confidence === 'medium') {
+          issues.push(createIssue(
+            input,
+            'dead-end-node',
+            'Dead-end node',
+            `"${label}" has no outgoing connections. It should either connect to another node or be marked as an output.`,
+            'warn',
+            nodeId,
+            undefined,
+            'whatif'
+          ));
+          
+          issues.push(createSemanticTerminalIssue(
+            input,
+            nodeId,
+            label || 'Unknown',
+            signal.confidence,
+            signal.reasons,
+            signal.matchedRules
+          ));
+          continue;
+        }
+      }
+      
       issues.push(createIssue(
         input,
         'dead-end-node',
@@ -198,6 +248,43 @@ function detectDeadEndNodes(input: GraphInput, adjacency: AdjacencyMaps): Diagno
   }
   
   return issues;
+}
+
+function createSemanticTerminalIssue(
+  input: GraphInput,
+  nodeId: string,
+  label: string,
+  confidence: 'high' | 'medium',
+  reasons: string[],
+  matchedRules: string[]
+): DiagnosticIssue {
+  const fingerprint = generateFingerprint(input.projectId, input.workflowId, 'semantic-terminal', nodeId);
+  const now = Date.now();
+  
+  const description = confidence === 'high'
+    ? `"${label}" appears to be a valid endpoint based on its content. No further action required.`
+    : `"${label}" may be an acceptable endpoint. Consider changing this node type to Output if it is intentionally terminal.`;
+  
+  return {
+    id: fingerprint,
+    projectId: input.projectId,
+    workflowId: input.workflowId,
+    nodeId,
+    type: 'semantic-terminal',
+    title: 'Semantically terminal step',
+    description,
+    severity: 'info',
+    status: 'new',
+    createdAt: now,
+    updatedAt: now,
+    fingerprint,
+    recommendedAction: { kind: 'noop' },
+    semanticTerminal: {
+      confidence,
+      reasons,
+      matchedRules,
+    },
+  };
 }
 
 function detectDisconnectedSubgraphs(input: GraphInput, adjacency: AdjacencyMaps): DiagnosticIssue[] {
@@ -456,7 +543,7 @@ export class DiagnosticsEngine {
     console.log('[DiagnosticsEngine] Node types:', nodeTypeSummary);
     
     const missingEndIssues = detectMissingEndState(input, adjacency);
-    const deadEndIssues = detectDeadEndNodes(input, adjacency);
+    const deadEndIssues = detectDeadEndNodes(input, adjacency, edges);
     const disconnectedIssues = detectDisconnectedSubgraphs(input, adjacency);
     let orphanDecisionIssues = detectOrphanDecisions(input, adjacency);
     const loopIssues = detectLoopsWithoutExit(input, adjacency);

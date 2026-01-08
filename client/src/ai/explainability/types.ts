@@ -123,6 +123,20 @@ export interface DecisionSnapshot {
   
   // Phase 8: Mutation safety report
   mutationSafety?: MutationSafety;
+  
+  // Phase 6.8: Semantic terminal signals detected during diagnostics
+  semanticTerminalSignals?: SemanticTerminalSignal[];
+}
+
+/**
+ * Phase 6.8: Semantic Terminal Signal
+ * Captures nodes that were detected as semantically terminal
+ */
+export interface SemanticTerminalSignal {
+  nodeId: string;
+  confidence: 'high' | 'medium';
+  reasons: string[];
+  matchedRules: string[];
 }
 
 /**

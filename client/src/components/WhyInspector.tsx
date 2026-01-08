@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { Node, NodeMeta } from '@/lib/kiteframe/types';
 import { getDecisionSnapshotForNode } from '@/ai/explainability/auditExport';
-import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType, MutationSafety } from '@/ai/explainability/types';
+import type { DecisionSnapshot, SemanticMismatch, MergeBranchDecision, DecisionRepairApplied, UnresolvedConcern, UnresolvedConcernType, MutationSafety, SemanticTerminalSignal } from '@/ai/explainability/types';
 import { getClaimTypeDescription } from '@/ai/semantic/extractSemanticClaims';
 
 function getConcernTypeDescription(type: UnresolvedConcernType): string {
@@ -480,6 +480,47 @@ export function WhyInspector({ node, children }: WhyInspectorProps) {
                       {concern.affectedNodeIds && concern.affectedNodeIds.length > 0 && (
                         <div className="text-muted-foreground mt-1">
                           Affects: {concern.affectedNodeIds.length} node(s)
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Phase 6.8: Semantic Terminal Signals */}
+          {snapshot?.semanticTerminalSignals && snapshot.semanticTerminalSignals.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2" data-testid="semantic-terminal-signals">
+                <div className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Semantically Terminal Steps
+                </div>
+                <div className="space-y-2">
+                  {snapshot.semanticTerminalSignals.map((signal: SemanticTerminalSignal, idx: number) => (
+                    <div 
+                      key={idx} 
+                      className="text-xs p-2 rounded border bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                      data-testid={`semantic-terminal-${idx}`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge 
+                          variant={signal.confidence === 'high' ? 'default' : 'secondary'} 
+                          className="text-[10px] h-4"
+                        >
+                          {signal.confidence === 'high' ? 'High Confidence' : 'Medium Confidence'}
+                        </Badge>
+                      </div>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                        {signal.reasons.map((reason: string, reasonIdx: number) => (
+                          <li key={reasonIdx}>{reason}</li>
+                        ))}
+                      </ul>
+                      {signal.confidence === 'medium' && (
+                        <div className="mt-2 text-muted-foreground italic">
+                          Consider changing this node type to Output to satisfy strict terminal rules.
                         </div>
                       )}
                     </div>

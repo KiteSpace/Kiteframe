@@ -8,7 +8,8 @@ export type DiagnosticType =
   | 'disconnected-subgraph'
   | 'orphan-decision'
   | 'loop-without-exit'
-  | 'retry-without-counter';
+  | 'retry-without-counter'
+  | 'semantic-terminal';
 
 export interface DiagnosticIssue {
   id: string;
@@ -37,6 +38,12 @@ export interface DiagnosticIssue {
   
   autoRepaired?: boolean;
   autoRepairDetails?: string;
+  
+  semanticTerminal?: {
+    confidence: 'high' | 'medium';
+    reasons: string[];
+    matchedRules: string[];
+  };
 }
 
 export interface RepairInfo {
