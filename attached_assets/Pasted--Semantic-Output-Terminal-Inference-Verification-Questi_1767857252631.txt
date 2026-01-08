@@ -1,0 +1,78 @@
+🔎 Semantic Output / Terminal Inference — Verification Questions for Replit
+
+SECTION 1 — Existence Check (Direct)
+	1.	Is there any code path today that suppresses a dead-end-node diagnostic without requiring node.type === 'output' | 'end'?
+	•	If yes:
+	•	Where is it implemented?
+	•	Under what conditions does suppression occur?
+	2.	Has any logic ever been added (current or deprecated) that treats certain process nodes as “terminal-equivalent”?
+	•	For example:
+	•	Notification nodes
+	•	Completion steps
+	•	Finalization steps
+
+⸻
+
+SECTION 2 — Keyword / Heuristic Detection
+	3.	Do any diagnostics, heuristics, or guards inspect node labels or descriptions when evaluating dead ends?
+	•	Search for:
+	•	keyword matching
+	•	regex
+	•	string includes checks
+	•	NLP utilities
+	4.	Is there any logic that checks for words like:
+	•	“notify”
+	•	“complete”
+	•	“finish”
+	•	“end”
+	•	“done”
+	•	“approved / rejected”
+…to influence diagnostics or validation?
+	5.	Does any code path treat nodes with certain names differently when they have no outgoing edges?
+
+⸻
+
+SECTION 3 — Structural Context Awareness
+	6.	Does detectDeadEndNodes() (or any upstream function) consider the incoming edge context of a node when flagging it as a dead end?
+	•	Example:
+	•	If a node is the terminal branch of a decision (“Approved”, “Rejected”), is that context used at all?
+	7.	Is there any logic that checks whether a leaf node is reached only from a decision node and treats it differently?
+
+⸻
+
+SECTION 4 — Decision Repair / Repair Adjacency
+	8.	Has Decision Repair ever been extended (or considered) to treat terminal semantics?
+	•	Even if rejected or feature-flagged off?
+	9.	Are there any TODOs, commented code, or abandoned branches related to:
+	•	“terminal”
+	•	“end state”
+	•	“completion”
+	•	“semantic end”
+	•	“leaf suppression”
+
+⸻
+
+SECTION 5 — Explainability & Audit
+	10.	Do DecisionSnapshots or DiagnosticIssues contain any field that indicates “this is acceptable as a terminal even though it’s not an output”?
+	•	Even if currently unused?
+	11.	Have any customers or internal users complained about output-node overuse or dead-end false positives before?
+	•	If yes, was any mitigation added?
+
+⸻
+
+SECTION 6 — Tests & Historical Behavior
+	12.	Are there tests (unit or integration) that expect a process node with no outgoing edges not to trigger a dead-end warning?
+	•	If yes:
+	•	Which test?
+	•	Why does it pass?
+	13.	Has the behavior of dead-end detection changed historically?
+	•	Was it ever less strict?
+	•	Was stricter enforcement added at some point?
+
+⸻
+
+SECTION 7 — Design Intent Confirmation
+	14.	Was the current behavior (“all leaf nodes must be outputs”) a deliberate design decision, or an initial simplification that stuck?
+	15.	Has semantic terminal inference ever been discussed, prototyped, or deferred intentionally?
+	•	If deferred:
+	•	Where is that decision documented?
