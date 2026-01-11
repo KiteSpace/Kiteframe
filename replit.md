@@ -104,6 +104,8 @@ Preferred communication style: Simple, everyday language.
 - **Purpose**: Prevents orphan nodes and invalid graph states during chat-driven workflow edits.
 - **Features**: Structural safety enforced at mutation time, blocks orphan nodes, floating islands, parallel workflows. Validates edges, resolves attachments. Integrates with decision repair and audit trail.
 - **Entry Point**: `orchestrateChatWorkflowMutation()` combines repair and mutation, returning `repairInfo` and `combinedMutationSafety` for DecisionSnapshot and DiagnosticsEngine.
+- **REPLACE Mode**: Atomic clear-and-replace with validation-only path (bypasses merge/repair). Uses `executeReplaceWorkflow` shared function with canvas-change guard (full JSON hash of node/edge data) and structural regression detection.
+- **Structural Regression Guard**: `graphStructure.ts` computes branchingPoints, decisionNodes, labeledDecisionEdges. Shows warning modal (amber styling) before REPLACE if replacement would flatten workflow topology.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and event system, offering 8 defined extension points.

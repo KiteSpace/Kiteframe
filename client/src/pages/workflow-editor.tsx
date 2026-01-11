@@ -5120,22 +5120,46 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   ): boolean | 'regression_detected' => {
     // Canvas-change guard: Abort if canvas changed since dialog was opened
-    // Check: node IDs, edge signatures, AND node content signatures to catch any interim edits
+    // Uses stable JSON serialization to catch ANY change to node/edge data
     
-    // Helper to create a content signature for a node (catches label/data changes)
+    // Helper to create a stable, deterministic hash from an object (deep sorted keys)
+    const stableHash = (obj: unknown): string => {
+      const sortedStringify = (value: unknown): string => {
+        if (value === null || value === undefined) return String(value);
+        if (typeof value !== 'object') return JSON.stringify(value);
+        if (Array.isArray(value)) {
+          return '[' + value.map(sortedStringify).join(',') + ']';
+        }
+        const sorted = Object.keys(value as object).sort();
+        return '{' + sorted.map(k => `${JSON.stringify(k)}:${sortedStringify((value as Record<string, unknown>)[k])}`).join(',') + '}';
+      };
+      try {
+        return sortedStringify(obj);
+      } catch {
+        return String(obj);
+      }
+    };
+    
+    // Full node signature includes id, type, position, and ALL data fields
     const getNodeSignature = (n: Node) => {
-      const label = (n.data as any)?.label || '';
-      const content = (n.data as any)?.content || '';
-      // Include position to catch moves
       const posX = Math.round(n.position?.x || 0);
       const posY = Math.round(n.position?.y || 0);
-      return `${n.id}:${n.type}:${label}:${content}:${posX},${posY}`;
+      // Include full data object hash to catch any field changes
+      const dataHash = stableHash(n.data);
+      return `${n.id}:${n.type}:${posX},${posY}:${dataHash}`;
+    };
+    
+    // Full edge signature includes id, source, target, label, and data
+    const getEdgeSignature = (e: Edge) => {
+      const label = (e as any).label || '';
+      const dataHash = stableHash((e as any).data || {});
+      return `${e.id}:${e.source}->${e.target}:${label}:${dataHash}`;
     };
     
     const expectedNodeSignatures = new Set(expectedNodes.map(getNodeSignature));
     const currentNodeSignatures = new Set(nodes.map(getNodeSignature));
-    const expectedEdgeSignatures = new Set(expectedEdges.map(e => `${e.id}:${e.source}->${e.target}`));
-    const currentEdgeSignatures = new Set(edges.map(e => `${e.id}:${e.source}->${e.target}`));
+    const expectedEdgeSignatures = new Set(expectedEdges.map(getEdgeSignature));
+    const currentEdgeSignatures = new Set(edges.map(getEdgeSignature));
     
     const nodesMatch = expectedNodeSignatures.size === currentNodeSignatures.size &&
       [...expectedNodeSignatures].every(sig => currentNodeSignatures.has(sig));
