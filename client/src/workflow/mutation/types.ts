@@ -40,7 +40,8 @@ export type MutationErrorCode =
   | 'MERGE_MODE_VIOLATION'
   | 'PARALLEL_WORKFLOW_BLOCKED'
   | 'MISSING_INCOMING_EDGE'
-  | 'UNREACHABLE_NODES';
+  | 'UNREACHABLE_NODES'
+  | 'REPLACE_VALIDATION';
 
 export interface ChatMutationIntent {
   newNodes: Node[];

@@ -26,6 +26,8 @@ import type { AiMode } from '@/ai/types';
 import type { RepairInfo } from '@/lib/kiteframe/utils/diagnostics/types';
 import type { MutationSafety } from '@/ai/explainability/types';
 
+export type MutationMode = 'PATCH' | 'REPLACE';
+
 export interface ChatMutationInput {
   existingNodes: Node[];
   existingEdges: Edge[];
@@ -36,6 +38,46 @@ export interface ChatMutationInput {
   attachmentTargetId?: string;
   aiMode?: AiMode;
   bypassConfirmation?: boolean;
+  mode?: MutationMode;
+}
+
+export interface ReplaceValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export function validateReplacePayload(nodes: Node[], edges: Edge[]): ReplaceValidationResult {
+  const errors: string[] = [];
+  
+  if (nodes.length < 2) {
+    errors.push(`REPLACE requires at least 2 nodes, got ${nodes.length}`);
+  }
+  
+  if (edges.length < 1) {
+    errors.push(`REPLACE requires at least 1 edge, got ${edges.length}`);
+  }
+  
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const duplicateIds = nodes.filter((n, i) => 
+    nodes.findIndex(other => other.id === n.id) !== i
+  );
+  if (duplicateIds.length > 0) {
+    errors.push(`Duplicate node IDs in payload: ${duplicateIds.map(n => n.id).join(', ')}`);
+  }
+  
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.source)) {
+      errors.push(`Edge ${edge.id} source "${edge.source}" does not exist in nodes`);
+    }
+    if (!nodeIds.has(edge.target)) {
+      errors.push(`Edge ${edge.id} target "${edge.target}" does not exist in nodes`);
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 export interface ChatMutationResult {
@@ -71,6 +113,7 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     attachmentTargetId,
     aiMode = 'EDIT',
     bypassConfirmation = false,
+    mode = 'PATCH',
   } = input;
 
   const hasExistingWorkflow = existingNodes.length > 0;
@@ -81,6 +124,67 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
     hasExistingWorkflow,
     previousUserMessages: previousMessages,
   });
+
+  // REPLACE MODE: Validate structure only, return unchanged, skip all repair/mutation logic
+  if (mode === 'REPLACE') {
+    console.log('[ChatMutation] REPLACE mode - structure validation only, no repair');
+    
+    const validation = validateReplacePayload(newNodes, newEdges);
+    
+    if (!validation.valid) {
+      console.warn('[ChatMutation] REPLACE validation failed:', validation.errors);
+      return {
+        success: false,
+        reason: `REPLACE validation failed: ${validation.errors.join('; ')}`,
+        mutatedNodes: existingNodes,
+        mutatedEdges: existingEdges as any,
+        safetyReport: {
+          mergeEnforced: false,
+          orphanPreventionTriggered: false,
+          decisionRepairApplied: false,
+          attachmentResolved: false,
+          validationErrors: validation.errors.map(e => ({ code: 'REPLACE_VALIDATION', message: e })),
+          mutationAborted: 'REPLACE validation failed'
+        },
+        repairInfo: { repairedNodeIds: [], repairedIssueTypes: [] },
+        mergeBranchDecision,
+        mutationSafety: { 
+          decisionRepairApplied: false,
+          mergeEnforced: false,
+          orphanPreventionTriggered: false,
+        },
+        requiresConfirmation: false,
+      };
+    }
+    
+    console.log('[ChatMutation] REPLACE validation passed - returning unchanged payload:', {
+      nodeCount: newNodes.length,
+      edgeCount: newEdges.length,
+    });
+    
+    return {
+      success: true,
+      mutatedNodes: newNodes,
+      mutatedEdges: newEdges as any,
+      safetyReport: {
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+        decisionRepairApplied: false,
+        attachmentResolved: false,
+        validationErrors: [],
+      },
+      repairInfo: { repairedNodeIds: [], repairedIssueTypes: [] },
+      mergeBranchDecision,
+      mutationSafety: { 
+        decisionRepairApplied: false,
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+      },
+      requiresConfirmation: false,
+    };
+  }
+
+  // PATCH MODE: Existing behavior with merge-safe validation and repair
 
   // Phase 2.2: Full Graph Payload detection
   const fullGraphDetection = detectFullGraphPayload(
@@ -236,7 +340,8 @@ export interface UseChatMutationResult {
     proposedNodes: Node[],
     proposedEdges: Edge[],
     userMessage: string,
-    aiMode?: AiMode
+    aiMode?: AiMode,
+    mode?: MutationMode
   ) => { 
     success: boolean; 
     nodes: Node[]; 
@@ -300,14 +405,17 @@ export function useChatMutation(options: UseChatMutationOptions = {}): UseChatMu
     proposedNodes: Node[],
     proposedEdges: Edge[],
     userMessage: string,
-    aiMode: AiMode = 'EDIT'
+    aiMode: AiMode = 'EDIT',
+    mode: MutationMode = 'PATCH'
   ) => {
-    const newNodes = proposedNodes.filter(
-      pn => !existingNodes.some(en => en.id === pn.id)
-    );
-    const newEdges = proposedEdges.filter(
-      pe => !existingEdges.some(ee => ee.id === pe.id)
-    );
+    // For REPLACE mode, pass ALL proposed nodes/edges (no filtering)
+    // For PATCH mode, filter to only new nodes/edges
+    const newNodes = mode === 'REPLACE' 
+      ? proposedNodes 
+      : proposedNodes.filter(pn => !existingNodes.some(en => en.id === pn.id));
+    const newEdges = mode === 'REPLACE'
+      ? proposedEdges
+      : proposedEdges.filter(pe => !existingEdges.some(ee => ee.id === pe.id));
 
     const result = applyMutation({
       existingNodes,
@@ -316,6 +424,7 @@ export function useChatMutation(options: UseChatMutationOptions = {}): UseChatMu
       newEdges,
       userMessage,
       aiMode,
+      mode,
     });
 
     if (!result.success) {

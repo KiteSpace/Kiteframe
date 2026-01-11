@@ -11561,6 +11561,124 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     description: `Added ${offsetNodes.length} nodes and ${offsetEdges.length} connections.`,
                   });
                 }}
+                onReplaceWorkflow={(workflow) => {
+                  // Phase 2: Atomic REPLACE - Validate structure only, no repair
+                  console.log('[Phase 2 REPLACE] Starting atomic replace workflow');
+                  
+                  const mutationResult = applyMergeSafeChatMutation({
+                    existingNodes: nodes,
+                    existingEdges: edges,
+                    newNodes: workflow.nodes,
+                    newEdges: workflow.edges,
+                    userMessage: '',
+                    mode: 'REPLACE',
+                  });
+                  
+                  if (!mutationResult.success) {
+                    console.error('[Phase 2 REPLACE] Validation failed:', mutationResult.reason);
+                    toast({
+                      title: "Replace Failed",
+                      description: mutationResult.reason || "The workflow could not be validated.",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
+                  // Use validated nodes/edges (unchanged for REPLACE mode)
+                  const workflowNodes = mutationResult.mutatedNodes;
+                  const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
+                  
+                  // Generate unique IDs for the new workflow
+                  const batchId = Date.now();
+                  const nodeIdMapping: { [oldId: string]: string } = {};
+                  
+                  const newNodes = workflowNodes.map((node: Node, index: number) => {
+                    const oldId = node.id || `node-${index}`;
+                    const newId = `node-${batchId}-${index}`;
+                    nodeIdMapping[oldId] = newId;
+                    return {
+                      ...node,
+                      id: newId,
+                      selected: false,
+                      data: {
+                        ...node.data,
+                        meta: {
+                          ...(node.data as any)?.meta,
+                          createdAt: Date.now(),
+                          replacedExistingWorkflow: true,
+                        },
+                      },
+                    };
+                  });
+                  
+                  const newEdges = workflowEdges.map((edge: Edge, index: number) => {
+                    let newSource = nodeIdMapping[edge.source];
+                    let newTarget = nodeIdMapping[edge.target];
+                    
+                    // Handle numeric source references
+                    if (!newSource) {
+                      const sourceNumeric = parseInt(edge.source);
+                      if (!isNaN(sourceNumeric) && sourceNumeric < workflowNodes.length) {
+                        const sourceNodeId = workflowNodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
+                        newSource = nodeIdMapping[sourceNodeId];
+                      }
+                    }
+                    
+                    // Handle numeric target references
+                    if (!newTarget) {
+                      const targetNumeric = parseInt(edge.target);
+                      if (!isNaN(targetNumeric) && targetNumeric < workflowNodes.length) {
+                        const targetNodeId = workflowNodes[targetNumeric]?.id || `node-${targetNumeric}`;
+                        newTarget = nodeIdMapping[targetNodeId];
+                      }
+                    }
+                    
+                    return {
+                      ...edge,
+                      id: `edge-${batchId}-${index}`,
+                      source: newSource || edge.source,
+                      target: newTarget || edge.target,
+                      selected: false,
+                    };
+                  });
+                  
+                  // REPLACE: Destructive clear-and-insert (no append)
+                  // Note: History is saved AFTER mutation (like onApplyWorkflow) so the
+                  // NEW state is captured. Undo steps back to the PREVIOUS history entry.
+                  setNodes(newNodes);
+                  
+                  // Recalculate edge z-indexes for proper layering
+                  const recalculatedEdges = recalculateAllEdgeZIndexes(newEdges, newNodes);
+                  setEdges(recalculatedEdges);
+                  
+                  // Handle canvas objects
+                  if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
+                    const newCanvasObjects = workflow.canvasObjects.map(
+                      (obj: CanvasObject, index: number) => ({
+                        ...obj,
+                        id: `obj-${batchId}-${index}`,
+                        selected: false,
+                      })
+                    );
+                    updateActiveTab({ canvasObjects: newCanvasObjects });
+                  } else {
+                    updateActiveTab({ canvasObjects: [] });
+                  }
+                  
+                  // Save to history AFTER mutation (matches onApplyWorkflow pattern)
+                  // This captures the NEW state; undo steps back to previous entry
+                  setTimeout(() => saveToHistory("AI Replace workflow"), 0);
+                  
+                  console.log('[Phase 2 REPLACE] Completed atomic replace:', {
+                    nodeCount: newNodes.length,
+                    edgeCount: newEdges.length,
+                  });
+                  
+                  toast({
+                    title: "Workflow Replaced",
+                    description: `Replaced with ${newNodes.length} nodes. Use Ctrl+Z to undo.`,
+                  });
+                }}
                 isReadOnly={isReadOnly}
                 insights={insights.insights}
                 insightsLoading={insights.isRunning}

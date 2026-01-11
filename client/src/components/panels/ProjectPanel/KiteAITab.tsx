@@ -1,6 +1,6 @@
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { KiteAIChatPanel, KiteAIDiscussionPanel } from '@/components/KiteAIChat';
-import type { ApplyWorkflowPayload } from '@/components/KiteAIChat';
+import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
 
 interface KiteAITabProps {
   projectId: string;
@@ -8,6 +8,7 @@ interface KiteAITabProps {
   edges: Edge[];
   canvasObjects: CanvasObject[];
   onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
+  onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   initialPrompt?: string;
@@ -20,6 +21,7 @@ export function KiteAITab({
   edges, 
   canvasObjects,
   onApplyWorkflow,
+  onReplaceWorkflow,
   onPreviewWorkflow,
   isReadOnly = false,
   initialPrompt,
@@ -46,6 +48,7 @@ export function KiteAITab({
         edges={edges}
         canvasObjects={canvasObjects}
         onApplyWorkflow={onApplyWorkflow}
+        onReplaceWorkflow={onReplaceWorkflow}
         onPreviewWorkflow={onPreviewWorkflow}
         initialPrompt={initialPrompt}
         onInitialPromptConsumed={onInitialPromptConsumed}

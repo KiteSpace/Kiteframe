@@ -11,7 +11,7 @@ import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
-import type { ApplyWorkflowPayload } from '@/components/KiteAIChat';
+import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
 
 export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'diagnostics';
 
@@ -27,6 +27,7 @@ interface ProjectPanelProps {
   projectName?: string;
   onProjectNameChange?: (name: string) => void;
   onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
+  onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   insights?: Insight[];
@@ -73,6 +74,7 @@ export function ProjectPanel({
   projectName,
   onProjectNameChange,
   onApplyWorkflow,
+  onReplaceWorkflow,
   onPreviewWorkflow,
   isReadOnly = false,
   insights = [],
@@ -314,6 +316,7 @@ export function ProjectPanel({
             edges={edges}
             canvasObjects={canvasObjects}
             onApplyWorkflow={isReadOnly ? undefined : onApplyWorkflow}
+            onReplaceWorkflow={isReadOnly ? undefined : onReplaceWorkflow}
             onPreviewWorkflow={isReadOnly ? undefined : onPreviewWorkflow}
             isReadOnly={isReadOnly}
             initialPrompt={initialPrompt}

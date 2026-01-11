@@ -182,12 +182,19 @@ export interface ApplyWorkflowPayload {
   bypassConfirmation?: boolean;
 }
 
+export interface ReplaceWorkflowPayload {
+  nodes: Node[];
+  edges: Edge[];
+  canvasObjects?: CanvasObject[];
+}
+
 interface KiteAIChatBrainProps {
   projectId?: string;
   nodes: Node[];
   edges: Edge[];
   canvasObjects: CanvasObject[];
   onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
+  onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   mode: 'panel' | 'floating' | 'fullscreen';
   initialPrompt?: string;
@@ -201,6 +208,7 @@ export function KiteAIChatBrain({
   edges: currentEdges, 
   canvasObjects: currentCanvasObjects,
   onApplyWorkflow,
+  onReplaceWorkflow,
   onPreviewWorkflow,
   mode,
   initialPrompt,
@@ -1844,6 +1852,7 @@ interface KiteAIChatPanelProps {
   edges: Edge[];
   canvasObjects: CanvasObject[];
   onApplyWorkflow?: (workflow: ApplyWorkflowPayload) => void;
+  onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
@@ -1855,6 +1864,7 @@ export function KiteAIChatPanel({
   edges,
   canvasObjects,
   onApplyWorkflow,
+  onReplaceWorkflow,
   onPreviewWorkflow,
   initialPrompt,
   onInitialPromptConsumed
@@ -1868,6 +1878,7 @@ export function KiteAIChatPanel({
         edges={edges}
         canvasObjects={canvasObjects}
         onApplyWorkflow={onApplyWorkflow}
+        onReplaceWorkflow={onReplaceWorkflow}
         onPreviewWorkflow={onPreviewWorkflow}
         initialPrompt={initialPrompt}
         onInitialPromptConsumed={onInitialPromptConsumed}
@@ -1906,6 +1917,7 @@ interface KiteAIChatProps {
   currentEdges: Edge[];
   currentCanvasObjects: CanvasObject[];
   onApplyWorkflow: (workflow: ApplyWorkflowPayload) => void;
+  onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
 }
 
@@ -1914,6 +1926,7 @@ export function KiteAIChat({
   currentEdges, 
   currentCanvasObjects,
   onApplyWorkflow,
+  onReplaceWorkflow,
   onPreviewWorkflow
 }: KiteAIChatProps) {
   const [isOpen, setIsOpen] = useState(false);
