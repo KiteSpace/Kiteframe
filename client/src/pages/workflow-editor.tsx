@@ -5120,14 +5120,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   ): boolean | 'regression_detected' => {
     // Canvas-change guard: Abort if canvas changed since dialog was opened
-    // Check node IDs, edge IDs, AND edge endpoints (source/target) to catch any interim edits
-    const expectedNodeIds = new Set(expectedNodes.map(n => n.id));
-    const currentNodeIds = new Set(nodes.map(n => n.id));
+    // Check: node IDs, edge signatures, AND node content signatures to catch any interim edits
+    
+    // Helper to create a content signature for a node (catches label/data changes)
+    const getNodeSignature = (n: Node) => {
+      const label = (n.data as any)?.label || '';
+      const content = (n.data as any)?.content || '';
+      // Include position to catch moves
+      const posX = Math.round(n.position?.x || 0);
+      const posY = Math.round(n.position?.y || 0);
+      return `${n.id}:${n.type}:${label}:${content}:${posX},${posY}`;
+    };
+    
+    const expectedNodeSignatures = new Set(expectedNodes.map(getNodeSignature));
+    const currentNodeSignatures = new Set(nodes.map(getNodeSignature));
     const expectedEdgeSignatures = new Set(expectedEdges.map(e => `${e.id}:${e.source}->${e.target}`));
     const currentEdgeSignatures = new Set(edges.map(e => `${e.id}:${e.source}->${e.target}`));
     
-    const nodesMatch = expectedNodeIds.size === currentNodeIds.size &&
-      [...expectedNodeIds].every(id => currentNodeIds.has(id));
+    const nodesMatch = expectedNodeSignatures.size === currentNodeSignatures.size &&
+      [...expectedNodeSignatures].every(sig => currentNodeSignatures.has(sig));
     const edgesMatch = expectedEdgeSignatures.size === currentEdgeSignatures.size &&
       [...expectedEdgeSignatures].every(sig => currentEdgeSignatures.has(sig));
     
