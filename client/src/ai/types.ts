@@ -14,7 +14,7 @@ export const AI_MODE_DESCRIPTIONS: Record<AiMode, string> = {
   GENERATE: 'Create a new workflow from scratch',
 };
 
-export const DEFAULT_AI_MODE: AiMode = 'ADVISE';
+export const DEFAULT_AI_MODE: AiMode = 'EDIT'; // Phase 4: Changed from ADVISE - toggle removed, mutations always allowed
 
 export type AiMessageContent = 
   | string 
