@@ -897,23 +897,29 @@ export function KiteAIChatBrain({
     if (!currentWorkflowDraft) return;
 
     // Fullscreen mode: create project via callback (no canvas exists yet)
-    if (mode === 'fullscreen' && onCreateWorkflow) {
-      // Include transcript in the draft so it can be saved with the new project
-      const transcript = messages
-        .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
-        .map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        }));
-      
-      onCreateWorkflow({
-        ...currentWorkflowDraft,
-        transcript: transcript.length > 0 ? transcript : undefined
-      });
-      // Clear state after handing off to shell
-      setCurrentWorkflowDraft(null);
-      setWorkflowGenState(null);
-      setPendingQuickActions([]);
+    if (mode === 'fullscreen') {
+      // Phase 5: Dev guard - mutation callbacks should not be provided in fullscreen mode
+      if (process.env.NODE_ENV === 'development' && (onApplyWorkflow || onReplaceWorkflow)) {
+        console.warn('[KiteAI] Phase separation warning: mutation callbacks detected in fullscreen mode. Use onCreateWorkflow only.');
+      }
+      if (onCreateWorkflow) {
+        // Include transcript in the draft so it can be saved with the new project
+        const transcript = messages
+          .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
+          .map(msg => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content
+          }));
+        
+        onCreateWorkflow({
+          ...currentWorkflowDraft,
+          transcript: transcript.length > 0 ? transcript : undefined
+        });
+        // Clear state after handing off to shell
+        setCurrentWorkflowDraft(null);
+        setWorkflowGenState(null);
+        setPendingQuickActions([]);
+      }
       return;
     }
 
@@ -968,6 +974,12 @@ export function KiteAIChatBrain({
   // Phase 4: Mode toggle removed - Replace always available when canvas has nodes
   const handleReplaceWorkflow = () => {
     if (!currentWorkflowDraft || !onReplaceWorkflow) return;
+
+    // Phase 5: Dev guard - handleReplaceWorkflow should only be called in panel/floating mode
+    if (process.env.NODE_ENV === 'development' && mode === 'fullscreen') {
+      console.error('[KiteAI] Phase separation error: handleReplaceWorkflow called in fullscreen mode. This is a bug.');
+      return;
+    }
 
     // REPLACE: Destructively replace entire canvas (with undo support)
     onReplaceWorkflow({
