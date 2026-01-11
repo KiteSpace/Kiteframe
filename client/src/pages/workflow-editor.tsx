@@ -174,6 +174,7 @@ import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
 import { runDecisionRepair } from "@/ai/repair/decisionRepair";
 import { applyMergeSafeChatMutation } from "@/hooks/useChatMutation";
+import { detectStructuralRegression, type StructuralRegressionResult } from "@/workflow/analysis/graphStructure";
 import {
   recordProposalAccepted,
   recordProposalCanceled,
@@ -5086,6 +5087,210 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     nodeCount: number;
     existingNodeCount: number;
   } | null>(null);
+
+  // Phase 4: Structural regression warning state for REPLACE
+  // Shows warning when replacement reduces branching/decision topology
+  const [pendingRegressionWarning, setPendingRegressionWarning] = useState<{
+    workflow: {
+      nodes: Node[];
+      edges: Edge[];
+      canvasObjects?: CanvasObject[];
+      aiMode?: 'ADVISE' | 'EDIT' | 'GENERATE';
+    };
+    existingNodes: Node[];
+    existingEdges: Edge[];
+    regressionResult: StructuralRegressionResult;
+  } | null>(null);
+
+  // Shared REPLACE execution function - used by confirmation dialog and regression warning modal
+  // Prevents code duplication and ensures consistent validation, canvas-change guard, and history handling
+  const executeReplaceWorkflow = useCallback((
+    workflowDraft: {
+      nodes: Node[];
+      edges: Edge[];
+      canvasObjects?: CanvasObject[];
+      aiMode?: 'ADVISE' | 'EDIT' | 'GENERATE';
+    },
+    expectedNodes: Node[],
+    expectedEdges: Edge[],
+    options?: { 
+      regressionAcknowledged?: boolean;
+      skipRegressionCheck?: boolean;
+      onRegressionDetected?: (regressionResult: StructuralRegressionResult) => void;
+    }
+  ): boolean | 'regression_detected' => {
+    // Canvas-change guard: Abort if canvas changed since dialog was opened
+    // Check node IDs, edge IDs, AND edge endpoints (source/target) to catch any interim edits
+    const expectedNodeIds = new Set(expectedNodes.map(n => n.id));
+    const currentNodeIds = new Set(nodes.map(n => n.id));
+    const expectedEdgeSignatures = new Set(expectedEdges.map(e => `${e.id}:${e.source}->${e.target}`));
+    const currentEdgeSignatures = new Set(edges.map(e => `${e.id}:${e.source}->${e.target}`));
+    
+    const nodesMatch = expectedNodeIds.size === currentNodeIds.size &&
+      [...expectedNodeIds].every(id => currentNodeIds.has(id));
+    const edgesMatch = expectedEdgeSignatures.size === currentEdgeSignatures.size &&
+      [...expectedEdgeSignatures].every(sig => currentEdgeSignatures.has(sig));
+    
+    if (!nodesMatch || !edgesMatch) {
+      toast({
+        title: "Canvas Changed",
+        description: "The canvas was modified while the dialog was open. Please try again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    // Structural regression check (unless already acknowledged or skipped)
+    if (!options?.regressionAcknowledged && !options?.skipRegressionCheck) {
+      const regressionResult = detectStructuralRegression(
+        expectedNodes,
+        expectedEdges,
+        workflowDraft.nodes,
+        workflowDraft.edges
+      );
+      
+      if (regressionResult.hasRegression) {
+        if (options?.onRegressionDetected) {
+          options.onRegressionDetected(regressionResult);
+          return 'regression_detected';
+        } else {
+          // Default blocking: no callback provided, block with toast
+          toast({
+            title: "Structural Regression Detected",
+            description: regressionResult.message || "The replacement would reduce workflow complexity.",
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[executeReplaceWorkflow] Executing REPLACE:', {
+        draftNodeCount: workflowDraft.nodes.length,
+        draftEdgeCount: workflowDraft.edges.length,
+        expectedNodeCount: expectedNodes.length,
+        regressionAcknowledged: options?.regressionAcknowledged || false,
+      });
+    }
+    
+    // Validation-only REPLACE path (no merge/repair)
+    const mutationResult = applyMergeSafeChatMutation({
+      existingNodes: nodes,
+      existingEdges: edges,
+      newNodes: workflowDraft.nodes,
+      newEdges: workflowDraft.edges,
+      userMessage: '',
+      attachmentTargetId: undefined,
+      aiMode: workflowDraft.aiMode || 'EDIT',
+      mode: 'REPLACE',
+    });
+    
+    if (!mutationResult.success) {
+      toast({
+        title: "Replace Failed",
+        description: mutationResult.reason || "Could not replace workflow.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[executeReplaceWorkflow] Validation-only path confirmed:', {
+        mergeEnforced: mutationResult.safetyReport.mergeEnforced,
+        decisionRepairApplied: mutationResult.safetyReport.decisionRepairApplied,
+        orphanPreventionTriggered: mutationResult.safetyReport.orphanPreventionTriggered,
+        attachmentResolved: mutationResult.safetyReport.attachmentResolved,
+      });
+    }
+    
+    const workflowNodes = mutationResult.mutatedNodes;
+    const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
+    
+    const batchId = Date.now();
+    const nodeIdMapping: { [oldId: string]: string } = {};
+    
+    const newNodes = workflowNodes.map((node: Node, index: number) => {
+      const oldId = node.id || `node-${index}`;
+      const newId = `node-${batchId}-${index}`;
+      nodeIdMapping[oldId] = newId;
+      return {
+        ...node,
+        id: newId,
+        selected: false,
+        data: {
+          ...node.data,
+          meta: {
+            ...(node.data as any)?.meta,
+            createdAt: Date.now(),
+            replacedExistingWorkflow: true,
+            ...(options?.regressionAcknowledged && { regressionAcknowledged: true }),
+          },
+        },
+      };
+    });
+    
+    const newEdges = workflowEdges.map((edge: Edge, index: number) => {
+      let newSource = nodeIdMapping[edge.source];
+      let newTarget = nodeIdMapping[edge.target];
+      
+      if (!newSource) {
+        const sourceNumeric = parseInt(edge.source);
+        if (!isNaN(sourceNumeric) && sourceNumeric < workflowNodes.length) {
+          const sourceNodeId = workflowNodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
+          newSource = nodeIdMapping[sourceNodeId];
+        }
+      }
+      
+      if (!newTarget) {
+        const targetNumeric = parseInt(edge.target);
+        if (!isNaN(targetNumeric) && targetNumeric < workflowNodes.length) {
+          const targetNodeId = workflowNodes[targetNumeric]?.id || `node-${targetNumeric}`;
+          newTarget = nodeIdMapping[targetNodeId];
+        }
+      }
+      
+      return {
+        ...edge,
+        id: `edge-${batchId}-${index}`,
+        source: newSource || edge.source,
+        target: newTarget || edge.target,
+        selected: false,
+      };
+    });
+    
+    // Atomic replace: set nodes/edges directly (not append)
+    setNodes(newNodes);
+    const recalculatedEdges = recalculateAllEdgeZIndexes(newEdges, newNodes);
+    setEdges(recalculatedEdges);
+    
+    // Handle canvas objects
+    if (workflowDraft.canvasObjects && workflowDraft.canvasObjects.length > 0) {
+      const newCanvasObjects = workflowDraft.canvasObjects.map(
+        (obj: CanvasObject, index: number) => ({
+          ...obj,
+          id: `obj-${batchId}-${index}`,
+          selected: false,
+        })
+      );
+      updateActiveTab({ canvasObjects: newCanvasObjects });
+    } else {
+      updateActiveTab({ canvasObjects: [] });
+    }
+    
+    // Post-mutation history save (single undo entry)
+    const historyLabel = options?.regressionAcknowledged 
+      ? "Replace workflow (regression acknowledged)" 
+      : "Replace workflow";
+    setTimeout(() => saveToHistory(historyLabel), 0);
+    
+    toast({
+      title: "Workflow Replaced",
+      description: `Replaced with ${newNodes.length} nodes. Use Ctrl+Z to undo.`,
+    });
+    
+    return true;
+  }, [nodes, edges, toast, setNodes, setEdges, updateActiveTab, saveToHistory]);
 
   // Click vs drag detection for properties panel
   const clickDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -11562,122 +11767,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 }}
                 onReplaceWorkflow={(workflow) => {
-                  // Phase 2: Atomic REPLACE - Validate structure only, no repair
-                  console.log('[Phase 2 REPLACE] Starting atomic replace workflow');
+                  // Use shared executeReplaceWorkflow with regression guard
+                  // Direct callback = no dialog delay, pass current nodes/edges as expected
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('[onReplaceWorkflow] Starting replace via shared function');
+                  }
                   
-                  const mutationResult = applyMergeSafeChatMutation({
-                    existingNodes: nodes,
-                    existingEdges: edges,
-                    newNodes: workflow.nodes,
-                    newEdges: workflow.edges,
-                    userMessage: '',
-                    mode: 'REPLACE',
-                  });
+                  const result = executeReplaceWorkflow(
+                    workflow,
+                    nodes, // Current nodes as expected (no dialog delay)
+                    edges, // Current edges as expected
+                    {
+                      onRegressionDetected: (regressionResult) => {
+                        // Show regression warning modal for direct Replace button
+                        setPendingRegressionWarning({
+                          workflow,
+                          existingNodes: nodes,
+                          existingEdges: edges,
+                          regressionResult,
+                        });
+                      },
+                    }
+                  );
                   
-                  if (!mutationResult.success) {
-                    console.error('[Phase 2 REPLACE] Validation failed:', mutationResult.reason);
-                    toast({
-                      title: "Replace Failed",
-                      description: mutationResult.reason || "The workflow could not be validated.",
-                      variant: "destructive"
-                    });
+                  if (result === 'regression_detected') {
+                    // Regression modal will handle next steps
                     return;
                   }
-                  
-                  // Use validated nodes/edges (unchanged for REPLACE mode)
-                  const workflowNodes = mutationResult.mutatedNodes;
-                  const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
-                  
-                  // Generate unique IDs for the new workflow
-                  const batchId = Date.now();
-                  const nodeIdMapping: { [oldId: string]: string } = {};
-                  
-                  const newNodes = workflowNodes.map((node: Node, index: number) => {
-                    const oldId = node.id || `node-${index}`;
-                    const newId = `node-${batchId}-${index}`;
-                    nodeIdMapping[oldId] = newId;
-                    return {
-                      ...node,
-                      id: newId,
-                      selected: false,
-                      data: {
-                        ...node.data,
-                        meta: {
-                          ...(node.data as any)?.meta,
-                          createdAt: Date.now(),
-                          replacedExistingWorkflow: true,
-                        },
-                      },
-                    };
-                  });
-                  
-                  const newEdges = workflowEdges.map((edge: Edge, index: number) => {
-                    let newSource = nodeIdMapping[edge.source];
-                    let newTarget = nodeIdMapping[edge.target];
-                    
-                    // Handle numeric source references
-                    if (!newSource) {
-                      const sourceNumeric = parseInt(edge.source);
-                      if (!isNaN(sourceNumeric) && sourceNumeric < workflowNodes.length) {
-                        const sourceNodeId = workflowNodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
-                        newSource = nodeIdMapping[sourceNodeId];
-                      }
-                    }
-                    
-                    // Handle numeric target references
-                    if (!newTarget) {
-                      const targetNumeric = parseInt(edge.target);
-                      if (!isNaN(targetNumeric) && targetNumeric < workflowNodes.length) {
-                        const targetNodeId = workflowNodes[targetNumeric]?.id || `node-${targetNumeric}`;
-                        newTarget = nodeIdMapping[targetNodeId];
-                      }
-                    }
-                    
-                    return {
-                      ...edge,
-                      id: `edge-${batchId}-${index}`,
-                      source: newSource || edge.source,
-                      target: newTarget || edge.target,
-                      selected: false,
-                    };
-                  });
-                  
-                  // REPLACE: Destructive clear-and-insert (no append)
-                  // Note: History is saved AFTER mutation (like onApplyWorkflow) so the
-                  // NEW state is captured. Undo steps back to the PREVIOUS history entry.
-                  setNodes(newNodes);
-                  
-                  // Recalculate edge z-indexes for proper layering
-                  const recalculatedEdges = recalculateAllEdgeZIndexes(newEdges, newNodes);
-                  setEdges(recalculatedEdges);
-                  
-                  // Handle canvas objects
-                  if (workflow.canvasObjects && workflow.canvasObjects.length > 0) {
-                    const newCanvasObjects = workflow.canvasObjects.map(
-                      (obj: CanvasObject, index: number) => ({
-                        ...obj,
-                        id: `obj-${batchId}-${index}`,
-                        selected: false,
-                      })
-                    );
-                    updateActiveTab({ canvasObjects: newCanvasObjects });
-                  } else {
-                    updateActiveTab({ canvasObjects: [] });
-                  }
-                  
-                  // Save to history AFTER mutation (matches onApplyWorkflow pattern)
-                  // This captures the NEW state; undo steps back to previous entry
-                  setTimeout(() => saveToHistory("AI Replace workflow"), 0);
-                  
-                  console.log('[Phase 2 REPLACE] Completed atomic replace:', {
-                    nodeCount: newNodes.length,
-                    edgeCount: newEdges.length,
-                  });
-                  
-                  toast({
-                    title: "Workflow Replaced",
-                    description: `Replaced with ${newNodes.length} nodes. Use Ctrl+Z to undo.`,
-                  });
                 }}
                 isReadOnly={isReadOnly}
                 insights={insights.insights}
@@ -12248,165 +12364,106 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 if (!pendingReplaceConfirmation) return;
                 
                 const pending = pendingReplaceConfirmation;
-                
-                // Safety check: Abort if canvas changed while dialog was open
-                // This prevents silently discarding user edits made during confirmation
-                const canvasChanged = nodes.length !== pending.existingNodes.length ||
-                  edges.length !== pending.existingEdges.length ||
-                  nodes.some((n, i) => n.id !== pending.existingNodes[i]?.id);
-                
-                if (canvasChanged) {
-                  setPendingReplaceConfirmation(null);
-                  toast({
-                    title: "Canvas Changed",
-                    description: "The canvas was modified while the dialog was open. Please try again.",
-                    variant: "destructive"
-                  });
-                  return;
-                }
-                
                 setPendingReplaceConfirmation(null);
                 
-                // Save current state for undo BEFORE replacing
-                saveToHistory("Before workflow replace");
-                
-                // Apply with bypass flag using CURRENT canvas state (not stale snapshot)
-                // Since we verified canvas hasn't changed, current nodes === stored nodes
-                const mutationResult = applyMergeSafeChatMutation({
-                  existingNodes: nodes,
-                  existingEdges: edges,
-                  newNodes: pending.workflow.nodes,
-                  newEdges: pending.workflow.edges,
-                  userMessage: '',
-                  attachmentTargetId: undefined,
-                  aiMode: pending.workflow.aiMode || 'EDIT',
-                  bypassConfirmation: true,
-                });
-                
-                if (!mutationResult.success) {
-                  toast({
-                    title: "Replace Failed",
-                    description: mutationResult.reason || "Could not replace workflow.",
-                    variant: "destructive"
+                // DEV DIAGNOSTIC: Log confirmation click
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[REPLACE CONFIRM] User confirmed Replace:', {
+                    draftNodeCount: pending.workflow.nodes.length,
+                    existingNodeCount: pending.existingNodeCount,
                   });
+                }
+                
+                // Use shared function with regression detection callback
+                const result = executeReplaceWorkflow(
+                  pending.workflow,
+                  pending.existingNodes,
+                  pending.existingEdges,
+                  {
+                    onRegressionDetected: (regressionResult) => {
+                      setPendingRegressionWarning({
+                        workflow: pending.workflow,
+                        existingNodes: pending.existingNodes,
+                        existingEdges: pending.existingEdges,
+                        regressionResult,
+                      });
+                    },
+                  }
+                );
+                
+                // result is false (failed), true (success), or 'regression_detected' (warning shown)
+                if (result === 'regression_detected') {
+                  // Regression modal will handle next steps
                   return;
                 }
-                
-                // Log merge/branch decision for audit (matching success path)
-                if (mutationResult.mergeBranchDecision) {
-                  console.log('[Phase 5 REPLACE] Merge/Branch decision applied:', {
-                    intent: mutationResult.mergeBranchDecision.intent,
-                    resolvedIntent: mutationResult.mergeBranchDecision.resolvedIntent,
-                    confidence: mutationResult.mergeBranchDecision.confidence,
-                  });
-                }
-                
-                // Log repair info if decision repair was applied (matching success path)
-                if (mutationResult.safetyReport.decisionRepairApplied) {
-                  console.log('[Phase 5 REPLACE] Decision Repair applied:', {
-                    repairedNodeIds: mutationResult.repairInfo.repairedNodeIds,
-                    repairedIssueTypes: mutationResult.repairInfo.repairedIssueTypes,
-                  });
-                }
-                
-                // Apply the replacement using same logic as success path
-                const workflowNodes = mutationResult.mutatedNodes;
-                const workflowEdges = mutationResult.mutatedEdges as unknown as Edge[];
-                
-                // For REPLACE, we don't offset - we're replacing entirely
-                const batchId = Date.now();
-                const nodeIdMapping: { [oldId: string]: string } = {};
-                
-                // Full node processing with metadata stamping (matching success path exactly)
-                const newNodes = workflowNodes.map((node: Node, index: number) => {
-                  const oldId = node.id || `node-${index}`;
-                  const newId = `node-${batchId}-${index}`;
-                  nodeIdMapping[oldId] = newId;
-                  return {
-                    ...node,
-                    id: newId,
-                    selected: false,
-                    data: {
-                      ...node.data,
-                      meta: {
-                        ...(node.data as any)?.meta,
-                        createdAt: Date.now(),
-                        replacedExistingWorkflow: true,
-                        ...(mutationResult.mergeBranchDecision && {
-                          mergeBranchDecision: mutationResult.mergeBranchDecision,
-                        }),
-                        ...(mutationResult.safetyReport.decisionRepairApplied && {
-                          mutationSafety: mutationResult.mutationSafety,
-                        }),
-                      },
-                    },
-                  };
-                });
-                
-                // Full edge processing with proper ID remapping (matching success path)
-                const newEdges = workflowEdges.map((edge: Edge, index: number) => {
-                  let newSource = nodeIdMapping[edge.source];
-                  let newTarget = nodeIdMapping[edge.target];
-                  
-                  // Handle numeric source references
-                  if (!newSource) {
-                    const sourceNumeric = parseInt(edge.source);
-                    if (!isNaN(sourceNumeric) && sourceNumeric < workflowNodes.length) {
-                      const sourceNodeId = workflowNodes[sourceNumeric]?.id || `node-${sourceNumeric}`;
-                      newSource = nodeIdMapping[sourceNodeId];
-                    }
-                  }
-                  
-                  // Handle numeric target references
-                  if (!newTarget) {
-                    const targetNumeric = parseInt(edge.target);
-                    if (!isNaN(targetNumeric) && targetNumeric < workflowNodes.length) {
-                      const targetNodeId = workflowNodes[targetNumeric]?.id || `node-${targetNumeric}`;
-                      newTarget = nodeIdMapping[targetNodeId];
-                    }
-                  }
-                  
-                  return {
-                    ...edge,
-                    id: `edge-${batchId}-${index}`,
-                    source: newSource || edge.source,
-                    target: newTarget || edge.target,
-                    selected: false,
-                  };
-                });
-                
-                // REPLACE: Set nodes/edges directly (not append)
-                setNodes(newNodes);
-                setEdges(newEdges);
-                
-                // Handle canvas objects (matching success path pattern)
-                if (pending.workflow.canvasObjects && pending.workflow.canvasObjects.length > 0) {
-                  const newCanvasObjects = pending.workflow.canvasObjects.map(
-                    (obj: CanvasObject, index: number) => ({
-                      ...obj,
-                      id: `obj-${batchId}-${index}`,
-                      selected: false,
-                    })
-                  );
-                  // For REPLACE, set directly (not append)
-                  updateActiveTab({ canvasObjects: newCanvasObjects });
-                } else {
-                  // Clear existing canvas objects when replacing with workflow without them
-                  updateActiveTab({ canvasObjects: [] });
-                }
-                
-                // Save post-replace state for proper undo chain (matching success path)
-                setTimeout(() => saveToHistory("Replace workflow"), 0);
-                
-                toast({
-                  title: "Workflow Replaced",
-                  description: `Replaced with ${newNodes.length} nodes. Use Ctrl+Z to undo.`,
-                });
               }}
               className="bg-primary hover:bg-primary/90"
               data-testid="confirm-replace-workflow"
             >
               Replace (Undoable)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Phase 4: Structural Regression Warning Dialog */}
+      <AlertDialog 
+        open={!!pendingRegressionWarning} 
+        onOpenChange={(open) => !open && setPendingRegressionWarning(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-amber-600">Warning: Structure Change Detected</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRegressionWarning?.regressionResult.message}
+              <br /><br />
+              <div className="text-sm text-muted-foreground">
+                <strong>Existing workflow:</strong> {pendingRegressionWarning?.regressionResult.existing.branchingPoints || 0} branching points, {pendingRegressionWarning?.regressionResult.existing.decisionNodes || 0} decision nodes
+                <br />
+                <strong>Proposed replacement:</strong> {pendingRegressionWarning?.regressionResult.proposed.branchingPoints || 0} branching points, {pendingRegressionWarning?.regressionResult.proposed.decisionNodes || 0} decision nodes
+              </div>
+              <br />
+              <strong>This action can be undone</strong> using Ctrl+Z or the undo button.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPendingRegressionWarning(null);
+              toast({
+                title: "Replace Cancelled",
+                description: "Your existing workflow was preserved.",
+              });
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!pendingRegressionWarning) return;
+                
+                const pending = pendingRegressionWarning;
+                setPendingRegressionWarning(null);
+                
+                // DEV DIAGNOSTIC: Log regression acknowledgment
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[REPLACE REGRESSION] User confirmed despite structural regression:', {
+                    regressionType: pending.regressionResult.regressionType,
+                    existing: pending.regressionResult.existing,
+                    proposed: pending.regressionResult.proposed,
+                  });
+                }
+                
+                // Use shared function with regression acknowledged flag
+                executeReplaceWorkflow(
+                  pending.workflow,
+                  pending.existingNodes,
+                  pending.existingEdges,
+                  { regressionAcknowledged: true }
+                );
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+              data-testid="confirm-replace-regression"
+            >
+              Continue Replace
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
