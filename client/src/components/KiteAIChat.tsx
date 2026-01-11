@@ -41,7 +41,8 @@ import {
   RotateCcw,
   Eye,
   Anchor,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { QuickActions, DiscussionQuickActions } from '@/components/QuickActions';
 import { EdgeCaseSelector, type EdgeCase } from '@/components/EdgeCaseSelector';
@@ -891,7 +892,7 @@ export function KiteAIChatBrain({
 
   // UPDATED: Accept uses currentWorkflowDraft (authoritative), not message.workflowProposal
   // In fullscreen mode, calls onCreateWorkflow to create project and navigate
-  // In panel/floating mode, calls onApplyWorkflow to apply to existing canvas
+  // In panel/floating mode: Smart selection between REPLACE (empty canvas) and APPLY (existing canvas)
   // Phase 1: Enforce AI mode - ADVISE mode blocks mutations
   const handleAcceptWorkflow = () => {
     if (!currentWorkflowDraft) return;
@@ -929,7 +930,32 @@ export function KiteAIChatBrain({
       return;
     }
 
-    // Panel/floating mode: apply to existing canvas
+    // Panel/floating mode: Smart selection between REPLACE and APPLY
+    // REPLACE: Use when canvas is empty (fresh start)
+    // APPLY: Use when canvas has existing nodes (append/merge)
+    const isCanvasEmpty = currentNodes.length === 0;
+    
+    if (isCanvasEmpty && onReplaceWorkflow) {
+      // Empty canvas: Use REPLACE for clean insertion (no orphan risk)
+      onReplaceWorkflow({
+        nodes: currentWorkflowDraft.nodes,
+        edges: currentWorkflowDraft.edges,
+        canvasObjects: currentWorkflowDraft.canvasObjects,
+      });
+      
+      // Clear the draft after replacing
+      setCurrentWorkflowDraft(null);
+      setWorkflowGenState(null);
+      setPendingQuickActions([]);
+      
+      toast({
+        title: "Workflow Created",
+        description: `Created workflow with ${currentWorkflowDraft.nodes.length} nodes.`
+      });
+      return;
+    }
+
+    // Non-empty canvas: Use APPLY (append to existing)
     if (!onApplyWorkflow) return;
 
     onApplyWorkflow({
@@ -946,8 +972,41 @@ export function KiteAIChatBrain({
     setPendingQuickActions([]);
 
     toast({
-      title: "Workflow Created",
+      title: "Workflow Updated",
       description: `Added ${currentWorkflowDraft.nodes.length} nodes to your canvas.`
+    });
+  };
+  
+  // Explicit REPLACE handler - allows user to replace entire canvas even when not empty
+  const handleReplaceWorkflow = () => {
+    if (!currentWorkflowDraft || !onReplaceWorkflow) return;
+
+    // Phase 1: Block mutations in ADVISE mode
+    if (aiMode === 'ADVISE') {
+      toast({
+        title: "Suggest Mode Active",
+        description: "Switch to 'Apply' mode to make changes to the canvas.",
+        variant: "default"
+      });
+      setPendingApplyConfirmation(true);
+      return;
+    }
+
+    // REPLACE: Destructively replace entire canvas (with undo support)
+    onReplaceWorkflow({
+      nodes: currentWorkflowDraft.nodes,
+      edges: currentWorkflowDraft.edges,
+      canvasObjects: currentWorkflowDraft.canvasObjects,
+    });
+
+    // Clear the draft after replacing
+    setCurrentWorkflowDraft(null);
+    setWorkflowGenState(null);
+    setPendingQuickActions([]);
+
+    toast({
+      title: "Workflow Replaced",
+      description: `Replaced canvas with ${currentWorkflowDraft.nodes.length} nodes. Use Ctrl+Z to undo.`
     });
   };
 
@@ -1380,17 +1439,17 @@ export function KiteAIChatBrain({
             status: 'pending'
           })}
           
-          {/* Preview/Create/Reject buttons - always bound to currentWorkflowDraft */}
+          {/* Preview/Create/Replace/Reject buttons - always bound to currentWorkflowDraft */}
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
               onClick={handlePreviewWorkflow}
-              className="flex-1 h-8 text-xs"
+              className="h-8 text-xs"
               data-testid="button-preview-workflow-draft"
             >
               <Eye className="w-3 h-3 mr-1" />
-              {showDiffPreview ? 'Hide Preview' : 'Preview'}
+              {showDiffPreview ? 'Hide' : 'Preview'}
             </Button>
             <Button
               size="sm"
@@ -1411,16 +1470,45 @@ export function KiteAIChatBrain({
                   label: (e.data as any)?.label
                 }))
               })}
+              title={currentNodes.length === 0 ? "Create new workflow on empty canvas" : "Add nodes to existing canvas"}
             >
               <Check className="w-3 h-3 mr-1" />
-              Create Workflow
+              {currentNodes.length === 0 ? 'Create' : 'Add'}
             </Button>
+            {/* Replace button - only show when canvas has existing nodes */}
+            {currentNodes.length > 0 && onReplaceWorkflow && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReplaceWorkflow}
+                className="h-8 text-xs border-orange-500/50 text-orange-600 hover:bg-orange-500/10"
+                data-testid="button-replace-workflow-draft"
+                disabled={!isWorkflowValidForCreation({ 
+                  nodes: currentWorkflowDraft.nodes.map(n => ({
+                    id: n.id,
+                    type: n.type || 'process',
+                    label: (n.data as any)?.label
+                  })),
+                  edges: currentWorkflowDraft.edges.map(e => ({
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    label: (e.data as any)?.label
+                  }))
+                })}
+                title="Replace entire canvas with this workflow (undoable)"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Replace
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
               onClick={handleRejectWorkflow}
               className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10"
               data-testid="button-reject-workflow-draft"
+              title="Discard this workflow draft"
             >
               <XCircle className="w-3 h-3" />
             </Button>
