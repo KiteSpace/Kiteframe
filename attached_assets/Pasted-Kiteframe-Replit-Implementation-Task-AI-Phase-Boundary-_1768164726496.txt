@@ -1,0 +1,178 @@
+Kiteframe – Replit Implementation Task
+AI Phase Boundary Corrections + Replace Adoption Fix (Post-Audit)
+
+Context
+We have completed a full AI architecture audit covering:
+- AI phase boundaries
+- Prompt → action traces
+- Workflow mutation entry points
+- Prompt registry
+- Phase coupling & leakage
+
+The audit confirms that the core product-breaking issues are NOT model quality or heuristics, but missing or collapsed phase boundaries between:
+PLAN (proposal) → ADOPT (commit) → BUILD (mutation)
+
+This task is to implement the minimum structural changes required to:
+- Make REPLACE actually replace (no stale nodes, no depth loss)
+- Eliminate KEEP
+- Remove user-facing Suggest/Apply modes
+- Preserve workflow topology on replace
+- Prevent proposal logic from leaking into mutation logic
+
+DO NOT redesign UX beyond what is explicitly stated.
+DO NOT add new features.
+DO NOT refactor unrelated code.
+
+------------------------------------------------------------
+PHASE 1 — Introduce Explicit REPLACE Adoption Path
+------------------------------------------------------------
+
+1.1 Update useChatMutation.applyWorkflowSafely
+
+Add support for a new mode:
+- mode: "PATCH" | "REPLACE"
+
+Behavior for PATCH (existing behavior):
+- Run merge/branch detection
+- Run runWorkflowRepairs
+- Use orchestrateChatWorkflowMutation
+- Additive merge behavior
+
+Behavior for REPLACE (NEW, CRITICAL):
+- Validate structure ONLY:
+  - nodes.length >= 2
+  - edges.length >= 1
+  - all edge endpoints exist
+  - no duplicate node ids in incoming payload
+- DO NOT:
+  - call orchestrateChatWorkflowMutation
+  - call applyChatWorkflowMutation
+  - call runWorkflowRepairs
+  - attempt semantic matching
+  - reference existing graph
+- Return incoming nodes/edges UNCHANGED
+
+This REPLACE path must be topology-preserving and repair-free.
+
+------------------------------------------------------------
+PHASE 2 — Implement onReplaceWorkflow (Atomic Adoption)
+------------------------------------------------------------
+
+2.1 In workflow-editor.tsx, add a sibling callback to onApplyWorkflow:
+
+onReplaceWorkflow(draftWorkflow)
+
+This function must:
+- Call applyWorkflowSafely({ incoming: draftWorkflow, mode: "REPLACE" })
+- Wrap ALL state changes in withUndo("ai-replace", () => { ... })
+
+Inside withUndo:
+- setNodes(replacement.nodes)
+- setEdges(replacement.edges)
+- Preserve canvasObjects (do NOT clear unless explicitly required)
+- Call the same cache clearing helpers used by onApplyWorkflow:
+  - recalculateAllEdgeZIndexes
+  - clearPreviewFlags
+  - resetLayersState
+- Call updateTabHistory()
+
+Rules:
+- Do NOT partially update state outside withUndo
+- Do NOT reuse onApplyWorkflow internally
+- This is a destructive clear-and-insert operation
+
+------------------------------------------------------------
+PHASE 3 — Wire Replace Confirmation Correctly
+------------------------------------------------------------
+
+3.1 In KiteAIChat.tsx, update the full-graph confirmation dialog:
+
+- Remove KEEP option entirely
+- Present:
+  - Replace workflow (destructive, undoable)
+  - Cancel
+
+3.2 Replace button behavior:
+- Calls onReplaceWorkflow(currentWorkflowDraft)
+- Clears currentWorkflowDraft on success
+- Does NOT route through onApplyWorkflow
+
+3.3 Apply button behavior (for patch edits only):
+- Calls onApplyWorkflow(currentWorkflowDraft)
+- Existing behavior remains unchanged
+
+Ensure there is NO code path where:
+- REPLACE intent → onApplyWorkflow
+- REPLACE intent → useChatMutation PATCH logic
+
+------------------------------------------------------------
+PHASE 4 — Remove User-Facing Mode Toggle
+------------------------------------------------------------
+
+4.1 Remove Suggest / Apply / Create mode toggle from KiteAI UI
+
+Desired behavior:
+- Chat always operates in planning mode
+- AI always produces drafts (no auto-mutation)
+- User commits changes via explicit CTAs:
+  - Apply changes (patch)
+  - Replace workflow (full graph)
+
+4.2 Remove aiMode === 'ADVISE' as a user-controlled toggle
+- Internal safety checks may remain
+- User should not have to reason about modes
+
+------------------------------------------------------------
+PHASE 5 — Enforce Phase Separation (Minimal Guardrails)
+------------------------------------------------------------
+
+5.1 Proposal Phase (Home / Fullscreen)
+- Must NEVER reach:
+  - onApplyWorkflow
+  - onReplaceWorkflow
+  - useChatMutation
+- Must ONLY:
+  - update currentWorkflowDraft
+  - create project on Accept
+
+Add dev-only guards if necessary:
+- Throw or log error if mutation callbacks are invoked in fullscreen mode
+
+5.2 In-Project Phase
+- currentWorkflowDraft represents pending edits only
+- Draft must be cleared after Apply or Replace
+
+------------------------------------------------------------
+PHASE 6 — Validation & Regression Checks
+------------------------------------------------------------
+
+Manual verification checklist (must pass):
+
+REPLACE:
+- Clears all prior nodes every time
+- Preserves branch depth and topology exactly as proposed
+- Produces exactly one undo step
+- Undo restores previous workflow fully
+- No decision repair logs during replace
+
+PATCH:
+- Existing behavior unchanged
+- Decision repair still runs
+- Merge-safe logic still enforced
+
+General:
+- No orphaned or overlapping nodes
+- No KEEP option visible
+- No Suggest/Apply persistent toggle
+- Home proposal flow cannot mutate canvas
+
+------------------------------------------------------------
+Notes
+------------------------------------------------------------
+
+- This task intentionally introduces an explicit ADOPTION path distinct from mutation.
+- Do NOT attempt to “fix” REPLACE inside applyChatWorkflowMutation.
+- Do NOT add heuristics to preserve depth; topology must be preserved by skipping repair.
+- Version history is OUT OF SCOPE for this task.
+
+End of instructions.
