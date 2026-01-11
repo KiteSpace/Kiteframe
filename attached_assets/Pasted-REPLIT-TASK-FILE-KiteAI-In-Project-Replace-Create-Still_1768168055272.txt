@@ -1,0 +1,220 @@
+REPLIT TASK FILE — KiteAI In-Project Replace/Create Still Broken (Post-Audit, Post-Implementation)
+
+Goal
+Fix the remaining critical failures observed in the attached exports:
+- REPLACE still flattens workflows (loss of depth/branches) and can create “nodes without context”
+- CREATE/EXTEND can fail to merge meaningfully
+- REPLACE is still passing through graph-rewriting logic somewhere (normalization/repair/merge helpers) instead of “clear + insert verbatim”
+- Add a structural regression guard so a branched workflow cannot be silently replaced by a flattened one
+
+Constraints / Rules (non-negotiable)
+1) REPLACE MUST be an “adoption” commit, not a mutation merge:
+   - It must NOT call:
+     orchestrateChatWorkflowMutation
+     applyChatWorkflowMutation
+     runWorkflowRepairs
+     attachment resolution
+     semanticKey matching
+     merge/branch heuristics
+     any helper that rewrites nodes/edges
+2) REPLACE MUST be topology-preserving:
+   - It must insert the draft nodes/edges exactly as produced (after minimal validation only)
+3) REPLACE MUST be atomic and undoable:
+   - One withUndo("ai-replace", ...) that sets nodes/edges/canvasObjects deterministically
+4) KEEP remains removed (out of scope)
+5) CREATE/EXTEND MUST NOT create disconnected islands by default:
+   - If we can’t confidently attach, block and ask user where to attach (do not add floating islands)
+6) Add “structural regression guard”:
+   - If proposed replacement reduces branching/decision topology materially, require explicit confirmation
+
+Deliverables
+- A PR that implements the changes below
+- Minimal unit tests covering REPLACE no-rewrite + regression guard
+- Console logs only if dev-gated; remove or gate after verification
+
+===========================================================
+PHASE 1 — Confirm the wrong code path is still executing
+===========================================================
+
+1.1 Add a dev-only log at the exact moment the user confirms REPLACE
+File: client/src/components/ai/KiteAIChat.tsx
+Where: the “Replace” confirmation dialog onConfirm handler (the button click)
+
+Log these fields:
+- resolvedMutationIntent
+- isFullGraph
+- which callback is invoked (onReplaceWorkflow vs onApplyWorkflow)
+- draft node/edge counts
+- current graph node/edge counts
+
+Hard requirement:
+- REPLACE click MUST call onReplaceWorkflow only.
+- If any REPLACE click routes to onApplyWorkflow, fix that immediately.
+
+1.2 Add a dev-only log inside applyWorkflowSafely
+File: client/src/hooks/useChatMutation.ts
+Log:
+- incoming intent (PATCH vs REPLACE)
+- whether any of these are invoked:
+  detectMergeBranchIntent
+  resolveAttachmentTarget
+  runWorkflowRepairs
+  orchestrateChatWorkflowMutation
+- output graph counts
+
+Hard requirement:
+- For intent === REPLACE: all those functions MUST be skipped.
+
+===========================================================
+PHASE 2 — Make REPLACE truly “validation only + verbatim commit”
+===========================================================
+
+2.1 Implement REPLACE validation-only path in applyWorkflowSafely
+File: client/src/hooks/useChatMutation.ts
+Function: applyWorkflowSafely (or equivalent)
+
+Add a branch:
+IF intent === "REPLACE":
+  - Validate ONLY the incoming proposal graph (no existing graph involved):
+    a) nodes.length >= 2
+    b) edges.length >= 1
+    c) all edge.source and edge.target exist in nodes
+    d) ensure no duplicate node ids within the incoming proposal
+    e) ensure no duplicate edge ids within proposal (if edge ids exist)
+  - DO NOT:
+    - normalize node ids
+    - re-create edges
+    - re-label edges
+    - run decision repair
+    - run merge/attach logic
+  - Return:
+    { nodes: incomingNodes, edges: incomingEdges, canvasObjects: incomingCanvasObjects ?? undefined }
+
+Important:
+- “Validation only” means no structural modifications.
+- If validation fails, return a user-visible error that blocks replace.
+
+2.2 Ensure the editor commit is a single atomic operation
+File: client/src/pages/workflow-editor.tsx
+Add or verify:
+- onReplaceWorkflow(draft)
+
+Implementation requirements:
+- Wrap in withUndo("ai-replace", () => { ... })
+- Inside the withUndo block:
+  - setNodes(incoming.nodes)  // verbatim
+  - setEdges(incoming.edges)  // verbatim
+  - setCanvasObjects(policy)
+Policy for canvasObjects (choose now):
+- For stability: preserve existing canvasObjects unless the replacement draft includes them.
+  Example:
+    if (draft.canvasObjects) setCanvasObjects(draft.canvasObjects)
+    else keep existing canvasObjects
+
+Then run the same cache clearing as onApplyWorkflow:
+- recalculateAllEdgeZIndexes
+- clearPreviewFlags
+- resetLayersState
+- updateTabHistory (same as apply)
+
+Hard requirement:
+- No separate “clear old nodes” step outside withUndo. The replace is setNodes/setEdges to new arrays; old state is replaced by assignment.
+
+2.3 Remove any remaining REPLACE path that still calls mutation merge
+Search the codebase for:
+- "ai-replace"
+- "REPLACE" intent handling
+- onApplyWorkflow calls inside replace flows
+- applyChatWorkflowMutation in replace flows
+
+Hard requirement:
+- REPLACE must never call orchestrateChatWorkflowMutation or applyChatWorkflowMutation.
+
+===========================================================
+PHASE 3 — Add structural regression guard for REPLACE
+===========================================================
+
+Problem observed:
+- Branched workflow (decision branches) can be replaced by a flattened linear workflow without warning.
+
+3.1 Implement a “structure diff” function
+File: client/src/workflow/analysis/graphStructure.ts (or similar new file)
+Function: getGraphStructureStats(nodes, edges) returns:
+- nodeCount
+- edgeCount
+- branchingPoints: count of nodes with outDegree >= 2
+- decisionNodes: count of nodes whose type indicates decision/condition OR outDegree >= 2
+- labeledDecisionEdges: count of edges leaving branching nodes that have non-empty labels
+
+3.2 Compare current graph to proposed replacement
+In workflow-editor.tsx (or KiteAIChat.tsx before calling onReplaceWorkflow):
+- statsExisting = getGraphStructureStats(currentNodes, currentEdges)
+- statsProposed = getGraphStructureStats(draft.nodes, draft.edges)
+
+Trigger regression warning if ANY of:
+- statsProposed.branchingPoints < statsExisting.branchingPoints
+- statsProposed.decisionNodes < statsExisting.decisionNodes
+- statsProposed.labeledDecisionEdges < statsExisting.labeledDecisionEdges
+
+When triggered:
+- Show a confirmation modal:
+  “This replacement removes branches/decision paths from the current workflow. Continue?”
+Buttons:
+  - Continue Replace
+  - Cancel
+
+Important:
+- This is separate from the full-graph replace confirmation.
+- It is a “quality guard” to prevent silent flattening.
+
+===========================================================
+PHASE 4 — Fix CREATE/EXTEND: prevent disconnected islands
+===========================================================
+
+4.1 Enforce “must attach or ask”
+In PATCH/APPEND flows (non-REPLACE):
+- After mutation result is generated, detect connected components.
+- If result introduces a new disconnected component (island) AND the user did not explicitly request a parallel workflow:
+  - Block apply
+  - Show UI prompt:
+    “I can’t safely attach these steps. Where should they connect?”
+    Provide quick picks: “After <node label>”, “Branch from <decision label>”
+
+4.2 Attachment target strictness
+- If attachment target resolution confidence is low, do not apply.
+- Prefer asking the user over polluting the canvas.
+
+===========================================================
+PHASE 5 — Tests (minimum required)
+===========================================================
+
+Add unit tests:
+1) applyWorkflowSafely(REPLACE) returns input nodes/edges exactly (deep equality), and does not call:
+   - orchestrateChatWorkflowMutation
+   - runWorkflowRepairs
+2) structure regression guard triggers when branchingPoints decrease
+3) REPLACE commit produces one undo snapshot and restores correctly (if you have integration test harness)
+
+===========================================================
+PHASE 6 — Manual QA Checklist (must pass)
+===========================================================
+
+A) REPLACE
+- Start with a branched onboarding workflow (Email Verified? / 2FA Verified?).
+- Trigger AI REPLACE.
+- If proposal flattens structure, regression warning must appear.
+- If user continues, replace commits with:
+  - no orphaned nodes
+  - no duplicated old workflow
+  - exactly one undo step that restores previous workflow
+
+B) CREATE/EXTEND
+- Ask AI to add a new step after a specific node.
+- The result must attach; no islands.
+- If AI cannot attach, UI asks user where to attach; it does not apply.
+
+C) Logging
+- Ensure dev logs confirm REPLACE bypassed merge/repairs.
+- Remove or gate logs behind dev flag after verified.
+
+End of task file.

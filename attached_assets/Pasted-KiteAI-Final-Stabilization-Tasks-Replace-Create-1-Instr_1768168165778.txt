@@ -1,0 +1,71 @@
+KiteAI – Final Stabilization Tasks (Replace / Create)
+
+1) Instrument confirmation actions (DEV ONLY)
+- Add logs when user confirms:
+  - Apply (PATCH)
+  - Replace (REPLACE)
+- Log:
+  - resolvedMutationIntent
+  - fullGraphDetected
+  - which callback fires (onApplyWorkflow vs onReplaceWorkflow)
+- Success condition:
+  - Replace confirmation MUST call onReplaceWorkflow only.
+  - Replace MUST NOT call onApplyWorkflow.
+
+2) Fix confirmation flow for full-graph changes
+- Remove KEEP entirely (UI + code paths).
+- Replace confirmation dialog must:
+  - Have Replace + Cancel only.
+  - Route Replace directly to onReplaceWorkflow.
+- Remove any fallback logic that reroutes REPLACE intent into PATCH/MERGE flows.
+
+3) Ensure REPLACE is atomic and undoable
+- onReplaceWorkflow must:
+  - Wrap all state changes in withUndo("ai-replace").
+  - Call setNodes / setEdges exactly once (verbatim).
+  - Preserve topology exactly as in proposal.
+- Undo must restore the previous workflow in one step.
+
+4) Remove ALL legacy REPLACE execution paths
+- Search and eliminate:
+  - REPLACE intent routed through onApplyWorkflow.
+  - REPLACE passing through:
+    - orchestrateChatWorkflowMutation
+    - applyChatWorkflowMutation
+    - runWorkflowRepairs
+    - attachment resolution
+- Success condition:
+  - For REPLACE, none of the above functions are called (log-verified).
+
+5) Add structural regression guard before REPLACE
+- Compare existing vs proposed graph:
+  - branchingPoints
+  - decisionNodes
+  - labeled decision edges
+- If proposed graph reduces structure:
+  - Show warning modal:
+    “This replacement removes branches/decision paths. Continue?”
+  - Require explicit confirmation.
+
+6) Prevent disconnected parts for CREATE / EXTEND
+- For PATCH/APPEND mutations:
+  - Detect new disconnected components.
+  - If detected and not explicitly requested:
+    - Block apply.
+    - Ask user where to attach.
+- Do NOT allow floating islands by default.
+
+7) Add tests for REPLACE behavior
+- Unit test:
+  - applyWorkflowSafely(REPLACE) returns input graph verbatim.
+  - No merge/repair helpers are called.
+- Integration test:
+  - Replace clears old nodes.
+  - Undo restores previous graph.
+  - Branch depth preserved unless user confirms regression.
+
+8) Manual verification + cleanup
+- Verify with branched workflow (Email Verified?, 2FA, etc.).
+- Verify REPLACE does not flatten silently.
+- Verify CREATE never produces islands.
+- Gate logs behind dev flag or remove after validation.
