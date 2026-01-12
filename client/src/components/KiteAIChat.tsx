@@ -50,7 +50,8 @@ import {
   analyzeWorkflowDiagnostics, 
   getSuggestedQuickActions, 
   isWorkflowValidForCreation,
-  type QuickActionType 
+  type QuickActionType,
+  type DiagnosticsContext
 } from '@/utils/workflowDiagnostics';
 import { 
   AI_RESPONSE_TEMPLATES, 
@@ -848,7 +849,9 @@ export function KiteAIChatBrain({
             });
             
             // Set workflow generation state and suggested quick actions
-            const suggestedActions = getSuggestedQuickActions(diagnostics);
+            // In HOME proposal phase (fullscreen mode), always show edge/fail actions
+            const diagnosticsContext: DiagnosticsContext = mode === 'fullscreen' ? 'HOME_PROPOSAL' : 'IN_PROJECT';
+            const suggestedActions = getSuggestedQuickActions(diagnostics, diagnosticsContext);
             setWorkflowGenState('BASELINE_GENERATED');
             setPendingQuickActions(suggestedActions);
             

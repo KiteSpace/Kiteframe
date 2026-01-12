@@ -12,6 +12,14 @@ export type QuickActionType =
   | 'DISCUSS_EDGE_CASES' 
   | 'SELECT_EDGE_CASES';
 
+export type DiagnosticsContext = 'HOME_PROPOSAL' | 'IN_PROJECT';
+
+const HOME_PROPOSAL_REQUIRED_ACTIONS: QuickActionType[] = [
+  'HAPPY_PATH_ONLY',
+  'INCLUDE_EDGE_CASES', 
+  'DISCUSS_EDGE_CASES'
+];
+
 export interface WorkflowDiagnosticIssue {
   code: 'LINEAR_ONLY' | 'NO_FAILURE_PATH' | 'NO_TERMINATION' | 'LOW_PM_DEPTH';
   message: string;
@@ -164,11 +172,22 @@ export function isWorkflowValidForCreation(workflow: AnalyzableWorkflow): boolea
 }
 
 /**
- * Get suggested quick actions based on diagnostic issues.
- * Returns unique set of actions that should be shown to user.
+ * Get suggested quick actions based on diagnostic issues and context.
+ * 
+ * @param issues - Diagnostic issues from analyzeWorkflowDiagnostics
+ * @param context - Phase context: 'HOME_PROPOSAL' always shows edge/fail actions,
+ *                  'IN_PROJECT' uses diagnostics-driven visibility
+ * @returns Unique set of actions that should be shown to user
  */
-export function getSuggestedQuickActions(issues: WorkflowDiagnosticIssue[]): QuickActionType[] {
+export function getSuggestedQuickActions(
+  issues: WorkflowDiagnosticIssue[],
+  context: DiagnosticsContext = 'IN_PROJECT'
+): QuickActionType[] {
   const actionsSet = new Set<QuickActionType>();
+  
+  if (context === 'HOME_PROPOSAL') {
+    HOME_PROPOSAL_REQUIRED_ACTIONS.forEach(action => actionsSet.add(action));
+  }
   
   for (const issue of issues) {
     if (issue.suggestedQuickActions) {
