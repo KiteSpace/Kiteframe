@@ -92,13 +92,16 @@ describe('REPLACE Workflow Mode', () => {
       expect(result.safetyReport.mergeEnforced).toBe(false);
     });
 
-    it('should bypass decision repair in REPLACE mode', () => {
+    it('should bypass decision repair in REPLACE mode (valid workflow passes without repair)', () => {
       const existingNodes = [createNode('existing', 'process', 'Existing')];
       const existingEdges: any[] = [];
       const newNodes = [
         createNode('decision', 'condition', 'Decision without branches'),
+        createNode('end', 'output', 'End'),
       ];
-      const newEdges: any[] = [];
+      const newEdges = [
+        createEdge('edge-1', 'decision', 'end'),
+      ];
 
       const result = applyChatMutation({
         existingNodes,
@@ -113,7 +116,7 @@ describe('REPLACE Workflow Mode', () => {
       expect(result.repairInfo.repairedNodeIds.length).toBe(0);
     });
 
-    it('should return empty arrays when replacing with empty workflow', () => {
+    it('should reject empty workflow replacement (validation requires nodes/edges)', () => {
       const existingNodes = [
         createNode('old-1', 'input', 'Old'),
       ];
@@ -130,14 +133,37 @@ describe('REPLACE Workflow Mode', () => {
         mode: 'REPLACE',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.mutatedNodes.length).toBe(0);
-      expect(result.mutatedEdges.length).toBe(0);
+      expect(result.success).toBe(false);
+      expect(result.safetyReport.validationErrors.length).toBeGreaterThan(0);
     });
   });
 
   describe('REPLACE mode safety', () => {
-    it('should not trigger orphan prevention in REPLACE mode', () => {
+    it('should pass valid connected workflow in REPLACE mode', () => {
+      const existingNodes = [createNode('existing', 'process', 'Existing')];
+      const existingEdges: any[] = [];
+      const newNodes = [
+        createNode('node-1', 'process', 'Node 1'),
+        createNode('node-2', 'process', 'Node 2'),
+      ];
+      const newEdges = [
+        createEdge('edge-1', 'node-1', 'node-2'),
+      ];
+
+      const result = applyChatMutation({
+        existingNodes,
+        existingEdges,
+        newNodes,
+        newEdges,
+        userMessage: 'Create connected workflow',
+        mode: 'REPLACE',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.safetyReport.orphanPreventionTriggered).toBe(false);
+    });
+
+    it('should reject disconnected nodes in REPLACE mode (validation requires edges)', () => {
       const existingNodes = [createNode('existing', 'process', 'Existing')];
       const existingEdges: any[] = [];
       const newNodes = [
@@ -155,8 +181,8 @@ describe('REPLACE Workflow Mode', () => {
         mode: 'REPLACE',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.safetyReport.orphanPreventionTriggered).toBe(false);
+      expect(result.success).toBe(false);
+      expect(result.safetyReport.validationErrors.length).toBeGreaterThan(0);
     });
   });
 });
