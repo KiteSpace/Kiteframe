@@ -75,6 +75,8 @@ import {
   isAmbiguous,
   type MergeBranchDecision 
 } from '@/ai/intent/mergeBranchDetector';
+import { logAiInteraction } from '@/ai/aiTelemetry';
+import { computeWorkflowDelta } from '@/utils/workflowDiff';
 
 // Phase 7 feature flag keys
 const FLAG_UNIFIED_ENGINE = 'ai.unifiedConversationEngine';
@@ -855,6 +857,15 @@ export function KiteAIChatBrain({
             setWorkflowGenState('BASELINE_GENERATED');
             setPendingQuickActions(suggestedActions);
             
+            logAiInteraction({
+              surface: mode === 'fullscreen' ? 'home' : 'project',
+              phase: 'baseline',
+              action: 'generate',
+              success: true,
+              nodeDelta: parsed.nodes.length,
+              edgeDelta: parsed.edges.length,
+            });
+            
             responseText = response.text.replace(jsonMatch[0], '').trim();
             if (!responseText) {
               // Use the AI response template for baseline generation
@@ -863,6 +874,13 @@ export function KiteAIChatBrain({
           }
         } catch (e) {
           console.log('Failed to parse workflow JSON from response');
+          logAiInteraction({
+            surface: mode === 'fullscreen' ? 'home' : 'project',
+            phase: 'baseline',
+            action: 'generate',
+            success: false,
+            reason: 'parse_fail',
+          });
         }
       }
 
@@ -912,6 +930,13 @@ export function KiteAIChatBrain({
         description: "Discuss further changes or click 'Apply Changes' to update the canvas.",
         variant: "default"
       });
+      logAiInteraction({
+        surface: 'project',
+        phase: 'accept',
+        action: 'apply',
+        success: false,
+        reason: 'blocked',
+      });
       return;
     }
 
@@ -942,6 +967,15 @@ export function KiteAIChatBrain({
         // Phase Lock: Reset after successful creation
         setHasExpandedOnce(false);
         setMutationApproved(false);
+        
+        logAiInteraction({
+          surface: 'home',
+          phase: 'accept',
+          action: 'create',
+          success: true,
+          nodeDelta: currentWorkflowDraft.nodes.length,
+          edgeDelta: currentWorkflowDraft.edges.length,
+        });
       }
       return;
     }
@@ -967,6 +1001,15 @@ export function KiteAIChatBrain({
       // Phase Lock: Reset after successful creation
       setHasExpandedOnce(false);
       setMutationApproved(false);
+      
+      logAiInteraction({
+        surface: 'project',
+        phase: 'in_project',
+        action: 'replace',
+        success: true,
+        nodeDelta: currentWorkflowDraft.nodes.length,
+        edgeDelta: currentWorkflowDraft.edges.length,
+      });
       
       toast({
         title: "Workflow Created",
@@ -994,6 +1037,15 @@ export function KiteAIChatBrain({
     // Phase Lock: Reset after successful application
     setHasExpandedOnce(false);
     setMutationApproved(false);
+    
+    logAiInteraction({
+      surface: 'project',
+      phase: 'in_project',
+      action: 'apply',
+      success: true,
+      nodeDelta: currentWorkflowDraft.nodes.length,
+      edgeDelta: currentWorkflowDraft.edges.length,
+    });
 
     toast({
       title: "Workflow Updated",
@@ -1027,6 +1079,15 @@ export function KiteAIChatBrain({
     // Phase Lock: Reset after successful replace
     setHasExpandedOnce(false);
     setMutationApproved(false);
+    
+    logAiInteraction({
+      surface: 'project',
+      phase: 'in_project',
+      action: 'replace',
+      success: true,
+      nodeDelta: currentWorkflowDraft.nodes.length,
+      edgeDelta: currentWorkflowDraft.edges.length,
+    });
 
     toast({
       title: "Workflow Replaced",
@@ -1036,6 +1097,14 @@ export function KiteAIChatBrain({
 
   // UPDATED: Reject clears currentWorkflowDraft (authoritative)
   const handleRejectWorkflow = () => {
+    logAiInteraction({
+      surface: mode === 'fullscreen' ? 'home' : 'project',
+      phase: 'accept',
+      action: mode === 'fullscreen' ? 'create' : 'apply',
+      success: false,
+      reason: 'user_cancel',
+    });
+    
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
@@ -1075,6 +1144,7 @@ export function KiteAIChatBrain({
           // Call AI to expand workflow with edge cases
           toast({ title: 'Expanding workflow', description: 'Adding edge and failure cases...' });
           
+          const beforeDraft = { nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges };
           const router1 = getRouter();
           const expandResponse = await router1.chat({
             taskType: 'workflow_reasoning',
@@ -1111,6 +1181,13 @@ export function KiteAIChatBrain({
                   Retry
                 </button>
               )
+            });
+            logAiInteraction({
+              surface: mode === 'fullscreen' ? 'home' : 'project',
+              phase: 'edge_expand',
+              action: 'expand_edges',
+              success: false,
+              reason: 'parse_fail',
             });
             break;
           }
@@ -1153,6 +1230,25 @@ export function KiteAIChatBrain({
           // Phase Lock: Mark that expansion has occurred - subsequent mutations require explicit approval
           setHasExpandedOnce(true);
           setMutationApproved(false);
+          
+          const afterDraft = { nodes: expandedNodes, edges: expandedEdges };
+          const delta = computeWorkflowDelta(beforeDraft, afterDraft);
+          logAiInteraction({
+            surface: mode === 'fullscreen' ? 'home' : 'project',
+            phase: 'edge_expand',
+            action: 'expand_edges',
+            success: (delta.nodeDelta ?? 0) !== 0 || (delta.edgeDelta ?? 0) !== 0,
+            ...((delta.nodeDelta === 0 && delta.edgeDelta === 0)
+              ? { reason: 'no_change' as const }
+              : delta),
+          });
+          
+          if (delta.nodeDelta === 0 && delta.edgeDelta === 0) {
+            toast({ title: 'No additional edge cases found', description: 'The workflow already covers common scenarios.' });
+          } else {
+            toast({ title: 'Workflow expanded', description: `Added ${delta.nodeDelta ?? 0} new steps.` });
+          }
+          
           setMessages(prev => [...prev, {
             id: `system-${Date.now()}`,
             role: 'assistant',
