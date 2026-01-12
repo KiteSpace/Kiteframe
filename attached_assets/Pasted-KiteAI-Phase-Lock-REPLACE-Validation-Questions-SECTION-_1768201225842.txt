@@ -1,0 +1,97 @@
+KiteAI Phase-Lock & REPLACE Validation Questions
+
+SECTION 1 — Phase Lock Enforcement (Most Critical)
+	1.	After the first successful edge/fail case expansion, what exact state variable changes?
+	•	Please name the variable, its location, and its value transition.
+	2.	Where is the hard execution guard that prevents mutation after expansion?
+	•	Show the conditional that blocks onAccept or mutation calls.
+	•	Confirm this guard executes even if UI state is bypassed.
+	3.	What happens if:
+	•	workflowGenState === 'EXPANDED'
+	•	AND a user sends another prompt that normally mutates the workflow?
+Please describe:
+	•	Which code path runs
+	•	Whether any mutation function is invoked
+	•	What the user sees instead
+	4.	Can a workflow be mutated twice in the same proposal lifecycle without explicit user confirmation?
+	•	Answer YES/NO
+	•	If NO, show the enforcing code.
+
+⸻
+
+SECTION 2 — Quick Actions & UI Gating
+	5.	After the first expansion:
+	•	Which quick action buttons are visible?
+	•	Which are hidden or disabled?
+	6.	Is “Include edge/fail cases” ever shown again after expansion?
+	•	If yes, under what condition?
+	•	If no, where is it gated?
+	7.	What exact user action re-enables mutation after expansion?
+	•	Button label
+	•	Handler function
+	•	State transition
+
+⸻
+
+SECTION 3 — REPLACE Correctness & Isolation
+	8.	On REPLACE confirmation, which function is called first?
+	•	Provide call stack or logs.
+	9.	Does REPLACE ever call:
+	•	orchestrateChatWorkflowMutation
+	•	runWorkflowRepairs
+	•	merge/attachment logic
+For each, answer YES/NO and show the guard.
+	10.	What happens if a REPLACE payload attempts to:
+	•	Overwrite a branching node
+	•	Reduce outgoing edges from a decision node
+Please show:
+	•	Detection logic
+	•	User-facing behavior
+	11.	How many undo entries are created for a REPLACE action?
+	•	Show before/after history length.
+
+⸻
+
+SECTION 4 — Branch & Structure Preservation
+	12.	What logic prevents branch flattening during CREATE/EXTEND?
+	•	Identify the guard
+	•	Identify what it blocks vs allows
+	13.	Can an incoming payload overwrite an existing node with multiple outbound edges?
+	•	If NO, show the condition.
+	•	If YES, explain why this is acceptable.
+	14.	If an AI proposal removes a decision path:
+	•	Is the structural regression warning always shown?
+	•	What specific metrics trigger it?
+
+⸻
+
+SECTION 5 — Island / Orphan Prevention
+	15.	Under what conditions is a mutation blocked due to:
+	•	Floating islands
+	•	Orphaned nodes
+	•	Unreachable nodes
+	16.	What feedback does the user see when a mutation is blocked for attachment uncertainty?
+
+⸻
+
+SECTION 6 — Tests & Evidence
+	17.	Which tests were added in this PR?
+	•	File names
+	•	What each test asserts
+	18.	Which test fails if:
+	•	A second expansion mutates the workflow
+	•	REPLACE accidentally merges instead of replacing
+	•	Branch depth is reduced without warning
+	19.	Please provide:
+	•	A short screen recording or log trace showing:
+	•	First expansion succeeds
+	•	Second expansion is discussion-only
+	•	Explicit confirmation re-enables mutation
+
+⸻
+
+SECTION 7 — Final Safety Check
+	20.	True or False (explain if false):
+
+“Once a workflow has been expanded with edge cases, no further AI-initiated graph mutations can occur unless the user explicitly opts in.”
+	21.	What is the single line of code you would point to as the final safeguard preventing runaway mutations?
