@@ -162,14 +162,15 @@ function verifyNewNodesReachable(
 }
 
 /**
- * Detect if any new nodes/edges would overwrite existing branching nodes.
+ * Detect if any new nodes would overwrite existing branching nodes.
  * A branching node has outboundEdges > 1 (decision nodes with multiple outcomes).
- * Overwriting these can cause branch flattening.
+ * We only block actual overwrites (node ID collision), NOT legitimate expansions
+ * like adding new branches from a decision node.
  */
 function detectBranchingNodeOverwrite(
   existingGraph: ExistingGraph,
   newNodes: Node[],
-  newEdges: Edge[]
+  _newEdges: Edge[] // Kept for potential future edge collision detection
 ): { hasOverwrite: boolean; affectedNodeIds: string[] } {
   // Find existing nodes that have multiple outbound edges (branching points)
   const branchingNodeIds = new Set<string>();
@@ -190,23 +191,14 @@ function detectBranchingNodeOverwrite(
     return { hasOverwrite: false, affectedNodeIds: [] };
   }
   
-  // Check if any new node has the same ID as a branching node (would overwrite)
+  // ONLY check for node ID collisions - when a new node would replace an existing branching node
+  // Adding new edges FROM a branching node is legitimate expansion, not an overwrite
   const newNodeIds = new Set(newNodes.map(n => n.id));
   const overwrittenBranchingNodes: string[] = [];
   const branchingNodeIdArray = Array.from(branchingNodeIds);
   
   for (const branchingId of branchingNodeIdArray) {
     if (newNodeIds.has(branchingId)) {
-      overwrittenBranchingNodes.push(branchingId);
-    }
-  }
-  
-  // Check if new edges would replace existing branching edges
-  // (same source as a branching node but different targets)
-  const newEdgeSources = new Set(newEdges.map(e => e.source));
-  for (const branchingId of branchingNodeIdArray) {
-    if (newEdgeSources.has(branchingId) && !overwrittenBranchingNodes.includes(branchingId)) {
-      // New edges from this branching node - could be rewiring
       overwrittenBranchingNodes.push(branchingId);
     }
   }
