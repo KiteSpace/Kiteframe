@@ -1,0 +1,252 @@
+📄 Replit Task: AI Stabilization + Gold-Standard Guardrails (Launch Scope)
+Objective
+
+Stabilize KiteAI so that:
+
+AI does not create new diagnostics issues while attempting to resolve existing ones
+
+“Propose” outputs feel complete, targeted, and confidence-building
+
+Test Flight does not cascade into repeated alerting caused by AI-introduced artifacts
+
+AI behavior is predictable, explainable, and bounded for launch
+
+This task focuses on guardrails and sequencing, not model tuning.
+
+PART 1 — Stop Test Flight Cascading (Critical)
+Problem
+
+AI-generated fixes sometimes:
+
+Add nodes or edges
+
+Which then trigger new diagnostics
+
+Which surfaces as “AI made it worse”
+
+Required Change: Diagnostic Delta Gating
+Implement a Diagnostic Baseline Snapshot
+
+Location
+
+client/src/utils/workflowDiagnostics.ts
+
+client/src/components/KiteAIChat.tsx
+
+Steps
+
+When Test Flight is initiated, capture:
+
+const baselineIssues = analyzeWorkflowDiagnostics(workflow);
+
+
+When AI proposes changes, recompute:
+
+const postProposalIssues = analyzeWorkflowDiagnostics(proposedWorkflow);
+
+
+Compute net new issues only:
+
+const newlyIntroducedIssues = postProposalIssues.filter(
+  issue => !baselineIssues.some(b => b.code === issue.code)
+);
+
+
+Do not surface Test Flight alerts if:
+
+newlyIntroducedIssues.length === 0
+
+Even if total issues > 0
+
+Result
+
+AI can safely add structural elements
+
+User never sees “AI caused new problems” unless it truly did
+
+PART 2 — AI Is Not Allowed to Create “New Problem Classes”
+Problem
+
+AI fixes sometimes introduce:
+
+New decision nodes
+
+New failure paths
+
+New branches unrelated to the original issue
+
+Required Change: Fix-Scope Locking
+Add fixScope metadata to AI requests
+
+Location
+
+KiteAIChat.tsx
+
+AI request payload
+
+For Test Flight / Propose flows
+
+Send:
+
+fixScope: {
+  allowedNodeTypes: baselineIssue.relatedNodeTypes,
+  allowedEdgeTypes: baselineIssue.relatedEdgeTypes,
+  forbidNewDecisionNodes: true,
+  forbidNewFailurePaths: true
+}
+
+Enforce post-generation validation
+
+After AI returns a proposal:
+
+Reject proposal if:
+
+New node type ∉ allowedNodeTypes
+
+New decision node appears when none existed before
+
+If rejected:
+
+Log telemetry
+
+Show user message:
+
+“This proposal was discarded because it introduced unrelated complexity.”
+
+PART 3 — Make “Propose” Feel Complete (Not Clever)
+Problem
+
+“Propose” responses feel shallow because they:
+
+Address symptoms
+
+Not system outcomes
+
+Lack a clear “why this works”
+
+Required Change: Proposal Structure Contract
+Enforce a strict response schema
+
+AI must return:
+
+type ProposalResponse = {
+  summary: string;            // 1–2 sentences, plain language
+  rootCause: string;          // What is actually wrong
+  changes: {
+    nodesAdded: number;
+    nodesModified: number;
+    edgesAdded: number;
+    edgesRemoved: number;
+  };
+  whyThisResolvesIt: string;  // Causal explanation
+  risksIntroduced: string[]; // Must exist, can be empty
+};
+
+Validation
+
+If any field missing → discard response
+
+Do NOT partially apply proposals
+
+UI
+
+Render summary and whyThisResolvesIt
+
+Hide raw node/edge counts unless expanded
+
+PART 4 — AI Must Prefer Modification Over Creation
+Problem
+
+AI over-creates instead of editing existing nodes.
+
+Required Change: Edit-First Heuristic
+
+Before sending workflow to AI:
+
+Annotate nodes with:
+
+canBeModified: boolean
+
+
+In AI system instructions:
+
+“Prefer modifying existing nodes. Creating new nodes is only allowed if no existing node can be adapted.”
+
+Post-response validation:
+
+If nodesAdded > nodesModified * 2
+
+Flag as over-construction
+
+Reject proposal
+
+PART 5 — Test Flight Insight Suppression Mode
+Problem
+
+Test Flight feels like an error generator instead of validation.
+
+Required Change: Test Flight Intent Awareness
+
+Add mode:
+
+diagnosticsMode: 'validate' | 'educate'
+
+
+During AI-initiated flows → educate
+
+During manual Test Flight → validate
+
+Behavior
+
+educate:
+
+Only surface blocking issues
+
+Never surface advisory issues
+
+validate:
+
+Full diagnostics
+
+PART 6 — Logging for Gold-Standard Validation (Minimal)
+
+Extend existing AI telemetry to include:
+
+aiStability: {
+  baselineIssueCount: number;
+  postProposalIssueCount: number;
+  newIssueCount: number;
+  proposalRejected: boolean;
+  rejectionReason?: string;
+}
+
+
+Log only in dev.
+
+PART 7 — Acceptance Tests (Required)
+Test 1: No Cascading Alerts
+
+Run Test Flight
+
+Apply AI proposal
+
+Run Test Flight again
+✅ No new alerts unless genuinely new issue class introduced
+
+Test 2: Over-Construction Rejection
+
+Trigger issue fix
+
+AI returns many new nodes
+✅ Proposal is discarded
+
+Test 3: Proposal Completeness
+
+Click “Propose”
+✅ UI shows:
+
+Summary
+
+Root cause
+
+Why this resolves it
