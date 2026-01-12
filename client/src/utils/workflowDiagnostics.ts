@@ -14,6 +14,14 @@ export type QuickActionType =
 
 export type DiagnosticsContext = 'HOME_PROPOSAL' | 'IN_PROJECT';
 
+/**
+ * Part 5: Test Flight Intent Mode
+ * 
+ * - 'validate': Full diagnostics (manual Test Flight)
+ * - 'educate': Only blocking issues (AI-initiated flows)
+ */
+export type DiagnosticsMode = 'validate' | 'educate';
+
 const HOME_PROPOSAL_REQUIRED_ACTIONS: QuickActionType[] = [
   'HAPPY_PATH_ONLY',
   'INCLUDE_EDGE_CASES', 
@@ -205,4 +213,112 @@ export function shouldSuggestEdgeCaseExpansion(issues: WorkflowDiagnosticIssue[]
   return issues.some(issue => 
     issue.code === 'LINEAR_ONLY' || issue.code === 'NO_FAILURE_PATH'
   );
+}
+
+/**
+ * Diagnostic Baseline Snapshot
+ * 
+ * Captures the current state of diagnostics before AI makes changes.
+ * Used to compute "net new" issues after AI proposals.
+ */
+export interface DiagnosticBaseline {
+  capturedAt: number;
+  issues: WorkflowDiagnosticIssue[];
+  issueCodes: Set<string>;
+  nodeCount: number;
+  edgeCount: number;
+}
+
+/**
+ * Capture a diagnostic baseline snapshot for delta comparison.
+ * Call this BEFORE AI generates or modifies a workflow.
+ */
+export function captureDiagnosticBaseline(workflow: AnalyzableWorkflow): DiagnosticBaseline {
+  const issues = analyzeWorkflowDiagnostics(workflow);
+  return {
+    capturedAt: Date.now(),
+    issues,
+    issueCodes: new Set(issues.map(i => i.code)),
+    nodeCount: workflow.nodes.length,
+    edgeCount: workflow.edges.length,
+  };
+}
+
+/**
+ * Diagnostic Delta Result
+ * 
+ * Represents the difference between baseline and post-proposal diagnostics.
+ */
+export interface DiagnosticDelta {
+  baselineIssueCount: number;
+  postProposalIssueCount: number;
+  newlyIntroducedIssues: WorkflowDiagnosticIssue[];
+  resolvedIssues: WorkflowDiagnosticIssue[];
+  hasNewIssues: boolean;
+  hasRegressions: boolean;
+}
+
+/**
+ * Compute the diagnostic delta between baseline and proposed workflow.
+ * 
+ * This is the core of "Diagnostic Delta Gating" - only surfaces NEWLY INTRODUCED
+ * issues, not issues that existed before AI made changes.
+ * 
+ * @param baseline - Captured baseline from captureDiagnosticBaseline()
+ * @param proposedWorkflow - The workflow after AI proposal
+ * @returns Delta showing only net-new issues
+ */
+export function computeDiagnosticDelta(
+  baseline: DiagnosticBaseline,
+  proposedWorkflow: AnalyzableWorkflow
+): DiagnosticDelta {
+  const postProposalIssues = analyzeWorkflowDiagnostics(proposedWorkflow);
+  const postProposalCodes = new Set(postProposalIssues.map(i => i.code));
+  
+  const newlyIntroducedIssues = postProposalIssues.filter(
+    issue => !baseline.issueCodes.has(issue.code)
+  );
+  
+  const resolvedIssues = baseline.issues.filter(
+    issue => !postProposalCodes.has(issue.code)
+  );
+  
+  return {
+    baselineIssueCount: baseline.issues.length,
+    postProposalIssueCount: postProposalIssues.length,
+    newlyIntroducedIssues,
+    resolvedIssues,
+    hasNewIssues: newlyIntroducedIssues.length > 0,
+    hasRegressions: newlyIntroducedIssues.some(i => i.severity === 'blocker' || i.severity === 'warn'),
+  };
+}
+
+/**
+ * Check if AI proposal should be flagged for introducing new issues.
+ * 
+ * Returns true ONLY if the proposal introduced genuinely new issue classes
+ * that didn't exist before. Existing issues are ignored.
+ */
+export function shouldFlagProposalForNewIssues(delta: DiagnosticDelta): boolean {
+  return delta.hasRegressions;
+}
+
+/**
+ * Part 5: Filter diagnostics based on intent mode.
+ * 
+ * - 'validate': Returns all issues (manual Test Flight)
+ * - 'educate': Returns only blocking issues (AI-initiated flows)
+ * 
+ * This prevents Test Flight from feeling like an "error generator"
+ * during AI flows by suppressing advisory issues.
+ */
+export function filterDiagnosticsByMode(
+  issues: WorkflowDiagnosticIssue[],
+  mode: DiagnosticsMode
+): WorkflowDiagnosticIssue[] {
+  if (mode === 'validate') {
+    return issues;
+  }
+  
+  return issues.filter(issue => issue.severity === 'blocker');
 }
