@@ -41,7 +41,8 @@ export type MutationErrorCode =
   | 'PARALLEL_WORKFLOW_BLOCKED'
   | 'MISSING_INCOMING_EDGE'
   | 'UNREACHABLE_NODES'
-  | 'REPLACE_VALIDATION';
+  | 'REPLACE_VALIDATION'
+  | 'BRANCHING_NODE_OVERWRITE';
 
 export interface ChatMutationIntent {
   newNodes: Node[];

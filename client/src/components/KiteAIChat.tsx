@@ -232,6 +232,11 @@ export function KiteAIChatBrain({
   const [discussedEdgeCases, setDiscussedEdgeCases] = useState<EdgeCase[]>([]);
   const [showEdgeCaseSelector, setShowEdgeCaseSelector] = useState(false);
   
+  // Phase Lock: Prevent multiple mutating expansions per proposal lifecycle
+  // After first expansion, user must explicitly confirm to mutate again
+  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
+  const [mutationApproved, setMutationApproved] = useState(false);
+  
   // AUTHORITATIVE WORKFLOW DRAFT - Single source of truth for the current workflow
   // This replaces message-embedded workflow ownership. Preview/Create always use this.
   const [currentWorkflowDraft, setCurrentWorkflowDraft] = useState<WorkflowDraft | null>(null);
@@ -895,6 +900,17 @@ export function KiteAIChatBrain({
   // Phase 4: Mode toggle removed - smart selection handles Add/Replace automatically
   const handleAcceptWorkflow = () => {
     if (!currentWorkflowDraft) return;
+    
+    // Phase Lock: Block mutation after expansion unless explicitly approved
+    // This prevents runaway graph rewrites from repeated edge-case expansions
+    if (hasExpandedOnce && !mutationApproved && mode !== 'fullscreen') {
+      toast({
+        title: "Workflow Expanded",
+        description: "Discuss further changes or click 'Apply Changes' to update the canvas.",
+        variant: "default"
+      });
+      return;
+    }
 
     // Fullscreen mode: create project via callback (no canvas exists yet)
     if (mode === 'fullscreen') {
@@ -919,6 +935,10 @@ export function KiteAIChatBrain({
         setCurrentWorkflowDraft(null);
         setWorkflowGenState(null);
         setPendingQuickActions([]);
+        
+        // Phase Lock: Reset after successful creation
+        setHasExpandedOnce(false);
+        setMutationApproved(false);
       }
       return;
     }
@@ -940,6 +960,10 @@ export function KiteAIChatBrain({
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
       setPendingQuickActions([]);
+      
+      // Phase Lock: Reset after successful creation
+      setHasExpandedOnce(false);
+      setMutationApproved(false);
       
       toast({
         title: "Workflow Created",
@@ -963,6 +987,10 @@ export function KiteAIChatBrain({
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
+    
+    // Phase Lock: Reset after successful application
+    setHasExpandedOnce(false);
+    setMutationApproved(false);
 
     toast({
       title: "Workflow Updated",
@@ -992,6 +1020,10 @@ export function KiteAIChatBrain({
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
+    
+    // Phase Lock: Reset after successful replace
+    setHasExpandedOnce(false);
+    setMutationApproved(false);
 
     toast({
       title: "Workflow Replaced",
@@ -1006,6 +1038,10 @@ export function KiteAIChatBrain({
     setPendingQuickActions([]);
     setDiscussedEdgeCases([]);
     setShowEdgeCaseSelector(false);
+    
+    // Phase Lock: Reset expansion state when workflow is rejected
+    setHasExpandedOnce(false);
+    setMutationApproved(false);
     
     toast({
       title: "Workflow Discarded",
@@ -1110,6 +1146,10 @@ export function KiteAIChatBrain({
           });
           setWorkflowGenState('EXPANDED_WITH_EDGE_CASES');
           setPendingQuickActions([]);
+          
+          // Phase Lock: Mark that expansion has occurred - subsequent mutations require explicit approval
+          setHasExpandedOnce(true);
+          setMutationApproved(false);
           setMessages(prev => [...prev, {
             id: `system-${Date.now()}`,
             role: 'assistant',
@@ -1271,6 +1311,10 @@ export function KiteAIChatBrain({
       });
       setWorkflowGenState('SELECTED_EDGE_CASES_APPLIED');
       setDiscussedEdgeCases([]);
+      
+      // Phase Lock: Mark that expansion has occurred
+      setHasExpandedOnce(true);
+      setMutationApproved(false);
       setMessages(prev => [...prev, {
         id: `system-${Date.now()}`,
         role: 'assistant',
@@ -1440,30 +1484,62 @@ export function KiteAIChatBrain({
               <Eye className="w-3 h-3 mr-1" />
               {showDiffPreview ? 'Hide' : 'Preview'}
             </Button>
-            <Button
-              size="sm"
-              variant="default"
-              onClick={handleAcceptWorkflow}
-              className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
-              data-testid="button-create-workflow-draft"
-              disabled={!isWorkflowValidForCreation({ 
-                nodes: currentWorkflowDraft.nodes.map(n => ({
-                  id: n.id,
-                  type: n.type || 'process',
-                  label: (n.data as any)?.label
-                })),
-                edges: currentWorkflowDraft.edges.map(e => ({
-                  id: e.id,
-                  source: e.source,
-                  target: e.target,
-                  label: (e.data as any)?.label
-                }))
-              })}
-              title={currentNodes.length === 0 ? "Create new workflow on empty canvas" : "Add nodes to existing canvas"}
-            >
-              <Check className="w-3 h-3 mr-1" />
-              {currentNodes.length === 0 ? 'Create' : 'Add'}
-            </Button>
+            {/* Phase Lock: Show "Apply Changes" when expansion occurred and not yet approved */}
+            {hasExpandedOnce && !mutationApproved && mode !== 'fullscreen' ? (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  setMutationApproved(true);
+                  // Immediately call accept after approving
+                  setTimeout(() => handleAcceptWorkflow(), 0);
+                }}
+                className="flex-1 h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                data-testid="button-apply-changes-workflow"
+                disabled={!isWorkflowValidForCreation({ 
+                  nodes: currentWorkflowDraft.nodes.map(n => ({
+                    id: n.id,
+                    type: n.type || 'process',
+                    label: (n.data as any)?.label
+                  })),
+                  edges: currentWorkflowDraft.edges.map(e => ({
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    label: (e.data as any)?.label
+                  }))
+                })}
+                title="Apply the expanded workflow changes to your canvas"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Apply Changes
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleAcceptWorkflow}
+                className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                data-testid="button-create-workflow-draft"
+                disabled={!isWorkflowValidForCreation({ 
+                  nodes: currentWorkflowDraft.nodes.map(n => ({
+                    id: n.id,
+                    type: n.type || 'process',
+                    label: (n.data as any)?.label
+                  })),
+                  edges: currentWorkflowDraft.edges.map(e => ({
+                    id: e.id,
+                    source: e.source,
+                    target: e.target,
+                    label: (e.data as any)?.label
+                  }))
+                })}
+                title={currentNodes.length === 0 ? "Create new workflow on empty canvas" : "Add nodes to existing canvas"}
+              >
+                <Check className="w-3 h-3 mr-1" />
+                {currentNodes.length === 0 ? 'Create' : 'Add'}
+              </Button>
+            )}
             {/* Replace button - only show when canvas has existing nodes */}
             {currentNodes.length > 0 && onReplaceWorkflow && (
               <Button

@@ -5162,9 +5162,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const currentEdgeSignatures = new Set(edges.map(getEdgeSignature));
     
     const nodesMatch = expectedNodeSignatures.size === currentNodeSignatures.size &&
-      [...expectedNodeSignatures].every(sig => currentNodeSignatures.has(sig));
+      Array.from(expectedNodeSignatures).every(sig => currentNodeSignatures.has(sig));
     const edgesMatch = expectedEdgeSignatures.size === currentEdgeSignatures.size &&
-      [...expectedEdgeSignatures].every(sig => currentEdgeSignatures.has(sig));
+      Array.from(expectedEdgeSignatures).every(sig => currentEdgeSignatures.has(sig));
     
     if (!nodesMatch || !edgesMatch) {
       toast({
@@ -12385,15 +12385,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setPendingReplaceConfirmation(null);
-              toast({
-                title: "Replace Cancelled",
-                description: "Your existing workflow was preserved.",
-              });
-            }}>
-              Keep Existing
-            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (!pendingReplaceConfirmation) return;

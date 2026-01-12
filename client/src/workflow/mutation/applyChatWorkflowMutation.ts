@@ -161,6 +161,62 @@ function verifyNewNodesReachable(
   };
 }
 
+/**
+ * Detect if any new nodes/edges would overwrite existing branching nodes.
+ * A branching node has outboundEdges > 1 (decision nodes with multiple outcomes).
+ * Overwriting these can cause branch flattening.
+ */
+function detectBranchingNodeOverwrite(
+  existingGraph: ExistingGraph,
+  newNodes: Node[],
+  newEdges: Edge[]
+): { hasOverwrite: boolean; affectedNodeIds: string[] } {
+  // Find existing nodes that have multiple outbound edges (branching points)
+  const branchingNodeIds = new Set<string>();
+  const outboundEdgeCounts = new Map<string, number>();
+  
+  for (const edge of existingGraph.edges) {
+    const count = outboundEdgeCounts.get(edge.source) || 0;
+    outboundEdgeCounts.set(edge.source, count + 1);
+  }
+  
+  Array.from(outboundEdgeCounts.entries()).forEach(([nodeId, count]) => {
+    if (count > 1) {
+      branchingNodeIds.add(nodeId);
+    }
+  });
+  
+  if (branchingNodeIds.size === 0) {
+    return { hasOverwrite: false, affectedNodeIds: [] };
+  }
+  
+  // Check if any new node has the same ID as a branching node (would overwrite)
+  const newNodeIds = new Set(newNodes.map(n => n.id));
+  const overwrittenBranchingNodes: string[] = [];
+  const branchingNodeIdArray = Array.from(branchingNodeIds);
+  
+  for (const branchingId of branchingNodeIdArray) {
+    if (newNodeIds.has(branchingId)) {
+      overwrittenBranchingNodes.push(branchingId);
+    }
+  }
+  
+  // Check if new edges would replace existing branching edges
+  // (same source as a branching node but different targets)
+  const newEdgeSources = new Set(newEdges.map(e => e.source));
+  for (const branchingId of branchingNodeIdArray) {
+    if (newEdgeSources.has(branchingId) && !overwrittenBranchingNodes.includes(branchingId)) {
+      // New edges from this branching node - could be rewiring
+      overwrittenBranchingNodes.push(branchingId);
+    }
+  }
+  
+  return {
+    hasOverwrite: overwrittenBranchingNodes.length > 0,
+    affectedNodeIds: overwrittenBranchingNodes,
+  };
+}
+
 function detectParallelWorkflowCreation(
   existingGraph: ExistingGraph,
   newNodes: Node[],
@@ -328,6 +384,27 @@ export function applyChatWorkflowMutation(
       safetyReport.validationErrors = validationErrors;
       return createAbortedResult(
         `Unreachable nodes blocked: ${reachabilityCheck.unreachableNodeIds.length} node(s) not connected to existing workflow`,
+        safetyReport
+      );
+    }
+    
+    // Branch Guard: Prevent overwriting existing branching nodes (outboundEdges > 1)
+    // This prevents accidental branch flattening during merge operations
+    const branchingOverwriteCheck = detectBranchingNodeOverwrite(
+      existingGraph,
+      intent.newNodes,
+      intent.newEdges
+    );
+    
+    if (branchingOverwriteCheck.hasOverwrite) {
+      validationErrors.push({
+        code: 'BRANCHING_NODE_OVERWRITE',
+        message: `Cannot overwrite branching nodes: ${branchingOverwriteCheck.affectedNodeIds.join(', ')}`,
+        affectedNodeIds: branchingOverwriteCheck.affectedNodeIds,
+      });
+      safetyReport.validationErrors = validationErrors;
+      return createAbortedResult(
+        `Branch flattening prevented: ${branchingOverwriteCheck.affectedNodeIds.length} branching node(s) would be overwritten`,
         safetyReport
       );
     }

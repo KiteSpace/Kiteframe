@@ -185,6 +185,40 @@ export function applyChatMutation(input: ChatMutationInput): ChatMutationResult 
   }
 
   // PATCH MODE: Existing behavior with merge-safe validation and repair
+  
+  // RUNTIME ASSERTION: REPLACE mode must never reach merge/repair logic
+  // This guard prevents silent regressions if early-return is accidentally removed
+  // TypeScript knows mode is 'PATCH' here, but we cast to string for runtime safety
+  if ((mode as string) === 'REPLACE') {
+    const errorMsg = '[ChatMutation] CRITICAL: REPLACE mode reached merge/repair path - this is a bug';
+    console.error(errorMsg);
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error(errorMsg);
+    }
+    // In production, abort safely rather than corrupt workflow
+    return {
+      success: false,
+      reason: 'REPLACE mode internal error',
+      mutatedNodes: existingNodes,
+      mutatedEdges: existingEdges as any,
+      safetyReport: {
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+        decisionRepairApplied: false,
+        attachmentResolved: false,
+        validationErrors: [{ code: 'REPLACE_VALIDATION', message: 'REPLACE mode reached merge path' }],
+        mutationAborted: 'REPLACE mode internal error'
+      },
+      repairInfo: { repairedNodeIds: [], repairedIssueTypes: [] },
+      mergeBranchDecision,
+      mutationSafety: { 
+        decisionRepairApplied: false,
+        mergeEnforced: false,
+        orphanPreventionTriggered: false,
+      },
+      requiresConfirmation: false,
+    };
+  }
 
   // Phase 2.2: Full Graph Payload detection
   const fullGraphDetection = detectFullGraphPayload(
