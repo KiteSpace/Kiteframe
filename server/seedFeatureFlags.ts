@@ -4,13 +4,16 @@ const INITIAL_FLAGS = [
   // AI Workflow Intelligence
   { key: 'ai.workflowGeneration', name: 'Workflow Generation', description: 'Text-to-workflow generation', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.imageAnalysis', name: 'Image Analysis', description: 'Upload diagram → interactive workflow', category: 'ai', status: 'ga', defaultEnabled: true },
-  { key: 'ai.edgeCaseExpansion', name: 'Edge Case Expansion', description: 'Automatic what-if branch suggestions', category: 'ai', status: 'beta', defaultEnabled: false },
+  { key: 'ai.edgeCaseExpansion', name: 'Edge Case Expansion', description: 'Automatic what-if branch suggestions', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.followUpPrompts', name: 'Follow-up Prompts', description: 'Suggested follow-up questions', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.insightsSurfacing', name: 'Insights Surfacing', description: 'Test Flight diagnostics in Insights tab', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.prdGeneration', name: 'PRD Generation', description: 'AI-powered PRD from workflow', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.gpt5Routing', name: 'GPT-5 Routing', description: 'Enable GPT-5.1 for workflow reasoning', category: 'ai', status: 'ga', defaultEnabled: true },
-  { key: 'ai.ollamaProvider', name: 'Ollama Provider', description: 'Enable Ollama/KitelineAI provider', category: 'ai', status: 'beta', defaultEnabled: false },
-  { key: 'ai.semanticEnforcement', name: 'Semantic Enforcement', description: 'Detect claim/structure mismatches', category: 'ai', status: 'beta', defaultEnabled: false },
+  { key: 'ai.ollamaProvider', name: 'Ollama Provider', description: 'Enable Ollama/KitelineAI provider', category: 'ai', status: 'ga', defaultEnabled: true },
+  { key: 'ai.semanticEnforcement', name: 'Semantic Enforcement', description: 'Detect claim/structure mismatches', category: 'ai', status: 'ga', defaultEnabled: true },
+  
+  // AI Stabilization - Critical for dev environment
+  { key: 'ai.stabilizationGuardrails', name: 'AI Stabilization Guardrails', description: 'Enable all AI guardrails (diagnostic delta, fix-scope, edit-first)', category: 'ai', status: 'ga', defaultEnabled: true },
   
   // Phase 7: Unified Conversation Engine
   { key: 'ai.unifiedConversationEngine', name: 'Unified Conversation Engine', description: 'Use useKiteAIConversation across all chat surfaces', category: 'ai', status: 'ga', defaultEnabled: true },
@@ -25,7 +28,7 @@ const INITIAL_FLAGS = [
 
   // Canvas & Editing
   { key: 'canvas.autoLayout', name: 'Auto Layout', description: '5 layout algorithms (horizontal, grid, etc.)', category: 'canvas', status: 'ga', defaultEnabled: true },
-  { key: 'canvas.minimap', name: 'Minimap', description: 'Navigation minimap overlay', category: 'canvas', status: 'ga', defaultEnabled: false },
+  { key: 'canvas.minimap', name: 'Minimap', description: 'Navigation minimap overlay', category: 'canvas', status: 'ga', defaultEnabled: true },
   { key: 'canvas.multiSelect', name: 'Multi-Select', description: 'Select/edit multiple nodes', category: 'canvas', status: 'ga', defaultEnabled: true },
   { key: 'canvas.experimentNodes', name: 'Experiment Nodes', description: 'Speculative branch authoring', category: 'canvas', status: 'beta', defaultEnabled: false },
   { key: 'canvas.smartGuides', name: 'Smart Guides', description: 'Snap & alignment guides', category: 'canvas', status: 'ga', defaultEnabled: true },
@@ -35,7 +38,7 @@ const INITIAL_FLAGS = [
   // Chat & Collaboration
   { key: 'chat.fullscreenMode', name: 'Fullscreen Chat', description: 'Fullscreen chat shell', category: 'chat', status: 'ga', defaultEnabled: true },
   { key: 'chat.panelMode', name: 'Panel Chat', description: 'Side panel chat', category: 'chat', status: 'ga', defaultEnabled: true },
-  { key: 'chat.discussionView', name: 'Discussion View', description: 'Node-linked discussion threads', category: 'chat', status: 'beta', defaultEnabled: false },
+  { key: 'chat.discussionView', name: 'Discussion View', description: 'Node-linked discussion threads', category: 'chat', status: 'ga', defaultEnabled: true },
   { key: 'chat.workflowProposals', name: 'Workflow Proposals', description: 'Rendered workflow proposal cards', category: 'chat', status: 'ga', defaultEnabled: true },
   { key: 'chat.attachments', name: 'Attachments', description: 'Image/file attachments in chat', category: 'chat', status: 'ga', defaultEnabled: true },
   { key: 'chat.smartScroll', name: 'Smart Scroll', description: 'Auto-scroll + "New messages" indicator', category: 'chat', status: 'ga', defaultEnabled: true },
@@ -43,7 +46,7 @@ const INITIAL_FLAGS = [
   // Enterprise Governance
   { key: 'enterprise.auditExport', name: 'Audit Export', description: 'JSON export with provenance + timeline', category: 'enterprise', status: 'ga', defaultEnabled: true },
   { key: 'enterprise.whyInspector', name: 'Why Inspector', description: 'Read-only "why this node exists" popover', category: 'enterprise', status: 'ga', defaultEnabled: true },
-  { key: 'enterprise.pmDepthGuards', name: 'PM Depth Guards', description: 'Block shallow workflows in PM mode', category: 'enterprise', status: 'beta', defaultEnabled: false },
+  { key: 'enterprise.pmDepthGuards', name: 'PM Depth Guards', description: 'Block shallow workflows in PM mode', category: 'enterprise', status: 'ga', defaultEnabled: true },
   { key: 'enterprise.readOnlyMode', name: 'Read-Only Mode', description: 'View-only access for auditors', category: 'enterprise', status: 'beta', defaultEnabled: false },
   { key: 'enterprise.diagnosticsLogging', name: 'Diagnostics Logging', description: 'Detailed runtime logging', category: 'enterprise', status: 'ga', defaultEnabled: true },
 
@@ -76,11 +79,17 @@ export async function seedFeatureFlags() {
           defaultEnabled: flag.defaultEnabled,
         });
         console.log(`  ✓ Created flag: ${flag.key}`);
+      } else if (existing.defaultEnabled !== flag.defaultEnabled) {
+        await featureFlagService.updateFlag(flag.key, {
+          defaultEnabled: flag.defaultEnabled,
+          status: flag.status,
+        });
+        console.log(`  ↻ Updated flag: ${flag.key} (defaultEnabled: ${flag.defaultEnabled})`);
       } else {
         console.log(`  - Flag exists: ${flag.key}`);
       }
     } catch (error) {
-      console.error(`  ✗ Failed to create flag ${flag.key}:`, error);
+      console.error(`  ✗ Failed to create/update flag ${flag.key}:`, error);
     }
   }
 
