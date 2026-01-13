@@ -50,8 +50,13 @@ import {
   analyzeWorkflowDiagnostics, 
   getSuggestedQuickActions, 
   isWorkflowValidForCreation,
+  captureDiagnosticBaseline,
+  computeDiagnosticDelta,
+  filterDiagnosticsByMode,
   type QuickActionType,
-  type DiagnosticsContext
+  type DiagnosticsContext,
+  type DiagnosticsMode,
+  type DiagnosticBaseline
 } from '@/utils/workflowDiagnostics';
 import { 
   AI_RESPONSE_TEMPLATES, 
@@ -75,8 +80,17 @@ import {
   isAmbiguous,
   type MergeBranchDecision 
 } from '@/ai/intent/mergeBranchDetector';
-import { logAiInteraction } from '@/ai/aiTelemetry';
-import { computeWorkflowDelta } from '@/utils/workflowDiff';
+import { logAiInteraction, logAiStability, type AiStabilityMetrics } from '@/ai/aiTelemetry';
+import {
+  createFixScope,
+  validateFixScope,
+  validateProposalSchema,
+  validateEditFirstHeuristic,
+  type FixScope,
+  type ProposalResponse,
+  type ProposalValidationResult
+} from '@/ai/proposalValidation';
+import { computeWorkflowDelta, computeDetailedWorkflowDelta } from '@/utils/workflowDiff';
 
 // Phase 7 feature flag keys
 const FLAG_UNIFIED_ENGINE = 'ai.unifiedConversationEngine';
@@ -85,6 +99,9 @@ const FLAG_CLARIFICATION_LOOPS = 'ai.clarificationLoopsChat';
 
 // Phase 6.5 feature flag key
 const FLAG_MERGE_BRANCH_HEURISTIC = 'ai.mergeBranchHeuristic';
+
+// AI Stabilization feature flag
+const FLAG_AI_STABILIZATION = 'ai.stabilizationGuardrails';
 
 // Message type categorization for unified workflow draft model
 export type MessageType = 
@@ -270,6 +287,12 @@ export function KiteAIChatBrain({
   
   // Phase 6.5: Merge/Branch Heuristic
   const { enabled: mergeBranchHeuristicEnabled } = useFeatureFlag(FLAG_MERGE_BRANCH_HEURISTIC);
+  
+  // AI Stabilization Guardrails (Part 1-6)
+  const { enabled: aiStabilizationEnabled } = useFeatureFlag(FLAG_AI_STABILIZATION);
+  
+  // Baseline diagnostics ref - captured before AI generates/modifies workflow
+  const baselineDiagnosticsRef = useRef<DiagnosticBaseline | null>(null);
   
   // Initialize the canonical conversation engine
   // Map surface context to KiteAIMode: home → 'base', project → 'designer'
@@ -773,6 +796,20 @@ export function KiteAIChatBrain({
         enhancedPrompt += `\n\nNOTE: Nodes exist but lack labels/descriptions. Help refine them rather than asking foundational questions.`;
       }
 
+      // AI Stabilization Phase 1: Capture diagnostic baseline BEFORE AI generates workflow
+      if (aiStabilizationEnabled) {
+        const baselineWorkflow = {
+          nodes: currentNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
+          edges: currentEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
+        };
+        baselineDiagnosticsRef.current = captureDiagnosticBaseline(baselineWorkflow);
+        console.log('[AiStabilization] Baseline captured:', {
+          issueCount: baselineDiagnosticsRef.current.issues.length,
+          nodeCount: baselineDiagnosticsRef.current.nodeCount,
+          edgeCount: baselineDiagnosticsRef.current.edgeCount,
+        });
+      }
+
       const router = getRouter();
       const response = await router.chat({
         taskType: 'general_chat',
@@ -818,58 +855,203 @@ export function KiteAIChatBrain({
               }
             }
             
-            // Keep workflowProposal for message history/display only
-            workflowProposal = {
-              nodes: parsed.nodes,
-              edges: parsed.edges,
-              description: 'AI-generated workflow',
-              status: 'pending'
-            };
+            // AI Stabilization Phase 1-5: Validate proposal before accepting
+            let proposalRejected = false;
+            let rejectionReason: string | undefined;
+            let stabilityMetrics: AiStabilityMetrics | undefined;
             
-            // SET AUTHORITATIVE WORKFLOW DRAFT - Single source of truth
-            setCurrentWorkflowDraft({
-              nodes: parsed.nodes,
-              edges: parsed.edges,
-              status: 'draft',
-              originPrompt: messageContent,
-              mergeBranchDecision,
-            });
+            if (aiStabilizationEnabled && baselineDiagnosticsRef.current) {
+              const proposedWorkflow = {
+                nodes: parsed.nodes.map((n: Node) => ({ 
+                  id: n.id, 
+                  type: n.type || 'process', 
+                  label: (n.data as any)?.label 
+                })),
+                edges: parsed.edges.map((e: Edge) => ({ 
+                  id: e.id, 
+                  source: e.source, 
+                  target: e.target, 
+                  label: (e.data as any)?.label,
+                  type: (e as any).type || 'default'
+                })),
+              };
+              
+              const baselineWorkflow = {
+                nodes: currentNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
+                edges: currentEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
+              };
+              
+              // Phase 1: Compute diagnostic delta
+              const delta = computeDiagnosticDelta(baselineDiagnosticsRef.current, proposedWorkflow);
+              
+              stabilityMetrics = {
+                baselineIssueCount: delta.baselineIssueCount,
+                postProposalIssueCount: delta.postProposalIssueCount,
+                newIssueCount: delta.newlyIntroducedIssues.length,
+                resolvedIssueCount: delta.resolvedIssues.length,
+                proposalRejected: false,
+              };
+              
+              // Check if proposal introduced new issues
+              if (delta.hasRegressions) {
+                proposalRejected = true;
+                rejectionReason = 'This proposal introduced new issues and was not applied.';
+                stabilityMetrics.proposalRejected = true;
+                stabilityMetrics.rejectionReason = 'new_issues';
+                
+                console.warn('[AiStabilization] Proposal rejected - new issues:', delta.newlyIntroducedIssues);
+                
+                toast({
+                  title: "Proposal not applied",
+                  description: rejectionReason,
+                  variant: "destructive"
+                });
+              }
+              
+              // Phase 2: Fix-scope validation (only when modifying existing workflow)
+              if (!proposalRejected && currentNodes.length > 0) {
+                const fixScope = createFixScope(baselineWorkflow);
+                const scopeResult = validateFixScope(fixScope, baselineWorkflow, proposedWorkflow);
+                
+                if (!scopeResult.valid) {
+                  proposalRejected = true;
+                  rejectionReason = scopeResult.details || 'Proposal violates scope constraints.';
+                  stabilityMetrics.proposalRejected = true;
+                  stabilityMetrics.rejectionReason = 'scope_violation';
+                  
+                  console.warn('[AiStabilization] Fix-scope violation:', scopeResult);
+                  
+                  toast({
+                    title: "Proposal not applied",
+                    description: rejectionReason,
+                    variant: "destructive"
+                  });
+                }
+              }
+              
+              // Phase 3: Edit-first heuristic (only when modifying existing workflow)
+              if (!proposalRejected && currentNodes.length > 0) {
+                // Normalize both baseline and proposed to symmetric structure for accurate diff
+                // Only compare label (the primary user-visible field) to avoid false positives
+                const normalizeNodeForDiff = (id: string, type: string | undefined, data: any) => ({
+                  id,
+                  type: type || 'process',
+                  data: { label: data?.label || '' },
+                });
+                
+                const normalizeEdgeForDiff = (id: string, source: string, target: string, data: any) => ({
+                  id,
+                  source,
+                  target,
+                  data: { label: data?.label || '' },
+                });
+                
+                const detailedDelta = computeDetailedWorkflowDelta(
+                  {
+                    nodes: currentNodes.map(n => normalizeNodeForDiff(n.id, n.type, n.data)),
+                    edges: currentEdges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, e.data)),
+                  },
+                  {
+                    nodes: proposedWorkflow.nodes.map(n => normalizeNodeForDiff(n.id, n.type, { label: n.label })),
+                    edges: proposedWorkflow.edges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, { label: e.label })),
+                  }
+                );
+                
+                const editFirstResult = validateEditFirstHeuristic({
+                  nodesAdded: detailedDelta.nodesAdded,
+                  nodesModified: detailedDelta.nodesModified,
+                  edgesAdded: detailedDelta.edgesAdded,
+                  edgesRemoved: detailedDelta.edgesRemoved,
+                });
+                
+                if (!editFirstResult.valid) {
+                  proposalRejected = true;
+                  rejectionReason = editFirstResult.details || 'Proposal adds too many new nodes without modifying existing ones.';
+                  stabilityMetrics.proposalRejected = true;
+                  stabilityMetrics.rejectionReason = 'over_construction';
+                  
+                  console.warn('[AiStabilization] Over-construction detected:', editFirstResult);
+                  
+                  toast({
+                    title: "Proposal not applied",
+                    description: "The AI tried to add too many new nodes instead of editing existing ones. Please be more specific about what to modify.",
+                    variant: "destructive"
+                  });
+                }
+              }
+              
+              // Phase 6: Log stability metrics
+              logAiStability(stabilityMetrics);
+              console.log('[AiStabilization] Stability metrics:', stabilityMetrics);
+            }
             
-            // Analyze workflow diagnostics for quick action suggestions
-            const diagnostics = analyzeWorkflowDiagnostics({
-              nodes: parsed.nodes.map((n: Node) => ({
-                id: n.id,
-                type: n.type,
-                label: (n.data as any)?.label
-              })),
-              edges: parsed.edges.map((e: Edge) => ({
-                id: e.id,
-                source: e.source,
-                target: e.target,
-                label: (e.data as any)?.label
-              }))
-            });
-            
-            // Set workflow generation state and suggested quick actions
-            // In HOME proposal phase (fullscreen mode), always show edge/fail actions
-            const diagnosticsContext: DiagnosticsContext = mode === 'fullscreen' ? 'HOME_PROPOSAL' : 'IN_PROJECT';
-            const suggestedActions = getSuggestedQuickActions(diagnostics, diagnosticsContext);
-            setWorkflowGenState('BASELINE_GENERATED');
-            setPendingQuickActions(suggestedActions);
-            
-            logAiInteraction({
-              surface: mode === 'fullscreen' ? 'home' : 'project',
-              phase: 'baseline',
-              action: 'generate',
-              success: true,
-              nodeDelta: parsed.nodes.length,
-              edgeDelta: parsed.edges.length,
-            });
-            
-            responseText = response.text.replace(jsonMatch[0], '').trim();
-            if (!responseText) {
-              // Use the AI response template for baseline generation
-              responseText = AI_RESPONSE_TEMPLATES.BASELINE_GENERATED;
+            // If proposal was rejected, skip setting the draft and show rejection message
+            if (proposalRejected) {
+              logAiInteraction({
+                surface: mode === 'fullscreen' ? 'home' : 'project',
+                phase: 'baseline',
+                action: 'generate',
+                success: false,
+                reason: stabilityMetrics?.rejectionReason as any,
+                aiStability: stabilityMetrics,
+              });
+              
+              responseText = rejectionReason || 'The proposal could not be applied due to validation issues.';
+            } else {
+              // Keep workflowProposal for message history/display only
+              workflowProposal = {
+                nodes: parsed.nodes,
+                edges: parsed.edges,
+                description: 'AI-generated workflow',
+                status: 'pending'
+              };
+              
+              // SET AUTHORITATIVE WORKFLOW DRAFT - Single source of truth
+              setCurrentWorkflowDraft({
+                nodes: parsed.nodes,
+                edges: parsed.edges,
+                status: 'draft',
+                originPrompt: messageContent,
+                mergeBranchDecision,
+              });
+              
+              // Analyze workflow diagnostics for quick action suggestions
+              const diagnostics = analyzeWorkflowDiagnostics({
+                nodes: parsed.nodes.map((n: Node) => ({
+                  id: n.id,
+                  type: n.type,
+                  label: (n.data as any)?.label
+                })),
+                edges: parsed.edges.map((e: Edge) => ({
+                  id: e.id,
+                  source: e.source,
+                  target: e.target,
+                  label: (e.data as any)?.label
+                }))
+              });
+              
+              // Set workflow generation state and suggested quick actions
+              // In HOME proposal phase (fullscreen mode), always show edge/fail actions
+              const diagnosticsContext: DiagnosticsContext = mode === 'fullscreen' ? 'HOME_PROPOSAL' : 'IN_PROJECT';
+              const suggestedActions = getSuggestedQuickActions(diagnostics, diagnosticsContext);
+              setWorkflowGenState('BASELINE_GENERATED');
+              setPendingQuickActions(suggestedActions);
+              
+              logAiInteraction({
+                surface: mode === 'fullscreen' ? 'home' : 'project',
+                phase: 'baseline',
+                action: 'generate',
+                success: true,
+                nodeDelta: parsed.nodes.length,
+                edgeDelta: parsed.edges.length,
+                aiStability: stabilityMetrics,
+              });
+              
+              responseText = response.text.replace(jsonMatch[0], '').trim();
+              if (!responseText) {
+                // Use the AI response template for baseline generation
+                responseText = AI_RESPONSE_TEMPLATES.BASELINE_GENERATED;
+              }
             }
           }
         } catch (e) {

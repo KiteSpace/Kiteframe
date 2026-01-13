@@ -4,11 +4,13 @@ import type { Insight } from '../utils/insights/types';
 import { diagnosticsEngine } from '../utils/diagnostics/DiagnosticsEngine';
 import { convertDiagnosticsToInsights } from '../utils/insights/insightConverter';
 import { apiRequest } from '@/lib/queryClient';
+import { filterDiagnosticsByMode, type DiagnosticsMode } from '@/utils/workflowDiagnostics';
 
 interface UseInsightsOptions {
   projectId: string;
   workflowId?: string;
   minEdges?: number;
+  diagnosticsMode?: DiagnosticsMode;
 }
 
 async function persistInsightAction(
@@ -80,7 +82,7 @@ export function useInsights(
   edges: Edge[],
   options: UseInsightsOptions
 ): UseInsightsResult {
-  const { projectId, workflowId, minEdges = DEFAULT_MIN_EDGES } = options;
+  const { projectId, workflowId, minEdges = DEFAULT_MIN_EDGES, diagnosticsMode = 'validate' } = options;
   
   const insightsStoreRef = useRef<InsightsStore>({});
   const [, forceUpdate] = useState({});
@@ -124,7 +126,10 @@ export function useInsights(
         workflowId,
       });
       
-      const newInsights = convertDiagnosticsToInsights(diagnosticIssues);
+      // Phase 4: Filter diagnostics by mode - 'educate' mode only shows blockers
+      const filteredIssues = filterDiagnosticsByMode(diagnosticIssues, diagnosticsMode);
+      
+      const newInsights = convertDiagnosticsToInsights(filteredIssues);
       
       insightsStoreRef.current[workflowKey] = {
         insights: newInsights,
@@ -136,7 +141,7 @@ export function useInsights(
     } finally {
       setIsRunning(false);
     }
-  }, [nodes, edges, projectId, workflowId, workflowKey, meetsEdgeThreshold, minEdges]);
+  }, [nodes, edges, projectId, workflowId, workflowKey, meetsEdgeThreshold, minEdges, diagnosticsMode]);
   
   const markViewed = useCallback((insightId: string) => {
     setCurrentInsights(prev => {
