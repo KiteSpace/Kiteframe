@@ -1,0 +1,95 @@
+DEV ENVIRONMENT — FEATURE FLAG CONFIGURATION (AUTHORITATIVE)
+
+Purpose:
+Dev should be maximally observable, safe, and debuggable.
+We prioritize AI correctness, guardrail validation, and diagnostic clarity over polish or experimentation.
+
+========================================
+REQUIRED: ENABLED IN DEV
+========================================
+
+[AI — Core + Stability]
+FLAG_AI_STABILIZATION = ON            // Critical: enables all guardrails
+ai.workflowGeneration = enabled
+ai.edgeCaseExpansion = enabled
+ai.mergeBranchHeuristic = enabled
+ai.decisionRepair = enabled
+ai.semanticEnforcement = enabled
+ai.pmDepthGuardsChat = enabled
+ai.clarificationLoopsChat = enabled
+ai.unifiedConversationEngine = enabled
+
+[AI — Validation & Insight]
+ai.insightsSurfacing = enabled
+enterprise.diagnosticsLogging = enabled
+enterprise.whyInspector = enabled    // Critical for understanding AI decisions
+
+[AI — Routing]
+ai.gpt5Routing = enabled              // Dev should reflect real routing behavior
+ai.ollamaProvider = enabled (if used locally)
+
+[Chat Surfaces]
+chat.fullscreenMode = enabled
+chat.panelMode = enabled
+chat.discussionView = enabled
+chat.workflowProposals = enabled
+chat.smartScroll = enabled
+
+[Canvas — Safety & UX]
+canvas.undoRedo = enabled             // Required for AI rollback safety
+canvas.autoLayout = enabled
+canvas.smartGuides = enabled
+canvas.minimap = enabled
+canvas.zoomPan = enabled
+
+[Integrations — Dev Parity]
+integrations.figmaImport = enabled
+integrations.firebaseSync = enabled
+integrations.stripeCredits = enabled (dev mode / sandbox)
+
+========================================
+OPTIONAL: ENABLED IN DEV (BUT NOT REQUIRED)
+========================================
+
+[AI — Extended Capabilities]
+ai.prdGeneration = enabled            // Useful but not launch-critical
+ai.imageAnalysis = enabled             // Useful for testing vision paths
+
+[Enterprise]
+enterprise.pmDepthGuards = enabled
+enterprise.auditExport = enabled
+
+========================================
+RECOMMENDED: DISABLED IN DEV
+========================================
+
+[Experimental / Risky UX]
+PROPOSE_SOLUTION_PREVIEW = off         // Avoid partial / misleading outputs
+canvas.experimentNodes = off           // Avoid AI interacting with unstable node types
+
+[Read-Only / Enterprise Constraints]
+enterprise.readOnlyMode = off          // Dev must allow mutation
+
+========================================
+NON-NEGOTIABLE DEV REQUIREMENTS
+========================================
+
+1. FLAG_AI_STABILIZATION MUST be ON in dev.
+2. Any AI rejection MUST:
+   - Show user-visible feedback
+   - Emit telemetry
+3. No AI proposal may mutate canvas if rejected.
+4. Test Flight in dev must support BOTH:
+   - validate mode (full diagnostics)
+   - educate mode (blockers only)
+5. Telemetry logs MUST be visible in console in dev.
+
+========================================
+DEFINITION OF DEV-READY
+========================================
+
+Dev environment is considered correctly configured when:
+- AI cannot worsen workflows
+- All guardrails are actively exercised
+- Rejections are explainable
+- No silent failures occur
