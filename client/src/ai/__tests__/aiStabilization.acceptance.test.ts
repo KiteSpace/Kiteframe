@@ -256,4 +256,125 @@ describe('AI Stabilization Acceptance Tests (Part 7)', () => {
       expect(validateModeIssues.length).toBeGreaterThan(0);
     });
   });
+
+  describe('HOME Proposal Guardrail Bypass', () => {
+    /**
+     * These tests verify that AI stabilization guardrails are correctly bypassed
+     * during HOME proposal generation (baseline workflow creation).
+     */
+
+    it('HOME proposal surface detection correctly identifies fullscreen mode', () => {
+      const isHomeProposal = (surfaceContext: string, mode: string) => 
+        surfaceContext === 'home' || mode === 'fullscreen';
+      
+      expect(isHomeProposal('home', 'panel')).toBe(true);
+      expect(isHomeProposal('project', 'fullscreen')).toBe(true);
+      expect(isHomeProposal('project', 'panel')).toBe(false);
+      expect(isHomeProposal('project', 'floating')).toBe(false);
+    });
+
+    it('skipAiStabilization is true for HOME proposals', () => {
+      const getSkipFlag = (surfaceContext: string, mode: string) => {
+        const isHomeProposal = surfaceContext === 'home' || mode === 'fullscreen';
+        return isHomeProposal;
+      };
+      
+      expect(getSkipFlag('home', 'fullscreen')).toBe(true);
+      expect(getSkipFlag('home', 'panel')).toBe(true);
+      expect(getSkipFlag('project', 'fullscreen')).toBe(true);
+      
+      expect(getSkipFlag('project', 'panel')).toBe(false);
+      expect(getSkipFlag('project', 'floating')).toBe(false);
+    });
+
+    it('HOME baseline workflow would fail guardrails if they ran (proving bypass is necessary)', () => {
+      const baselineWorkflow: AnalyzableWorkflow = {
+        nodes: [],
+        edges: []
+      };
+      const baseline = captureDiagnosticBaseline(baselineWorkflow);
+      
+      const homeProposal: AnalyzableWorkflow = {
+        nodes: [
+          { id: '1', type: 'start', label: 'Start' },
+          { id: '2', type: 'process', label: 'Step 1' },
+          { id: '3', type: 'process', label: 'Step 2' },
+          { id: '4', type: 'process', label: 'Step 3' },
+          { id: '5', type: 'end', label: 'End' }
+        ],
+        edges: [
+          { id: 'e1', source: '1', target: '2' },
+          { id: 'e2', source: '2', target: '3' },
+          { id: 'e3', source: '3', target: '4' },
+          { id: 'e4', source: '4', target: '5' }
+        ]
+      };
+      
+      const editFirstResult = validateEditFirstHeuristic({
+        nodesAdded: 5,
+        nodesModified: 0,
+        edgesAdded: 4,
+        edgesRemoved: 0,
+      });
+      
+      expect(editFirstResult.valid).toBe(false);
+    });
+
+    it('in-project mutations still enforce guardrails (empty canvas does NOT bypass)', () => {
+      const getSkipFlag = (surfaceContext: string, mode: string) => {
+        const isHomeProposal = surfaceContext === 'home' || mode === 'fullscreen';
+        return isHomeProposal;
+      };
+      
+      expect(getSkipFlag('project', 'panel')).toBe(false);
+      
+      const editFirstResult = validateEditFirstHeuristic({
+        nodesAdded: 10,
+        nodesModified: 0,
+        edgesAdded: 8,
+        edgesRemoved: 0,
+      });
+      
+      expect(editFirstResult.valid).toBe(false);
+      expect(editFirstResult.rejectionReason).toBe('over_construction');
+    });
+
+    it('in-project Apply with existing workflow enforces fix-scope validation', () => {
+      const existingWorkflow: AnalyzableWorkflow = {
+        nodes: [
+          { id: '1', type: 'start', label: 'Start' },
+          { id: '2', type: 'process', label: 'Process' },
+          { id: '3', type: 'end', label: 'End' }
+        ],
+        edges: [
+          { id: 'e1', source: '1', target: '2' },
+          { id: 'e2', source: '2', target: '3' }
+        ]
+      };
+      
+      const scope = createFixScope(existingWorkflow, 'LINEAR_ONLY');
+      
+      const proposedWithDecision: AnalyzableWorkflow = {
+        nodes: [
+          { id: '1', type: 'start', label: 'Start' },
+          { id: '2', type: 'condition', label: 'Decision?' },
+          { id: '3', type: 'process', label: 'Path A' },
+          { id: '4', type: 'process', label: 'Path B' },
+          { id: '5', type: 'end', label: 'End' }
+        ],
+        edges: [
+          { id: 'e1', source: '1', target: '2' },
+          { id: 'e2', source: '2', target: '3', label: 'Yes' },
+          { id: 'e3', source: '2', target: '4', label: 'No' },
+          { id: 'e4', source: '3', target: '5' },
+          { id: 'e5', source: '4', target: '5' }
+        ]
+      };
+      
+      const result = validateFixScope(scope, existingWorkflow, proposedWithDecision);
+      
+      expect(result.valid).toBe(false);
+      expect(result.rejectionReason).toBe('scope_violation');
+    });
+  });
 });
