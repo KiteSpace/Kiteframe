@@ -860,7 +860,17 @@ export function KiteAIChatBrain({
             let rejectionReason: string | undefined;
             let stabilityMetrics: AiStabilityMetrics | undefined;
             
-            if (aiStabilizationEnabled && baselineDiagnosticsRef.current) {
+            // AI Stabilization Guardrail Bypass Logic:
+            // - HOME proposals (baseline generation) must NEVER trigger guardrails
+            // - Guardrails only run for in-project mutations (Apply/Replace)
+            const isHomeProposal = surfaceContext === 'home' || mode === 'fullscreen';
+            const skipAiStabilization = isHomeProposal;
+            
+            if (skipAiStabilization) {
+              console.log('[AiStabilization] Skipping guardrails - HOME proposal phase (baseline generation)');
+            }
+            
+            if (aiStabilizationEnabled && baselineDiagnosticsRef.current && !skipAiStabilization) {
               const proposedWorkflow = {
                 nodes: parsed.nodes.map((n: Node) => ({ 
                   id: n.id, 
