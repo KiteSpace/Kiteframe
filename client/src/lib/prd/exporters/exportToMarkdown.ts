@@ -1,4 +1,4 @@
-import type { AssembledProjectPRD, WorkflowCanvasData } from '../assembleProjectPRD';
+import type { AssembledProjectPRD, WorkflowCanvasData, WorkflowIntentData } from '../assembleProjectPRD';
 import type { Node, Edge } from '../../kiteframe/types';
 
 function getNodeTypeLabel(type: string): string {
@@ -126,6 +126,37 @@ function buildEdgeTable(edges: Edge[], nodes: Node[]): string[] {
   return lines;
 }
 
+function buildIntentSection(intent: WorkflowIntentData): string[] {
+  const lines: string[] = [];
+  
+  const maturityLabels: Record<string, string> = {
+    'draft': 'Draft',
+    'reviewed': 'Reviewed',
+    'stable': 'Stable'
+  };
+  
+  lines.push('| Aspect | Details |');
+  lines.push('|--------|---------|');
+  
+  if (intent.primaryGoal) {
+    lines.push(`| Primary Goal | ${intent.primaryGoal.replace(/\|/g, '\\|')} |`);
+  }
+  if (intent.userType) {
+    lines.push(`| Target User | ${intent.userType.replace(/\|/g, '\\|')} |`);
+  }
+  if (intent.successSignal) {
+    lines.push(`| Success Signal | ${intent.successSignal.replace(/\|/g, '\\|')} |`);
+  }
+  if (intent.failureModes && intent.failureModes.length > 0) {
+    const failureModesList = intent.failureModes.map(f => f.replace(/\|/g, '\\|')).join('; ');
+    lines.push(`| Failure Modes | ${failureModesList} |`);
+  }
+  lines.push(`| Maturity | ${maturityLabels[intent.maturity] || intent.maturity} |`);
+  lines.push(`| Confirmed | ${intent.confirmed ? 'Yes' : 'No'} |`);
+  
+  return lines;
+}
+
 function buildWorkflowStructureSummary(canvas: WorkflowCanvasData): string[] {
   const { nodes, edges } = canvas;
   const lines: string[] = [];
@@ -234,6 +265,13 @@ export function exportToMarkdown(assembled: AssembledProjectPRD): string {
       
       if (workflow.semanticSummary) {
         lines.push(`> ${workflow.semanticSummary}`);
+        lines.push('');
+      }
+      
+      if (workflow.intent && (workflow.intent.primaryGoal || workflow.intent.userType || workflow.intent.successSignal)) {
+        lines.push('### Workflow Intent');
+        lines.push('');
+        lines.push(...buildIntentSection(workflow.intent));
         lines.push('');
       }
       

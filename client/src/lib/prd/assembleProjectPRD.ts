@@ -2,6 +2,7 @@ import type { WorkflowPRD, ProjectPRD, PRDSection } from '../../ai/prdEngine';
 import { loadWorkflowPRD, loadProjectPRD, listWorkflowPRDs } from '../kiteframe/utils/prdStorage';
 import type { SemanticWorkflowModel } from '../kiteframe/utils/extractSemanticWorkflowModel';
 import type { Node, Edge, CanvasObject } from '../kiteframe/types';
+import { workflowIntentStore, type WorkflowIntent, type WorkflowMaturity } from '../../stores/workflowIntentStore';
 
 export interface WorkflowCanvasData {
   nodes: Node[];
@@ -10,12 +11,22 @@ export interface WorkflowCanvasData {
   viewport?: { x: number; y: number; zoom: number };
 }
 
+export interface WorkflowIntentData {
+  primaryGoal: string;
+  userType: string;
+  successSignal: string;
+  failureModes: string[];
+  maturity: WorkflowMaturity;
+  confirmed: boolean;
+}
+
 export interface WorkflowPRDEntry {
   workflowId: string;
   workflowName: string;
   prdSections: PRDSection[];
   semanticSummary?: string;
   canvas?: WorkflowCanvasData;
+  intent?: WorkflowIntentData;
 }
 
 export interface AssembledProjectPRD {
@@ -78,12 +89,23 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
     const canvasData = workflowCanvasData[workflowId];
     console.log(`[assembleProjectPRD] Workflow ${workflowId}: canvasData exists=${!!canvasData}, nodes=${canvasData?.nodes?.length || 0}`);
     
+    const rawIntent = workflowIntentStore.get(projectId, workflowId);
+    const intentData: WorkflowIntentData | undefined = rawIntent ? {
+      primaryGoal: rawIntent.primaryGoal,
+      userType: rawIntent.userType,
+      successSignal: rawIntent.successSignal,
+      failureModes: rawIntent.failureModes,
+      maturity: rawIntent.maturity,
+      confirmed: rawIntent.confirmed,
+    } : undefined;
+    
     workflows.push({
       workflowId,
       workflowName: workflowPRD?.workflowName || workflowNames[workflowId] || workflowId,
       prdSections: workflowPRD?.sections || [],
       semanticSummary,
-      canvas: canvasData
+      canvas: canvasData,
+      intent: intentData
     });
   }
 

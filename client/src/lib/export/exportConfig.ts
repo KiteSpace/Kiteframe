@@ -1,5 +1,7 @@
 export type ExportArtifact =
   | 'prd_document'
+  | 'prd_pdf'
+  | 'prd_markdown'
   | 'prototype_prompt'
   | 'figma_make_prompt'
   | 'jira_csv'
@@ -13,6 +15,7 @@ export type ExportArtifact =
 
 export type ExportOption =
   | 'prd_document'
+  | 'prd_markdown'
   | 'prototype_prompt'
   | 'figma_make_prompt'
   | 'jira_csv'
@@ -35,10 +38,17 @@ export interface ExportOptionConfig {
 export const INDIVIDUAL_EXPORTS: ExportOptionConfig[] = [
   {
     id: 'prd_document',
-    label: 'PRD Document',
-    description: 'Product requirements document generated from selected workflows',
+    label: 'PRD Document (PDF)',
+    description: 'Product requirements document as a formatted PDF file',
     isBundle: false,
-    artifacts: ['prd_document'],
+    artifacts: ['prd_pdf'],
+  },
+  {
+    id: 'prd_markdown',
+    label: 'PRD Document (Markdown)',
+    description: 'Product requirements document in Markdown format',
+    isBundle: false,
+    artifacts: ['prd_markdown'],
   },
   {
     id: 'prototype_prompt',
@@ -88,9 +98,9 @@ export const BUNDLE_EXPORTS: ExportOptionConfig[] = [
   {
     id: 'bundle_project',
     label: 'Project',
-    description: 'PRD, Jira CSV, workflow diagram, and Kiteframe project file',
+    description: 'PRD (PDF & Markdown), Jira CSV, workflow diagram, and Kiteframe project file',
     isBundle: true,
-    artifacts: ['prd_document', 'jira_csv', 'workflow_diagram', 'kiteframe_project'],
+    artifacts: ['prd_pdf', 'prd_markdown', 'jira_csv', 'workflow_diagram', 'kiteframe_project'],
   },
   {
     id: 'bundle_ai_agent',
@@ -124,6 +134,8 @@ export function getExportOptionById(id: ExportOption): ExportOptionConfig | unde
 
 export const ARTIFACT_FILENAMES: Record<ExportArtifact, string> = {
   prd_document: 'prd.md',
+  prd_pdf: 'prd.pdf',
+  prd_markdown: 'prd.md',
   prototype_prompt: 'prototype-prompt.txt',
   figma_make_prompt: 'figma-make-prompt.txt',
   jira_csv: 'jira-import.csv',
@@ -138,6 +150,8 @@ export const ARTIFACT_FILENAMES: Record<ExportArtifact, string> = {
 
 export const ARTIFACT_LABELS: Record<ExportArtifact, string> = {
   prd_document: 'PRD Document',
+  prd_pdf: 'PRD Document (PDF)',
+  prd_markdown: 'PRD Document (Markdown)',
   prototype_prompt: 'Prototype Prompt',
   figma_make_prompt: 'Figma Make Prompt',
   jira_csv: 'JIRA CSV',

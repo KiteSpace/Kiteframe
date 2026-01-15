@@ -17,6 +17,7 @@ import {
   ARTIFACT_LABELS,
 } from '@/lib/export/exportConfig';
 import { exportToMarkdown } from '@/lib/prd/exporters/exportToMarkdown';
+import { exportToPdf } from '@/lib/prd/exporters/exportToPdf';
 import { exportToPrototypingPrompt } from '@/lib/prd/exporters/exportToPrototypingPrompt';
 import { exportToKiteframeJSON } from '@/lib/prd/exporters/exportToKiteframeJSON';
 import { exportFigmaMakePrompt } from '@/lib/prd/exporters/exportFigmaMakePrompt';
@@ -122,10 +123,13 @@ export function ExportProjectModal({
 
   const canExport = selectedExports.size > 0;
 
-  const generateArtifactContent = useCallback((artifact: ExportArtifact, assembled: any): string => {
+  const generateArtifactContent = useCallback((artifact: ExportArtifact, assembled: any): string | Blob => {
     switch (artifact) {
       case 'prd_document':
+      case 'prd_markdown':
         return exportToMarkdown(assembled);
+      case 'prd_pdf':
+        return exportToPdf(assembled);
       case 'prototype_prompt':
         return exportToPrototypingPrompt(assembled);
       case 'figma_make_prompt':
@@ -262,7 +266,7 @@ export function ExportProjectModal({
     }
   };
 
-  const prdRequiredOptions = ['prd_document', 'bundle_project'];
+  const prdRequiredOptions = ['prd_document', 'prd_markdown', 'bundle_project'];
   const optionRequiresPRD = (id: ExportOption) => prdRequiredOptions.includes(id);
 
   return (
@@ -453,8 +457,8 @@ function sanitizeFilename(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
+function downloadFile(content: string | Blob, filename: string, mimeType: string): void {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   
   const a = document.createElement('a');
@@ -467,6 +471,7 @@ function downloadFile(content: string, filename: string, mimeType: string): void
 }
 
 function getMimeType(artifact: ExportArtifact): string {
+  if (artifact === 'prd_pdf') return 'application/pdf';
   if (artifact === 'jira_csv') return 'text/csv;charset=utf-8';
   if (artifact === 'kiteframe_project') return 'application/json;charset=utf-8';
   if (artifact.endsWith('_prompt')) return 'text/plain;charset=utf-8';
