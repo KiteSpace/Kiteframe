@@ -31,6 +31,8 @@ interface ProjectPanelProps {
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   shareUuid?: string;
+  cloudProjectId?: number | null;
+  onShareCreated?: (shareUuid: string) => void;
   insights?: Insight[];
   insightsLoading?: boolean;
   insightsLastRunAt?: number | null;
@@ -79,6 +81,8 @@ export function ProjectPanel({
   onPreviewWorkflow,
   isReadOnly = false,
   shareUuid,
+  cloudProjectId,
+  onShareCreated,
   insights = [],
   insightsLoading = false,
   insightsLastRunAt,
@@ -337,6 +341,8 @@ export function ProjectPanel({
             onProjectNameChange={isReadOnly ? undefined : onProjectNameChange}
             isReadOnly={isReadOnly}
             shareUuid={shareUuid}
+            cloudProjectId={cloudProjectId}
+            onShareCreated={onShareCreated}
           />
         </TabsContent>
         

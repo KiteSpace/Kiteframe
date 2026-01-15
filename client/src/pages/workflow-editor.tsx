@@ -11832,6 +11832,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }}
                 isReadOnly={isReadOnly}
                 shareUuid={activeShareId || undefined}
+                cloudProjectId={activeTab?.cloudProjectId ? (typeof activeTab.cloudProjectId === 'number' ? activeTab.cloudProjectId : parseInt(activeTab.cloudProjectId, 10) || null) : null}
+                onShareCreated={setActiveShareId}
                 insights={insights.insights}
                 insightsLoading={insights.isRunning}
                 insightsLastRunAt={insights.lastRunAt}

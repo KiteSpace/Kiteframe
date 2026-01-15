@@ -47,6 +47,8 @@ interface ProjectDocTabProps {
   onProjectNameChange?: (name: string) => void;
   isReadOnly?: boolean;
   shareUuid?: string;
+  cloudProjectId?: number | null;
+  onShareCreated?: (shareUuid: string) => void;
 }
 
 const WORKFLOW_NAMES_KEY_PREFIX = 'kiteframe-workflow-names-';
@@ -109,7 +111,9 @@ export function ProjectDocTab({
   canvasObjects = [],
   onProjectNameChange,
   isReadOnly = false,
-  shareUuid
+  shareUuid,
+  cloudProjectId,
+  onShareCreated
 }: ProjectDocTabProps) {
   const [docMode, setDocMode] = useState<DocMode>('overview');
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
@@ -601,6 +605,8 @@ export function ProjectDocTab({
           canvasObjects: canvasObjects || []
         }))}
         shareUuid={shareUuid}
+        cloudProjectId={cloudProjectId}
+        onShareCreated={onShareCreated}
       />
     </div>
   );

@@ -28,6 +28,7 @@ import { exportAgentSystemPrompt, exportConstraintsAndNonGoals, exportExpectedOu
 import { exportWorkflowDiagram } from '@/lib/prd/exporters/exportWorkflowDiagram';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import JSZip from 'jszip';
+import { apiRequest } from '@/lib/queryClient';
 
 interface WorkflowData {
   id: string;
@@ -45,6 +46,8 @@ interface ExportProjectModalProps {
   projectDescription?: string;
   workflows: WorkflowData[];
   shareUuid?: string;
+  cloudProjectId?: number | null;
+  onShareCreated?: (shareUuid: string) => void;
 }
 
 interface WorkflowWithPRD {
@@ -60,7 +63,9 @@ export function ExportProjectModal({
   projectName,
   projectDescription,
   workflows,
-  shareUuid
+  shareUuid,
+  cloudProjectId,
+  onShareCreated
 }: ExportProjectModalProps) {
   const { toast } = useToast();
   const [selectedExports, setSelectedExports] = useState<Set<ExportOption>>(new Set());
@@ -187,8 +192,21 @@ export function ExportProjectModal({
       });
 
       const workflowShareUrls: Record<string, string> = {};
-      if (shareUuid) {
-        const baseShareUrl = `${window.location.origin}/view/${shareUuid}`;
+      let effectiveShareUuid = shareUuid;
+      
+      if (!effectiveShareUuid && cloudProjectId) {
+        try {
+          const response = await apiRequest('POST', `/api/projects/${cloudProjectId}/share`, {});
+          const data = await response.json();
+          effectiveShareUuid = data.shareUuid;
+          onShareCreated?.(data.shareUuid);
+        } catch (error) {
+          console.warn('Failed to auto-create share link for export:', error);
+        }
+      }
+      
+      if (effectiveShareUuid) {
+        const baseShareUrl = `${window.location.origin}/view/${effectiveShareUuid}`;
         Array.from(selectedWorkflows).forEach(wfId => {
           workflowShareUrls[wfId] = `${baseShareUrl}?workflow=${wfId}`;
         });
