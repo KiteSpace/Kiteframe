@@ -67,6 +67,10 @@ Preferred communication style: Simple, everyday language.
 ### PRD System (Project Tab)
 - **AI-Powered Generation**: Generates Product Requirement Documents from workflow semantic models.
 - **Features**: Stale detection, manual edit preservation, automatic backup.
+- **All-Inclusive Export**: 
+  - Markdown export includes structured tables for nodes/edges, workflow structure summaries, flow paths with arrows, and status breakdowns.
+  - JSON export (`.kiteframe` format v2.1.0) includes project PRD, workflow PRDs, workflow names, and project descriptions.
+  - Import restoration with workflow ID reconciliation (explicit mapping, name-based matching, or fallback to original IDs).
 
 ### AI Integration Layer
 - **Core AI Infrastructure**: Client interface supporting OpenAI-compatible APIs, with a React context-based AI provider supporting OpenAI (GPT-4o) and Ollama models.
