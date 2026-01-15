@@ -11831,6 +11831,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 }}
                 isReadOnly={isReadOnly}
+                shareUuid={activeShareId || undefined}
                 insights={insights.insights}
                 insightsLoading={insights.isRunning}
                 insightsLastRunAt={insights.lastRunAt}

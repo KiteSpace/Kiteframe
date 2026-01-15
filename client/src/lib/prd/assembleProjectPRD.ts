@@ -27,6 +27,7 @@ export interface WorkflowPRDEntry {
   semanticSummary?: string;
   canvas?: WorkflowCanvasData;
   intent?: WorkflowIntentData;
+  shareUrl?: string;
 }
 
 export interface AssembledProjectPRD {
@@ -55,6 +56,7 @@ export interface AssembleOptions {
   workflowNames?: Record<string, string>;
   semanticModels?: Record<string, SemanticWorkflowModel>;
   workflowCanvasData?: Record<string, WorkflowCanvasData>;
+  workflowShareUrls?: Record<string, string>;
 }
 
 export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPRD {
@@ -65,7 +67,8 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
     selectedWorkflowIds,
     workflowNames = {},
     semanticModels = {},
-    workflowCanvasData = {}
+    workflowCanvasData = {},
+    workflowShareUrls = {}
   } = options;
 
   console.log('[assembleProjectPRD] Starting assembly');
@@ -105,7 +108,8 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
       prdSections: workflowPRD?.sections || [],
       semanticSummary,
       canvas: canvasData,
-      intent: intentData
+      intent: intentData,
+      shareUrl: workflowShareUrls[workflowId]
     });
   }
 

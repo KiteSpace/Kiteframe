@@ -30,6 +30,7 @@ interface ProjectPanelProps {
   onReplaceWorkflow?: (workflow: ReplaceWorkflowPayload) => void;
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
+  shareUuid?: string;
   insights?: Insight[];
   insightsLoading?: boolean;
   insightsLastRunAt?: number | null;
@@ -77,6 +78,7 @@ export function ProjectPanel({
   onReplaceWorkflow,
   onPreviewWorkflow,
   isReadOnly = false,
+  shareUuid,
   insights = [],
   insightsLoading = false,
   insightsLastRunAt,
@@ -334,6 +336,7 @@ export function ProjectPanel({
             canvasObjects={canvasObjects}
             onProjectNameChange={isReadOnly ? undefined : onProjectNameChange}
             isReadOnly={isReadOnly}
+            shareUuid={shareUuid}
           />
         </TabsContent>
         

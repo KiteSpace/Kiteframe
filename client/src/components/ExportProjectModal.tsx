@@ -44,6 +44,7 @@ interface ExportProjectModalProps {
   projectName: string;
   projectDescription?: string;
   workflows: WorkflowData[];
+  shareUuid?: string;
 }
 
 interface WorkflowWithPRD {
@@ -58,7 +59,8 @@ export function ExportProjectModal({
   projectId,
   projectName,
   projectDescription,
-  workflows
+  workflows,
+  shareUuid
 }: ExportProjectModalProps) {
   const { toast } = useToast();
   const [selectedExports, setSelectedExports] = useState<Set<ExportOption>>(new Set());
@@ -184,13 +186,22 @@ export function ExportProjectModal({
         }
       });
 
+      const workflowShareUrls: Record<string, string> = {};
+      if (shareUuid) {
+        const baseShareUrl = `${window.location.origin}/view/${shareUuid}`;
+        Array.from(selectedWorkflows).forEach(wfId => {
+          workflowShareUrls[wfId] = `${baseShareUrl}?workflow=${wfId}`;
+        });
+      }
+
       const assembled = assembleProjectPRD({
         projectId,
         projectName,
         projectDescription,
         selectedWorkflowIds: Array.from(selectedWorkflows),
         workflowNames,
-        workflowCanvasData
+        workflowCanvasData,
+        workflowShareUrls
       });
 
       const selection = Array.from(selectedExports) as ExportSelection;
