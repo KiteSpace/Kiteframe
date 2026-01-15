@@ -69,43 +69,26 @@ Preferred communication style: Simple, everyday language.
 - **Features**: Stale detection, manual edit preservation, automatic backup.
 
 ### AI Integration Layer
-- **Client Interface**: OpenAI-compatible API client.
-- **Provider System**: React context-based AI provider supporting OpenAI (GPT-4o) and Ollama models.
+- **Core AI Infrastructure**: Client interface supporting OpenAI-compatible APIs, with a React context-based AI provider supporting OpenAI (GPT-4o) and Ollama models.
 - **Privacy Tiers**: UI options for "Maximum Privacy" (Ollama) and "Standard Privacy" (OpenAI, Anthropic).
-- **Image-to-Workflow**: AI analysis of diagrams for conversion.
-- **Unified Vision Pipeline**: Routes all input types (text, image, Figma) through a consistent PM conversation flow with actionability scoring and signal extraction.
-- **PM Depth Guards**: Enforces PM-level reasoning depth by detecting tradeoffs, risks, irreversible actions, and meaningful branching. Requires specific proof obligations.
+- **Unified Vision Pipeline**: Routes all input types (text, image, Figma) through a consistent PM conversation flow with actionability scoring and signal extraction, enforcing PM-level reasoning depth.
+- **AI Stabilization + Gold-Standard Guardrails (7-Part System)**: Comprehensive infrastructure to prevent cascading issues and over-construction in AI-generated workflows, including diagnostic delta gating, fix-scope locking, edit-first heuristic, Test Flight intent awareness, proposal structure contract, AI stability telemetry, and acceptance tests.
+- **HOME Proposal Bypass**: Guardrails are bypassed for initial workflow generation in HOME/fullscreen mode.
+- **GPT-5 Migration Foundation**: Central AI router for task-type based model selection, supporting model provenance, retry & fallback, and tolerant JSON parsing.
+- **Merge vs Branch Intent Heuristic**: Detects user intent for workflow modification (merge) or new variant creation (branch).
+- **Decision Repair Heuristic**: Auto-repairs incomplete decision nodes.
+- **Semantic Completeness Enforcement**: Detects when AI-generated workflows describe stateful behavior but lack structural encoding.
+- **Loop Detection System**: Detects retry patterns lacking exit conditions or counters.
+- **Merge-Safe Workflow Mutation**: Prevents orphan nodes and invalid graph states during chat-driven workflow edits.
+
+### Feature Flag System
+- **Categories**: AI (`ai.*`), Canvas (`canvas.*`), Chat (`chat.*`), Enterprise (`enterprise.*`), Integration (`integrations.*`).
+- **Dev Environment Configuration**: Flags are explicitly enabled or disabled for development.
+- **Flag Seeding Behavior**: New flags are created, and existing flags are updated based on `defaultEnabled` values in seed configuration.
 
 ### Explainability, Auditability & Trust
 - **Philosophy**: All additions are optional, read-only, and non-blocking.
-- **Features**: Provenance metadata for nodes/edges, decision snapshots, structural timeline, audit export, "Why Inspector" for node explanations, enterprise guardrails.
-
-### Semantic Completeness Enforcement
-- **Purpose**: Detects when AI-generated workflows describe stateful behavior (retries, thresholds, escalation) but lack structural encoding.
-- **Features**: Read-only detection by default, semantic claim extraction, structural analysis, mismatch detection, feature flag for blocking enforcement.
-
-### Merge vs Branch Intent Heuristic
-- **Purpose**: Detects user intent to modify existing workflows (merge) or create new variants (branch).
-- **Features**: Passive detection via pattern matching, defaults to MERGE for ambiguous intent, integrated into chat workflow generation, audit visibility.
-
-### Decision Repair Heuristic
-- **Purpose**: Auto-repairs incomplete decision nodes (missing branches, unlabeled edges, dangling outcomes) before suggestions.
-- **Features**: Repairs logic errors, never creates parallel workflows or deletes user nodes, idempotent. Addresses missing outcomes, unlabeled edges, dangling edges.
-
-### GPT-5 Migration Foundation
-- **Central AI Router**: `aiRouter.ts` for task-type based model selection.
-- **Features**: Task-type model policy, session model lock, model provenance, retry & fallback mechanism, tolerant JSON parser, structured logging.
-
-### Loop Detection System
-- **Purpose**: Detects retry patterns lacking exit conditions or counters.
-- **Features**: Detects `loop_without_exit`, `retry_without_counter`, `infinite_loop_risk` via cycle detection, self-loop detection, semantic exit condition checking. Surfaced via Test Flight diagnostics.
-
-### Merge-Safe Workflow Mutation
-- **Purpose**: Prevents orphan nodes and invalid graph states during chat-driven workflow edits.
-- **Features**: Structural safety enforced at mutation time, blocks orphan nodes, floating islands, parallel workflows. Validates edges, resolves attachments. Integrates with decision repair and audit trail.
-- **Entry Point**: `orchestrateChatWorkflowMutation()` combines repair and mutation, returning `repairInfo` and `combinedMutationSafety` for DecisionSnapshot and DiagnosticsEngine.
-- **REPLACE Mode**: Atomic clear-and-replace with validation-only path (bypasses merge/repair). Uses `executeReplaceWorkflow` shared function with canvas-change guard (full JSON hash of node/edge data) and structural regression detection.
-- **Structural Regression Guard**: `graphStructure.ts` computes branchingPoints, decisionNodes, labeledDecisionEdges. Shows warning modal (amber styling) before REPLACE if replacement would flatten workflow topology.
+- **Features**: Provenance metadata, decision snapshots, structural timeline, audit export, "Why Inspector", enterprise guardrails.
 
 ### Plugin Architecture
 - **KiteFrameCore**: Plugin management system with `PluginProvider`, hooks, and event system, offering 8 defined extension points.
@@ -118,8 +101,6 @@ Preferred communication style: Simple, everyday language.
 ### Kiteline Library Package (`@kiteline/core`)
 - **Overview**: Standalone open-source npm package of the core canvas library.
 - **Distribution**: TypeScript source, MIT License.
-- **Documentation**: Comprehensive `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`.
-- **Demo**: Interactive demo at `/demo` route.
 
 ## External Dependencies
 
