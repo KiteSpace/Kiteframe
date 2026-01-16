@@ -1846,27 +1846,29 @@ export function KiteAIChatBrain({
   };
 
   return (
-    <div className="flex flex-col h-full w-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
+    <div className={`flex flex-col h-full w-full ${mode === 'fullscreen' ? 'relative' : ''}`}>
+      {/* Header - hidden in fullscreen/home mode */}
+      {mode !== 'fullscreen' && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-semibold">KiteAI</span>
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
           </div>
-          <span className="font-semibold">KiteAI</span>
-          {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearChat}
+              className="p-1.5 hover:bg-accent rounded-md transition-colors"
+              title="Clear chat"
+              data-testid="button-kiteai-clear"
+            >
+              <Trash2 className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={clearChat}
-            className="p-1.5 hover:bg-accent rounded-md transition-colors"
-            title="Clear chat"
-            data-testid="button-kiteai-clear"
-          >
-            <Trash2 className="w-4 h-4 text-muted-foreground" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Messages Area */}
       <ChatMessageList
@@ -2034,9 +2036,13 @@ export function KiteAIChatBrain({
         </div>
       )}
 
-      {/* Input Area */}
+      {/* Input Area - fixed at bottom in fullscreen mode (ChatGPT-style) */}
       <div 
-        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''}`}
+        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''} ${
+          mode === 'fullscreen' 
+            ? 'fixed bottom-0 left-0 right-0 bg-background z-50 max-w-4xl mx-auto' 
+            : ''
+        }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
