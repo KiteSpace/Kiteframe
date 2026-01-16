@@ -48,6 +48,15 @@ export function PromptContextStoreProvider({ children }: { children: ReactNode }
   }, []);
 
   const addAttachment = useCallback((attachment: PromptAttachment) => {
+    console.log('[PromptContextStore] Adding attachment:', {
+      id: attachment.id,
+      type: attachment.type,
+      displayName: attachment.displayName,
+      hasFile: !!attachment.file,
+      fileType: attachment.file?.type,
+      fileSize: attachment.file?.size,
+      status: attachment.status
+    });
     setContext(prev => ({
       ...prev,
       attachments: [...prev.attachments, attachment],

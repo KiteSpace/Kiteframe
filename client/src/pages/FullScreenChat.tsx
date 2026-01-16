@@ -47,8 +47,11 @@ export default function FullScreenChat() {
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const prompt = params.get('prompt');
-    if (prompt && !promptConsumed) {
-      setInitialPrompt(prompt);
+    // Set initialPrompt even if empty string - attachments-only case handled in KiteAIChat
+    // Only skip if prompt is null (no param at all) or already consumed
+    if (prompt !== null && !promptConsumed) {
+      // For empty string, set to null to let attachments-only effect handle it
+      setInitialPrompt(prompt || null);
     }
   }, [searchString, promptConsumed]);
   

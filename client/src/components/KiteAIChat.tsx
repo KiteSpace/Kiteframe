@@ -408,6 +408,56 @@ export function KiteAIChatBrain({
   // Handle initial prompt injection from Home Prompt
   // Uses the shared handleSend function to maintain single source of truth
   const initialPromptProcessedRef = useRef<string | null>(null);
+  const attachmentsProcessedRef = useRef(false);
+  
+  // Compute ready attachments count for dependency tracking
+  const readyAttachmentsCount = useMemo(() => {
+    const attachments = promptContextStore?.context.attachments || [];
+    return attachments.filter(a => a.file && a.status === 'ready').length;
+  }, [promptContextStore?.context.attachments]);
+  
+  // Reset attachmentsProcessedRef when attachments are cleared (for repeat usage)
+  useEffect(() => {
+    if (readyAttachmentsCount === 0) {
+      attachmentsProcessedRef.current = false;
+    }
+  }, [readyAttachmentsCount]);
+  
+  // Handle attachments-only case (when user uploads image without text)
+  // This runs once when component mounts in fullscreen mode with attachments
+  useEffect(() => {
+    // Only handle attachments-only in fullscreen mode (from home page)
+    if (mode !== 'fullscreen') return;
+    // Skip if we already processed attachments or there's an initial prompt
+    if (attachmentsProcessedRef.current || initialPrompt) return;
+    // Skip if loading or no ready attachments
+    if (isLoading || readyAttachmentsCount === 0) return;
+    
+    const storeAttachments = promptContextStore?.context.attachments || [];
+    console.log('[KiteAIChat] Checking for attachments-only case:', {
+      mode,
+      hasInitialPrompt: !!initialPrompt,
+      attachmentCount: storeAttachments.length,
+      readyCount: readyAttachmentsCount
+    });
+    
+    const readyAttachments = storeAttachments.filter(a => a.file && a.status === 'ready');
+    const filesToSend = readyAttachments.map(a => a.file!);
+    
+    if (filesToSend.length > 0) {
+      console.log('[KiteAIChat] Processing attachments-only (no text prompt):', filesToSend.length);
+      attachmentsProcessedRef.current = true;
+      
+      // Generate a default message for image analysis
+      const defaultMessage = 'Analyze this workflow diagram and create a workflow based on what you see.';
+      
+      handleSend(defaultMessage, filesToSend).finally(() => {
+        promptContextStore?.clearStore();
+        onInitialPromptConsumed?.();
+      });
+    }
+  }, [mode, initialPrompt, isLoading, readyAttachmentsCount, onInitialPromptConsumed]);
+  
   useEffect(() => {
     // Reset processed ref when prompt is cleared (allows subsequent submissions)
     if (!initialPrompt) {
@@ -442,11 +492,25 @@ export function KiteAIChatBrain({
     let filesToSend: File[] = [];
     if (promptContextStore) {
       const storeAttachments = promptContextStore.context.attachments;
+      console.log('[KiteAIChat] Checking PromptContextStore attachments (with prompt):', {
+        count: storeAttachments.length,
+        attachments: storeAttachments.map(a => ({
+          id: a.id,
+          type: a.type,
+          displayName: a.displayName,
+          hasFile: !!a.file,
+          fileType: a.file?.type,
+          status: a.status
+        }))
+      });
       if (storeAttachments.length > 0) {
         // Extract File objects from attachments to pass synchronously to handleSend
         filesToSend = storeAttachments
           .filter(a => a.file && a.status === 'ready')
           .map(a => a.file!);
+        console.log('[KiteAIChat] Files extracted from store:', filesToSend.length);
+        // Mark attachments as processed so the attachments-only effect doesn't also fire
+        attachmentsProcessedRef.current = true;
       }
     }
     
@@ -715,8 +779,15 @@ export function KiteAIChatBrain({
       }
 
       const imageAttachment = attachments.find(a => a.type === 'image');
+      console.log('[KiteAIChat] Image attachment check:', {
+        hasImageAttachment: !!imageAttachment,
+        preview: imageAttachment?.preview ? 'present' : 'missing',
+        filesToProcessCount: filesToProcess.length,
+        imageFilesInProcess: filesToProcess.filter(f => f.type.startsWith('image/')).length
+      });
       if (imageAttachment?.preview) {
         const file = filesToProcess.find(f => f.type.startsWith('image/'));
+        console.log('[KiteAIChat] Attempting image analysis with file:', file?.name, file?.type, file?.size);
         if (file) {
           const formData = new FormData();
           formData.append('image', file);
@@ -728,10 +799,30 @@ export function KiteAIChatBrain({
 
           if (response.ok) {
             const result = await response.json();
+            console.log('[KiteAIChat] Image analysis result:', {
+              success: result.success,
+              confidence: result.confidence,
+              canGenerate: result.canGenerate,
+              nodeCount: result.nodes?.length || 0,
+              edgeCount: result.edges?.length || 0
+            });
+            
+            let content = `I analyzed your workflow image with ${result.confidence}% confidence.\n\n${result.analysis}`;
+            
+            if (result.canGenerate) {
+              content += `\n\nI was able to extract a workflow structure with ${result.nodes?.length || 0} nodes and ${result.edges?.length || 0} connections. Click "Apply to Canvas" below to add this workflow to your project.`;
+            } else {
+              content += `\n\nThe confidence level (${result.confidence}%) is below the 70% threshold needed to automatically generate a workflow. You can describe the workflow in text, and I'll help you build it step by step.`;
+            }
+            
+            if (result.recommendations?.length > 0) {
+              content += '\n\nRecommendations:\n' + result.recommendations.map((r: string) => `• ${r}`).join('\n');
+            }
+            
             const assistantMessage: ChatMessage = {
               id: `msg-${Date.now()}`,
               role: 'assistant',
-              content: `I analyzed your workflow image with ${result.confidence}% confidence.\n\n${result.analysis}\n\n${result.recommendations?.length > 0 ? 'Recommendations:\n' + result.recommendations.map((r: string) => `• ${r}`).join('\n') : ''}`,
+              content,
               timestamp: new Date(),
               workflowProposal: result.canGenerate ? {
                 nodes: result.nodes,
@@ -742,6 +833,8 @@ export function KiteAIChatBrain({
             };
             setMessages(prev => [...prev, assistantMessage]);
           } else {
+            const errorText = await response.text();
+            console.error('[KiteAIChat] Image analysis failed:', response.status, errorText);
             throw new Error('Failed to analyze image');
           }
           setIsLoading(false);
@@ -962,8 +1055,8 @@ export function KiteAIChatBrain({
                     edges: currentEdges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, e.data)),
                   },
                   {
-                    nodes: proposedWorkflow.nodes.map(n => normalizeNodeForDiff(n.id, n.type, { label: n.label })),
-                    edges: proposedWorkflow.edges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, { label: e.label })),
+                    nodes: proposedWorkflow.nodes.map((n: { id: string; type?: string; label?: string }) => normalizeNodeForDiff(n.id, n.type, { label: n.label })),
+                    edges: proposedWorkflow.edges.map((e: { id: string; source: string; target: string; label?: string }) => normalizeEdgeForDiff(e.id, e.source, e.target, { label: e.label })),
                   }
                 );
                 
