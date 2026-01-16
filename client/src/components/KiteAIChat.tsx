@@ -810,7 +810,47 @@ export function KiteAIChatBrain({
             let content = `I analyzed your workflow image with ${result.confidence}% confidence.\n\n${result.analysis}`;
             
             if (result.canGenerate) {
-              content += `\n\nI was able to extract a workflow structure with ${result.nodes?.length || 0} nodes and ${result.edges?.length || 0} connections. Click "Apply to Canvas" below to add this workflow to your project.`;
+              content += `\n\nI was able to extract a workflow structure with ${result.nodes?.length || 0} nodes and ${result.edges?.length || 0} connections. Use the buttons below to preview or apply this workflow to your canvas.`;
+              
+              // SET AUTHORITATIVE WORKFLOW DRAFT for image analysis - enables Apply to Canvas buttons
+              setCurrentWorkflowDraft({
+                nodes: result.nodes,
+                edges: result.edges,
+                status: 'draft',
+                originPrompt: messageContent,
+                mergeBranchDecision: undefined,
+              });
+              
+              // Analyze workflow diagnostics for quick action suggestions (edge cases, failure handling)
+              const diagnostics = analyzeWorkflowDiagnostics({
+                nodes: result.nodes.map((n: Node) => ({
+                  id: n.id,
+                  type: n.type,
+                  label: (n.data as any)?.label
+                })),
+                edges: result.edges.map((e: Edge) => ({
+                  id: e.id,
+                  source: e.source,
+                  target: e.target,
+                  label: (e.data as any)?.label
+                }))
+              });
+              
+              // Set workflow generation state and suggested quick actions
+              // In HOME proposal phase (fullscreen mode), always show edge/fail actions
+              const diagnosticsContext: DiagnosticsContext = mode === 'fullscreen' ? 'HOME_PROPOSAL' : 'IN_PROJECT';
+              const suggestedActions = getSuggestedQuickActions(diagnostics, diagnosticsContext);
+              setWorkflowGenState('BASELINE_GENERATED');
+              setPendingQuickActions(suggestedActions);
+              
+              logAiInteraction({
+                surface: mode === 'fullscreen' ? 'home' : 'project',
+                phase: 'baseline',
+                action: 'generate',
+                success: true,
+                nodeDelta: result.nodes.length,
+                edgeDelta: result.edges.length,
+              });
             } else {
               content += `\n\nThe confidence level (${result.confidence}%) is below the 70% threshold needed to automatically generate a workflow. You can describe the workflow in text, and I'll help you build it step by step.`;
             }
