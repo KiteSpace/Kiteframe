@@ -193,7 +193,10 @@ export function validateFixScope(
   
   const newEdges = proposedWorkflow.edges.filter(e => !baselineEdgeMap.has(e.id));
   const allowedEdgeTypesSet = new Set(scope.allowedEdgeTypes.map(t => t.toLowerCase()));
-  allowedEdgeTypesSet.add('default');
+  
+  // Always allow standard React Flow edge types - these are visual styling, not structural changes
+  const STANDARD_EDGE_TYPES = ['default', 'bezier', 'smoothstep', 'step', 'straight'];
+  STANDARD_EDGE_TYPES.forEach(t => allowedEdgeTypesSet.add(t));
   
   const disallowedEdges = newEdges.filter(e => {
     const edgeType = (e.type || 'default').toLowerCase();
