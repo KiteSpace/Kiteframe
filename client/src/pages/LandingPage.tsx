@@ -203,6 +203,15 @@ export default function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => (window.location.href = "/faq")}
+              className="text-muted-foreground hover:text-foreground"
+              data-testid="button-faq-header"
+            >
+              FAQ
+            </Button>
             {isAuthenticated && (
               <Button
                 variant="ghost"
@@ -736,6 +745,9 @@ export default function LandingPage() {
                   Visual workflow planning for product teams.
                 </p>
                 <div className="flex items-center gap-4 text-sm">
+                  <a href="/faq" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-faq">
+                    FAQ
+                  </a>
                   <a href="/legal#terms" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-terms">
                     Terms
                   </a>

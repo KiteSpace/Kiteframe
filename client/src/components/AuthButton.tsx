@@ -1,4 +1,4 @@
-import { LogIn, LogOut, User, ChevronDown, Settings, Crown, Sparkles, Shield } from 'lucide-react';
+import { LogIn, LogOut, User, ChevronDown, Settings, Crown, Sparkles, Shield, HelpCircle } from 'lucide-react';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useState, useRef, useEffect } from 'react';
 import { SignInModal } from './SignInModal';
@@ -123,6 +123,17 @@ export function AuthButton() {
               >
                 <Settings size={16} />
                 <span>Account Settings</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowDropdown(false);
+                  navigate('/faq');
+                }}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center space-x-2"
+                data-testid="button-faq"
+              >
+                <HelpCircle size={16} />
+                <span>FAQ</span>
               </button>
               <button
                 onClick={handleLogout}

@@ -28,6 +28,7 @@ const Benchmark = lazy(() => import("@/pages/Benchmark"));
 const DevDocs = lazy(() => import("@/pages/DevDocs"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const FullScreenChat = lazy(() => import("@/pages/FullScreenChat"));
+const FAQ = lazy(() => import("@/pages/FAQ"));
 
 interface AuthUser {
   id: string;
@@ -157,6 +158,7 @@ function Router() {
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/benchmark" component={Benchmark} />
         <Route path="/legal" component={Legal} />
+        <Route path="/faq" component={FAQ} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
