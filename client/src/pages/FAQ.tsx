@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import { FAQ_SECTIONS, type FAQSection } from "@/lib/faqContent";
+import { FAQ_SECTIONS, HOW_TO_SECTIONS, SECURITY_SECTIONS, type FAQSection } from "@/lib/faqContent";
 import {
   Accordion,
   AccordionContent,
@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function FAQAccordion({ sections }: { sections: FAQSection[] }) {
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -30,7 +31,7 @@ function FAQAccordion({ sections }: { sections: FAQSection[] }) {
     <div className="space-y-8">
       {sections.map((section) => (
         <section key={section.id} className="space-y-4">
-          <h2 className="text-xl font-semibold text-foreground border-b pb-2">
+          <h2 className="text-lg font-semibold text-foreground border-b pb-2">
             {section.title}
           </h2>
           <Accordion
@@ -47,9 +48,9 @@ function FAQAccordion({ sections }: { sections: FAQSection[] }) {
                 className="border rounded-lg px-4"
               >
                 <AccordionTrigger className="text-left hover:no-underline py-4">
-                  <span className="font-medium">{item.question}</span>
+                  <span className="font-medium text-sm">{item.question}</span>
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4">
+                <AccordionContent className="text-muted-foreground text-sm pb-4">
                   {item.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -63,6 +64,20 @@ function FAQAccordion({ sections }: { sections: FAQSection[] }) {
 
 export default function FAQPage() {
   const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState("faq");
+
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "");
+    if (hash) {
+      const inFaq = FAQ_SECTIONS.some(s => s.items.some(i => i.id === hash));
+      const inHowTo = HOW_TO_SECTIONS.some(s => s.items.some(i => i.id === hash));
+      const inSecurity = SECURITY_SECTIONS.some(s => s.items.some(i => i.id === hash));
+      
+      if (inHowTo) setActiveTab("howto");
+      else if (inSecurity) setActiveTab("security");
+      else if (inFaq) setActiveTab("faq");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,16 +92,34 @@ export default function FAQPage() {
           Back
         </Button>
         
-        <header className="mb-10">
+        <header className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            Frequently Asked Questions
+            Help Center
           </h1>
           <p className="text-muted-foreground">
-            Common questions about Kiteframe and how it works.
+            Kiteframe helps teams model workflows and system behavior early, before committing to high-fidelity design or code. It is designed for clarity, alignment, and deliberate decision-making.
           </p>
         </header>
 
-        <FAQAccordion sections={FAQ_SECTIONS} />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsTrigger value="faq" data-testid="tab-faq">FAQ</TabsTrigger>
+            <TabsTrigger value="howto" data-testid="tab-howto">How To</TabsTrigger>
+            <TabsTrigger value="security" data-testid="tab-security">Security</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="faq" className="mt-0">
+            <FAQAccordion sections={FAQ_SECTIONS} />
+          </TabsContent>
+          
+          <TabsContent value="howto" className="mt-0">
+            <FAQAccordion sections={HOW_TO_SECTIONS} />
+          </TabsContent>
+          
+          <TabsContent value="security" className="mt-0">
+            <FAQAccordion sections={SECURITY_SECTIONS} />
+          </TabsContent>
+        </Tabs>
 
         <footer className="mt-12 pt-8 border-t text-center">
           <p className="text-sm text-muted-foreground">
