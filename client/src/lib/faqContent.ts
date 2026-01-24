@@ -255,24 +255,6 @@ export const FAQ_SECTIONS: FAQSection[] = [
 
 export const HOW_TO_SECTIONS: FAQSection[] = [
   {
-    id: "when-to-use",
-    title: "When to use Kiteframe",
-    items: [
-      {
-        id: "use-when",
-        question: "When should I use Kiteframe?",
-        answer:
-          "Use Kiteframe when you are unsure about sequence or scope, need cross-functional alignment, or want to explore alternatives before committing.",
-      },
-      {
-        id: "avoid-when",
-        question: "When should I avoid using Kiteframe?",
-        answer:
-          "Avoid Kiteframe when you are polishing final UI or need pixel-perfect outputs.",
-      },
-    ],
-  },
-  {
     id: "creating-workflow",
     title: "Creating your first workflow",
     items: [
@@ -481,7 +463,7 @@ export const SECURITY_SECTIONS: FAQSection[] = [
         id: "report-security",
         question: "How do I report a security issue?",
         answer:
-          "If you believe you have found a security issue, contact security@kiteframe.space. Reports are investigated promptly.",
+          "If you believe you have found a security issue, contact info@kiteframe.space. Reports are investigated promptly.",
       },
     ],
   },
