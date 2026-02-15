@@ -1,0 +1,571 @@
+{
+  "project": {
+    "id": "project-1771009669606-akwpsj8za",
+    "name": "Comprehensive Data Processing Pipeline",
+    "description": "This workflow is designed to efficiently handle and transform data through a series of processes. It begins with an input node and includes a conditional decision point, followed by multiple processing stages, ultimately leading to an output. The structure is optimized for complex data operations, ensuring a seamless transition from raw data to a refined and actionable output.",
+    "createdAt": "2026-02-13T19:29:32.235Z",
+    "updatedAt": "2026-02-13T19:29:32.235Z"
+  },
+  "projectPRD": {
+    "sections": [
+      {
+        "id": "overview",
+        "title": "Project Overview",
+        "content": "The Comprehensive Data Processing Pipeline project aims to create a robust and efficient data processing system capable of handling large datasets with minimal latency. The pipeline will be modular, allowing for easy updates and maintenance."
+      },
+      {
+        "id": "goals",
+        "title": "Goals & Objectives",
+        "content": "1. Develop a scalable data processing pipeline.\n2. Ensure data integrity and security throughout the process.\n3. Minimize processing time and resource consumption.\n4. Facilitate easy integration with existing systems."
+      },
+      {
+        "id": "architecture",
+        "title": "System Architecture",
+        "content": "The architecture will consist of a series of interconnected nodes, each responsible for a specific task within the data processing workflow. The system will be designed to handle high volumes of data with redundancy and failover mechanisms in place."
+      },
+      {
+        "id": "workflows",
+        "title": "Workflow Summary",
+        "content": "Workflow 1 consists of 13 nodes and 15 connections. The workflow does not have a predefined entry point, and it concludes when the user pauses the routine. Each node performs a distinct function, contributing to the overall data processing objectives."
+      },
+      {
+        "id": "assumptions",
+        "title": "Assumptions",
+        "content": "1. The system will operate in a cloud-based environment.\n2. Users will have the necessary permissions to pause the routine.\n3. Data inputs will be in a standardized format compatible with the pipeline.\n4. Sufficient computational resources will be available to support the pipeline's operations."
+      }
+    ],
+    "version": 2,
+    "generatedAt": 1771010885882
+  },
+  "workflows": [
+    {
+      "workflowId": "workflow-node-1771009705229-ez9ge1zj7",
+      "workflowName": "Workflow 1",
+      "prdSections": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "Workflow 1 is designed to guide users through selecting, starting, and completing workout routines. It includes processes for routine selection, workout navigation, and completion tracking."
+        },
+        {
+          "id": "requirements",
+          "title": "Requirements",
+          "content": "The system must allow users to log in, select routines, save workouts, and navigate through exercises. It should track progress and provide completion metrics."
+        },
+        {
+          "id": "user-flow",
+          "title": "User Flow",
+          "content": "Users log in to access workout routines. They can select a routine to view details, save it, edit it, or start it. Once started, users navigate through exercises, with options to pause, skip, or mark all as completed. Upon completion, users see a dashboard with routine metrics."
+        },
+        {
+          "id": "inputs-outputs",
+          "title": "Inputs & Outputs",
+          "content": "Inputs include user actions such as selecting, saving, editing, and starting routines. Outputs are completed workout notifications and routine metrics displayed on the user dashboard."
+        },
+        {
+          "id": "failure-scenarios",
+          "title": "Failure Scenarios",
+          "content": "Failures may occur if a user cannot save a routine, if the workout screen fails to load, or if navigation between exercises is interrupted. Errors in marking exercises as completed or pausing routines could also occur."
+        },
+        {
+          "id": "recovery-fallback",
+          "title": "Recovery & Fallback Paths",
+          "content": "The system should retry saving operations and provide error messages if failures persist. Navigation errors should redirect users to the last successful state. A fallback to the routine details screen is necessary if the workout screen fails."
+        },
+        {
+          "id": "operational-risks",
+          "title": "Operational Risks",
+          "content": "Risks include server downtime affecting login and routine access, data loss during save operations, and UI glitches during exercise navigation. Monitoring for server health and user activity logs is essential."
+        },
+        {
+          "id": "acceptance-criteria",
+          "title": "Acceptance Criteria",
+          "content": "The workflow should allow seamless login, routine selection, and exercise navigation. Users must be able to save, edit, and start routines without errors. Completion metrics should be accurately displayed on the dashboard."
+        }
+      ],
+      "canvas": {
+        "nodes": [
+          {
+            "id": "1",
+            "type": "input",
+            "position": {
+              "x": 300,
+              "y": 200
+            },
+            "data": {
+              "label": "Routine Selection",
+              "description": "User selects a workout routine",
+              "icon": "select",
+              "iconColor": "blue"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "node-1771009834861-7uaop881o",
+            "type": "process",
+            "position": {
+              "x": -20.0341643572726,
+              "y": 267.4874674715536
+            },
+            "data": {
+              "label": "User Logs In",
+              "description": "User sees library of workout routines",
+              "icon": "Cog",
+              "iconColor": "text-gray-500"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "node-1771009705229-ez9ge1zj7",
+            "type": "process",
+            "position": {
+              "x": 350,
+              "y": -162.85914649327884
+            },
+            "data": {
+              "label": "Saved workouts",
+              "description": "Workout is saved to Saved Workouts, but not started by default",
+              "icon": "Cog",
+              "iconColor": "text-gray-500"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200
+          },
+          {
+            "id": "3",
+            "type": "condition",
+            "position": {
+              "x": 800,
+              "y": 150
+            },
+            "data": {
+              "label": "Save, Edit, or Start Routine",
+              "description": "Choose to save, edit, or start the routine",
+              "icon": "question",
+              "iconColor": "orange"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "5",
+            "type": "process",
+            "position": {
+              "x": 1092.40008978691,
+              "y": 353.0297926255669
+            },
+            "data": {
+              "label": "Active Routine",
+              "description": "Routine is saved to in progress routines",
+              "icon": "play-circle",
+              "iconColor": "red"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "6",
+            "type": "process",
+            "position": {
+              "x": 1292.40008978691,
+              "y": 69.78115441006639
+            },
+            "data": {
+              "label": "Workout Screen",
+              "description": "Begin first workout of the routine",
+              "icon": "dumbbell",
+              "iconColor": "black"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "7",
+            "type": "process",
+            "position": {
+              "x": 1570.3069239510455,
+              "y": 39.034526057442775
+            },
+            "data": {
+              "label": "Exercise Navigation",
+              "description": "User can move to next exercise once completed, skip it, select a different exercise from workout list,  mark all completed, or pause routine.\n\nOnce all workouts are completed, user can finish routine.",
+              "icon": "arrows-alt",
+              "iconColor": "teal"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200
+          },
+          {
+            "id": "node-1771010488687-04zpmoggh",
+            "type": "process",
+            "position": {
+              "x": 1757.9628180919847,
+              "y": 550.1599293036205
+            },
+            "data": {
+              "label": "User Pauses Routine",
+              "description": "Returned to routine details screen",
+              "icon": "Cog",
+              "iconColor": "text-gray-500"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "node-1771010354816-wvhllqs7h",
+            "type": "process",
+            "position": {
+              "x": 2000,
+              "y": 250
+            },
+            "data": {
+              "label": "User Marks All Completed",
+              "description": "User skips/marks all completed and continues through with Finish Workout",
+              "icon": "Cog",
+              "iconColor": "text-gray-500"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200
+          },
+          {
+            "id": "node-1771010236779-rauknn11q",
+            "type": "process",
+            "position": {
+              "x": 2333.4746305913977,
+              "y": 79.57038004017181
+            },
+            "data": {
+              "label": "User Dashboard",
+              "description": "User sees routine completed message with completion details\n\nUser sees overall metrics/history/upcoming routine of active program(s)",
+              "icon": "Cog",
+              "iconColor": "text-gray-500"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200
+          },
+          {
+            "id": "8",
+            "type": "output",
+            "position": {
+              "x": 1979.883003746646,
+              "y": -50
+            },
+            "data": {
+              "label": "Complete Workout",
+              "description": "All exercises are completed and user can Finish workout",
+              "icon": "check-circle",
+              "iconColor": "green"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "4",
+            "type": "process",
+            "position": {
+              "x": 971.474769419561,
+              "y": -162.85914649327884
+            },
+            "data": {
+              "label": "Adjust Routine",
+              "description": "Make adjustments to the workout regimen",
+              "icon": "edit",
+              "iconColor": "purple"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          },
+          {
+            "id": "2",
+            "type": "process",
+            "position": {
+              "x": 550,
+              "y": 200
+            },
+            "data": {
+              "label": "Routine Details",
+              "description": "View details of the selected routine",
+              "icon": "info-circle",
+              "iconColor": "green"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false
+          }
+        ],
+        "edges": [
+          {
+            "id": "e1-2",
+            "source": "1",
+            "target": "2",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false
+          },
+          {
+            "id": "e2-3",
+            "source": "2",
+            "target": "3",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false
+          },
+          {
+            "id": "e3-4",
+            "source": "3",
+            "target": "4",
+            "type": "step",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "label": "User chooses to edit workout"
+          },
+          {
+            "id": "e3-5",
+            "source": "3",
+            "target": "5",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "label": "User chooses to start routine"
+          },
+          {
+            "id": "e5-6",
+            "source": "5",
+            "target": "6",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false
+          },
+          {
+            "id": "e6-7",
+            "source": "6",
+            "target": "7",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false
+          },
+          {
+            "id": "e7-8",
+            "source": "7",
+            "target": "8",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "label": "Completed"
+          },
+          {
+            "id": "edge-1771009705229-d8l0vatqv",
+            "source": "3",
+            "target": "node-1771009705229-ez9ge1zj7",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false,
+            "label": "If saved but not started"
+          },
+          {
+            "id": "edge-1771009834862-qopnk3stf",
+            "source": "node-1771009834861-7uaop881o",
+            "target": "1",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false
+          },
+          {
+            "id": "edge-1771009902493",
+            "source": "node-1771009705229-ez9ge1zj7",
+            "target": "node-1771009834861-7uaop881o",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "label": "User exits details, does not start workout",
+            "selected": false
+          },
+          {
+            "id": "edge-1771010155960",
+            "source": "4",
+            "target": "2",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "label": "Edits are saved",
+            "selected": false
+          },
+          {
+            "id": "edge-1771010236779-lyo0l270o",
+            "source": "8",
+            "target": "node-1771010236779-rauknn11q",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false
+          },
+          {
+            "id": "edge-1771010354817-5gpwmmq53",
+            "source": "7",
+            "target": "node-1771010354816-wvhllqs7h",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false,
+            "label": "Skips/Marks Completed"
+          },
+          {
+            "id": "edge-1771010394632",
+            "source": "node-1771010354816-wvhllqs7h",
+            "target": "node-1771010236779-rauknn11q",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false
+          },
+          {
+            "id": "edge-1771010488687-5er5i4dsu",
+            "source": "7",
+            "target": "node-1771010488687-04zpmoggh",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#3b82f6",
+              "strokeWidth": 2
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false,
+            "label": "User pauses rouine"
+          }
+        ],
+        "canvasObjects": []
+      }
+    }
+  ],
+  "generatedAt": "2026-02-13T19:29:32.235Z",
+  "version": "1.0.0"
+}

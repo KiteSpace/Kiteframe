@@ -1,0 +1,85 @@
+ROLE: You are an AI product designer and prototyper.
+TASK: Produce a low-fidelity interactive prototype plan based on the workflow below.
+OUTPUT: Provide screens or states, interactions, and navigation using structured bullet points.
+CONSTRAINTS:
+- Do not create high-fidelity visual design.
+- Do not assume a backend unless explicitly stated.
+- Call out ambiguities as "Open Questions" instead of inventing details.
+
+---
+
+INPUT: Workflow Outline (authoritative)
+
+
+# Comprehensive Data Processing Pipeline
+
+## Project Description
+This workflow is designed to efficiently handle and transform data through a series of processes. It begins with an input node and includes a conditional decision point, followed by multiple processing stages, ultimately leading to an output. The structure is optimized for complex data operations, ensuring a seamless transition from raw data to a refined and actionable output.
+
+## Project Overview
+
+### Project Overview
+The Comprehensive Data Processing Pipeline project aims to create a robust and efficient data processing system capable of handling large datasets with minimal latency. The pipeline will be modular, allowing for easy updates and maintenance.
+
+### Goals & Objectives
+1. Develop a scalable data processing pipeline.
+2. Ensure data integrity and security throughout the process.
+3. Minimize processing time and resource consumption.
+4. Facilitate easy integration with existing systems.
+
+### System Architecture
+The architecture will consist of a series of interconnected nodes, each responsible for a specific task within the data processing workflow. The system will be designed to handle high volumes of data with redundancy and failover mechanisms in place.
+
+### Workflow Summary
+Workflow 1 consists of 13 nodes and 15 connections. The workflow does not have a predefined entry point, and it concludes when the user pauses the routine. Each node performs a distinct function, contributing to the overall data processing objectives.
+
+### Assumptions
+1. The system will operate in a cloud-based environment.
+2. Users will have the necessary permissions to pause the routine.
+3. Data inputs will be in a standardized format compatible with the pipeline.
+4. Sufficient computational resources will be available to support the pipeline's operations.
+
+---
+
+## Workflows
+
+### Workflow 1
+
+#### Overview
+Workflow 1 is designed to guide users through selecting, starting, and completing workout routines. It includes processes for routine selection, workout navigation, and completion tracking.
+
+#### Requirements
+The system must allow users to log in, select routines, save workouts, and navigate through exercises. It should track progress and provide completion metrics.
+
+#### User Flow
+Users log in to access workout routines. They can select a routine to view details, save it, edit it, or start it. Once started, users navigate through exercises, with options to pause, skip, or mark all as completed. Upon completion, users see a dashboard with routine metrics.
+
+#### Inputs & Outputs
+Inputs include user actions such as selecting, saving, editing, and starting routines. Outputs are completed workout notifications and routine metrics displayed on the user dashboard.
+
+#### Failure Scenarios
+Failures may occur if a user cannot save a routine, if the workout screen fails to load, or if navigation between exercises is interrupted. Errors in marking exercises as completed or pausing routines could also occur.
+
+#### Recovery & Fallback Paths
+The system should retry saving operations and provide error messages if failures persist. Navigation errors should redirect users to the last successful state. A fallback to the routine details screen is necessary if the workout screen fails.
+
+#### Operational Risks
+Risks include server downtime affecting login and routine access, data loss during save operations, and UI glitches during exercise navigation. Monitoring for server health and user activity logs is essential.
+
+#### Acceptance Criteria
+The workflow should allow seamless login, routine selection, and exercise navigation. Users must be able to save, edit, and start routines without errors. Completion metrics should be accurately displayed on the dashboard.
+
+---
+
+
+---
+
+RESPONSE FORMAT:
+1. Assumptions (max 5)
+2. Primary screens or states
+3. Key interactions per screen
+4. Edge cases and empty states
+5. Open Questions
+
+
+Generated: 2026-02-13T19:29:32.235Z
