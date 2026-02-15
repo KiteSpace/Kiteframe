@@ -42,7 +42,12 @@ Preferred communication style: Simple, everyday language.
 - **Firebase-Backend Sync**: Frontend Firebase auth syncs to backend Passport sessions for cloud project access.
 
 ### Subscription System (KiteAI)
-- **Model**: Tiered (Free, Advanced, Pro) with credit allocations.
+- **Model**: Tiered (Free, Advanced, Pro) with daily credit allowances.
+- **Daily Credit Reset**: Credits auto-refill every 24 hours based on tier (Free=25, Advanced=50, Pro=150, Unauthenticated/IP=5).
+- **Variable Credit Costs**: General chat=1, Workflow reasoning/experiments/PRD=2, Vision/image analysis=3.
+- **Project Limits**: Free=20 projects, Advanced/Pro=100 projects, Anonymous=1 project (single tab).
+- **IP-Based Tracking**: Unauthenticated users tracked by IP address; signed-in users tracked by account ID.
+- **Unlock Codes**: Bonus credits via redeemable codes (admin-generated), can grant fixed credits or unlimited access.
 - **Integration**: Stripe for checkout, customer portal, webhooks.
 
 ### Canvas and Workflow System

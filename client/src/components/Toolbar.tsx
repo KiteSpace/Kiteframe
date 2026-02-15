@@ -57,7 +57,7 @@ export function Toolbar({
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const { monthlyCredits } = useSubscription();
+  const { dailyCredits } = useSubscription();
 
   // Fetch credits for the settings dropdown
   const { data: creditsData } = useQuery<CreditsResponse>({
@@ -67,7 +67,7 @@ export function Toolbar({
 
   const credits = creditsData?.credits ?? 0;
   const isUnlimited = credits >= 999999;
-  const maxCredits = monthlyCredits || 25;
+  const maxCredits = dailyCredits || 25;
   const creditsPercentage = isUnlimited ? 100 : Math.min(100, Math.round((credits / maxCredits) * 100));
 
   useEffect(() => {

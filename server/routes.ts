@@ -92,19 +92,33 @@ function sanitizeUserForResponse(user: any, options?: { isAdmin?: boolean }) {
   };
 }
 
-// Check if user has cloud project access (Pro tier, Admin, or group-based override)
+// Project limits per tier
+const PROJECT_LIMITS = {
+  free: 20,
+  advanced: 100,
+  pro: 100,
+} as const;
+
+// Check if user has cloud project access (all authenticated users can save projects)
 async function hasCloudProjectAccess(user: { id?: string; subscriptionTier?: string | null; email?: string | null } | undefined): Promise<boolean> {
   if (!user) return false;
-  if (user.subscriptionTier === 'pro' || isAdminUser(user.email)) return true;
-  
-  // Check group-based subscription tier override
-  if (user.id) {
-    const groupControls = await getUserGroupAccessControls(user.id);
-    if (groupControls.subscriptionTierOverride === 'pro') {
-      return true;
-    }
-  }
-  return false;
+  return true;
+}
+
+function getProjectLimit(subscriptionTier: string | null | undefined): number {
+  const tier = (subscriptionTier as keyof typeof PROJECT_LIMITS) || 'free';
+  return PROJECT_LIMITS[tier] || PROJECT_LIMITS.free;
+}
+
+async function checkProjectLimit(userId: string, subscriptionTier: string | null | undefined): Promise<{ allowed: boolean; currentCount: number; limit: number }> {
+  const projects = await storage.getSavedProjects(userId);
+  const currentCount = projects.length;
+  const limit = getProjectLimit(subscriptionTier);
+  return {
+    allowed: currentCount < limit,
+    currentCount,
+    limit,
+  };
 }
 
 // Workflow validation utility
@@ -899,18 +913,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Saved Projects API (Pro tier or Admin)
+  // Saved Projects API (all authenticated users)
   app.get('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
-        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+        return res.status(403).json({ error: 'Sign in required for cloud-saved projects' });
       }
 
       const projects = await storage.getSavedProjects(userId);
-      res.json({ projects });
+      const limit = getProjectLimit(user?.subscriptionTier);
+      res.json({ projects, projectLimit: limit, projectCount: projects.length });
     } catch (error) {
       console.error('Error fetching projects:', error);
       res.status(500).json({ error: 'Failed to fetch projects' });
@@ -923,7 +938,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
-        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+        return res.status(403).json({ error: 'Sign in required for cloud-saved projects' });
+      }
+
+      const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
+      if (!projectLimit.allowed) {
+        return res.status(403).json({ 
+          error: `Project limit reached (${projectLimit.currentCount}/${projectLimit.limit}). Upgrade your plan for more projects.`,
+          currentCount: projectLimit.currentCount,
+          limit: projectLimit.limit,
+          limitReached: true,
+        });
       }
 
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
@@ -974,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
-        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+        return res.status(403).json({ error: 'Sign in required for cloud-saved projects' });
       }
 
       const { id } = req.params;
@@ -1035,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
 
       if (!(await hasCloudProjectAccess(user))) {
-        return res.status(403).json({ error: 'Pro subscription required for cloud-saved projects' });
+        return res.status(403).json({ error: 'Sign in required for cloud-saved projects' });
       }
 
       const { id } = req.params;
@@ -1817,7 +1842,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }).catch(console.error);
       }
       
-      res.json({ text: responseText });
+      const creditInfo = req.creditDeducted;
+      res.json({ 
+        text: responseText,
+        credits: creditInfo ? {
+          remaining: creditInfo.remainingCredits,
+          cost: creditInfo.creditCost,
+        } : undefined,
+      });
     } catch (error: any) {
       console.error('AI chat error:', error);
       
@@ -3188,8 +3220,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     try {
       const userIdentifier = creditService.getUserIdentifier(req);
       const user = req.user as any;
+      const isAuthenticated = creditService.isAuthenticatedUser(req);
       
-      // Check if user is admin - admins get unlimited credits
       const userEmail = user?.email || user?.claims?.email;
       const isAdmin = isAdminUser(userEmail);
       
@@ -3200,15 +3232,26 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           userIdentifier,
           isUnlimited: true,
           isAdmin: true,
+          resetsDaily: false,
+          creditCosts: { general_chat: 1, vision_ingestion: 3, workflow_reasoning: 2, workflow_experiments: 2, prd_generation: 2 },
         });
       }
       
-      const credits = await creditService.getRemainingCredits(userIdentifier);
+      const creditRecord = await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
       
       res.json({
         success: true,
-        credits,
+        credits: creditRecord.credits,
+        isUnlimited: creditRecord.isUnlimited || false,
         userIdentifier,
+        resetsDaily: true,
+        dailyAllowance: creditService.getCreditsForTier(
+          isAuthenticated 
+            ? ((user?.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free')
+            : 'free'
+        ),
+        lastResetAt: creditRecord.lastResetAt,
+        creditCosts: { general_chat: 1, vision_ingestion: 3, workflow_reasoning: 2, workflow_experiments: 2, prd_generation: 2 },
       });
     } catch (error: any) {
       console.error('Get credits error:', error);

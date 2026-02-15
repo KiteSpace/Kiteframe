@@ -4,7 +4,8 @@ export interface SubscriptionData {
   tier: 'free' | 'advanced' | 'pro';
   status: 'active' | 'canceled' | 'past_due' | 'trialing' | 'paused' | null;
   billingPeriodEnd: string | null;
-  monthlyCredits: number;
+  dailyCredits: number;
+  projectLimit: number;
   features: {
     cloudProjects: boolean;
     prioritySupport: boolean;
@@ -13,21 +14,27 @@ export interface SubscriptionData {
   };
 }
 
-const TIER_CREDITS = {
+const TIER_DAILY_CREDITS = {
   free: 25,
-  advanced: 150,
-  pro: 500,
+  advanced: 50,
+  pro: 150,
+} as const;
+
+const TIER_PROJECT_LIMITS = {
+  free: 20,
+  advanced: 100,
+  pro: 100,
 } as const;
 
 const TIER_FEATURES = {
   free: {
-    cloudProjects: false,
+    cloudProjects: true,
     prioritySupport: false,
     advancedExports: false,
     teamCollaboration: false,
   },
   advanced: {
-    cloudProjects: false,
+    cloudProjects: true,
     prioritySupport: true,
     advancedExports: true,
     teamCollaboration: false,
@@ -62,7 +69,8 @@ export function useSubscription() {
     tier,
     status,
     billingPeriodEnd: data?.billingPeriodEnd || null,
-    monthlyCredits: isUnlimited ? Infinity : TIER_CREDITS[tier],
+    dailyCredits: isUnlimited ? Infinity : TIER_DAILY_CREDITS[tier],
+    projectLimit: TIER_PROJECT_LIMITS[tier],
     features: TIER_FEATURES[tier],
   };
 

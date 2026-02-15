@@ -148,12 +148,13 @@ export const workflowComments = pgTable("workflow_comments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// User credits for AI usage tracking
+// User credits for AI usage tracking (daily reset)
 export const userCredits = pgTable("user_credits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userIdentifier: varchar("user_identifier").notNull().unique(), // Can be user ID or IP address
-  credits: integer("credits").notNull().default(10), // Default 10 free credits
+  credits: integer("credits").notNull().default(25), // Daily credit allowance (free tier = 25)
   isUnlimited: boolean("is_unlimited").default(false), // True for trusted users with unlimited credits
+  lastResetAt: timestamp("last_reset_at").defaultNow(), // When credits were last reset (daily reset check)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

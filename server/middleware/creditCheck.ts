@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { creditService } from "../creditService";
+import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -104,12 +104,15 @@ export async function requireCredits(
   try {
     const userIdentifier = creditService.getUserIdentifier(req);
     const user = (req as any).user;
+    const taskType = req.body?.taskType;
+    const creditCost = getCreditCost(taskType);
     
     const userEmail = user?.email || user?.claims?.email;
     if (isAdminUser(userEmail)) {
       req.creditDeducted = {
         userIdentifier,
         remainingCredits: 999999,
+        creditCost,
       };
       console.log(`Admin user bypassing credit check: ${userEmail}`);
       next();
@@ -125,6 +128,7 @@ export async function requireCredits(
         req.creditDeducted = {
           userIdentifier,
           remainingCredits: 999999,
+          creditCost,
         };
         console.log(`User ${userId} bypassing credit check via group permissions (bypass: ${groupControls.bypassCreditCheck}, unlimited: ${groupControls.unlimitedCredits})`);
         next();
@@ -132,12 +136,17 @@ export async function requireCredits(
       }
     }
     
-    const deductResult = await creditService.deductCreditAtomic(userIdentifier);
+    const isAuthenticated = creditService.isAuthenticatedUser(req);
+    await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
+    
+    const deductResult = await creditService.deductCreditAtomic(userIdentifier, creditCost, isAuthenticated);
     
     if (!deductResult.success) {
       res.status(403).json({
-        error: "Credit limit reached. Contact info@kiteframe.space for a new unlock code.",
+        error: "Daily credit limit reached. Credits reset every 24 hours. Contact info@kiteframe.space for a bonus unlock code.",
         remainingCredits: 0,
+        creditCost,
+        resetsDaily: true,
       });
       return;
     }
@@ -145,9 +154,10 @@ export async function requireCredits(
     req.creditDeducted = {
       userIdentifier,
       remainingCredits: deductResult.remainingCredits,
+      creditCost,
     };
     
-    console.log(`Credit deducted. User: ${userIdentifier}, Remaining: ${deductResult.remainingCredits}`);
+    console.log(`Credit deducted (cost: ${creditCost}). User: ${userIdentifier}, Remaining: ${deductResult.remainingCredits}`);
     next();
   } catch (error) {
     console.error('Credit check error:', error);
@@ -165,6 +175,7 @@ declare global {
       creditDeducted?: {
         userIdentifier: string;
         remainingCredits: number;
+        creditCost: number;
       };
     }
   }

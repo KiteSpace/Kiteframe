@@ -5,19 +5,36 @@ import type { Request } from "express";
 import { geolocationService } from "./geolocation";
 import { analyticsService } from "./analyticsService";
 
-const TIER_CREDITS = {
+const TIER_DAILY_CREDITS = {
   free: 25,
   advanced: 50,
   pro: 150,
 } as const;
 
-// Credits for unauthenticated (IP-based) users
-const UNAUTHENTICATED_CREDITS = 5;
+const UNAUTHENTICATED_DAILY_CREDITS = 5;
+
+const DAILY_RESET_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export type CreditCostType = 'general_chat' | 'vision_ingestion' | 'workflow_reasoning' | 'workflow_experiments' | 'prd_generation';
+
+const CREDIT_COSTS: Record<CreditCostType, number> = {
+  general_chat: 1,
+  vision_ingestion: 3,
+  workflow_reasoning: 2,
+  workflow_experiments: 2,
+  prd_generation: 2,
+};
+
+export function getCreditCost(taskType?: string): number {
+  if (!taskType) return 1;
+  return CREDIT_COSTS[taskType as CreditCostType] || 1;
+}
 
 export interface CreditCheckResult {
   hasCredits: boolean;
   remainingCredits: number;
   userIdentifier: string;
+  creditCost: number;
 }
 
 export class CreditService {
@@ -34,6 +51,16 @@ export class CreditService {
     return !!(user && (user.id || user.claims?.sub));
   }
 
+  private getDailyCreditsForIdentifier(isAuthenticated: boolean, tier?: string): number {
+    if (!isAuthenticated) return UNAUTHENTICATED_DAILY_CREDITS;
+    return TIER_DAILY_CREDITS[(tier as keyof typeof TIER_DAILY_CREDITS)] || TIER_DAILY_CREDITS.free;
+  }
+
+  private shouldResetCredits(lastResetAt: Date | null): boolean {
+    if (!lastResetAt) return true;
+    return Date.now() - lastResetAt.getTime() >= DAILY_RESET_MS;
+  }
+
   async getOrCreateUserCredits(userIdentifier: string, isAuthenticated: boolean = true) {
     let credits = await db.query.userCredits.findFirst({
       where: eq(userCredits.userIdentifier, userIdentifier),
@@ -43,70 +70,129 @@ export class CreditService {
       let initialCredits: number;
       
       if (isAuthenticated) {
-        // Authenticated user - check their subscription tier
         const user = await db.query.users.findFirst({
           where: eq(users.id, userIdentifier),
         });
-        const tier = (user?.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
-        initialCredits = TIER_CREDITS[tier] || TIER_CREDITS.free;
+        const tier = (user?.subscriptionTier as keyof typeof TIER_DAILY_CREDITS) || 'free';
+        initialCredits = TIER_DAILY_CREDITS[tier] || TIER_DAILY_CREDITS.free;
       } else {
-        // Unauthenticated (IP-based) user - give fewer credits
-        initialCredits = UNAUTHENTICATED_CREDITS;
+        initialCredits = UNAUTHENTICATED_DAILY_CREDITS;
       }
       
       const [newCredits] = await db.insert(userCredits).values({
         userIdentifier,
         credits: initialCredits,
+        lastResetAt: new Date(),
       }).returning();
       credits = newCredits;
+    }
+
+    if (!credits.isUnlimited && this.shouldResetCredits(credits.lastResetAt)) {
+      let dailyCredits: number;
+      if (isAuthenticated) {
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, userIdentifier),
+        });
+        const tier = (user?.subscriptionTier as keyof typeof TIER_DAILY_CREDITS) || 'free';
+        dailyCredits = TIER_DAILY_CREDITS[tier] || TIER_DAILY_CREDITS.free;
+      } else {
+        dailyCredits = UNAUTHENTICATED_DAILY_CREDITS;
+      }
+
+      const [resetCredits] = await db.update(userCredits)
+        .set({
+          credits: dailyCredits,
+          lastResetAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(userCredits.userIdentifier, userIdentifier))
+        .returning();
+      credits = resetCredits;
     }
 
     return credits;
   }
 
-  async checkCredits(req: Request): Promise<CreditCheckResult> {
+  async checkCredits(req: Request, creditCost: number = 1): Promise<CreditCheckResult> {
     const userIdentifier = this.getUserIdentifier(req);
     const isAuthenticated = this.isAuthenticatedUser(req);
     const credits = await this.getOrCreateUserCredits(userIdentifier, isAuthenticated);
 
     return {
-      hasCredits: credits.credits > 0,
+      hasCredits: credits.credits >= creditCost,
       remainingCredits: credits.credits,
       userIdentifier,
+      creditCost,
     };
   }
 
-  async deductCreditAtomic(userIdentifier: string): Promise<{ success: boolean; remainingCredits: number; isUnlimited?: boolean }> {
+  private async resolveDailyCredits(userIdentifier: string, isAuthenticated: boolean): Promise<number> {
+    if (!isAuthenticated) return UNAUTHENTICATED_DAILY_CREDITS;
     try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userIdentifier),
+      });
+      if (user?.subscriptionTier) {
+        return TIER_DAILY_CREDITS[(user.subscriptionTier as keyof typeof TIER_DAILY_CREDITS)] || TIER_DAILY_CREDITS.free;
+      }
+    } catch {}
+    return TIER_DAILY_CREDITS.free;
+  }
+
+  async deductCreditAtomic(userIdentifier: string, creditCost: number = 1, isAuthenticated: boolean = true): Promise<{ success: boolean; remainingCredits: number; isUnlimited?: boolean; creditCost: number }> {
+    try {
+      const dailyCredits = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
+
       const result = await db.transaction(async (tx) => {
-        const existing = await tx.query.userCredits.findFirst({
-          where: eq(userCredits.userIdentifier, userIdentifier),
-        });
-
-        if (!existing) {
-          await tx.insert(userCredits).values({
-            userIdentifier,
-            credits: TIER_CREDITS.free,
-            isUnlimited: false,
-          });
-        }
-
         const current = await tx.query.userCredits.findFirst({
           where: eq(userCredits.userIdentifier, userIdentifier),
         });
 
-        if (current?.isUnlimited) {
+        if (!current) {
+          await tx.insert(userCredits).values({
+            userIdentifier,
+            credits: dailyCredits,
+            isUnlimited: false,
+            lastResetAt: new Date(),
+          });
+          if (dailyCredits < creditCost) {
+            throw new Error('INSUFFICIENT_CREDITS');
+          }
+        }
+
+        const fresh = current || await tx.query.userCredits.findFirst({
+          where: eq(userCredits.userIdentifier, userIdentifier),
+        });
+
+        if (fresh?.isUnlimited) {
           return { credits: 999999, isUnlimited: true };
+        }
+
+        if (fresh && this.shouldResetCredits(fresh.lastResetAt)) {
+          if (dailyCredits < creditCost) {
+            throw new Error('INSUFFICIENT_CREDITS');
+          }
+
+          const [resetResult] = await tx.update(userCredits)
+            .set({
+              credits: dailyCredits - creditCost,
+              lastResetAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(userCredits.userIdentifier, userIdentifier))
+            .returning({ credits: userCredits.credits, isUnlimited: userCredits.isUnlimited });
+          
+          return resetResult;
         }
 
         const updated = await tx.update(userCredits)
           .set({ 
-            credits: sql`${userCredits.credits} - 1`,
+            credits: sql`${userCredits.credits} - ${creditCost}`,
             updatedAt: new Date(),
           })
           .where(and(
             eq(userCredits.userIdentifier, userIdentifier),
-            sql`${userCredits.credits} > 0`
+            sql`${userCredits.credits} >= ${creditCost}`
           ))
           .returning({ credits: userCredits.credits, isUnlimited: userCredits.isUnlimited });
 
@@ -117,20 +203,20 @@ export class CreditService {
         return updated[0];
       });
 
-      return { success: true, remainingCredits: result.credits, isUnlimited: result.isUnlimited || false };
+      return { success: true, remainingCredits: result.credits, isUnlimited: result.isUnlimited || false, creditCost };
     } catch (error: any) {
       if (error.message === 'INSUFFICIENT_CREDITS') {
         analyticsService.trackCreditLimitHit(userIdentifier).catch(console.error);
-        return { success: false, remainingCredits: 0, isUnlimited: false };
+        return { success: false, remainingCredits: 0, isUnlimited: false, creditCost };
       }
       throw error;
     }
   }
 
-  async refundCredit(userIdentifier: string): Promise<void> {
+  async refundCredit(userIdentifier: string, creditCost: number = 1): Promise<void> {
     await db.update(userCredits)
       .set({ 
-        credits: sql`${userCredits.credits} + 1`,
+        credits: sql`${userCredits.credits} + ${creditCost}`,
         updatedAt: new Date(),
       })
       .where(eq(userCredits.userIdentifier, userIdentifier));
@@ -155,7 +241,6 @@ export class CreditService {
           throw new Error('CODE_ALREADY_USED');
         }
 
-        // Check if user's country is allowed to use this code
         if (country && unlockCode.allowedCountries && unlockCode.allowedCountries.length > 0) {
           if (!unlockCode.allowedCountries.includes(country)) {
             throw new Error('COUNTRY_NOT_ALLOWED');
@@ -180,6 +265,7 @@ export class CreditService {
               userIdentifier,
               credits: 999999,
               isUnlimited: true,
+              lastResetAt: new Date(),
             });
           } else {
             await tx.update(userCredits)
@@ -198,6 +284,7 @@ export class CreditService {
             userIdentifier,
             credits: unlockCode.creditsToAdd,
             isUnlimited: false,
+            lastResetAt: new Date(),
           });
           return { credits: unlockCode.creditsToAdd, isUnlimited: false };
         }
@@ -238,35 +325,36 @@ export class CreditService {
     }
   }
 
-  async getRemainingCredits(userIdentifier: string): Promise<number> {
-    const credits = await this.getOrCreateUserCredits(userIdentifier);
+  async getRemainingCredits(userIdentifier: string, isAuthenticated: boolean = true): Promise<number> {
+    const credits = await this.getOrCreateUserCredits(userIdentifier, isAuthenticated);
     return credits.credits;
   }
 
-  getCreditsForTier(tier: keyof typeof TIER_CREDITS): number {
-    return TIER_CREDITS[tier] || TIER_CREDITS.free;
+  getCreditsForTier(tier: keyof typeof TIER_DAILY_CREDITS): number {
+    return TIER_DAILY_CREDITS[tier] || TIER_DAILY_CREDITS.free;
   }
 
-  async resetMonthlyCreditsForUser(userId: string): Promise<void> {
+  async resetDailyCreditsForUser(userId: string): Promise<void> {
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
 
     if (!user) return;
 
-    const tier = (user.subscriptionTier as keyof typeof TIER_CREDITS) || 'free';
-    const monthlyCredits = this.getCreditsForTier(tier);
+    const tier = (user.subscriptionTier as keyof typeof TIER_DAILY_CREDITS) || 'free';
+    const dailyCredits = this.getCreditsForTier(tier);
 
     await db.update(userCredits)
       .set({
-        credits: monthlyCredits,
+        credits: dailyCredits,
+        lastResetAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(userCredits.userIdentifier, userId));
   }
 
-  async syncUserCreditsWithTier(userId: string, tier: keyof typeof TIER_CREDITS): Promise<void> {
-    const monthlyCredits = this.getCreditsForTier(tier);
+  async syncUserCreditsWithTier(userId: string, tier: keyof typeof TIER_DAILY_CREDITS): Promise<void> {
+    const dailyCredits = this.getCreditsForTier(tier);
     
     const existing = await db.query.userCredits.findFirst({
       where: eq(userCredits.userIdentifier, userId),
@@ -275,15 +363,17 @@ export class CreditService {
     if (existing) {
       await db.update(userCredits)
         .set({
-          credits: monthlyCredits,
+          credits: dailyCredits,
+          lastResetAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(userCredits.userIdentifier, userId));
     } else {
       await db.insert(userCredits).values({
         userIdentifier: userId,
-        credits: monthlyCredits,
+        credits: dailyCredits,
         isUnlimited: tier === 'pro',
+        lastResetAt: new Date(),
       });
     }
   }

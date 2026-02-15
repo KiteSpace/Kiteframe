@@ -48,20 +48,20 @@ export function useCreditsGate(): CreditsGateResult {
   let disabledMessage: string;
 
   if (!isAuthenticated) {
-    ctaMessage = "You've run out of free trial credits. Create an account to get 25 credits monthly!";
+    ctaMessage = "You've used your daily credits. Create an account to get 25 credits per day!";
     ctaAction = 'signup';
     ctaButtonText = 'Create Free Account';
     disabledMessage = 'Create an account to continue using AI features';
   } else if (tier === 'free') {
-    ctaMessage = "You've run out of credits. Upgrade your plan to continue using AI features.";
-    ctaAction = 'upgrade';
-    ctaButtonText = 'Upgrade Plan';
-    disabledMessage = 'Upgrade your plan to continue using AI features';
-  } else {
-    ctaMessage = "You've run out of credits. Enter an unlock code to continue using AI features.";
+    ctaMessage = "You've used all your daily credits. They'll reset in 24 hours, or use an unlock code for bonus credits.";
     ctaAction = 'redeem';
     ctaButtonText = 'Enter Unlock Code';
-    disabledMessage = 'Enter an unlock code to continue using AI features';
+    disabledMessage = 'Daily credits used up. They reset every 24 hours.';
+  } else {
+    ctaMessage = "You've used all your daily credits. They'll reset in 24 hours, or use an unlock code for bonus credits.";
+    ctaAction = 'redeem';
+    ctaButtonText = 'Enter Unlock Code';
+    disabledMessage = 'Daily credits used up. They reset every 24 hours.';
   }
 
   const openSignup = () => {

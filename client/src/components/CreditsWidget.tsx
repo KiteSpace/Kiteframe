@@ -16,6 +16,9 @@ interface CreditsResponse {
   userIdentifier: string;
   isUnlimited?: boolean;
   isAdmin?: boolean;
+  resetsDaily?: boolean;
+  dailyAllowance?: number;
+  creditCosts?: Record<string, number>;
 }
 
 interface RedeemResponse {
@@ -35,7 +38,7 @@ export function CreditsWidget() {
   }, []);
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
-  const { tier, isPro, isAdvanced, monthlyCredits } = useSubscription();
+  const { tier, isPro, isAdvanced, dailyCredits } = useSubscription();
   const { isAuthenticated } = useAuth();
 
   const { data: creditsData, isLoading } = useQuery({
@@ -138,32 +141,34 @@ export function CreditsWidget() {
             </DialogTitle>
             <DialogDescription>
               You have <strong data-testid="text-credits-remaining">{isUnlimited ? 'unlimited' : credits}</strong> AI credits remaining.
-              {!isUnlimited && ' Each AI operation uses 1 credit.'}
               {isUnlimited && ' You have unlimited AI access.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
-            {(isPro || isAdvanced) && (
-              <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4">
-                <p className="text-sm font-medium text-foreground">
-                  Monthly Allocation: {monthlyCredits} credits
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Your credits refresh at the start of each billing period.
-                </p>
+            <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                Daily Allowance: {(creditsData as CreditsResponse | undefined)?.dailyAllowance || 25} credits
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Credits reset every 24 hours automatically.
+              </p>
+              <div className="text-xs text-muted-foreground space-y-0.5 mt-2 border-t border-border/50 pt-2">
+                <p className="font-medium text-foreground/80">Credit costs per action:</p>
+                <p>Text chat & refinements: 1 credit</p>
+                <p>Workflow generation: 2 credits</p>
+                <p>PRD generation: 2 credits</p>
+                <p>Image/diagram analysis: 3 credits</p>
               </div>
-            )}
+            </div>
 
             {credits === 0 && (
               <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4 space-y-3">
                 <p className="text-sm text-orange-800 dark:text-orange-200">
                   {!isAuthenticated ? (
-                    "You've run out of free trial credits. Create an account to get 25 credits monthly!"
-                  ) : tier === 'free' ? (
-                    <>You've run out of credits. <a href="/pricing" className="underline font-medium">Upgrade your plan</a> to continue using AI features.</>
+                    "You've used your daily credits. Create an account to get 25 credits per day!"
                   ) : (
-                    "You've run out of credits. Enter an unlock code to continue using AI features."
+                    "You've used all your daily credits. They'll reset in 24 hours, or use an unlock code for bonus credits."
                   )}
                 </p>
                 {!isAuthenticated && (
