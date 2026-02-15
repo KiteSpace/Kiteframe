@@ -145,20 +145,39 @@ async function generateProjectDetails(
   const workflowSummaries = workflows.map(w => {
     const prd = workflowPRDs.find(p => p.workflowId === w.workflowId);
     const overview = prd?.sections.find(s => s.id === 'overview')?.content || '';
-    return `- ${w.workflowName}: ${w.nodes.length} steps. ${overview.slice(0, 200)}`;
-  }).join('\n');
 
-  const prompt = `Based on these workflow(s), generate project details:
+    const nodeDescriptions = w.nodes.map(n => {
+      const label = n.data?.label || n.type || 'Unnamed';
+      const desc = n.data?.description ? `: ${n.data.description}` : '';
+      return `    - [${n.type}] ${label}${desc}`;
+    }).join('\n');
+
+    const edgeDescriptions = w.edges.map(e => {
+      const sourceNode = w.nodes.find(n => n.id === e.source);
+      const targetNode = w.nodes.find(n => n.id === e.target);
+      const sourceLabel = sourceNode?.data?.label || 'Node';
+      const targetLabel = targetNode?.data?.label || 'Node';
+      const edgeLabel = e.data?.label || e.label || '';
+      return `    - ${sourceLabel} → ${targetLabel}${edgeLabel ? ` [${edgeLabel}]` : ''}`;
+    }).join('\n');
+
+    return `- ${w.workflowName} (${w.nodes.length} steps):
+  Nodes:\n${nodeDescriptions}
+  Connections:\n${edgeDescriptions}
+  ${overview ? `Overview: ${overview.slice(0, 300)}` : ''}`;
+  }).join('\n\n');
+
+  const prompt = `Analyze the following workflow(s) and generate project details based on what the workflows actually do. Read the node labels and descriptions carefully.
 
 Workflows:
 ${workflowSummaries}
 
-Return ONLY valid JSON:
+Based on the actual content above, return ONLY valid JSON:
 {
-  "title": "concise project title (3-5 words)",
-  "overview": "one paragraph describing what this project does",
-  "primaryUser": "who is the main user/customer",
-  "problemStatement": "what problem does this solve",
+  "title": "specific project title reflecting the actual workflow purpose (3-6 words)",
+  "overview": "one paragraph describing what this project specifically does, referencing key steps and user journeys",
+  "primaryUser": "who is the main user/customer based on the workflow content",
+  "problemStatement": "what problem does this solve based on the workflow steps",
   "successCriteria": ["measurable outcome 1", "measurable outcome 2"]
 }`;
 
@@ -167,7 +186,7 @@ Return ONLY valid JSON:
     const response = await router.chat({
       taskType: 'prd_generation',
       messages: [
-        { role: 'system', content: 'You are a product manager creating project documentation. Be concise and specific. Output only valid JSON.' },
+        { role: 'system', content: 'You are a product manager creating project documentation. Analyze the workflow content carefully — read the node labels and descriptions to understand what the workflow is actually about. Be specific and concrete. Do not produce generic descriptions like "data processing pipeline". Output only valid JSON.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
