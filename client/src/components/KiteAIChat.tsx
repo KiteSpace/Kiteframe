@@ -275,7 +275,6 @@ export function KiteAIChatBrain({
     ctaAction, 
     ctaButtonText,
     openSignup,
-    openPricing,
     openCreditsDialog
   } = useCreditsGate();
   
@@ -680,11 +679,10 @@ export function KiteAIChatBrain({
     if (isOutOfCredits) {
       toast({
         title: 'Out of credits',
-        description: 'AI features are disabled. Get more credits to continue.',
+        description: "You've used all your daily credits. They'll reset in 24 hours.",
         variant: 'destructive',
       });
       if (ctaAction === 'signup') openSignup();
-      else if (ctaAction === 'upgrade') openPricing();
       else openCreditsDialog();
       return;
     }
@@ -2082,7 +2080,6 @@ export function KiteAIChatBrain({
             <Button
               onClick={() => {
                 if (ctaAction === 'signup') openSignup();
-                else if (ctaAction === 'upgrade') openPricing();
                 else openCreditsDialog();
               }}
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"

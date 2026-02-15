@@ -84,7 +84,7 @@ export function SavedProjectsDrawer({
 
   const { data: projectsResponse, isLoading } = useQuery<{ projects: SavedProject[] }>({
     queryKey: ['/api/projects'],
-    enabled: isOpen && isPro && isAuthenticated,
+    enabled: isOpen && isAuthenticated,
   });
 
   const projects = projectsResponse?.projects || [];
@@ -222,31 +222,6 @@ export function SavedProjectsDrawer({
     );
   }
 
-  if (!isPro) {
-    return (
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Cloud className="h-5 w-5" />
-              Cloud Projects
-            </SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
-            <Crown className="h-16 w-16 text-amber-500" />
-            <h3 className="text-lg font-semibold">Pro Feature</h3>
-            <p className="text-muted-foreground max-w-[280px]">
-              Cloud-saved projects are available exclusively for Pro subscribers. Upgrade to save your workflows to the cloud.
-            </p>
-            <Button onClick={() => window.location.href = '/pricing'} data-testid="button-upgrade-to-pro">
-              <Crown className="h-4 w-4 mr-2" />
-              Upgrade to Pro
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>

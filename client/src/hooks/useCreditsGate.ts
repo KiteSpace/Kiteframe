@@ -18,11 +18,10 @@ interface CreditsGateResult {
   isServerAuthenticated: boolean;
   tier: 'free' | 'advanced' | 'pro';
   ctaMessage: string;
-  ctaAction: 'signup' | 'upgrade' | 'redeem';
+  ctaAction: 'signup' | 'redeem';
   ctaButtonText: string;
   disabledMessage: string;
   openSignup: () => void;
-  openPricing: () => void;
   openCreditsDialog: () => void;
 }
 
@@ -43,7 +42,7 @@ export function useCreditsGate(): CreditsGateResult {
   const isLowCredits = credits <= 2 && !isUnlimited;
 
   let ctaMessage: string;
-  let ctaAction: 'signup' | 'upgrade' | 'redeem';
+  let ctaAction: 'signup' | 'redeem';
   let ctaButtonText: string;
   let disabledMessage: string;
 
@@ -68,10 +67,6 @@ export function useCreditsGate(): CreditsGateResult {
     window.dispatchEvent(new CustomEvent('openSignUp'));
   };
 
-  const openPricing = () => {
-    window.location.href = '/pricing';
-  };
-
   const openCreditsDialog = () => {
     window.dispatchEvent(new CustomEvent('openCreditsDialog'));
   };
@@ -90,7 +85,6 @@ export function useCreditsGate(): CreditsGateResult {
     ctaButtonText,
     disabledMessage,
     openSignup,
-    openPricing,
     openCreditsDialog,
   };
 }

@@ -5,11 +5,8 @@ import {
   CreditCard, 
   LogOut, 
   Trash2, 
-  Crown, 
-  Sparkles, 
   Zap,
   Loader2,
-  ExternalLink,
   AlertTriangle,
   ArrowLeft,
 } from 'lucide-react';
@@ -42,18 +39,6 @@ const tierInfo = {
     icon: Zap,
     color: 'bg-slate-100 text-slate-800',
     credits: 25,
-  },
-  advanced: {
-    name: 'Advanced',
-    icon: Sparkles,
-    color: 'bg-blue-100 text-blue-800',
-    credits: 150,
-  },
-  pro: {
-    name: 'Pro',
-    icon: Crown,
-    color: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
-    credits: 500,
   },
 };
 
@@ -138,7 +123,7 @@ export default function Account() {
     );
   }
 
-  const currentTier = (subscriptionData?.tier || 'free') as keyof typeof tierInfo;
+  const currentTier = 'free' as keyof typeof tierInfo;
   const tier = tierInfo[currentTier];
   const TierIcon = tier.icon;
 
@@ -209,7 +194,7 @@ export default function Account() {
                   </div>
                   <div>
                     <h3 className="font-semibold">{tier.name} Plan</h3>
-                    <p className="text-sm text-slate-500">{tier.credits} credits/month</p>
+                    <p className="text-sm text-slate-500">{tier.credits} credits/day</p>
                   </div>
                 </div>
                 <Badge 
@@ -225,32 +210,6 @@ export default function Account() {
                 </p>
               )}
 
-              <div className="flex gap-3">
-                {currentTier === 'free' ? (
-                  <Button asChild data-testid="button-upgrade">
-                    <a href="/pricing">Upgrade Plan</a>
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => portalMutation.mutate()}
-                      disabled={portalMutation.isPending}
-                      data-testid="button-manage-billing"
-                    >
-                      {portalMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                      )}
-                      Manage Billing
-                    </Button>
-                    <Button asChild variant="ghost" data-testid="button-view-plans">
-                      <a href="/pricing">View Plans</a>
-                    </Button>
-                  </>
-                )}
-              </div>
             </CardContent>
           </Card>
 

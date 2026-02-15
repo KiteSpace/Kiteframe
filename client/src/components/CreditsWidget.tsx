@@ -6,9 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { Coins, AlertCircle, Crown, Sparkles, Shield } from 'lucide-react';
+import { Coins, AlertCircle, Shield, Sparkles } from 'lucide-react';
 
 interface CreditsResponse {
   success: boolean;
@@ -38,7 +37,6 @@ export function CreditsWidget() {
   }, []);
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
-  const { tier, isPro, isAdvanced, dailyCredits } = useSubscription();
   const { isAuthenticated } = useAuth();
 
   const { data: creditsData, isLoading } = useQuery({
@@ -100,16 +98,6 @@ export function CreditsWidget() {
     <Badge variant="default" className="bg-gradient-to-r from-purple-600 to-violet-600 text-white border-0">
       <Shield className="h-3 w-3 mr-1" />
       Admin
-    </Badge>
-  ) : tier === 'pro' ? (
-    <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-      <Crown className="h-3 w-3 mr-1" />
-      Pro
-    </Badge>
-  ) : tier === 'advanced' ? (
-    <Badge variant="default" className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0">
-      <Sparkles className="h-3 w-3 mr-1" />
-      Advanced
     </Badge>
   ) : null;
 

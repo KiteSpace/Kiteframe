@@ -429,7 +429,6 @@ function WorkflowEditorContent({
     ctaAction,
     ctaButtonText,
     openSignup,
-    openPricing,
     openCreditsDialog,
   } = useCreditsGate();
 
@@ -1986,7 +1985,6 @@ function WorkflowEditorContent({
           variant: "destructive",
         });
         if (ctaAction === "signup") openSignup();
-        else if (ctaAction === "upgrade") openPricing();
         else openCreditsDialog();
         return;
       }
@@ -2776,7 +2774,6 @@ function WorkflowEditorContent({
           variant: "destructive",
         });
         if (ctaAction === "signup") openSignup();
-        else if (ctaAction === "upgrade") openPricing();
         else openCreditsDialog();
         throw new Error("Out of credits");
       }
@@ -14082,8 +14079,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           }}
           onWireframe={() => {
             if (linearToolbar.node) {
-              const canUse = isPro || isAdmin;
-              if (canUse) {
+              if (true) {
                 const event = new CustomEvent("generateWireframe", {
                   detail: {
                     nodeId: linearToolbar.node.id,
@@ -14095,7 +14091,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setLinearToolbar(null);
             }
           }}
-          canUseWireframe={isPro || isAdmin}
+          canUseWireframe={true}
           onGenerateWorkflow={async () => {
             if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
               const semantic = linearToolbar.node.data.figmaSemantic;
@@ -14686,7 +14682,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           setTabs((prev) => [...prev, newTab]);
           setActiveTabId(newTab.id);
         }}
-        isPro={isPro}
+        isPro={true}
         isAuthenticated={isAuthenticated}
       />
 

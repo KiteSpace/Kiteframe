@@ -41,8 +41,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
-import { useSubscription } from "@/hooks/useSubscription";
-import { FeatureUpsellDialog } from "./FeatureUpsellDialog";
 import { HomeHero } from "./HomeHero";
 
 interface RecentProject {
@@ -170,12 +168,7 @@ export function HomeScreen({
   const [, navigate] = useLocation();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
-  const [showFeatureUpsell, setShowFeatureUpsell] = useState(false);
-  const [featureUpsellType, setFeatureUpsellType] = useState<
-    "image" | "wireframe" | "figma"
-  >("image");
 
-  const { tier } = useSubscription();
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
 
   const {
@@ -187,7 +180,6 @@ export function HomeScreen({
     ctaAction,
     ctaButtonText,
     openSignup,
-    openPricing,
     openCreditsDialog,
   } = useCreditsGate();
 
@@ -208,7 +200,6 @@ export function HomeScreen({
     (prompt: string) => {
       if (isOutOfCredits) {
         if (ctaAction === "signup") openSignup();
-        else if (ctaAction === "upgrade") openPricing();
         else openCreditsDialog();
         return;
       }
@@ -223,34 +214,21 @@ export function HomeScreen({
       isOutOfCredits,
       ctaAction,
       openSignup,
-      openPricing,
       openCreditsDialog,
       navigate,
     ],
   );
 
   const handleUploadImageWithGate = useCallback(
-    (files: FileList): boolean => {
-      if (tier !== "pro") {
-        setFeatureUpsellType("image");
-        setShowFeatureUpsell(true);
-        return false; // Block the action
-      }
-      // Images are now added as attachments in HomeHero
-      return true; // Allow the action
+    (_files: FileList): boolean => {
+      return true;
     },
-    [tier],
+    [],
   );
 
   const handleImportFigmaWithGate = useCallback((): boolean => {
-    if (tier !== "pro") {
-      setFeatureUpsellType("figma");
-      setShowFeatureUpsell(true);
-      return false; // Block the action
-    }
-    // Figma is now handled inline in HomeHero
-    return true; // Allow the action
-  }, [tier]);
+    return true;
+  }, []);
 
   const handleConfirmDelete = useCallback(() => {
     if (deleteProjectId && onDeleteProject) {
@@ -581,26 +559,6 @@ export function HomeScreen({
           )}
         </div>
 
-        {/* Feature Upsell Dialog */}
-        <FeatureUpsellDialog
-          isOpen={showFeatureUpsell}
-          onClose={() => setShowFeatureUpsell(false)}
-          featureName={
-            featureUpsellType === "image"
-              ? "Image-to-Workflow Generator"
-              : featureUpsellType === "figma"
-                ? "Figma Import"
-                : "Wireframe Generator"
-          }
-          requiredTier="pro"
-          description={
-            featureUpsellType === "image"
-              ? "Convert your sketches and wireframes into interactive workflows using AI-powered image analysis!"
-              : featureUpsellType === "figma"
-                ? "Import your Figma designs directly into Kiteframe and turn them into interactive workflows!"
-                : "Generate wireframe layouts from text descriptions using AI!"
-          }
-        />
 
         {/* Delete Confirmation Dialog (for home view) */}
         <AlertDialog
