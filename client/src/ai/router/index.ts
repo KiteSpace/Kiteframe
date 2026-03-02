@@ -10,7 +10,7 @@ export {
   hasSessionLock,
   createSessionId,
 } from './sessionLock';
-export { ENABLE_GPT5_WORKFLOW_REASONING, ROUTER_CONFIG } from './config';
+export { ROUTER_CONFIG } from './config';
 export type { 
   TaskType, 
   RouterRequest, 
