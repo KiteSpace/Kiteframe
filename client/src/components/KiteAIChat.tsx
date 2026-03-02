@@ -943,7 +943,7 @@ export function KiteAIChatBrain({
 
       const router = getRouter();
       const isExecutionReady = lastActionabilityRef.current?.newState === 'execution-ready';
-      const effectiveTaskType = (surfaceContext === 'home' && isExecutionReady)
+      const effectiveTaskType = isExecutionReady
         ? 'workflow_reasoning'
         : 'general_chat';
 
