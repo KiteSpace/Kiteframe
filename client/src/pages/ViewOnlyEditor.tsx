@@ -52,7 +52,7 @@ export default function ViewOnlyEditor() {
     return new OpenAICompatClient({
       baseURL: '/api/ai',
       apiKey: '',
-      defaultModel: 'claude-sonnet-4-5'
+      defaultModel: 'claude-3-5-sonnet-20241022'
     });
   }, []);
 

@@ -26,16 +26,16 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
+    model: 'claude-3-5-sonnet-20241022',
     apiKey: '',
     temperature: 0.7
   });
 
   const modelOptions = {
     anthropic: [
-      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet (Recommended)' },
-      { value: 'claude-haiku-3-5', label: 'Claude Haiku (Fast)' },
-      { value: 'claude-opus-4-5', label: 'Claude Opus (Most Capable)' },
+      { value: 'claude-3-5-sonnet-20241022', label: 'Claude Sonnet (Recommended)' },
+      { value: 'claude-3-5-haiku-20241022', label: 'Claude Haiku (Fast)' },
+      { value: 'claude-3-opus-20240229', label: 'Claude Opus (Most Capable)' },
     ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
@@ -62,7 +62,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         // Migrate any GPT/OpenAI settings to Claude
         if (!fixedSettings.provider || fixedSettings.provider === 'openai' || fixedSettings.provider === 'kiteframe') {
           fixedSettings.provider = 'anthropic';
-          fixedSettings.model = 'claude-sonnet-4-5';
+          fixedSettings.model = 'claude-3-5-sonnet-20241022';
           fixedSettings.apiKey = '';
           fixedSettings.customEndpoint = '';
         }
@@ -72,9 +72,9 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           !fixedSettings.model ||
           fixedSettings.model.includes('gpt') ||
           fixedSettings.model.includes('gpt-5') ||
-          !['claude-sonnet-4-5', 'claude-haiku-3-5', 'claude-opus-4-5'].includes(fixedSettings.model)
+          !['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'].includes(fixedSettings.model)
         )) {
-          fixedSettings.model = 'claude-sonnet-4-5';
+          fixedSettings.model = 'claude-3-5-sonnet-20241022';
         }
 
         setSettings(prev => ({ ...prev, ...fixedSettings }));

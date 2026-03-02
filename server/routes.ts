@@ -1538,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // AI Health Check endpoint - test connectivity to Anthropic Claude models
   app.get('/api/ai/health', async (req, res) => {
-    const models = ['claude-haiku-3-5', 'claude-sonnet-4-5'];
+    const models = ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
     const results: Record<string, { success: boolean; error?: string; responseTime?: number }> = {};
     const apiKey = process.env.ANTHROPIC_API_KEY;
     
@@ -1605,14 +1605,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Task-type based model routing policy (Anthropic Claude)
       const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowUserOverride: boolean }> = {
-        workflow_reasoning: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        workflow_experiments: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        workflow_edit: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        workflow_generate: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        workflow_advise: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: true },
-        prd_generation: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        vision_ingestion: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
-        general_chat: { model: 'claude-haiku-3-5', provider: 'anthropic', allowUserOverride: true },
+        workflow_reasoning: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        workflow_experiments: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        workflow_edit: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        workflow_generate: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        workflow_advise: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: true },
+        prd_generation: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        vision_ingestion: { model: 'claude-3-5-sonnet-20241022', provider: 'anthropic', allowUserOverride: false },
+        general_chat: { model: 'claude-3-5-haiku-20241022', provider: 'anthropic', allowUserOverride: true },
       };
       
       // Resolve model based on taskType routing policy
@@ -1769,7 +1769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'anthropic-version': '2023-06-01'
         };
         requestBody = {
-          model: activeModel || 'claude-haiku-3-5',
+          model: activeModel || 'claude-3-5-haiku-20241022',
           messages,
           max_tokens: maxTokens || 1024
         };
@@ -1832,7 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logAiUsage({
           userId: userId || undefined,
           feature: 'chat',
-          model: model || 'claude-haiku-3-5',
+          model: model || 'claude-3-5-haiku-20241022',
           promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
           completionTokens: usage.completion_tokens || usage.output_tokens || 0,
         }).catch(console.error);
@@ -1915,7 +1915,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-haiku-3-5',
+          model: 'claude-3-5-haiku-20241022',
           system: 'You are a UI/UX designer that creates clean, simple SVG wireframes. Always return ONLY SVG code, nothing else.',
           messages: [
             {
@@ -1975,7 +1975,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         console.log('Setting default model for provider:', provider);
         switch (provider) {
           case 'anthropic':
-            model = 'claude-haiku-3-5';
+            model = 'claude-3-5-haiku-20241022';
             break;
           case 'kiteframe':
             model = 'llama3.2:3b';
@@ -1984,7 +1984,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
             model = 'llama3.2:3b';
             break;
           default:
-            model = 'claude-haiku-3-5';
+            model = 'claude-3-5-haiku-20241022';
         }
         console.log('Default model set to:', model);
       }
@@ -2321,7 +2321,7 @@ Respond with only the corrected JSON data:`;
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-haiku-3-5',
+          model: 'claude-3-5-haiku-20241022',
           system: 'You are a workflow data correction specialist. Return only valid JSON, no explanations.',
           messages: [{ role: 'user', content: correctionPrompt }],
           temperature: 0.1,
@@ -2992,7 +2992,7 @@ Respond with only the corrected JSON data:`;
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-3-5-sonnet-20241022",
           system: `You are a workflow diagram analysis expert. Analyze hand-drawn or digital workflow diagrams and extract workflow elements in KiteFrame format.
 
 IMPORTANT: Return ONLY valid JSON in this exact format:
@@ -3152,7 +3152,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         logAiUsage({
           userId: userId || undefined,
           feature: 'vision_analysis',
-          model: 'claude-sonnet-4-5',
+          model: 'claude-3-5-sonnet-20241022',
           promptTokens: visionUsage.input_tokens || 0,
           completionTokens: visionUsage.output_tokens || 0,
           isVision: true,

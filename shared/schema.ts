@@ -353,7 +353,7 @@ export const aiFeatureEnum = ['chat', 'workflow_generation', 'prd_generation', '
 export type AiFeature = typeof aiFeatureEnum[number];
 
 // AI model types
-export const aiModelEnum = ['claude-sonnet-4-5', 'claude-haiku-3-5', 'claude-opus-4-5', 'custom'] as const;
+export const aiModelEnum = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'custom'] as const;
 export type AiModel = typeof aiModelEnum[number];
 
 // AI usage events for metrics tracking
@@ -363,7 +363,7 @@ export const aiUsageEvents = pgTable("ai_usage_events", {
   projectId: varchar("project_id"),
   workflowId: varchar("workflow_id"),
   feature: varchar("feature").notNull(), // chat, workflow_generation, prd_generation, vision_analysis, image_upload, project_summary
-  model: varchar("model").notNull(), // claude-sonnet-4-5, claude-haiku-3-5, etc.
+  model: varchar("model").notNull(), // claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022, etc.
   promptTokens: integer("prompt_tokens").notNull().default(0),
   completionTokens: integer("completion_tokens").notNull().default(0),
   totalTokens: integer("total_tokens").notNull().default(0),

@@ -22,7 +22,7 @@ export function toModelProvenance(metadata: RouterMetadata): ModelProvenance {
  */
 export function createFallbackProvenance(
   provider: string = 'anthropic',
-  model: string = 'claude-sonnet-4-5',
+  model: string = 'claude-3-5-sonnet-20241022',
   taskType: ModelProvenance['routerTaskType'] = 'general_chat'
 ): ModelProvenance {
   return {

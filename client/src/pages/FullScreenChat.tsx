@@ -15,7 +15,7 @@ export default function FullScreenChat() {
   const aiClient = useMemo(() => {
     let baseURL = "/api/ai";
     const savedSettings = localStorage.getItem("ai_settings");
-    let defaultModel = "claude-sonnet-4-5";
+    let defaultModel = "claude-3-5-sonnet-20241022";
 
     if (savedSettings) {
       try {

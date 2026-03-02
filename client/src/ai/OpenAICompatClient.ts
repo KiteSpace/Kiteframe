@@ -23,7 +23,7 @@ export class OpenAICompatClient implements AiClient {
   
   async chat(req: AiRequest): Promise<AiResponse> {
     const savedSettings = localStorage.getItem('ai_settings');
-    let currentModel = req.model || this.opts.defaultModel || 'claude-sonnet-4-5';
+    let currentModel = req.model || this.opts.defaultModel || 'claude-3-5-sonnet-20241022';
     let provider = req.provider || 'anthropic';
     let apiKey = null;
     
@@ -46,8 +46,8 @@ export class OpenAICompatClient implements AiClient {
     
     const containsImages = hasImageContent(req.messages);
     if (containsImages && !supportsVision(currentModel)) {
-      console.warn(`[OpenAICompatClient] Model ${currentModel} does not support vision. Falling back to claude-sonnet-4-5.`);
-      currentModel = 'claude-sonnet-4-5';
+      console.warn(`[OpenAICompatClient] Model ${currentModel} does not support vision. Falling back to claude-3-5-sonnet-20241022.`);
+      currentModel = 'claude-3-5-sonnet-20241022';
     }
     
     const serializedMessages = serializeMessages(req.messages);
