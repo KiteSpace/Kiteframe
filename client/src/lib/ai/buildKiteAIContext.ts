@@ -198,7 +198,8 @@ For CONVERSATIONS, respond naturally without JSON.`;
 5. Each node needs: id, type, position: {x, y}, data: {label, description, icon, iconColor}, width: 200, height: 100
 6. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
 
-For CONVERSATIONS (clarifying, exploring, asking questions), respond naturally without JSON.`;
+For CONVERSATIONS (clarifying, exploring, asking questions), respond naturally without JSON.
+When you output JSON, the Kiteframe UI automatically shows a "Create Project" button — do NOT tell the user to import, copy, paste, or manually create a project.`;
   }
 
   const allowedActions = mode === 'pre_project'

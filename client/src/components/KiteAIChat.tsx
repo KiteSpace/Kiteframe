@@ -946,6 +946,11 @@ export function KiteAIChatBrain({
       const effectiveTaskType = (surfaceContext === 'home' && isExecutionReady)
         ? 'workflow_reasoning'
         : 'general_chat';
+
+      if (effectiveTaskType === 'workflow_reasoning') {
+        enhancedPrompt += `\n\nCRITICAL OUTPUT FORMAT: Your ENTIRE response must be the raw JSON object only. Start with { and end with }. No introduction sentence. No explanation after the closing brace. No code fences. No markdown. The Kiteframe UI automatically shows a "Create Project" button when it receives your JSON — you do NOT need to instruct the user how to import, copy, paste, or create a project. Just output the JSON.`;
+      }
+
       const response = await router.chat({
         taskType: effectiveTaskType,
         messages: [
@@ -960,7 +965,29 @@ export function KiteAIChatBrain({
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
       let responseText = response.text;
 
-      const jsonMatch = response.text.match(/\{[\s\S]*"nodes"[\s\S]*"edges"[\s\S]*\}/);
+      const extractJsonObject = (text: string): string | null => {
+        const start = text.indexOf('{');
+        if (start === -1) return null;
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < text.length; i++) {
+          const ch = text[i];
+          if (escape) { escape = false; continue; }
+          if (ch === '\\' && inString) { escape = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) return text.slice(start, i + 1);
+          }
+        }
+        return null;
+      };
+
+      const rawJson = extractJsonObject(response.text);
+      const jsonMatch = rawJson && rawJson.includes('"nodes"') && rawJson.includes('"edges"') ? [rawJson] : null;
       if (jsonMatch) {
         try {
           let cleanJson = jsonMatch[0]
