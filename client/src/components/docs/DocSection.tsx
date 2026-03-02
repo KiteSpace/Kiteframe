@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback, KeyboardEvent, useMemo, ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, KeyboardEvent, ReactNode } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight } from 'lucide-react';
@@ -199,121 +200,18 @@ function ReviewSuggestionCard({
   );
 }
 
-function renderFormattedContent(content: string): ReactNode {
-  if (!content) return null;
-
-  const lines = content.split('\n');
-  const elements: ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmedLine = line.trim();
-    
-    if (!trimmedLine) {
-      i++;
-      continue;
-    }
-
-    // Check if line starts with a numbered item (e.g., "1. Item")
-    const startsWithNumber = /^(\d+)\.\s+(.+)$/.test(trimmedLine);
-    
-    if (startsWithNumber) {
-      // This line is a numbered item, collect consecutive numbered items
-      const items: { number: number; text: string }[] = [];
-      
-      while (i < lines.length) {
-        const currentLine = lines[i].trim();
-        if (!currentLine) break;
-        
-        const match = currentLine.match(/^(\d+)\.\s+(.+)$/);
-        if (match) {
-          items.push({
-            number: parseInt(match[1], 10),
-            text: match[2]
-          });
-          i++;
-        } else {
-          break;
-        }
-      }
-      
-      if (items.length > 0) {
-        elements.push(
-          <ol key={`list-${elements.length}`} className="list-decimal list-inside space-y-1.5 my-2">
-            {items.map((item, idx) => (
-              <li key={idx} className="text-sm leading-relaxed">
-                {item.text}
-              </li>
-            ))}
-          </ol>
-        );
-      }
-    } else {
-      // Check if line contains text followed by numbered items (e.g., "Text here. 2. Item 2. 3. Item 3")
-      const parts = trimmedLine.split(/\s+(\d+\.)\s+/);
-      
-      // Check if we actually found numbered patterns in this line
-      if (parts.length > 1) {
-        const items: { number: number; text: string }[] = [];
-        let pendingText = '';
-        
-        for (let j = 0; j < parts.length; j++) {
-          if (j === 0) {
-            // First part is either text or empty
-            pendingText = parts[j].trim();
-          } else if (/^\d+\.$/.test(parts[j])) {
-            // This is a number like "2."
-            const numberStr = parts[j].replace('.', '');
-            const itemNumber = parseInt(numberStr, 10);
-            const itemText = parts[j + 1]?.trim() || '';
-            
-            if (itemText) {
-              items.push({
-                number: itemNumber,
-                text: itemText
-              });
-              j++; // Skip the next part as we've consumed it
-            }
-          }
-        }
-        
-        // If we found at least 1 numbered item, render as list
-        if (items.length > 0) {
-          // Add pending text as first item if it exists
-          if (pendingText && pendingText !== '0.') {
-            items.unshift({
-              number: 1,
-              text: pendingText
-            });
-          }
-          
-          elements.push(
-            <ol key={`list-${elements.length}`} className="list-decimal list-inside space-y-1.5 my-2">
-              {items.map((item, idx) => (
-                <li key={idx} className="text-sm leading-relaxed">
-                  {item.text}
-                </li>
-              ))}
-            </ol>
-          );
-          i++;
-          continue;
-        }
-      }
-      
-      // No numbered pattern found, render as regular paragraph
-      elements.push(
-        <p key={elements.length} className="text-sm leading-relaxed">
-          {trimmedLine}
-        </p>
-      );
-      i++;
-    }
-  }
-
-  return <div className="space-y-1">{elements}</div>;
-}
+const markdownComponents = {
+  h1: ({ children }: { children: ReactNode }) => <h1 className="text-base font-bold mt-3 mb-1 text-foreground">{children}</h1>,
+  h2: ({ children }: { children: ReactNode }) => <h2 className="text-sm font-semibold mt-2.5 mb-1 text-foreground">{children}</h2>,
+  h3: ({ children }: { children: ReactNode }) => <h3 className="text-sm font-medium mt-2 mb-0.5 text-foreground">{children}</h3>,
+  p:  ({ children }: { children: ReactNode }) => <p className="text-sm leading-relaxed mb-1.5">{children}</p>,
+  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-inside space-y-0.5 my-1.5 text-sm">{children}</ul>,
+  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-inside space-y-0.5 my-1.5 text-sm">{children}</ol>,
+  li: ({ children }: { children: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  strong: ({ children }: { children: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  em: ({ children }: { children: ReactNode }) => <em className="italic">{children}</em>,
+  hr: () => <hr className="my-2 border-border" />,
+};
 
 export function DocSection({
   title,
@@ -441,8 +339,6 @@ export function DocSection({
     setSuggestion(null);
   }, []);
 
-  const formattedContent = useMemo(() => renderFormattedContent(content), [content]);
-  const formattedSuggestion = useMemo(() => suggestion ? renderFormattedContent(suggestion) : null, [suggestion]);
 
   return (
     <section
@@ -639,7 +535,13 @@ export function DocSection({
             )}
             data-testid={`content-${sectionKey}`}
           >
-            {formattedContent || (isReadOnly ? "No content" : "Click to add content...")}
+            {content ? (
+              <ReactMarkdown components={markdownComponents as any}>
+                {content}
+              </ReactMarkdown>
+            ) : (
+              isReadOnly ? "No content" : "Click to add content..."
+            )}
           </div>
 
           {!isReadOnly && suggestion && (
@@ -673,7 +575,11 @@ export function DocSection({
                 </div>
               </div>
               <div className="text-muted-foreground text-sm">
-                {formattedSuggestion}
+                {suggestion && (
+                  <ReactMarkdown components={markdownComponents as any}>
+                    {suggestion}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           )}

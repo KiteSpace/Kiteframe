@@ -56,6 +56,7 @@ export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
   const [savedNotes, setSavedNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [transcripts, setTranscripts] = useState<ConversationTranscript[]>([]);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
@@ -201,14 +202,35 @@ export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
           </div>
         </div>
         
-        <Textarea
-          value={notes}
-          onChange={(e) => !isReadOnly && setNotes(e.target.value)}
-          placeholder={isReadOnly ? "No notes available" : "Add notes about your project here...&#10;&#10;• Design decisions&#10;• TODO items&#10;• Meeting notes&#10;• Reference links"}
-          className="min-h-[150px] resize-none text-sm border-primary/20 focus:border-primary/40"
-          readOnly={isReadOnly}
-          data-testid="input-notes"
-        />
+        <div
+          className={cn(
+            "rounded-md transition-colors duration-100 -mx-1 px-1",
+            !isReadOnly && "hover:bg-accent/30 cursor-text"
+          )}
+          onClick={() => !isReadOnly && setIsEditingNotes(true)}
+          data-testid="notes-field"
+        >
+          {isEditingNotes && !isReadOnly ? (
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() => setIsEditingNotes(false)}
+              placeholder={"Add notes about your project here...\n\n• Design decisions\n• TODO items\n• Meeting notes\n• Reference links"}
+              className="min-h-[150px] resize-none text-sm border-primary/20 focus:border-primary/40"
+              autoFocus
+              data-testid="input-notes"
+            />
+          ) : (
+            <div
+              className={cn(
+                "text-sm min-h-[150px] py-2 whitespace-pre-wrap",
+                !notes && "italic text-muted-foreground"
+              )}
+            >
+              {notes || (isReadOnly ? "No notes available" : "Add notes about your project here...\n\n• Design decisions\n• TODO items\n• Meeting notes\n• Reference links")}
+            </div>
+          )}
+        </div>
         
         <div className="mt-3 text-[10px] text-muted-foreground">
           {notes.length > 0 ? `${notes.length} characters` : 'No notes yet'}
