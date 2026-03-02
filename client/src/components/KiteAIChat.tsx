@@ -959,7 +959,7 @@ export function KiteAIChatBrain({
           { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
-        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 4000 : 3000
+        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
@@ -987,6 +987,13 @@ export function KiteAIChatBrain({
       };
 
       const rawJson = extractJsonObject(response.text);
+      console.log('[KiteAI] JSON extraction:', {
+        responseLength: response.text.length,
+        rawJsonLength: rawJson?.length ?? 0,
+        hasNodes: rawJson?.includes('"nodes"') ?? false,
+        hasEdges: rawJson?.includes('"edges"') ?? false,
+        responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
+      });
       const jsonMatch = rawJson && rawJson.includes('"nodes"') && rawJson.includes('"edges"') ? [rawJson] : null;
       if (jsonMatch) {
         try {
@@ -1222,15 +1229,10 @@ export function KiteAIChatBrain({
                 aiStability: stabilityMetrics,
               });
               
-              responseText = response.text.replace(jsonMatch[0], '').trim();
-              if (!responseText) {
-                // Use the AI response template for baseline generation
-                responseText = AI_RESPONSE_TEMPLATES.BASELINE_GENERATED;
-              }
             }
           }
         } catch (e) {
-          console.log('Failed to parse workflow JSON from response');
+          console.warn('[KiteAI] Failed to parse workflow JSON:', e instanceof Error ? e.message : e);
           logAiInteraction({
             surface: mode === 'fullscreen' ? 'home' : 'project',
             phase: 'baseline',
