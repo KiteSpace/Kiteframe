@@ -1186,6 +1186,9 @@ export function KiteAIChatBrain({
                 originPrompt: messageContent,
                 mergeBranchDecision,
               });
+
+              // Replace raw JSON response with a readable summary
+              responseText = `Workflow ready — ${parsed.nodes.length} nodes, ${parsed.edges.length} connections. Review the preview below and click Create to build it on your canvas.`;
               
               // Analyze workflow diagnostics for quick action suggestions
               const diagnostics = analyzeWorkflowDiagnostics({
