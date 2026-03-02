@@ -30,7 +30,7 @@ function ensureProvenance(
 ): ModelProvenance {
   if (provenance) return provenance;
   console.warn(`[DecisionCapture] Missing model provenance for ${taskType}, using fallback`);
-  return createFallbackProvenance('openai', 'gpt-4o', taskType);
+  return createFallbackProvenance('anthropic', 'claude-sonnet-4-5', taskType);
 }
 
 let snapshotIdCounter = 0;

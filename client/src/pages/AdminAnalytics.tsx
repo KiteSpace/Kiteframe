@@ -65,9 +65,9 @@ const FEATURE_COLORS: Record<string, string> = {
 };
 
 const MODEL_COLORS: Record<string, string> = {
-  "gpt-4o": "#10b981",
-  "gpt-4o-mini": "#6366f1",
-  "gpt-3.5-turbo": "#f97316",
+  "claude-sonnet-4-5": "#10b981",
+  "claude-haiku-3-5": "#6366f1",
+  "claude-opus-4-5": "#f97316",
 };
 
 type TimeRange = "24h" | "7d" | "30d" | "90d";

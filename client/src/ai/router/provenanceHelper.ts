@@ -21,8 +21,8 @@ export function toModelProvenance(metadata: RouterMetadata): ModelProvenance {
  * (e.g., for legacy code paths)
  */
 export function createFallbackProvenance(
-  provider: string = 'openai',
-  model: string = 'gpt-4o',
+  provider: string = 'anthropic',
+  model: string = 'claude-sonnet-4-5',
   taskType: ModelProvenance['routerTaskType'] = 'general_chat'
 ): ModelProvenance {
   return {

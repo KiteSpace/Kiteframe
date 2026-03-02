@@ -23,8 +23,8 @@ export class OpenAICompatClient implements AiClient {
   
   async chat(req: AiRequest): Promise<AiResponse> {
     const savedSettings = localStorage.getItem('ai_settings');
-    let currentModel = req.model || this.opts.defaultModel || 'gpt-4o';
-    let provider = req.provider || 'openai';
+    let currentModel = req.model || this.opts.defaultModel || 'claude-sonnet-4-5';
+    let provider = req.provider || 'anthropic';
     let apiKey = null;
     
     if (savedSettings) {
@@ -36,7 +36,7 @@ export class OpenAICompatClient implements AiClient {
             : settings.model || currentModel;
         }
         if (!req.provider) {
-          provider = settings.provider || 'openai';
+          provider = settings.provider || 'anthropic';
         }
         apiKey = settings.apiKey;
       } catch (e) {
@@ -46,8 +46,8 @@ export class OpenAICompatClient implements AiClient {
     
     const containsImages = hasImageContent(req.messages);
     if (containsImages && !supportsVision(currentModel)) {
-      console.warn(`[OpenAICompatClient] Model ${currentModel} does not support vision. Falling back to gpt-4o.`);
-      currentModel = 'gpt-4o';
+      console.warn(`[OpenAICompatClient] Model ${currentModel} does not support vision. Falling back to claude-sonnet-4-5.`);
+      currentModel = 'claude-sonnet-4-5';
     }
     
     const serializedMessages = serializeMessages(req.messages);

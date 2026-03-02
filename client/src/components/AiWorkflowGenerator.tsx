@@ -374,13 +374,13 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
       if (error instanceof Error) {
         if (error.message.includes('401')) {
           title = "Authentication Error";
-          description = "Invalid API key. Please check your OpenAI API key in AI Settings.";
+          description = "Invalid API key. Please check your AI settings.";
         } else if (error.message.includes('429')) {
           title = "Rate Limit Exceeded";
           description = "Too many requests. Please wait a moment and try again.";
         } else if (error.message.includes('500')) {
           title = "Server Error";
-          description = "OpenAI service is temporarily unavailable. Please try again later.";
+          description = "AI service is temporarily unavailable. Please try again later.";
         } else {
           description = error.message;
         }

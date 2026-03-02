@@ -363,7 +363,7 @@ export const aiUsageEvents = pgTable("ai_usage_events", {
   projectId: varchar("project_id"),
   workflowId: varchar("workflow_id"),
   feature: varchar("feature").notNull(), // chat, workflow_generation, prd_generation, vision_analysis, image_upload, project_summary
-  model: varchar("model").notNull(), // gpt-4o, gpt-4o-mini, etc.
+  model: varchar("model").notNull(), // claude-sonnet-4-5, claude-haiku-3-5, etc.
   promptTokens: integer("prompt_tokens").notNull().default(0),
   completionTokens: integer("completion_tokens").notNull().default(0),
   totalTokens: integer("total_tokens").notNull().default(0),

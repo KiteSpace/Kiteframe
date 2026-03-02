@@ -50,9 +50,9 @@ export default function ViewOnlyEditor() {
 
   const createAiClient = useCallback(() => {
     return new OpenAICompatClient({
-      baseURL: 'https://api.openai.com/v1',
+      baseURL: '/api/ai',
       apiKey: '',
-      defaultModel: 'gpt-4o'
+      defaultModel: 'claude-sonnet-4-5'
     });
   }, []);
 

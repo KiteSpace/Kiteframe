@@ -3162,7 +3162,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           if (error.message.includes("401")) {
             title = "Authentication Error";
             description =
-              "Invalid API key. Please check your OpenAI API key in AI Settings.";
+              "Invalid API key. Please check your AI settings.";
           } else if (error.message.includes("429")) {
             title = "Rate Limit Exceeded";
             description =
@@ -3170,7 +3170,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           } else if (error.message.includes("500")) {
             title = "Server Error";
             description =
-              "OpenAI service is temporarily unavailable. Please try again later.";
+              "AI service is temporarily unavailable. Please try again later.";
           } else {
             description = error.message;
           }
@@ -3978,7 +3978,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           if (error.message.includes("401")) {
             title = "Authentication Error";
             description =
-              "Invalid API key. Please check your OpenAI API key in AI Settings.";
+              "Invalid API key. Please check your AI settings.";
           } else if (error.message.includes("429")) {
             title = "Rate Limit Exceeded";
             description =
@@ -3986,7 +3986,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           } else if (error.message.includes("500")) {
             title = "Server Error";
             description =
-              "OpenAI service is temporarily unavailable. Please try again later.";
+              "AI service is temporarily unavailable. Please try again later.";
           } else {
             description = error.message;
           }

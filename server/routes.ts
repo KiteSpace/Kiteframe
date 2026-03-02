@@ -1536,15 +1536,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Health Check endpoint - test connectivity to OpenAI models
+  // AI Health Check endpoint - test connectivity to Anthropic Claude models
   app.get('/api/ai/health', async (req, res) => {
-    const models = ['gpt-4o', 'gpt-5.1'];
+    const models = ['claude-haiku-3-5', 'claude-sonnet-4-5'];
     const results: Record<string, { success: boolean; error?: string; responseTime?: number }> = {};
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     
     if (!apiKey) {
       return res.status(401).json({ 
-        error: 'OpenAI API key not configured',
+        error: 'Anthropic API key not configured',
         models: {}
       });
     }
@@ -1552,24 +1552,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     for (const model of models) {
       const startTime = Date.now();
       try {
-        const isGpt5 = model.includes('gpt-5');
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
             model,
-            messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }],
-            ...(isGpt5 ? { max_completion_tokens: 10 } : { max_tokens: 10, temperature: 0 })
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'Say "OK" and nothing else.' }]
           })
         });
         
         const responseTime = Date.now() - startTime;
         
         if (response.ok) {
-          const data = await response.json();
           results[model] = { 
             success: true, 
             responseTime,
@@ -1742,24 +1741,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       } else {
-        endpoint = 'https://api.openai.com/v1/chat/completions';
+        // Fallback: route to Anthropic
+        endpoint = 'https://api.anthropic.com/v1/messages';
+        const fallbackKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
         headers = {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeApiKey}`
+          'x-api-key': fallbackKey || '',
+          'anthropic-version': '2023-06-01'
         };
-        
-        // GPT-5 models require different parameters
-        const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
         requestBody = {
-          model: activeModel,
+          model: activeModel || 'claude-haiku-3-5',
           messages,
-          ...(isGpt5Model ? {
-            max_completion_tokens: maxTokens
-            // GPT-5 doesn't support temperature parameter
-          } : {
-            temperature,
-            max_tokens: maxTokens
-          })
+          max_tokens: maxTokens || 1024
         };
       }
 
@@ -1813,16 +1806,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       analyticsService.trackAIRequest(userIdentifier, country, activeProvider).catch(console.error);
       
-      // Log AI usage metrics (for OpenAI responses with token counts)
+      // Log AI usage metrics (for responses with token counts)
       const usage = json.usage;
-      if (usage && activeProvider === 'openai') {
+      if (usage) {
         const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
         logAiUsage({
           userId: userId || undefined,
           feature: 'chat',
-          model: model || 'gpt-4o',
-          promptTokens: usage.prompt_tokens || 0,
-          completionTokens: usage.completion_tokens || 0,
+          model: model || 'claude-haiku-3-5',
+          promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
+          completionTokens: usage.completion_tokens || usage.output_tokens || 0,
         }).catch(console.error);
       }
       
@@ -1887,27 +1880,25 @@ Requirements:
 
 Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
 
-      // Use OpenAI to generate the wireframe
-      const endpoint = 'https://api.openai.com/v1/chat/completions';
-      const apiKey = process.env.OPENAI_API_KEY;
+      // Use Anthropic Claude to generate the wireframe
+      const endpoint = 'https://api.anthropic.com/v1/messages';
+      const apiKey = process.env.ANTHROPIC_API_KEY;
       
       if (!apiKey) {
-        return res.status(401).json({ error: 'OpenAI API key not configured' });
+        return res.status(401).json({ error: 'AI API key not configured' });
       }
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'claude-haiku-3-5',
+          system: 'You are a UI/UX designer that creates clean, simple SVG wireframes. Always return ONLY SVG code, nothing else.',
           messages: [
-            {
-              role: 'system',
-              content: 'You are a UI/UX designer that creates clean, simple SVG wireframes. Always return ONLY SVG code, nothing else.'
-            },
             {
               role: 'user',
               content: prompt
@@ -1920,7 +1911,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
 
       if (!response.ok) {
         const error = await response.text();
-        console.error('OpenAI wireframe generation error:', error);
+        console.error('Anthropic wireframe generation error:', error);
         return res.status(response.status).json({ 
           error: 'Failed to generate wireframe',
           details: error
@@ -1928,7 +1919,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       }
 
       const json = await response.json();
-      const svgContent = json.choices?.[0]?.message?.content || '';
+      const svgContent = json.content?.[0]?.text || '';
       
       // Extract SVG from response (in case there's extra text)
       const svgMatch = svgContent.match(/<svg[\s\S]*<\/svg>/i);
@@ -1943,7 +1934,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       } catch (error) {
         country = undefined;
       }
-      analyticsService.trackAIRequest(userIdentifier, country, 'openai').catch(console.error);
+      analyticsService.trackAIRequest(userIdentifier, country, 'anthropic').catch(console.error);
       
       res.json({ svg });
     } catch (error: any) {
@@ -1964,30 +1955,27 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       if (!model || model === 'undefined' || model === 'null' || (typeof model === 'string' && model.trim() === '')) {
         console.log('Setting default model for provider:', provider);
         switch (provider) {
-          case 'openai':
-            model = 'gpt-5-nano';
+          case 'anthropic':
+            model = 'claude-haiku-3-5';
             break;
           case 'kiteframe':
             model = 'llama3.2:3b';
             break;
-          case 'anthropic':
-            model = 'claude-3-5-sonnet-20241022';
-            break;
           case 'ollama':
-            model = 'llama3.2:3b'; // Default Ollama model
+            model = 'llama3.2:3b';
             break;
           default:
-            model = 'gpt-5-nano';
+            model = 'claude-haiku-3-5';
         }
         console.log('Default model set to:', model);
       }
       
-      // For OpenAI, always use environment key. For others, require API key unless it's ollama/kiteframe
+      // For Anthropic, always use environment key. For others, require API key unless it's ollama/kiteframe
       let finalApiKey = apiKey;
-      if (provider === 'openai') {
-        finalApiKey = process.env.OPENAI_API_KEY;
+      if (provider === 'anthropic' && !finalApiKey) {
+        finalApiKey = process.env.ANTHROPIC_API_KEY;
         if (!finalApiKey) {
-          return res.status(500).json({ error: 'OpenAI API key not configured on server' });
+          return res.status(500).json({ error: 'Anthropic API key not configured on server' });
         }
       } else if (!finalApiKey && provider !== 'ollama' && provider !== 'kiteframe') {
         return res.status(400).json({ error: 'API key is required for testing' });
@@ -2013,12 +2001,6 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       }
 
       // Additional provider-specific validation using cleaned key
-      if (provider === 'openai' && cleanApiKey && !cleanApiKey.startsWith('sk-')) {
-        return res.status(400).json({ 
-          error: 'OpenAI API keys should start with "sk-"' 
-        });
-      }
-
       if (provider === 'anthropic' && cleanApiKey && !cleanApiKey.startsWith('sk-ant-')) {
         return res.status(400).json({ 
           error: 'Anthropic API keys should start with "sk-ant-"' 
@@ -2033,13 +2015,6 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
 
       // Configure endpoints and headers based on provider
       switch (provider) {
-        case 'openai':
-          testUrl = 'https://api.openai.com/v1/chat/completions';
-          headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${testApiKey}`
-          };
-          break;
         case 'anthropic':
           testUrl = 'https://api.anthropic.com/v1/messages';
           headers = {
@@ -2121,19 +2096,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
           stream: false
         };
       } else {
-        // Handle GPT-5 models with different parameters
-        const isGpt5Model = model && (model.includes('gpt-5') || model.startsWith('gpt-5'));
-        const isCustomOpenAI = provider === 'custom' && customEndpoint && customEndpoint.includes('api.openai.com');
-        const needsGpt5Params = (provider === 'openai' || isCustomOpenAI) && isGpt5Model;
-        
-        if (needsGpt5Params) {
-          requestBody = {
-            model,
-            messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-            max_completion_tokens: 10
-            // GPT-5 doesn't support temperature parameter
-          };
-        } else {
+        // Custom or unknown provider - use OpenAI-compatible format
+        {
           requestBody = {
             model,
             messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
@@ -2291,9 +2255,9 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // AI-powered workflow correction endpoint
   app.post('/api/workflow/ai-correct', async (req, res) => {
     try {
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
-        return res.status(401).json({ error: 'OpenAI API key not configured' });
+        return res.status(401).json({ error: 'AI API key not configured' });
       }
 
       const { data, errors, warnings } = req.body;
@@ -2330,23 +2294,25 @@ Expected structure:
 
 Respond with only the corrected JSON data:`;
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'claude-haiku-3-5',
+          system: 'You are a workflow data correction specialist. Return only valid JSON, no explanations.',
           messages: [{ role: 'user', content: correctionPrompt }],
           temperature: 0.1,
-          max_completion_tokens: 4000
+          max_tokens: 4000
         })
       });
 
       if (!response.ok) {
         const error = await response.text();
-        console.error(`OpenAI API Error ${response.status}:`, error);
+        console.error(`Anthropic API Error ${response.status}:`, error);
         return res.status(response.status).json({ 
           error: `AI correction failed: ${response.status}`,
           details: error
@@ -2354,7 +2320,7 @@ Respond with only the corrected JSON data:`;
       }
 
       const aiResult = await response.json();
-      const correctedDataText = aiResult.choices?.[0]?.message?.content || '';
+      const correctedDataText = aiResult.content?.[0]?.text || '';
 
       if (!correctedDataText) {
         return res.status(500).json({ error: 'No corrected data received from AI' });
@@ -2981,10 +2947,10 @@ Respond with only the corrected JSON data:`;
         return res.status(400).json({ error: "No image file provided" });
       }
 
-      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
         return res.status(503).json({ 
-          error: "AI service is not available. Please check OpenAI API key configuration." 
+          error: "AI service is not available. Please check API key configuration." 
         });
       }
 
@@ -2996,21 +2962,19 @@ Respond with only the corrected JSON data:`;
 
       // Convert image buffer to base64
       const base64Image = req.file.buffer.toString('base64');
-      const imageDataUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+      const mediaType = (req.file.mimetype as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp') || 'image/jpeg';
 
-      // Analyze image with GPT-4o Vision (GPT-5-nano doesn't support vision)
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Analyze image with Claude Sonnet Vision
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: "gpt-4o", // GPT-5-nano doesn't support vision - using GPT-4o for image analysis
-          messages: [
-            {
-              role: "system",
-              content: `You are a workflow diagram analysis expert. Analyze hand-drawn or digital workflow diagrams and extract workflow elements in KiteFrame format.
+          model: "claude-sonnet-4-5",
+          system: `You are a workflow diagram analysis expert. Analyze hand-drawn or digital workflow diagrams and extract workflow elements in KiteFrame format.
 
 IMPORTANT: Return ONLY valid JSON in this exact format:
 {
@@ -3065,25 +3029,26 @@ MANDATORY EXAMPLES TO FOLLOW:
 DO NOT PUT LONG SENTENCES IN THE "label" FIELD!
 DO NOT PUT SHORT TITLES IN THE "description" FIELD!
 
-Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 3+ workflow elements.`
-            },
+Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 3+ workflow elements.`,
+          messages: [
             {
               role: "user",
               content: [
                 {
-                  type: "text",
-                  text: "Analyze this workflow diagram and extract the workflow structure. Focus on identifying nodes, connections, and text labels."
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: mediaType,
+                    data: base64Image
+                  }
                 },
                 {
-                  type: "image_url",
-                  image_url: {
-                    url: imageDataUrl
-                  }
+                  type: "text",
+                  text: "Analyze this workflow diagram and extract the workflow structure. Focus on identifying nodes, connections, and text labels. Return only valid JSON."
                 }
               ]
             }
           ],
-          response_format: { type: "json_object" },
           max_tokens: 4000,
           temperature: 0.2
         })
@@ -3091,15 +3056,15 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
 
       if (!response.ok) {
         const error = await response.text();
-        console.error(`OpenAI API Error ${response.status}:`, error);
+        console.error(`Anthropic API Error ${response.status}:`, error);
         return res.status(500).json({ 
           error: "Failed to analyze image", 
-          details: `OpenAI API error: ${response.status}` 
+          details: `AI API error: ${response.status}` 
         });
       }
 
       const aiResult = await response.json();
-      const rawContent = aiResult.choices?.[0]?.message?.content || '{}';
+      const rawContent = aiResult.content?.[0]?.text || '{}';
       
       console.log('[Image Analysis] Raw AI response length:', rawContent.length);
 
@@ -3168,9 +3133,9 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         logAiUsage({
           userId: userId || undefined,
           feature: 'vision_analysis',
-          model: 'gpt-4o',
-          promptTokens: visionUsage.prompt_tokens || 0,
-          completionTokens: visionUsage.completion_tokens || 0,
+          model: 'claude-sonnet-4-5',
+          promptTokens: visionUsage.input_tokens || 0,
+          completionTokens: visionUsage.output_tokens || 0,
           isVision: true,
         }).catch(console.error);
       }
