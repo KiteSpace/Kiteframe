@@ -52,7 +52,7 @@ export default function ViewOnlyViewer() {
   const createAiClient = useCallback(() => {
     const savedSettings = localStorage.getItem('ai_settings');
     let baseURL = '/api/ai';
-    let defaultModel = 'claude-3-5-sonnet-20241022';
+    let defaultModel = 'claude-3-haiku-20240307';
 
     if (savedSettings) {
       try {

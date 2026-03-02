@@ -1793,7 +1793,7 @@ function WorkflowEditorContent({
       
       const modelProvenance = result.routerMetadata 
         ? toModelProvenance(result.routerMetadata) 
-        : createFallbackProvenance('anthropic', 'claude-3-5-sonnet-20241022', 'workflow_reasoning');
+        : createFallbackProvenance('anthropic', 'claude-3-haiku-20240307', 'workflow_reasoning');
       setProposalState({ 
         proposal: { ...result.proposal, modelProvenance }, 
         generatingInsightId: null, 
@@ -1880,7 +1880,7 @@ function WorkflowEditorContent({
       
       const modelProvenance = result.routerMetadata 
         ? toModelProvenance(result.routerMetadata) 
-        : createFallbackProvenance('anthropic', 'claude-3-5-sonnet-20241022', 'workflow_experiments');
+        : createFallbackProvenance('anthropic', 'claude-3-haiku-20240307', 'workflow_experiments');
       setExperimentState({ 
         session: { ...result.session, modelProvenance }, 
         generatingInsightId: null, 
@@ -14860,7 +14860,7 @@ export default function WorkflowEditor() {
   const createAiClient = useCallback(() => {
     const savedSettings = localStorage.getItem("ai_settings");
     let baseURL = "/api/ai";
-    let defaultModel = "claude-3-5-sonnet-20241022";
+    let defaultModel = "claude-3-haiku-20240307";
 
     if (savedSettings) {
       try {
@@ -14868,7 +14868,7 @@ export default function WorkflowEditor() {
 
         // Migrate legacy GPT model names to Claude
         if (settings.model && (settings.model.includes('gpt') || settings.model.includes('gpt-5'))) {
-          settings.model = 'claude-3-5-sonnet-20241022';
+          settings.model = 'claude-3-haiku-20240307';
           settings.provider = 'anthropic';
           localStorage.setItem("ai_settings", JSON.stringify(settings));
         }

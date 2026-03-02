@@ -27,7 +27,7 @@ function getUserSettings(): { provider: string; model: string } | null {
         provider: settings.provider || 'anthropic',
         model: settings.model === 'custom' && settings.customModel 
           ? settings.customModel 
-          : settings.model || 'claude-3-5-sonnet-20241022',
+          : settings.model || 'claude-3-haiku-20240307',
       };
     }
   } catch (e) {
