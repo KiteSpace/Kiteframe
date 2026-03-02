@@ -26,14 +26,16 @@ interface AiSettingsModalProps {
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
     provider: 'anthropic',
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-sonnet-4-5-20250929',
     apiKey: '',
     temperature: 0.7
   });
 
   const modelOptions = {
     anthropic: [
-      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+      { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (Fast)' },
+      { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (Recommended)' },
+      { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (Most Capable)' },
     ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
@@ -45,7 +47,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const aiClient = useAi();
 
   useEffect(() => {
-    const migrationKey = 'ai_settings_claude_migration_v2';
+    const migrationKey = 'ai_settings_claude_migration_v3';
     if (!localStorage.getItem(migrationKey)) {
       localStorage.removeItem('ai_settings');
       localStorage.setItem(migrationKey, 'true');
@@ -60,7 +62,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         // Migrate any GPT/OpenAI settings to Claude
         if (!fixedSettings.provider || fixedSettings.provider === 'openai' || fixedSettings.provider === 'kiteframe') {
           fixedSettings.provider = 'anthropic';
-          fixedSettings.model = 'claude-3-haiku-20240307';
+          fixedSettings.model = 'claude-sonnet-4-5-20250929';
           fixedSettings.apiKey = '';
           fixedSettings.customEndpoint = '';
         }
@@ -70,9 +72,9 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
           !fixedSettings.model ||
           fixedSettings.model.includes('gpt') ||
           fixedSettings.model.includes('gpt-5') ||
-          !['claude-3-haiku-20240307'].includes(fixedSettings.model)
+          !['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-5-20251101'].includes(fixedSettings.model)
         )) {
-          fixedSettings.model = 'claude-3-haiku-20240307';
+          fixedSettings.model = 'claude-sonnet-4-5-20250929';
         }
 
         setSettings(prev => ({ ...prev, ...fixedSettings }));

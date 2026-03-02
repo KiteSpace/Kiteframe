@@ -6,9 +6,9 @@ import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 // Base multiplier is 1.0x for all models as per Beta spec
 // (Cost differentiation is tracked separately, not in units)
 const MODEL_MULTIPLIERS: Record<string, number> = {
-  'claude-3-haiku-20240307': 100,  // 1.0x (base)
-  'claude-3-haiku-20240307': 100,   // 1.0x (same unit cost for Beta)
-  'claude-3-haiku-20240307': 100,    // 1.0x (same unit cost for Beta)
+  'claude-haiku-4-5-20251001': 100,  // 1.0x (base)
+  'claude-sonnet-4-5-20250929': 100,  // 1.0x (same unit cost for Beta)
+  'claude-opus-4-5-20251101': 100,   // 1.0x (same unit cost for Beta)
 };
 
 // Vision multipliers per spec
@@ -20,9 +20,9 @@ const TOKENS_PER_UNIT = 500;
 
 // Cost estimates in microdollars per 1000 tokens (input/output average)
 const COST_PER_1K_TOKENS: Record<string, number> = {
-  'claude-3-haiku-20240307': 9000,   // ~$0.009 per 1K tokens (average in/out)
-  'claude-3-haiku-20240307': 750,     // ~$0.00075 per 1K tokens
-  'claude-3-haiku-20240307': 45000,    // ~$0.045 per 1K tokens
+  'claude-sonnet-4-5-20250929': 9000,   // ~$0.009 per 1K tokens (average in/out)
+  'claude-haiku-4-5-20251001': 750,     // ~$0.00075 per 1K tokens
+  'claude-opus-4-5-20251101': 45000,    // ~$0.045 per 1K tokens
 };
 
 export interface UsageLogParams {
@@ -58,7 +58,7 @@ export function calculateFinalUnits(baseUnits: number, multiplier: number): numb
 }
 
 export function estimateCostMicrodollars(totalTokens: number, model: string): number {
-  const costPer1K = COST_PER_1K_TOKENS[model] || COST_PER_1K_TOKENS['claude-3-haiku-20240307'];
+  const costPer1K = COST_PER_1K_TOKENS[model] || COST_PER_1K_TOKENS['claude-haiku-4-5-20251001'];
   return Math.ceil((totalTokens / 1000) * costPer1K);
 }
 

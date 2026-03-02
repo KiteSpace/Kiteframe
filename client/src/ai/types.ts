@@ -1,4 +1,4 @@
-export type AiModel = 'claude-3-haiku-20240307' | 'custom';
+export type AiModel = 'claude-haiku-4-5-20251001' | 'claude-sonnet-4-5-20250929' | 'claude-opus-4-5-20251101' | 'custom';
 
 export type AiMode = 'ADVISE' | 'EDIT' | 'GENERATE';
 
@@ -43,7 +43,9 @@ export interface ModelCapabilities {
 }
 
 export const MODEL_CAPABILITIES: Record<string, ModelCapabilities> = {
-  'claude-3-haiku-20240307': { vision: true, maxTokens: 200000 },
+  'claude-haiku-4-5-20251001': { vision: true, maxTokens: 200000 },
+  'claude-sonnet-4-5-20250929': { vision: true, maxTokens: 200000 },
+  'claude-opus-4-5-20251101': { vision: true, maxTokens: 200000 },
 };
 
 export function getModelCapabilities(model: string): ModelCapabilities {

@@ -30,7 +30,7 @@ function ensureProvenance(
 ): ModelProvenance {
   if (provenance) return provenance;
   console.warn(`[DecisionCapture] Missing model provenance for ${taskType}, using fallback`);
-  return createFallbackProvenance('anthropic', 'claude-3-haiku-20240307', taskType);
+  return createFallbackProvenance('anthropic', 'claude-sonnet-4-5-20250929', taskType);
 }
 
 let snapshotIdCounter = 0;

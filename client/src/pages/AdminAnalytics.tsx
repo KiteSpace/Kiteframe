@@ -65,9 +65,9 @@ const FEATURE_COLORS: Record<string, string> = {
 };
 
 const MODEL_COLORS: Record<string, string> = {
-  "claude-3-haiku-20240307": "#10b981",
-  "claude-3-haiku-20240307": "#6366f1",
-  "claude-3-haiku-20240307": "#f97316",
+  "claude-haiku-4-5-20251001": "#10b981",
+  "claude-sonnet-4-5-20250929": "#6366f1",
+  "claude-opus-4-5-20251101": "#f97316",
 };
 
 type TimeRange = "24h" | "7d" | "30d" | "90d";

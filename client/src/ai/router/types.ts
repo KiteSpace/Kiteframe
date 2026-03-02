@@ -1,4 +1,4 @@
-export type TaskType = 
+export type TaskType =
   | 'workflow_reasoning'
   | 'workflow_experiments'
   | 'workflow_advise'
@@ -8,40 +8,6 @@ export type TaskType =
   | 'vision_ingestion'
   | 'general_chat';
 
-export interface SessionModelLock {
-  provider: string;
-  model: string;
-  lockedAt: number;
-}
-
-export interface RouterMetadata {
-  taskType: TaskType;
-  sessionId?: string;
-  sessionModelLock?: SessionModelLock;
-  providerUsed: string;
-  modelUsed: string;
-  retryCount?: number;
-  usedFallback: boolean;
-  fallbackModelUsed?: string;
-}
-
-export interface RouterRequest {
-  taskType: TaskType;
-  messages: Array<{
-    role: 'system' | 'user' | 'assistant' | 'tool';
-    content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
-  }>;
-  sessionId?: string;
-  temperature?: number;
-  maxTokens?: number;
-  metadata?: Partial<RouterMetadata>;
-}
-
-export interface RouterResponse {
-  text: string;
-  metadata: RouterMetadata;
-}
-
 export interface ModelPolicy {
   systemModel: string;
   systemProvider: string;
@@ -49,53 +15,79 @@ export interface ModelPolicy {
   fallbackModel?: string;
 }
 
+export interface RouterRequest {
+  taskType?: TaskType;
+  model?: string;
+  provider?: string;
+  messages: any[];
+  temperature?: number;
+  maxTokens?: number;
+  stream?: boolean;
+}
+
+export interface RouterResponse {
+  text: string;
+  model?: string;
+  provider?: string;
+  requestId?: string;
+}
+
+export interface RouterState {
+  requestId: string;
+  taskType: TaskType | undefined;
+  model: string;
+  provider: string;
+  retryCount: number;
+  usedSessionLock: boolean;
+}
+
 export const TASK_TYPE_POLICIES: Record<TaskType, ModelPolicy> = {
   workflow_reasoning: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   workflow_experiments: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   workflow_advise: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-haiku-4-5-20251001',
     systemProvider: 'anthropic',
     allowUserOverride: true,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   workflow_edit: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   workflow_generate: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   prd_generation: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
   vision_ingestion: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-sonnet-4-5-20250929',
     systemProvider: 'anthropic',
     allowUserOverride: false,
     fallbackModel: undefined,
   },
   general_chat: {
-    systemModel: 'claude-3-haiku-20240307',
+    systemModel: 'claude-haiku-4-5-20251001',
     systemProvider: 'anthropic',
     allowUserOverride: true,
-    fallbackModel: 'claude-3-haiku-20240307',
+    fallbackModel: 'claude-haiku-4-5-20251001',
   },
 };
