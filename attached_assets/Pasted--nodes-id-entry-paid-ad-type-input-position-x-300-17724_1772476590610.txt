@@ -1,0 +1,308 @@
+
+  "nodes": [
+    {
+      "id": "entry_paid_ad",
+      "type": "input",
+      "position": { "x": 300, "y": 200 },
+      "data": {
+        "label": "Paid Ad Click",
+        "description": "User lands on marketing site",
+        "icon": "📢",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "signup_email",
+      "type": "process",
+      "position": { "x": 550, "y": 200 },
+      "data": {
+        "label": "Email Signup",
+        "description": "User enters email and creates password",
+        "icon": "✉️",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "send_verification",
+      "type": "process",
+      "position": { "x": 800, "y": 200 },
+      "data": {
+        "label": "Send Verification Email",
+        "description": "Automated email with verification link",
+        "icon": "🔗",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "email_verified",
+      "type": "condition",
+      "position": { "x": 1050, "y": 200 },
+      "data": {
+        "label": "Email Verified?",
+        "description": "Check within 24 hours",
+        "icon": "✔️",
+        "iconColor": "hsl(22, 100%, 50%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "send_reminder",
+      "type": "process",
+      "position": { "x": 1050, "y": 450 },
+      "data": {
+        "label": "Send Reminder Email",
+        "description": "24-hour follow-up after signup",
+        "icon": "⏰",
+        "iconColor": "hsl(0, 84.2%, 60.2%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "onboarding_start",
+      "type": "process",
+      "position": { "x": 1300, "y": 200 },
+      "data": {
+        "label": "Onboarding Flow",
+        "description": "Choose use case: Personal or Team",
+        "icon": "🎯",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "use_case_choice",
+      "type": "condition",
+      "position": { "x": 1550, "y": 200 },
+      "data": {
+        "label": "Use Case?",
+        "description": "Personal or Team",
+        "icon": "👥",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "personal_setup",
+      "type": "process",
+      "position": { "x": 1550, "y": 50 },
+      "data": {
+        "label": "Personal Setup",
+        "description": "Simplified setup, solo workspace",
+        "icon": "👤",
+        "iconColor": "hsl(142.3, 71.5%, 45.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "team_setup",
+      "type": "process",
+      "position": { "x": 1550, "y": 350 },
+      "data": {
+        "label": "Team Setup",
+        "description": "Prompt to invite teammates",
+        "icon": "👥",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "invite_sent",
+      "type": "process",
+      "position": { "x": 1800, "y": 350 },
+      "data": {
+        "label": "Send Invites",
+        "description": "Team invitations dispatched",
+        "icon": "📤",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "invite_choice",
+      "type": "condition",
+      "position": { "x": 2050, "y": 350 },
+      "data": {
+        "label": "Teammates Joined?",
+        "description": "Check for acceptance",
+        "icon": "✔️",
+        "iconColor": "hsl(22, 100%, 50%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "collaborative_workspace",
+      "type": "process",
+      "position": { "x": 2050, "y": 200 },
+      "data": {
+        "label": "Collaborative Workspace",
+        "description": "Teammates joined, create workspace",
+        "icon": "🤝",
+        "iconColor": "hsl(142.3, 71.5%, 45.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "skip_invites",
+      "type": "process",
+      "position": { "x": 2050, "y": 500 },
+      "data": {
+        "label": "Skip Invites",
+        "description": "Solo workspace + 'invite later' prompt",
+        "icon": "⏭️",
+        "iconColor": "hsl(38.6, 92.1%, 50.2%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "dashboard_landing",
+      "type": "output",
+      "position": { "x": 2300, "y": 200 },
+      "data": {
+        "label": "Dashboard Landing",
+        "description": "User arrives at main dashboard",
+        "icon": "📊",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "create_project_prompt",
+      "type": "process",
+      "position": { "x": 2550, "y": 200 },
+      "data": {
+        "label": "Create First Project",
+        "description": "Prompt to create first project",
+        "icon": "✨",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "project_created",
+      "type": "condition",
+      "position": { "x": 2800, "y": 200 },
+      "data": {
+        "label": "Project Created?",
+        "description": "Check project creation",
+        "icon": "✔️",
+        "iconColor": "hsl(22, 100%, 50%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "guided_tour",
+      "type": "process",
+      "position": { "x": 2800, "y": 50 },
+      "data": {
+        "label": "Guided Tour",
+        "description": "Interactive onboarding walkthrough",
+        "icon": "🎓",
+        "iconColor": "hsl(142.3, 71.5%, 45.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "activated",
+      "type": "output",
+      "position": { "x": 3050, "y": 50 },
+      "data": {
+        "label": "Activated ✅",
+        "description": "User successfully activated",
+        "icon": "🎉",
+        "iconColor": "hsl(142.3, 71.5%, 45.3%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "dismiss_prompt",
+      "type": "process",
+      "position": { "x": 2800, "y": 350 },
+      "data": {
+        "label": "Dismiss Prompt",
+        "description": "User skips project creation",
+        "icon": "✕",
+        "iconColor": "hsl(0, 84.2%, 60.2%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "next_login_tooltip",
+      "type": "process",
+      "position": { "x": 3050, "y": 350 },
+      "data": {
+        "label": "Tooltip on Next Login",
+        "description": "Passive nudge on dashboard",
+        "icon": "💡",
+        "iconColor": "hsl(38.6, 92.1%, 50.2%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "wait_3_days",
+      "type": "condition",
+      "position": { "x": 3300, "y": 350 },
+      "data": {
+        "label": "3 Days Passed?",
+        "description": "Check if no project created",
+        "icon": "⏱️",
+        "iconColor": "hsl(22, 100%, 50%)"
+      },
+      "width": 200,
+      "height": 100
+    },
+    {
+      "id": "email_drip",
+      "type": "process",
+      "position": { "x": 3550, "y": 350 },
+      "data": {
+        "label": "Email Drip Campaign",
+        "description": "Activation reminder emails",
+        "icon": "📧",
+        "iconColor": "hsl(221.2, 83.2%, 53.3%)"
+      },
+      "width": 200,
+      "height": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "entry_paid_ad",
+      "target": "signup_email",
+      "type": "bezier",
+      "style": { "strokeColor": "hsl(221.2, 83.2%, 53.3%)", "strokeWidth": 2 },
+      "markers": { "type": "arrow", "position": "end" }
+    },
+    {
+      "id": "e2",
+      "source": "signup_email",
+      "target": "send_verification",
+      "type": "bezier",
+      "style": { "strokeColor": "hsl(221.2, 83.2%, 53.3%)", "strokeWidth": 2 },
+      "markers": { "type": "arrow", "position": "end" }
+    },
+    {
+      "
