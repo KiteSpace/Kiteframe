@@ -2203,7 +2203,7 @@ function DiscussionView({
   const { toast } = useToast();
   const aiClient = useAi();
   
-  const hasApiKey = Boolean(localStorage.getItem('openai_api_key'));
+  const hasApiKey = true;
 
   useLayoutEffect(() => {
     if (inputRef.current) {

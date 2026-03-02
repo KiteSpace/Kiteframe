@@ -8,7 +8,7 @@ import type {
   SessionModelLock,
 } from './types';
 import { TASK_TYPE_POLICIES } from './types';
-import { ENABLE_GPT5_WORKFLOW_REASONING, ROUTER_CONFIG } from './config';
+import { ROUTER_CONFIG } from './config';
 import { getSessionLock, setSessionLock, hasSessionLock } from './sessionLock';
 
 function hasImageContent(messages: AiMessage[]): boolean {
@@ -24,10 +24,10 @@ function getUserSettings(): { provider: string; model: string } | null {
     if (saved) {
       const settings = JSON.parse(saved);
       return {
-        provider: settings.provider || 'openai',
+        provider: settings.provider || 'anthropic',
         model: settings.model === 'custom' && settings.customModel 
           ? settings.customModel 
-          : settings.model || 'gpt-4o',
+          : settings.model || 'claude-sonnet-4-5',
       };
     }
   } catch (e) {
@@ -68,19 +68,10 @@ function resolveModel(
     }
   }
   
-  if (ENABLE_GPT5_WORKFLOW_REASONING) {
-    console.log(`[AIRouter] GPT-5 enabled: Using ${policy.systemModel} for ${taskType}`);
-    return { 
-      provider: policy.systemProvider, 
-      model: policy.systemModel,
-      usedSessionLock: false,
-    };
-  }
-  
-  console.log(`[AIRouter] GPT-5 disabled: Using fallback ${policy.fallbackModel || 'gpt-4o'} for ${taskType}`);
+  console.log(`[AIRouter] Using ${policy.systemModel} for ${taskType}`);
   return { 
     provider: policy.systemProvider, 
-    model: policy.fallbackModel || 'gpt-4o',
+    model: policy.systemModel,
     usedSessionLock: false,
   };
 }
@@ -121,7 +112,6 @@ export function createAiRouter(baseClient: AiClient) {
       model,
       provider,
       sessionId: sessionId ? sessionId.slice(0, 8) + '...' : undefined,
-      gpt5Enabled: ENABLE_GPT5_WORKFLOW_REASONING,
       retryCount: metadata?.retryCount ?? 0,
       usedSessionLock,
     });

@@ -25,75 +25,71 @@ interface AiSettingsModalProps {
 
 export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   const [settings, setSettings] = useState<AiSettings>({
-    provider: 'openai',
-    model: 'gpt-4o',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5',
     apiKey: '',
     temperature: 0.7
   });
 
-  // Provider-specific model options
   const modelOptions = {
-    openai: [
-      { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
-      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-      { value: 'gpt-4', label: 'GPT-4' },
-      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-      { value: 'custom', label: 'Custom Model' }
+    anthropic: [
+      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet (Recommended)' },
+      { value: 'claude-haiku-3-5', label: 'Claude Haiku (Fast)' },
+      { value: 'claude-opus-4-5', label: 'Claude Opus (Most Capable)' },
     ],
     custom: [
       { value: 'custom', label: 'Custom Model' }
     ]
   };
+
   const [isTestingApi, setIsTestingApi] = useState(false);
   const { toast } = useToast();
   const aiClient = useAi();
 
   useEffect(() => {
-    // Force update users to new GPT-4o default (one-time migration)
-    const migrationKey = 'ai_settings_force_gpt4o_jan2025';
+    const migrationKey = 'ai_settings_claude_migration_v1';
     if (!localStorage.getItem(migrationKey)) {
-      localStorage.removeItem('ai_settings'); // Clear old settings
+      localStorage.removeItem('ai_settings');
       localStorage.setItem(migrationKey, 'true');
     }
-    
-    // Load saved settings
+
     const saved = localStorage.getItem('ai_settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Fix legacy settings with wrong models and removed providers
         const fixedSettings = { ...parsed };
-        
-        // Coerce removed providers to OpenAI with latest default
-        if (['anthropic', 'kiteframe', 'ollama'].includes(fixedSettings.provider)) {
-          fixedSettings.provider = 'openai';
-          fixedSettings.model = 'gpt-4o';
+
+        // Migrate any GPT/OpenAI settings to Claude
+        if (!fixedSettings.provider || fixedSettings.provider === 'openai' || fixedSettings.provider === 'kiteframe') {
+          fixedSettings.provider = 'anthropic';
+          fixedSettings.model = 'claude-sonnet-4-5';
           fixedSettings.apiKey = '';
           fixedSettings.customEndpoint = '';
         }
-        
-        // Fix legacy OpenAI models - set to latest default if missing OR invalid
-        if (fixedSettings.provider === 'openai' && (!fixedSettings.model || fixedSettings.model.includes('gpt-5'))) {
-          fixedSettings.model = 'gpt-4o';
+
+        // Fix invalid model names
+        if (fixedSettings.provider === 'anthropic' && (
+          !fixedSettings.model ||
+          fixedSettings.model.includes('gpt') ||
+          fixedSettings.model.includes('gpt-5') ||
+          !['claude-sonnet-4-5', 'claude-haiku-3-5', 'claude-opus-4-5'].includes(fixedSettings.model)
+        )) {
+          fixedSettings.model = 'claude-sonnet-4-5';
         }
+
         setSettings(prev => ({ ...prev, ...fixedSettings }));
       } catch (e) {
         console.warn('Failed to parse saved AI settings');
       }
-    }
-    
-    const savedApiKey = localStorage.getItem('openai_api_key');
-    if (savedApiKey) {
-      setSettings(prev => ({ ...prev, apiKey: savedApiKey }));
     }
   }, []);
 
   const handleProviderChange = (provider: string) => {
     const currentModels = modelOptions[provider as keyof typeof modelOptions] || modelOptions.custom;
     const defaultModel = currentModels[0]?.value || 'custom';
-    
-    setSettings(prev => ({ 
-      ...prev, 
+
+    setSettings(prev => ({
+      ...prev,
       provider,
       model: defaultModel,
       customModel: provider === 'custom' ? prev.customModel : '',
@@ -102,15 +98,14 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleModelChange = (model: string) => {
-    setSettings(prev => ({ 
-      ...prev, 
+    setSettings(prev => ({
+      ...prev,
       model,
       customModel: model === 'custom' ? prev.customModel || '' : ''
     }));
   };
 
   const handleSave = () => {
-    // Custom providers may not require API keys (e.g., Ollama servers)
     if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
       toast({
         title: "Custom Endpoint Required",
@@ -133,7 +128,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
   };
 
   const handleQuickTest = async () => {
-    // Custom providers may not require API keys but need endpoints
     if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
       toast({
         title: "Custom Endpoint Required",
@@ -154,22 +148,21 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
     setIsTestingApi(true);
     try {
-      // Determine actual model to test
       const modelToTest = settings.model === 'custom' ? settings.customModel : settings.model;
-      
+
       const response = await fetch('/api/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: settings.provider,
-          model: modelToTest || undefined, // Let server set defaults if empty
+          model: modelToTest || undefined,
           apiKey: settings.apiKey,
           customEndpoint: settings.customEndpoint
         })
       });
 
       const result = await response.json();
-      
+
       if (response.ok && result.success) {
         toast({
           title: "Connection Successful",
@@ -203,7 +196,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             AI Settings
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="space-y-3">
             <Label className="text-base font-medium">Privacy Level</Label>
@@ -211,7 +204,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               {/* Maximum Privacy */}
               <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                 settings.provider === 'custom'
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                   : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
               }`}
               onClick={() => handleProviderChange('custom')}
@@ -232,11 +225,11 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
 
               {/* Standard Privacy */}
               <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'openai'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                settings.provider === 'anthropic'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
               }`}
-              onClick={() => handleProviderChange('openai')}
+              onClick={() => handleProviderChange('anthropic')}
               >
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
@@ -246,7 +239,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                       Convenient cloud AI with established privacy policies.
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      OpenAI • Major cloud providers
+                      Anthropic Claude • Enterprise-grade safety
                     </p>
                   </div>
                 </div>
@@ -264,27 +257,38 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
+                <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
                 <SelectItem value="custom">Custom Endpoint</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
-          {settings.provider === 'openai' && (
+
+          {settings.provider === 'anthropic' && (
             <div className="space-y-2">
               <Label>Model</Label>
-              <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-md text-sm">
-                ✅ Using: <strong>{settings.model === 'gpt-4o' ? 'GPT-4o (latest model, faster analysis)' : settings.model}</strong>
-              </div>
+              <Select
+                value={settings.model}
+                onValueChange={handleModelChange}
+              >
+                <SelectTrigger data-testid="select-ai-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelOptions.anthropic.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="p-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md text-xs text-gray-600 dark:text-gray-400">
-                <strong>Note:</strong> Workflow generation uses a system-recommended model for reliability and consistency. 
+                <strong>Note:</strong> Workflow generation uses a system-recommended model for reliability.
                 Your model selection applies to general chat only.
               </div>
             </div>
           )}
 
-
-          {settings.provider !== 'openai' && (
+          {settings.provider === 'custom' && (
             <div className="space-y-2">
               <Label htmlFor="model">Model</Label>
               <Select
@@ -310,7 +314,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <Label htmlFor="customModel">Custom Model Name</Label>
               <Input
                 id="customModel"
-                placeholder="e.g., gpt-4-turbo, claude-3-opus"
+                placeholder="e.g., llama3, mistral, custom-model"
                 value={settings.customModel || ''}
                 onChange={(e) => setSettings(prev => ({ ...prev, customModel: e.target.value }))}
                 data-testid="input-custom-model"
@@ -337,8 +341,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-
-
           {settings.provider === 'custom' && (
             <div className="space-y-2">
               <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
@@ -357,29 +359,28 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-
-          {settings.provider === 'openai' && (
+          {settings.provider === 'anthropic' && (
             <div className="space-y-2">
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
                 <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  ☁️ Cloud AI Service
+                  ☁️ Anthropic Claude
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  Convenient and reliable, with established privacy policies
+                  Industry-leading safety and reliability
                 </p>
                 <div className="text-xs text-blue-600 dark:text-blue-400 mt-2 space-y-1">
-                  <div>• Data processed by OpenAI</div>
+                  <div>• Data processed by Anthropic</div>
                   <div>• Check their privacy policy for data handling details</div>
-                  <div>• No API key needed - automatically configured</div>
+                  <div>• No API key needed — automatically configured</div>
                 </div>
               </div>
             </div>
           )}
-          
-          {settings.provider !== 'openai' && (
+
+          {settings.provider !== 'anthropic' && (
             <div className="space-y-2">
               <Label htmlFor="apiKey">
-                API Key 
+                API Key
                 {settings.provider === 'custom' && ' (Custom Provider)'}
               </Label>
               <Input
@@ -395,7 +396,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               </p>
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Label>Temperature: {settings.temperature}</Label>
             <Slider
@@ -412,7 +413,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
               <span>1 (Creative)</span>
             </div>
           </div>
-          
+
           <div className="flex gap-3 pt-4">
             <Button
               type="button"

@@ -1793,7 +1793,7 @@ function WorkflowEditorContent({
       
       const modelProvenance = result.routerMetadata 
         ? toModelProvenance(result.routerMetadata) 
-        : createFallbackProvenance('openai', 'gpt-4o', 'workflow_reasoning');
+        : createFallbackProvenance('anthropic', 'claude-sonnet-4-5', 'workflow_reasoning');
       setProposalState({ 
         proposal: { ...result.proposal, modelProvenance }, 
         generatingInsightId: null, 
@@ -1880,7 +1880,7 @@ function WorkflowEditorContent({
       
       const modelProvenance = result.routerMetadata 
         ? toModelProvenance(result.routerMetadata) 
-        : createFallbackProvenance('openai', 'gpt-4o', 'workflow_experiments');
+        : createFallbackProvenance('anthropic', 'claude-sonnet-4-5', 'workflow_experiments');
       setExperimentState({ 
         session: { ...result.session, modelProvenance }, 
         generatingInsightId: null, 
@@ -11896,7 +11896,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             // Save AI settings to localStorage
             localStorage.setItem("ai_settings", JSON.stringify(settings));
             if (settings.apiKey) {
-              localStorage.setItem("openai_api_key", settings.apiKey);
+              localStorage.setItem("custom_api_key", settings.apiKey);
             }
             setShowAiModal(false);
             // Update the AI client with new settings
@@ -14858,25 +14858,23 @@ export type { WorkflowEditorContentProps };
 // Main wrapper component that provides AiProvider context
 export default function WorkflowEditor() {
   const createAiClient = useCallback(() => {
-    // Load saved AI settings
     const savedSettings = localStorage.getItem("ai_settings");
-    let baseURL = "https://api.openai.com/v1";
-    let defaultModel = "gpt-4o"; // using gpt-4o as it's available with current API key access
+    let baseURL = "/api/ai";
+    let defaultModel = "claude-sonnet-4-5";
 
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
 
-        // Legacy model migration for gpt-5 -> gpt-4o
-        if (settings.model === "gpt-5") {
-          settings.model = "gpt-4o";
+        // Migrate legacy GPT model names to Claude
+        if (settings.model && (settings.model.includes('gpt') || settings.model.includes('gpt-5'))) {
+          settings.model = 'claude-sonnet-4-5';
+          settings.provider = 'anthropic';
           localStorage.setItem("ai_settings", JSON.stringify(settings));
         }
 
         if (settings.provider === "custom" && settings.customEndpoint) {
           baseURL = settings.customEndpoint;
-        } else if (settings.provider === "anthropic") {
-          baseURL = "https://api.anthropic.com/v1";
         }
         defaultModel =
           settings.model === "custom" && settings.customModel
@@ -14889,7 +14887,7 @@ export default function WorkflowEditor() {
 
     return new OpenAICompatClient({
       baseURL,
-      apiKey: localStorage.getItem("openai_api_key") || "",
+      apiKey: "",
       defaultModel,
     });
   }, []);

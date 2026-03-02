@@ -15,15 +15,13 @@ export default function FullScreenChat() {
   const aiClient = useMemo(() => {
     let baseURL = "/api/ai";
     const savedSettings = localStorage.getItem("ai_settings");
-    let defaultModel = "gpt-4o";
+    let defaultModel = "claude-sonnet-4-5";
 
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
         if (settings.provider === "custom" && settings.customEndpoint) {
           baseURL = settings.customEndpoint;
-        } else if (settings.provider === "anthropic") {
-          baseURL = "https://api.anthropic.com/v1";
         }
         defaultModel =
           settings.model === "custom" && settings.customModel
@@ -36,7 +34,7 @@ export default function FullScreenChat() {
 
     return new OpenAICompatClient({
       baseURL,
-      apiKey: localStorage.getItem("openai_api_key") || "",
+      apiKey: "",
       defaultModel,
     });
   }, []);

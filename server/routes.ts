@@ -1604,16 +1604,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType, sessionLocked } = req.body;
       
-      // Feature flag for GPT-5 workflow reasoning (disabled by default)
-      const ENABLE_GPT5_WORKFLOW_REASONING = false;
-      
-      // Task-type based model routing policy
+      // Task-type based model routing policy (Anthropic Claude)
       const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowUserOverride: boolean }> = {
-        workflow_reasoning: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
-        workflow_experiments: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
-        prd_generation: { model: 'gpt-5.1', provider: 'openai', allowUserOverride: false },
-        vision_ingestion: { model: 'gpt-4o', provider: 'openai', allowUserOverride: false },
-        general_chat: { model: 'gpt-4o', provider: 'openai', allowUserOverride: true },
+        workflow_reasoning: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        workflow_experiments: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        workflow_edit: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        workflow_generate: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        workflow_advise: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: true },
+        prd_generation: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        vision_ingestion: { model: 'claude-sonnet-4-5', provider: 'anthropic', allowUserOverride: false },
+        general_chat: { model: 'claude-haiku-3-5', provider: 'anthropic', allowUserOverride: true },
       };
       
       // Resolve model based on taskType routing policy
@@ -1622,25 +1622,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (taskType && TASK_TYPE_MODELS[taskType]) {
         const policy = TASK_TYPE_MODELS[taskType];
-        
-        // When GPT-5 flag is disabled, respect client-provided model (session lock)
-        // Only enforce routing when GPT-5 is enabled
-        if (!ENABLE_GPT5_WORKFLOW_REASONING) {
-          // If client provided model and provider (from session lock), use them
-          if (model && provider) {
-            resolvedModel = model;
-            resolvedProvider = provider;
-          } else {
-            // No client model, fall back to GPT-4o
-            resolvedModel = 'gpt-4o';
-            resolvedProvider = 'openai';
-          }
-        } else {
-          // GPT-5 enabled - enforce policy routing
-          if (!policy.allowUserOverride || !model) {
-            resolvedModel = policy.model;
-            resolvedProvider = policy.provider;
-          }
+        if (!policy.allowUserOverride || !model) {
+          resolvedModel = policy.model;
+          resolvedProvider = policy.provider;
         }
       }
       
@@ -1654,23 +1638,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let activeProvider = resolvedProvider || provider;
       let activeApiKey = clientApiKey;
       
-      // If no explicit provider, try to infer from model name
+      // If no explicit provider, infer from model name or default to Anthropic
       const activeModel = resolvedModel || model;
       if (!activeProvider) {
         if (activeModel && activeModel.includes('claude')) {
           activeProvider = 'anthropic';
-          activeApiKey = process.env.ANTHROPIC_API_KEY;
-        } else {
+        } else if (activeModel && (activeModel.includes('gpt') || activeModel.includes('o1'))) {
           activeProvider = 'openai';
-          activeApiKey = process.env.OPENAI_API_KEY;
+        } else {
+          activeProvider = 'anthropic';
         }
       }
       
       // Set API keys from environment for server-side requests (not for Ollama or Kiteframe which don't need them)
-      if (activeProvider === 'openai') {
-        activeApiKey = process.env.OPENAI_API_KEY; // Always use environment key for OpenAI
-      } else if (activeProvider === 'anthropic') {
-        activeApiKey = activeApiKey || process.env.ANTHROPIC_API_KEY; // Use client key or fallback to environment
+      if (activeProvider === 'anthropic') {
+        activeApiKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
+      } else if (activeProvider === 'openai') {
+        activeApiKey = process.env.OPENAI_API_KEY;
       }
 
       if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {

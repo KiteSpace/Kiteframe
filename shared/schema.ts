@@ -353,7 +353,7 @@ export const aiFeatureEnum = ['chat', 'workflow_generation', 'prd_generation', '
 export type AiFeature = typeof aiFeatureEnum[number];
 
 // AI model types
-export const aiModelEnum = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'] as const;
+export const aiModelEnum = ['claude-sonnet-4-5', 'claude-haiku-3-5', 'claude-opus-4-5', 'custom'] as const;
 export type AiModel = typeof aiModelEnum[number];
 
 // AI usage events for metrics tracking

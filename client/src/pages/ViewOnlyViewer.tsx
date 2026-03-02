@@ -51,14 +51,14 @@ export default function ViewOnlyViewer() {
   
   const createAiClient = useCallback(() => {
     const savedSettings = localStorage.getItem('ai_settings');
-    let baseURL = 'https://api.openai.com/v1';
-    let defaultModel = 'gpt-4o';
+    let baseURL = '/api/ai';
+    let defaultModel = 'claude-sonnet-4-5';
 
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (settings.baseURL) baseURL = settings.baseURL;
-        if (settings.model) defaultModel = settings.model;
+        if (settings.provider === 'custom' && settings.customEndpoint) baseURL = settings.customEndpoint;
+        if (settings.model && settings.model !== 'custom') defaultModel = settings.model;
       } catch {
         // Ignore parse errors
       }
@@ -66,7 +66,7 @@ export default function ViewOnlyViewer() {
 
     return new OpenAICompatClient({
       baseURL,
-      apiKey: localStorage.getItem('openai_api_key') || '',
+      apiKey: '',
       defaultModel
     });
   }, []);

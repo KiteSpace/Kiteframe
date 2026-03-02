@@ -1,4 +1,4 @@
-export type AiModel = 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4' | 'gpt-3.5-turbo' | 'gpt-5' | 'gpt-5.1' | 'custom';
+export type AiModel = 'claude-sonnet-4-5' | 'claude-haiku-3-5' | 'claude-opus-4-5' | 'custom';
 
 export type AiMode = 'ADVISE' | 'EDIT' | 'GENERATE';
 
@@ -43,12 +43,9 @@ export interface ModelCapabilities {
 }
 
 export const MODEL_CAPABILITIES: Record<string, ModelCapabilities> = {
-  'gpt-4o': { vision: true, maxTokens: 128000 },
-  'gpt-4o-mini': { vision: true, maxTokens: 128000 },
-  'gpt-4': { vision: false, maxTokens: 8192 },
-  'gpt-3.5-turbo': { vision: false, maxTokens: 4096 },
-  'gpt-5': { vision: true, maxTokens: 200000 },
-  'gpt-5.1': { vision: true, maxTokens: 200000 },
+  'claude-sonnet-4-5': { vision: true, maxTokens: 200000 },
+  'claude-haiku-3-5': { vision: true, maxTokens: 200000 },
+  'claude-opus-4-5': { vision: true, maxTokens: 200000 },
 };
 
 export function getModelCapabilities(model: string): ModelCapabilities {
