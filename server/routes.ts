@@ -1674,10 +1674,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'x-api-key': activeApiKey,
           'anthropic-version': '2023-06-01'
         };
+
+        // Anthropic requires system prompts as a top-level `system` string,
+        // not as messages with role "system".
+        const systemParts: string[] = [];
+        const anthropicMessages = messages.filter((msg: any) => {
+          if (msg.role === 'system') {
+            const content = typeof msg.content === 'string'
+              ? msg.content
+              : Array.isArray(msg.content)
+                ? msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
+                : '';
+            if (content) systemParts.push(content);
+            return false;
+          }
+          return true;
+        });
+        const systemPrompt = systemParts.join('\n\n');
+
         requestBody = {
           model: activeModel,
           max_tokens: maxTokens || 1024,
-          messages
+          ...(systemPrompt ? { system: systemPrompt } : {}),
+          messages: anthropicMessages
         };
       } else if (activeProvider === 'ollama') {
         // Ollama uses OpenAI-compatible API
