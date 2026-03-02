@@ -24,11 +24,12 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful API.
 - **Storage**: Pluggable storage system.
 
-### AI Service Architecture (KitelineAI)
-- **Runtime**: Ollama on Replit Autoscale.
-- **Models**: Optimized for fast startup (Gemma2 2B, Llama 3.2 3B).
-- **API**: OpenAI-compatible endpoints.
-- **Privacy**: Data processed but not stored.
+### AI Service Architecture
+- **Primary Provider**: Anthropic Claude (via `ANTHROPIC_API_KEY` environment secret).
+- **Model Routing**: Task-based — `claude-sonnet-4-5` for reasoning/generation/vision, `claude-haiku-3-5` for general chat.
+- **Fallback Model**: `claude-haiku-3-5` for all tasks.
+- **Privacy Option**: Custom endpoint (Ollama or self-hosted) available via AI Settings.
+- **KitelineAI (Legacy)**: Dedicated Ollama service for privacy-focused AI; still supported as a custom endpoint option.
 
 ### Data Storage
 - **Database ORM**: Drizzle ORM for PostgreSQL.
@@ -78,12 +79,12 @@ Preferred communication style: Simple, everyday language.
   - Import restoration with workflow ID reconciliation (explicit mapping, name-based matching, or fallback to original IDs).
 
 ### AI Integration Layer
-- **Core AI Infrastructure**: Client interface supporting OpenAI-compatible APIs, with a React context-based AI provider supporting OpenAI (GPT-4o) and Ollama models.
-- **Privacy Tiers**: UI options for "Maximum Privacy" (Ollama) and "Standard Privacy" (OpenAI, Anthropic).
+- **Core AI Infrastructure**: Client interface supporting OpenAI-compatible APIs, with a React context-based AI provider supporting Anthropic Claude and custom/Ollama endpoints.
+- **Privacy Tiers**: UI options for "Maximum Privacy" (custom/Ollama endpoint) and "Standard Privacy" (Anthropic Claude).
 - **Unified Vision Pipeline**: Routes all input types (text, image, Figma) through a consistent PM conversation flow with actionability scoring and signal extraction, enforcing PM-level reasoning depth.
 - **AI Stabilization + Gold-Standard Guardrails (7-Part System)**: Comprehensive infrastructure to prevent cascading issues and over-construction in AI-generated workflows, including diagnostic delta gating, fix-scope locking, edit-first heuristic, Test Flight intent awareness, proposal structure contract, AI stability telemetry, and acceptance tests.
 - **HOME Proposal Bypass**: Guardrails are bypassed for initial workflow generation in HOME/fullscreen mode.
-- **GPT-5 Migration Foundation**: Central AI router for task-type based model selection, supporting model provenance, retry & fallback, and tolerant JSON parsing.
+- **Central AI Router**: Task-type based model selection with model provenance, retry & fallback, and tolerant JSON parsing.
 - **Merge vs Branch Intent Heuristic**: Detects user intent for workflow modification (merge) or new variant creation (branch).
 - **Decision Repair Heuristic**: Auto-repairs incomplete decision nodes.
 - **Semantic Completeness Enforcement**: Detects when AI-generated workflows describe stateful behavior but lack structural encoding.
