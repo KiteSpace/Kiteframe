@@ -189,6 +189,16 @@ export function buildKiteAIContext(
 5. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
 
 For CONVERSATIONS, respond naturally without JSON.`;
+  } else {
+    systemPrompt += `\n\nWORKFLOW GENERATION RULES (when generating a workflow to illustrate what we'd build):
+1. Output ONLY the JSON object — no prose, no markdown fences, no commentary before or after
+2. Format: {"nodes":[...],"edges":[...]}
+3. Node types: input, process, output, condition, ai, image
+4. Position nodes with x starting at 300, spacing 250px apart. y around 200-400.
+5. Each node needs: id, type, position: {x, y}, data: {label, description, icon, iconColor}, width: 200, height: 100
+6. Each edge needs: id, source, target, type: "bezier", style: {strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2}, markers: {type: "arrow", position: "end"}
+
+For CONVERSATIONS (clarifying, exploring, asking questions), respond naturally without JSON.`;
   }
 
   const allowedActions = mode === 'pre_project'

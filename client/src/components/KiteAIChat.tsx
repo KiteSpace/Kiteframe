@@ -942,15 +942,19 @@ export function KiteAIChatBrain({
       }
 
       const router = getRouter();
+      const isExecutionReady = lastActionabilityRef.current?.newState === 'execution-ready';
+      const effectiveTaskType = (surfaceContext === 'home' && isExecutionReady)
+        ? 'workflow_reasoning'
+        : 'general_chat';
       const response = await router.chat({
-        taskType: 'general_chat',
+        taskType: effectiveTaskType,
         messages: [
           { role: 'system', content: enhancedPrompt },
           ...conversationHistory,
           { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
-        maxTokens: 3000
+        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 4000 : 3000
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
