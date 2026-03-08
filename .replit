@@ -7,7 +7,7 @@ channel = "stable-24_05"
 packages = ["ollama"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 
