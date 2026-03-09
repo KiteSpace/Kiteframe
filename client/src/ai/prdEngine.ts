@@ -202,7 +202,11 @@ function sanitizeJSONString(str: string): string {
 }
 
 function parseAIResponse(text: string, sectionIds: string[]): Record<string, string> {
-  const sanitized = sanitizeJSONString(text);
+  const fenceStripped = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/, '');
+
+  const sanitized = sanitizeJSONString(fenceStripped);
   const extracted = extractJSON(sanitized);
 
   if (!extracted) {
@@ -242,7 +246,7 @@ export async function generateWorkflowPRD(
   
   const responseText = await callAi(aiClient, messages, {
     temperature: 0.3,
-    maxTokens: 4000,
+    maxTokens: 8000,
   });
   
   const sectionIds = DEFAULT_WORKFLOW_SECTIONS.map(s => s.id);
