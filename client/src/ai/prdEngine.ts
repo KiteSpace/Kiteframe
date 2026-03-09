@@ -1,6 +1,7 @@
 import type { AiClient, AiMessage } from './types';
 import type { AiRouter } from './router';
 import type { SemanticWorkflowModel } from '../lib/kiteframe/utils/extractSemanticWorkflowModel';
+import { extractJSON } from './router/jsonParser';
 
 export interface PRDSection {
   id: string;
@@ -201,31 +202,29 @@ function sanitizeJSONString(str: string): string {
 }
 
 function parseAIResponse(text: string, sectionIds: string[]): Record<string, string> {
-  let cleanedResponse = text
-    .replace(/^```json\s?|```$/g, '')
-    .replace(/^[^{]*/, '')
-    .trim();
+  const sanitized = sanitizeJSONString(text);
+  const extracted = extractJSON(sanitized);
 
-  cleanedResponse = sanitizeJSONString(cleanedResponse);
-  
+  if (!extracted) {
+    console.error('[PRD] parseAIResponse: extractJSON found no valid JSON in response (first 500 chars):', text?.slice(0, 500));
+    return sectionIds.reduce((acc, id) => { acc[id] = ''; return acc; }, {} as Record<string, string>);
+  }
+
   try {
-    const parsed = JSON.parse(cleanedResponse);
+    const parsed = JSON.parse(extracted);
     const result: Record<string, string> = {};
-    
+
     sectionIds.forEach(id => {
       result[id] = parsed[id] || '';
     });
-    
+
     console.log('[PRD] parseAIResponse: sections extracted:', Object.fromEntries(
-      Object.entries(result).map(([k, v]) => [k, v ? `${v.slice(0, 60)}...` : '(empty)'])
+      Object.entries(result).map(([k, v]) => [k, v ? `${(v as string).slice(0, 60)}...` : '(empty)'])
     ));
     return result;
   } catch (e) {
-    console.error('[PRD] parseAIResponse failed to parse JSON:', e, '\nCleaned response (first 500 chars):', cleanedResponse?.slice(0, 500));
-    return sectionIds.reduce((acc, id) => {
-      acc[id] = '';
-      return acc;
-    }, {} as Record<string, string>);
+    console.error('[PRD] parseAIResponse failed to parse JSON:', e instanceof Error ? e.message : String(e), '\nExtracted (first 500 chars):', extracted?.slice(0, 500));
+    return sectionIds.reduce((acc, id) => { acc[id] = ''; return acc; }, {} as Record<string, string>);
   }
 }
 
