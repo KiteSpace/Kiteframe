@@ -137,6 +137,16 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
+    // Cache-control: hashed assets live forever; HTML must never be cached
+    // so browsers always fetch fresh chunk references after a new deployment.
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+      next();
+    });
     serveStatic(app);
   }
 
