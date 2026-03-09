@@ -172,7 +172,8 @@ function parseAIResponse(text: string, sectionIds: string[]): Record<string, str
     });
     
     return result;
-  } catch {
+  } catch (e) {
+    console.error('[PRD] parseAIResponse failed to parse JSON:', e, '\nCleaned response (first 500 chars):', cleanedResponse?.slice(0, 500));
     return sectionIds.reduce((acc, id) => {
       acc[id] = '';
       return acc;
@@ -194,7 +195,7 @@ export async function generateWorkflowPRD(
   
   const responseText = await callAi(aiClient, messages, {
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 4000,
   });
   
   const sectionIds = DEFAULT_WORKFLOW_SECTIONS.map(s => s.id);
@@ -242,7 +243,7 @@ export async function generateProjectPRD(
   
   const responseText = await callAi(aiClient, messages, {
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 3000,
   });
   
   const sectionIds = DEFAULT_PROJECT_SECTIONS.map(s => s.id);
