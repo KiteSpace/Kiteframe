@@ -152,6 +152,54 @@ Return ONLY valid JSON in this exact format:
 `;
 }
 
+function sanitizeJSONString(str: string): string {
+  let result = '';
+  let inString = false;
+  let i = 0;
+  while (i < str.length) {
+    const char = str[i];
+    if (inString) {
+      if (char === '\\') {
+        result += char;
+        i++;
+        if (i < str.length) {
+          result += str[i];
+          i++;
+        }
+        continue;
+      }
+      if (char === '"') {
+        inString = false;
+        result += char;
+        i++;
+        continue;
+      }
+      if (char === '\n') {
+        result += '\\n';
+        i++;
+        continue;
+      }
+      if (char === '\r') {
+        result += '\\r';
+        i++;
+        continue;
+      }
+      if (char === '\t') {
+        result += '\\t';
+        i++;
+        continue;
+      }
+    } else {
+      if (char === '"') {
+        inString = true;
+      }
+    }
+    result += char;
+    i++;
+  }
+  return result;
+}
+
 function parseAIResponse(text: string, sectionIds: string[]): Record<string, string> {
   let cleanedResponse = text
     .replace(/^```json\s?|```$/g, '')
@@ -162,6 +210,8 @@ function parseAIResponse(text: string, sectionIds: string[]): Record<string, str
   if (lastBraceIndex !== -1) {
     cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
   }
+
+  cleanedResponse = sanitizeJSONString(cleanedResponse);
   
   try {
     const parsed = JSON.parse(cleanedResponse);
@@ -171,6 +221,9 @@ function parseAIResponse(text: string, sectionIds: string[]): Record<string, str
       result[id] = parsed[id] || '';
     });
     
+    console.log('[PRD] parseAIResponse: sections extracted:', Object.fromEntries(
+      Object.entries(result).map(([k, v]) => [k, v ? `${v.slice(0, 60)}...` : '(empty)'])
+    ));
     return result;
   } catch (e) {
     console.error('[PRD] parseAIResponse failed to parse JSON:', e, '\nCleaned response (first 500 chars):', cleanedResponse?.slice(0, 500));
@@ -189,7 +242,7 @@ export async function generateWorkflowPRD(
   const prompt = buildWorkflowPrompt(model);
   
   const messages: AiMessage[] = [
-    { role: 'system', content: 'You are a technical writer creating PRDs for workflow diagrams. Be concise and specific. Output only valid JSON.' },
+    { role: 'system', content: 'You are a technical writer creating PRDs for workflow diagrams. Be concise and specific. Output only valid JSON. All newlines within JSON string values must be escaped as \\n — never include literal line breaks inside string values.' },
     { role: 'user', content: prompt }
   ];
   
@@ -237,7 +290,7 @@ export async function generateProjectPRD(
   const prompt = buildProjectPrompt(projectName, workflowModels);
   
   const messages: AiMessage[] = [
-    { role: 'system', content: 'You are a technical writer creating project PRDs. Be concise. Output only valid JSON.' },
+    { role: 'system', content: 'You are a technical writer creating project PRDs. Be concise. Output only valid JSON. All newlines within JSON string values must be escaped as \\n — never include literal line breaks inside string values.' },
     { role: 'user', content: prompt }
   ];
   
