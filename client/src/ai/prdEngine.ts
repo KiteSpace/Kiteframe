@@ -205,11 +205,6 @@ function parseAIResponse(text: string, sectionIds: string[]): Record<string, str
     .replace(/^```json\s?|```$/g, '')
     .replace(/^[^{]*/, '')
     .trim();
-  
-  const lastBraceIndex = cleanedResponse.lastIndexOf('}');
-  if (lastBraceIndex !== -1) {
-    cleanedResponse = cleanedResponse.substring(0, lastBraceIndex + 1);
-  }
 
   cleanedResponse = sanitizeJSONString(cleanedResponse);
   

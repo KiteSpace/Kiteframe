@@ -1,0 +1,118 @@
+🔐 useAuth: Component mounted, checking auth state...
+injected.js:37 [Phase7] Workflow context: Object
+injected.js:37 🔄 Auth state changed: No user
+injected.js:37 ℹ️ No redirect result found
+injected.js:37 [KiteAIChat] Checking PromptContextStore attachments (with prompt): Object
+injected.js:37 [KiteAI] LOW CONFIDENCE (0.33) - blocking progress
+injected.js:37 [KiteAI] state=clarification score=1 confidence=0.33
+injected.js:37 [KiteAI] reason: Confidence too low (0.33 < 0.4) - cannot proceed
+injected.js:37 [KiteAI] vague replies: 1
+injected.js:37 [Phase7] Surface: home | State: clarification | Score: 1 | Confidence: 0.33
+injected.js:37 [KiteAIChat] Image attachment check: Object
+injected.js:37 [AiStabilization] Baseline captured: Object
+injected.js:37 [AIRouter] Using claude-haiku-4-5-20251001 for general_chat
+injected.js:37 [AIRouter] Request started: Object
+injected.js:37 [AIRouter] Request completed: Object
+injected.js:37 [KiteAI] JSON extraction: Object
+injected.js:37 [Phase6.5] MergeBranch decision: branch → resolved: branch | confidence: 1.00 | signals: no-existing-workflow
+injected.js:37 [AiStabilization] Skipping guardrails - HOME proposal phase (baseline generation)
+injected.js:37 [AI_TELEMETRY] Object
+injected.js:37 [AI_TELEMETRY] Object
+4injected.js:37 🔐 useAuth: Component mounted, checking auth state...
+4injected.js:37 🔄 Auth state changed: No user
+4injected.js:37 ℹ️ No redirect result found
+injected.js:37 Plugin "console-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 Plugin "test-demo" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 Plugin "advanced-interactions-pro" is already installed, replacing...
+(anonymous) @ injected.js:37
+injected.js:37 [PRD][LOAD_ATTEMPT] Object
+injected.js:37 [PRD][LOAD_RESULT] Object
+injected.js:37 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+injected.js:37 [AIRouter] Request started: Object
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ffe94319-98cb-487f-9a0e-16f390f43d5d:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=83ff5814-c949-4138-a16e-ae9020fc6ea2:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=cc4b76e9-98b4-4530-b7d0-70cb04b6c5c9:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=968fb462-1c4e-47c6-a422-b25c152c3e12:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+injected.js:37 [AIRouter] Request completed: Object
+injected.js:37 [PRD] parseAIResponse failed to parse JSON: SyntaxError: Unterminated string in JSON at position 7868 (line 5 column 2072)
+    at JSON.parse (<anonymous>)
+    at parseAIResponse (prdEngine.ts:217:25)
+    at generateWorkflowPRD (prdEngine.ts:255:26)
+    at async WorkflowPRDSection.tsx:289:22 
+Cleaned response (first 500 chars): {
+  "overview": "# Product Requirements Document: User Onboarding Workflow\n\n## Purpose\nThis workflow defines the initial user onboarding experience for a location-based shopping application. It guides new users through essential setup steps from app launch to their first browse-ready state.\n\n## Scope\nThe workflow encompasses:\n- Brand introduction and user engagement\n- Location services configuration\n- User authentication\n- Payment method registration\n- Dietary preference collection\n-
+(anonymous) @ injected.js:37
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=726b515e-39da-4456-8868-70a9b6af075f:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=bdfb74cd-ca7c-41c0-962c-acb7105f42b7:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+stallwart.build.js:1 stallwart: failed ping 1
+736 log entries are not shown.
+35988818f426e45d.js:14  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c2c9a48b-1b37-46e0-9923-7e52e8378ccd net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ 35988818f426e45d.js:14
+(anonymous) @ c3516d97f2b78f6e.js:2
+o @ c3516d97f2b78f6e.js:2
+a @ c3516d97f2b78f6e.js:2
+v @ c3516d97f2b78f6e.js:2
+p @ c3516d97f2b78f6e.js:2
+send @ c3516d97f2b78f6e.js:2
+t.flush @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+t.notify @ c3516d97f2b78f6e.js:2
+f @ c3516d97f2b78f6e.js:2
+notifyBeforeAddMessage @ c3516d97f2b78f6e.js:2
+t.push @ c3516d97f2b78f6e.js:2
+t.addOrUpdate @ c3516d97f2b78f6e.js:2
+t.add @ c3516d97f2b78f6e.js:2
+add @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+t.notify @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+t.notify @ c3516d97f2b78f6e.js:2
+handleLog @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+t.log @ c3516d97f2b78f6e.js:2
+f @ c3516d97f2b78f6e.js:2
+(anonymous) @ c3516d97f2b78f6e.js:2
+n.value @ c3516d97f2b78f6e.js:2
+t.info @ c3516d97f2b78f6e.js:2
+info @ c3516d97f2b78f6e.js:2
+logger @ 54c491ccce4a95b4.js:2
+info @ 54c491ccce4a95b4.js:2
+(anonymous) @ 54c491ccce4a95b4.js:2
+eK @ c48ee54867821e4f.js:2
+(anonymous) @ c48ee54867821e4f.js:2
+(anonymous) @ c48ee54867821e4f.js:2
+apply @ c48ee54867821e4f.js:2
+(anonymous) @ 54c491ccce4a95b4.js:2
+m @ 6cc5d0441f03ab84.js:2
+d @ 6cc5d0441f03ab84.js:2
+t.next @ 6cc5d0441f03ab84.js:2
+(anonymous) @ 54c491ccce4a95b4.js:2
+m @ 6cc5d0441f03ab84.js:2
+d @ 6cc5d0441f03ab84.js:2
+t.next @ 6cc5d0441f03ab84.js:2
+(anonymous) @ 6cc5d0441f03ab84.js:2
+notify @ 6cc5d0441f03ab84.js:2
+set @ 6cc5d0441f03ab84.js:2
+(anonymous) @ 54c491ccce4a95b4.js:2
+m @ 6cc5d0441f03ab84.js:2
+d @ 6cc5d0441f03ab84.js:2
+t.next @ 6cc5d0441f03ab84.js:2
+(anonymous) @ 6cc5d0441f03ab84.js:2
+notify @ 6cc5d0441f03ab84.js:2
+set @ 6cc5d0441f03ab84.js:2
+(anonymous) @ c5d42638663854b4.js:2
+dispatchEvent @ 9e4196030e6ef1dc.js:2
+updateSession @ 9e4196030e6ef1dc.js:2
+onHandshakeResponse @ 9e4196030e6ef1dc.js:2
+onHandshake @ 9e4196030e6ef1dc.js:2
+onHandshakeData @ 9e4196030e6ef1dc.js:2
+onData @ 9e4196030e6ef1dc.js:2
+(anonymous) @ 9e4196030e6ef1dc.js:2
+35988818f426e45d.js:14  POST https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A723d0666&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=93ce02bc-8281-4684-9922-be2557a617ae net::ERR_BLOCKED_BY_CLIENT
