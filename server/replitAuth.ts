@@ -12,6 +12,15 @@ import { db } from "./db";
 import { users, oauthProviders } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { authRateLimiter } from "./middleware/rateLimiter";
+import crypto from "crypto";
+
+const handoffTokens = new Map<string, { user: any; expiresAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of handoffTokens.entries()) {
+    if (data.expiresAt < now) handoffTokens.delete(token);
+  }
+}, 60_000);
 
 function isAdminEmail(email: string | undefined | null): boolean {
   if (!email) return false;
@@ -631,8 +640,13 @@ export async function setupAuth(app: Express) {
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         
-        // Redirect back to the origin domain (e.g., kiteframe.space instead of kiteframe.replit.app)
-        const redirectTarget = `https://${originDomain}/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
+        // Generate a single-use handoff token so the custom domain (kiteframe.space)
+        // can establish its own session cookie via /api/auth/handoff.
+        // This is required because the .replit.app session cookie is not sent to kiteframe.space.
+        const handoffToken = crypto.randomBytes(32).toString('hex');
+        handoffTokens.set(handoffToken, { user: req.user, expiresAt: Date.now() + 60_000 });
+        
+        const redirectTarget = `https://${originDomain}/auth-complete?token=${handoffToken}&redirect=${encodeURIComponent(finalDestination)}`;
         
         console.log('[AUTH] Replit callback success:', {
           userId: user?.id,
@@ -670,6 +684,32 @@ export async function setupAuth(app: Express) {
         });
       });
     })(req, res, next);
+  });
+
+  app.get("/api/auth/handoff", (req, res, next) => {
+    const token = req.query.token as string;
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+
+    const entry = handoffTokens.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      handoffTokens.delete(token);
+      console.warn('[AUTH] Handoff token invalid or expired:', token?.slice(0, 8));
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    handoffTokens.delete(token);
+
+    req.logIn(entry.user, (err) => {
+      if (err) {
+        console.error('[AUTH] Handoff logIn error:', err);
+        return next(err);
+      }
+      req.session.save((saveErr) => {
+        if (saveErr) console.error('[AUTH] Handoff session save error:', saveErr);
+        console.log('[AUTH] Handoff success for user:', entry.user?.id, 'domain:', req.hostname);
+        res.json({ success: true });
+      });
+    });
   });
 
   app.get("/api/logout", authRateLimiter, (req, res) => {
