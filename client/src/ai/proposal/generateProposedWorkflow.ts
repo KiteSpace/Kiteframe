@@ -53,6 +53,20 @@ interface ParsedDualProposal {
 }
 
 /**
+ * Determines if a node label is generic/unnamed and should receive a suggested name.
+ * Exported so acceptance logic can enforce the same guard at apply-time.
+ */
+export function isGenericNodeLabel(label: string, nodeId: string): boolean {
+  if (!label || label.trim() === '') return true;
+  if (label === nodeId) return true;
+  if (label.trim().length <= 3) return true;
+  const lower = label.toLowerCase().trim();
+  if (['new process', 'process', 'new node', 'node', 'untitled', 'step'].includes(lower)) return true;
+  if (/^node[-_]?[a-z0-9]{4,}$/i.test(label)) return true;
+  return false;
+}
+
+/**
  * Generate dual surgical proposals to address a specific Insight
  * 
  * Phase 2 Constraints:
@@ -143,19 +157,9 @@ Edge "from" and "to" can be:
 Each variant MUST include at least one edge connecting to an existing node.
 The two variants should represent meaningfully different approaches.`;
 
-  function isGenericLabel(label: string, nodeId: string): boolean {
-    if (!label || label.trim() === '') return true;
-    if (label === nodeId) return true;
-    if (label.trim().length <= 3) return true;
-    const lower = label.toLowerCase().trim();
-    if (['new process', 'process', 'new node', 'node', 'untitled', 'step'].includes(lower)) return true;
-    if (/^node[-_]?[a-z0-9]{4,}$/i.test(label)) return true;
-    return false;
-  }
-
   const genericNodeIds = new Set(
     affectedNodeContext
-      .filter(n => isGenericLabel(n.label, n.id))
+      .filter(n => isGenericNodeLabel(n.label, n.id))
       .map(n => n.id)
   );
 
@@ -313,7 +317,7 @@ Both MUST connect to existing origin nodes and differ in structure/approach.`;
           u.id.trim() &&
           typeof u.label === 'string' &&
           u.label.trim() &&
-          affectedNodeIds.includes(u.id)
+          genericNodeIds.has(u.id)
         ) {
           variantNodeUpdates.push({
             id: u.id,
