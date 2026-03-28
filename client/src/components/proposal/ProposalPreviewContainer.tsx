@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Lightbulb, Link2, Check } from 'lucide-react';
@@ -46,20 +46,54 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
   const handleEdgesChange = useCallback((_edges: Edge[]) => {
   }, []);
 
+  // Track the actual pixel dimensions of the preview canvas container so we can
+  // compute a true geometric center rather than a fixed-margin anchor.
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 700, h: 500 });
+
+  useEffect(() => {
+    const el = canvasContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (rect && rect.width > 0 && rect.height > 0) {
+        setContainerSize({ w: rect.width, h: rect.height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const previewData = useMemo(() => {
     const raw = composePreviewData(proposal);
     if (raw.nodes.length === 0) return raw;
 
-    // Normalize node positions so the bounding box top-left lands at (MARGIN, MARGIN).
-    // Without this, nodes carry their absolute canvas coordinates (e.g. x=700, y=300)
-    // and are off-screen in the preview, which initializes at {x:0, y:0, zoom:1}.
-    const MARGIN = 60;
-    const xs = raw.nodes.map(n => n.position?.x ?? 0);
-    const ys = raw.nodes.map(n => n.position?.y ?? 0);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const offsetX = MARGIN - minX;
-    const offsetY = MARGIN - minY;
+    // Compute the bounding box of all preview nodes.
+    // Use measuredWidth/Height when available, otherwise fall back to style sizes
+    // or a sensible default (200×80) so the center target is accurate.
+    const DEFAULT_W = 200;
+    const DEFAULT_H = 80;
+
+    const lefts  = raw.nodes.map(n => n.position?.x ?? 0);
+    const tops   = raw.nodes.map(n => n.position?.y ?? 0);
+    const rights = raw.nodes.map(n => (n.position?.x ?? 0) + (n.measuredWidth ?? n.width ?? n.style?.width ?? DEFAULT_W));
+    const bots   = raw.nodes.map(n => (n.position?.y ?? 0) + (n.measuredHeight ?? n.height ?? n.style?.height ?? DEFAULT_H));
+
+    const minX = Math.min(...lefts);
+    const minY = Math.min(...tops);
+    const maxX = Math.max(...rights);
+    const maxY = Math.max(...bots);
+
+    // Center of the diagram in current (absolute) coordinates.
+    const diagramCenterX = (minX + maxX) / 2;
+    const diagramCenterY = (minY + maxY) / 2;
+
+    // Target center: middle of the preview pane.
+    const targetCenterX = containerSize.w / 2;
+    const targetCenterY = containerSize.h / 2;
+
+    const offsetX = targetCenterX - diagramCenterX;
+    const offsetY = targetCenterY - diagramCenterY;
 
     const translatedNodes = raw.nodes.map(n => ({
       ...n,
@@ -70,7 +104,7 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
     }));
 
     return { nodes: translatedNodes, edges: raw.edges };
-  }, [proposal]);
+  }, [proposal, containerSize]);
   
   const activeVariant = proposal.activeVariant;
   const currentVariantData = activeVariant === 'proposed' ? proposal.proposed : proposal.alternative;
@@ -173,7 +207,7 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
             </div>
           </div>
           
-          <div className="flex-1 relative bg-gray-50 dark:bg-gray-950">
+          <div ref={canvasContainerRef} className="flex-1 relative bg-gray-50 dark:bg-gray-950">
             <KiteFrameCanvas
               nodes={previewData.nodes}
               edges={previewData.edges}
