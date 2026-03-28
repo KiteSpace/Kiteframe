@@ -1,7 +1,6 @@
 import type { AiClient, AiMessage } from './types';
 import type { AiRouter } from './router';
 import type { SemanticWorkflowModel } from '../lib/kiteframe/utils/extractSemanticWorkflowModel';
-import { extractJSON } from './router/jsonParser';
 
 export interface PRDSection {
   id: string;
@@ -79,157 +78,76 @@ const DEFAULT_PROJECT_SECTIONS = [
   { id: 'assumptions', title: 'Assumptions' },
 ];
 
-function buildWorkflowPrompt(model: SemanticWorkflowModel): string {
-  const nodesDesc = model.nodes.map(n => 
+const WORKFLOW_SECTION_HINTS: Record<string, string> = {
+  'overview': 'Cover: purpose of this workflow, who uses it, and what problem it solves. Use 3-5 bullet points.',
+  'requirements': 'List the top functional and non-functional requirements. Max 5-6 bullet points.',
+  'user-flow': 'Describe the step-by-step path from entry to exit. Use numbered steps. Include branching paths.',
+  'inputs-outputs': 'List the key data inputs required and outputs produced. Use bullets or a short table.',
+  'failure-scenarios': 'Identify the top 3-5 ways this workflow can fail: user errors, system errors, timeouts, edge cases.',
+  'recovery-fallback': 'For each failure mode, describe the recovery or fallback path. Use bullet points.',
+  'operational-risks': 'List 3-5 operational concerns: monitoring needs, SLA requirements, performance risks, dependencies.',
+  'acceptance-criteria': 'Write 4-6 specific, testable acceptance criteria. Use checkboxes or Given/When/Then format.',
+};
+
+const PROJECT_SECTION_HINTS: Record<string, string> = {
+  'overview': 'Summarize the project: what it does, who it serves, and what it delivers. 3-5 bullet points.',
+  'goals': 'List the primary goals and measurable success metrics. Max 5 bullet points.',
+  'architecture': 'Describe the system architecture and how the workflows connect. Keep it high-level.',
+  'workflows': 'Briefly describe each workflow and its role in the overall system. One bullet per workflow.',
+  'assumptions': 'List the key assumptions and constraints this project is built on. Max 5 bullet points.',
+};
+
+const SECTION_SYSTEM_PROMPT = 'You are a concise technical writer producing a single PRD section. Use bullet points and plain markdown. Aim for 80-150 words. Do not wrap your entire response in code fences. Do not repeat the section title as a heading.';
+
+function buildWorkflowContext(model: SemanticWorkflowModel): string {
+  const nodesDesc = model.nodes.map(n =>
     `- ${n.label || n.type} (${n.type})${n.description ? `: ${n.description}` : ''}`
   ).join('\n');
-  
+
   const edgesDesc = model.edges.map(e => {
     const sourceNode = model.nodes.find(n => n.id === e.source);
     const targetNode = model.nodes.find(n => n.id === e.target);
     return `- ${sourceNode?.label || 'Node'} → ${targetNode?.label || 'Node'}${e.label ? ` (${e.label})` : ''}`;
   }).join('\n');
-  
-  return `
-Generate a Product Requirements Document (PRD) for this workflow:
 
-Workflow Name: ${model.name}
-Node Count: ${model.nodeCount}
-
-Nodes:
+  return `Workflow: ${model.name}
+Nodes (${model.nodeCount}):
 ${nodesDesc}
 
 Connections:
 ${edgesDesc}
 
-Entry Points: ${model.entryPoints.join(', ') || 'None identified'}
-Exit Points: ${model.exitPoints.join(', ') || 'None identified'}
-Forms: ${model.forms.length > 0 ? model.forms.map(f => f.nodeName).join(', ') : 'None'}
-Screens: ${model.screens.length > 0 ? model.screens.map(s => s.name).join(', ') : 'None'}
+Entry: ${model.entryPoints.join(', ') || 'None identified'}
+Exit: ${model.exitPoints.join(', ') || 'None identified'}
 Primary Actions: ${model.primaryActions.join(', ') || 'None identified'}
-Error Paths: ${model.errorPaths.join(', ') || 'None identified'}
-
-IMPORTANT: Reason about failure modes BEFORE happy paths. Every workflow can fail - identify how.
-
-Return ONLY valid JSON in this exact format:
-{
-  "overview": "markdown content",
-  "requirements": "markdown content", 
-  "user-flow": "markdown content",
-  "inputs-outputs": "markdown content",
-  "failure-scenarios": "markdown content describing what can go wrong, edge cases, and error states",
-  "recovery-fallback": "markdown content describing how the system recovers from failures, retry logic, fallback paths",
-  "operational-risks": "markdown content about runtime risks, monitoring needs, and operational concerns",
-  "acceptance-criteria": "markdown content"
-}
-`;
+Error Paths: ${model.errorPaths.join(', ') || 'None identified'}`;
 }
 
-function buildProjectPrompt(
-  projectName: string,
-  workflowModels: SemanticWorkflowModel[]
-): string {
-  const workflowSummaries = workflowModels.map(w => 
+function buildProjectContext(projectName: string, workflowModels: SemanticWorkflowModel[]): string {
+  const workflowSummaries = workflowModels.map(w =>
     `- ${w.name}: ${w.nodeCount} nodes, ${w.edges.length} connections. Entry: ${w.entryPoints[0] || 'N/A'}, Exit: ${w.exitPoints[0] || 'N/A'}`
   ).join('\n');
-  
-  return `
-Generate a Project-level PRD for:
 
-Project Name: ${projectName}
+  return `Project: ${projectName}
 Total Workflows: ${workflowModels.length}
 
 Workflows:
-${workflowSummaries}
-
-Return ONLY valid JSON in this exact format:
-{
-  "overview": "markdown content",
-  "goals": "markdown content",
-  "architecture": "markdown content",
-  "workflows": "markdown content",
-  "assumptions": "markdown content"
-}
-`;
+${workflowSummaries}`;
 }
 
-function sanitizeJSONString(str: string): string {
-  let result = '';
-  let inString = false;
-  let i = 0;
-  while (i < str.length) {
-    const char = str[i];
-    if (inString) {
-      if (char === '\\') {
-        result += char;
-        i++;
-        if (i < str.length) {
-          result += str[i];
-          i++;
-        }
-        continue;
-      }
-      if (char === '"') {
-        inString = false;
-        result += char;
-        i++;
-        continue;
-      }
-      if (char === '\n') {
-        result += '\\n';
-        i++;
-        continue;
-      }
-      if (char === '\r') {
-        result += '\\r';
-        i++;
-        continue;
-      }
-      if (char === '\t') {
-        result += '\\t';
-        i++;
-        continue;
-      }
-    } else {
-      if (char === '"') {
-        inString = true;
-      }
-    }
-    result += char;
-    i++;
-  }
-  return result;
-}
+async function generateSectionText(
+  client: AiClientOrRouter,
+  context: string,
+  sectionTitle: string,
+  hint: string
+): Promise<string> {
+  const messages: AiMessage[] = [
+    { role: 'system', content: SECTION_SYSTEM_PROMPT },
+    { role: 'user', content: `${context}\n\nWrite the "${sectionTitle}" section for this PRD.\n${hint}` },
+  ];
 
-function parseAIResponse(text: string, sectionIds: string[]): Record<string, string> {
-  const fenceStripped = text.trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '');
-
-  const sanitized = sanitizeJSONString(fenceStripped);
-  const extracted = extractJSON(sanitized);
-
-  if (!extracted) {
-    console.error('[PRD] parseAIResponse: extractJSON found no valid JSON in response (first 500 chars):', text?.slice(0, 500));
-    return sectionIds.reduce((acc, id) => { acc[id] = ''; return acc; }, {} as Record<string, string>);
-  }
-
-  try {
-    const parsed = JSON.parse(extracted);
-    const result: Record<string, string> = {};
-
-    sectionIds.forEach(id => {
-      result[id] = parsed[id] || '';
-    });
-
-    console.log('[PRD] parseAIResponse: sections extracted:', Object.fromEntries(
-      Object.entries(result).map(([k, v]) => [k, v ? `${(v as string).slice(0, 60)}...` : '(empty)'])
-    ));
-    return result;
-  } catch (e) {
-    console.error('[PRD] parseAIResponse failed to parse JSON:', e instanceof Error ? e.message : String(e), '\nExtracted (first 500 chars):', extracted?.slice(0, 500));
-    return sectionIds.reduce((acc, id) => { acc[id] = ''; return acc; }, {} as Record<string, string>);
-  }
+  const text = await callAi(client, messages, { temperature: 0.3, maxTokens: 500 });
+  return text.trim();
 }
 
 export async function generateWorkflowPRD(
@@ -237,44 +155,36 @@ export async function generateWorkflowPRD(
   model: SemanticWorkflowModel,
   existingPRD?: WorkflowPRD
 ): Promise<WorkflowPRD> {
-  const prompt = buildWorkflowPrompt(model);
-  
-  const messages: AiMessage[] = [
-    { role: 'system', content: 'You are a technical writer creating PRDs for workflow diagrams. Be concise and specific. Output only valid JSON. All newlines within JSON string values must be escaped as \\n — never include literal line breaks inside string values.' },
-    { role: 'user', content: prompt }
-  ];
-  
-  const responseText = await callAi(aiClient, messages, {
-    temperature: 0.3,
-    maxTokens: 8000,
-  });
-  
-  const sectionIds = DEFAULT_WORKFLOW_SECTIONS.map(s => s.id);
-  const parsedSections = parseAIResponse(responseText, sectionIds);
-  
-  const sections: PRDSection[] = DEFAULT_WORKFLOW_SECTIONS.map(s => {
-    if (existingPRD?.manualEditedAt[s.id]) {
-      const existingSection = existingPRD.sections.find(es => es.id === s.id);
-      if (existingSection) {
-        return existingSection;
+  const context = buildWorkflowContext(model);
+
+  const sectionResults = await Promise.all(
+    DEFAULT_WORKFLOW_SECTIONS.map(async (s) => {
+      if (existingPRD?.manualEditedAt[s.id]) {
+        const existing = existingPRD.sections.find(es => es.id === s.id);
+        if (existing) return existing;
       }
-    }
-    
-    return {
-      id: s.id,
-      title: s.title,
-      content: parsedSections[s.id] || ''
-    };
-  });
-  
+
+      const content = await generateSectionText(
+        aiClient,
+        context,
+        s.title,
+        WORKFLOW_SECTION_HINTS[s.id] || ''
+      );
+
+      console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
+
+      return { id: s.id, title: s.title, content };
+    })
+  );
+
   return {
     workflowId: model.workflowId,
     workflowName: model.name,
-    sections,
+    sections: sectionResults,
     manualEditedAt: existingPRD?.manualEditedAt || {},
     version: (existingPRD?.version || 0) + 1,
     generatedAt: Date.now(),
-    autoGenerated: true
+    autoGenerated: true,
   };
 }
 
@@ -285,44 +195,36 @@ export async function generateProjectPRD(
   workflowModels: SemanticWorkflowModel[],
   existingPRD?: ProjectPRD
 ): Promise<ProjectPRD> {
-  const prompt = buildProjectPrompt(projectName, workflowModels);
-  
-  const messages: AiMessage[] = [
-    { role: 'system', content: 'You are a technical writer creating project PRDs. Be concise. Output only valid JSON. All newlines within JSON string values must be escaped as \\n — never include literal line breaks inside string values.' },
-    { role: 'user', content: prompt }
-  ];
-  
-  const responseText = await callAi(aiClient, messages, {
-    temperature: 0.3,
-    maxTokens: 3000,
-  });
-  
-  const sectionIds = DEFAULT_PROJECT_SECTIONS.map(s => s.id);
-  const parsedSections = parseAIResponse(responseText, sectionIds);
-  
-  const sections: PRDSection[] = DEFAULT_PROJECT_SECTIONS.map(s => {
-    if (existingPRD?.manualEditedAt[s.id]) {
-      const existingSection = existingPRD.sections.find(es => es.id === s.id);
-      if (existingSection) {
-        return existingSection;
+  const context = buildProjectContext(projectName, workflowModels);
+
+  const sectionResults = await Promise.all(
+    DEFAULT_PROJECT_SECTIONS.map(async (s) => {
+      if (existingPRD?.manualEditedAt[s.id]) {
+        const existing = existingPRD.sections.find(es => es.id === s.id);
+        if (existing) return existing;
       }
-    }
-    
-    return {
-      id: s.id,
-      title: s.title,
-      content: parsedSections[s.id] || ''
-    };
-  });
-  
+
+      const content = await generateSectionText(
+        aiClient,
+        context,
+        s.title,
+        PROJECT_SECTION_HINTS[s.id] || ''
+      );
+
+      console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
+
+      return { id: s.id, title: s.title, content };
+    })
+  );
+
   return {
     projectId,
     projectName,
-    sections,
+    sections: sectionResults,
     manualEditedAt: existingPRD?.manualEditedAt || {},
     version: (existingPRD?.version || 0) + 1,
     generatedAt: Date.now(),
-    autoGenerated: true
+    autoGenerated: true,
   };
 }
 
@@ -364,57 +266,49 @@ export async function generateSingleSection(
 ): Promise<PRDSection | null> {
   const sectionMeta = DEFAULT_WORKFLOW_SECTIONS.find(s => s.id === sectionId);
   if (!sectionMeta) return null;
-  
-  const nodesDesc = model.nodes.map(n => 
-    `- ${n.label || n.type} (${n.type})${n.description ? `: ${n.description}` : ''}`
-  ).join('\n');
-  
-  const edgesDesc = model.edges.map(e => {
-    const sourceNode = model.nodes.find(n => n.id === e.source);
-    const targetNode = model.nodes.find(n => n.id === e.target);
-    return `- ${sourceNode?.label || 'Node'} → ${targetNode?.label || 'Node'}${e.label ? ` (${e.label})` : ''}`;
-  }).join('\n');
-  
+
+  const context = buildWorkflowContext(model);
   const existingSection = existingPRD.sections.find(s => s.id === sectionId);
-  
-  const prompt = `
-Regenerate ONLY the "${sectionMeta.title}" section for this workflow PRD:
+  const previousContent = existingSection?.content
+    ? `\nPrevious content for reference:\n${existingSection.content}\n`
+    : '';
 
-Workflow: ${model.name}
-Nodes:
-${nodesDesc}
+  const hint = WORKFLOW_SECTION_HINTS[sectionId] || '';
+  const messages: AiMessage[] = [
+    { role: 'system', content: SECTION_SYSTEM_PROMPT },
+    { role: 'user', content: `${context}${previousContent}\n\nRewrite the "${sectionMeta.title}" section for this PRD.\n${hint}` },
+  ];
 
-Connections:
-${edgesDesc}
+  const text = await callAi(aiClient, messages, { temperature: 0.3, maxTokens: 800 });
+  const content = text.trim();
 
-Entry Points: ${model.entryPoints.join(', ') || 'None identified'}
-Exit Points: ${model.exitPoints.join(', ') || 'None identified'}
-Primary Actions: ${model.primaryActions.join(', ') || 'None identified'}
-Error Paths: ${model.errorPaths.join(', ') || 'None identified'}
+  if (!content) return null;
 
-${existingSection?.content ? `Previous content for reference:\n${existingSection.content}\n\n` : ''}
-Return ONLY valid JSON in this format:
-{"${sectionId}": "markdown content for ${sectionMeta.title}"}
-`;
+  return { id: sectionId, title: sectionMeta.title, content };
+}
+
+export async function elaborateSection(
+  aiClient: AiClientOrRouter,
+  model: SemanticWorkflowModel,
+  sectionId: string,
+  currentContent: string
+): Promise<string> {
+  const sectionMeta = DEFAULT_WORKFLOW_SECTIONS.find(s => s.id === sectionId);
+  const sectionTitle = sectionMeta?.title || sectionId;
+
+  const context = buildWorkflowContext(model);
 
   const messages: AiMessage[] = [
-    { role: 'system', content: 'You are a technical writer updating a specific PRD section. Be concise and specific. Output only valid JSON.' },
-    { role: 'user', content: prompt }
+    {
+      role: 'system',
+      content: 'You are a technical writer expanding a PRD section with more depth and detail. Use plain markdown bullet points and prose. Do not wrap your entire response in code fences. Do not repeat the section title as a heading.',
+    },
+    {
+      role: 'user',
+      content: `${context}\n\nCurrent "${sectionTitle}" section:\n${currentContent}\n\nElaborate on this section with more depth, specific examples, edge cases, and technical detail relevant to this workflow. Expand the content significantly while staying focused on this section.`,
+    },
   ];
-  
-  const responseText = await callAi(aiClient, messages, {
-    temperature: 0.3,
-    maxTokens: 800,
-  });
-  
-  const parsedSections = parseAIResponse(responseText, [sectionId]);
-  const content = parsedSections[sectionId];
-  
-  if (!content) return null;
-  
-  return {
-    id: sectionId,
-    title: sectionMeta.title,
-    content
-  };
+
+  const text = await callAi(aiClient, messages, { temperature: 0.4, maxTokens: 1500 });
+  return text.trim();
 }
