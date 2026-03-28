@@ -157,7 +157,7 @@ export async function generateWorkflowPRD(
 ): Promise<WorkflowPRD> {
   const context = buildWorkflowContext(model);
 
-  const sectionResults = await Promise.all(
+  const settled = await Promise.allSettled(
     DEFAULT_WORKFLOW_SECTIONS.map(async (s) => {
       if (existingPRD?.manualEditedAt[s.id]) {
         const existing = existingPRD.sections.find(es => es.id === s.id);
@@ -177,10 +177,17 @@ export async function generateWorkflowPRD(
     })
   );
 
+  const sections: PRDSection[] = DEFAULT_WORKFLOW_SECTIONS.map((s, i) => {
+    const result = settled[i];
+    if (result.status === 'fulfilled') return result.value;
+    console.warn(`[PRD][SECTION] ${s.id} failed, leaving empty:`, result.reason);
+    return { id: s.id, title: s.title, content: '' };
+  });
+
   return {
     workflowId: model.workflowId,
     workflowName: model.name,
-    sections: sectionResults,
+    sections,
     manualEditedAt: existingPRD?.manualEditedAt || {},
     version: (existingPRD?.version || 0) + 1,
     generatedAt: Date.now(),
@@ -197,7 +204,7 @@ export async function generateProjectPRD(
 ): Promise<ProjectPRD> {
   const context = buildProjectContext(projectName, workflowModels);
 
-  const sectionResults = await Promise.all(
+  const settled = await Promise.allSettled(
     DEFAULT_PROJECT_SECTIONS.map(async (s) => {
       if (existingPRD?.manualEditedAt[s.id]) {
         const existing = existingPRD.sections.find(es => es.id === s.id);
@@ -217,10 +224,17 @@ export async function generateProjectPRD(
     })
   );
 
+  const sections: PRDSection[] = DEFAULT_PROJECT_SECTIONS.map((s, i) => {
+    const result = settled[i];
+    if (result.status === 'fulfilled') return result.value;
+    console.warn(`[PRD][SECTION] ${s.id} failed, leaving empty:`, result.reason);
+    return { id: s.id, title: s.title, content: '' };
+  });
+
   return {
     projectId,
     projectName,
-    sections: sectionResults,
+    sections,
     manualEditedAt: existingPRD?.manualEditedAt || {},
     version: (existingPRD?.version || 0) + 1,
     generatedAt: Date.now(),
