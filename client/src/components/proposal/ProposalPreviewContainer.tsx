@@ -46,7 +46,31 @@ export const ProposalPreviewContainer = memo(function ProposalPreviewContainer({
   const handleEdgesChange = useCallback((_edges: Edge[]) => {
   }, []);
 
-  const previewData = useMemo(() => composePreviewData(proposal), [proposal]);
+  const previewData = useMemo(() => {
+    const raw = composePreviewData(proposal);
+    if (raw.nodes.length === 0) return raw;
+
+    // Normalize node positions so the bounding box top-left lands at (MARGIN, MARGIN).
+    // Without this, nodes carry their absolute canvas coordinates (e.g. x=700, y=300)
+    // and are off-screen in the preview, which initializes at {x:0, y:0, zoom:1}.
+    const MARGIN = 60;
+    const xs = raw.nodes.map(n => n.position?.x ?? 0);
+    const ys = raw.nodes.map(n => n.position?.y ?? 0);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const offsetX = MARGIN - minX;
+    const offsetY = MARGIN - minY;
+
+    const translatedNodes = raw.nodes.map(n => ({
+      ...n,
+      position: {
+        x: (n.position?.x ?? 0) + offsetX,
+        y: (n.position?.y ?? 0) + offsetY,
+      },
+    }));
+
+    return { nodes: translatedNodes, edges: raw.edges };
+  }, [proposal]);
   
   const activeVariant = proposal.activeVariant;
   const currentVariantData = activeVariant === 'proposed' ? proposal.proposed : proposal.alternative;
