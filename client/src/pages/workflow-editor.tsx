@@ -173,6 +173,7 @@ import { useFeatureFlag } from "@/contexts/FeatureFlagContext";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
 import { runDecisionRepair } from "@/ai/repair/decisionRepair";
+import { isGenericNodeLabel } from "@/ai/proposal/proposalUtils";
 import { applyMergeSafeChatMutation } from "@/hooks/useChatMutation";
 import { detectStructuralRegression, type StructuralRegressionResult } from "@/workflow/analysis/graphStructure";
 import {
@@ -3437,20 +3438,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     
     const nodeUpdates = variantData.nodeUpdates ?? [];
 
-    // Defensive check: only apply updates to nodes whose current label is generic/unnamed.
-    // This mirrors isGenericNodeLabel in generateProposedWorkflow.ts and ensures
-    // nodes with real labels are never mutated regardless of model output.
-    function isApplyableUpdate(currentLabel: string | undefined, nodeId: string): boolean {
-      const label = currentLabel ?? '';
-      if (!label || label.trim() === '') return true;
-      if (label === nodeId) return true;
-      if (label.trim().length <= 3) return true;
-      const lower = label.toLowerCase().trim();
-      if (['new process', 'process', 'new node', 'node', 'untitled', 'step'].includes(lower)) return true;
-      if (/^node[-_]?[a-z0-9]{4,}$/i.test(label)) return true;
-      return false;
-    }
-
     withUndo(
       `Apply proposal from Insight: ${currentProposal.insightTitle}`,
       saveToHistory,
@@ -3461,7 +3448,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           const updated = currentNodes.map(n => {
             const u = updatesMap[n.id];
             if (!u) return n;
-            if (!isApplyableUpdate(n.data?.label, n.id)) return n;
+            // Defensive guard: only mutate nodes whose current label is still generic.
+            // Shared helper (proposalUtils) ensures consistent behaviour with generation.
+            if (!isGenericNodeLabel(n.data?.label, n.id)) return n;
             return {
               ...n,
               data: {

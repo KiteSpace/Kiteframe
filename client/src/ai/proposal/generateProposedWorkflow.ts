@@ -4,6 +4,7 @@ import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { RouterMetadata } from '@/ai/router/types';
 import { getRouter, extractJSON } from '@/ai/router';
+import { isGenericNodeLabel } from './proposalUtils';
 import { 
   getPatternGuidance, 
   getScopeGuidance, 
@@ -50,20 +51,6 @@ interface ParsedVariant {
 interface ParsedDualProposal {
   proposed: ParsedVariant;
   alternative: ParsedVariant;
-}
-
-/**
- * Determines if a node label is generic/unnamed and should receive a suggested name.
- * Exported so acceptance logic can enforce the same guard at apply-time.
- */
-export function isGenericNodeLabel(label: string, nodeId: string): boolean {
-  if (!label || label.trim() === '') return true;
-  if (label === nodeId) return true;
-  if (label.trim().length <= 3) return true;
-  const lower = label.toLowerCase().trim();
-  if (['new process', 'process', 'new node', 'node', 'untitled', 'step'].includes(lower)) return true;
-  if (/^node[-_]?[a-z0-9]{4,}$/i.test(label)) return true;
-  return false;
 }
 
 /**
