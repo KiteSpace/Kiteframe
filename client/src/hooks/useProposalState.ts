@@ -2,11 +2,18 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import type { ModelProvenance } from '@/ai/explainability/types';
 
+export interface NodeUpdate {
+  id: string;
+  label: string;
+  description?: string;
+}
+
 export interface ProposalVariant {
   nodes: Node[];
   edges: Edge[];
   title: string;
   description: string;
+  nodeUpdates?: NodeUpdate[];
 }
 
 export interface ProposedWorkflow {
@@ -140,8 +147,28 @@ export function composePreviewData(proposal: ProposedWorkflow): { nodes: Node[];
   const existingRelevantEdges = snapshotEdges.filter(e =>
     affectedNodeIds.includes(e.source) || affectedNodeIds.includes(e.target)
   );
+
+  const updatesMap: Record<string, NodeUpdate> = {};
+  if (variant.nodeUpdates) {
+    for (const u of variant.nodeUpdates) {
+      if (u.id && u.label) updatesMap[u.id] = u;
+    }
+  }
+
+  const originNodesWithUpdates = existingOriginNodes.map(n => {
+    const update = updatesMap[n.id];
+    if (!update) return n;
+    return {
+      ...n,
+      data: {
+        ...n.data,
+        label: update.label,
+        description: update.description ?? n.data?.description ?? '',
+      },
+    };
+  });
   
-  const previewNodes = [...existingOriginNodes, ...variant.nodes];
+  const previewNodes = [...originNodesWithUpdates, ...variant.nodes];
   const previewEdges = [...existingRelevantEdges, ...variant.edges];
   
   return { nodes: previewNodes, edges: previewEdges };

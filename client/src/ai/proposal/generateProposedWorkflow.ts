@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@/lib/kiteframe/types';
-import type { ProposedWorkflow, ProposalVariant } from '@/hooks/useProposalState';
+import type { ProposedWorkflow, ProposalVariant, NodeUpdate } from '@/hooks/useProposalState';
 import type { AiClient } from '@/ai/types';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { RouterMetadata } from '@/ai/router/types';
@@ -39,6 +39,11 @@ interface ParsedVariant {
     from: number | string;
     to: number | string;
     label?: string;
+  }>;
+  nodeUpdates?: Array<{
+    id: string;
+    label: string;
+    description?: string;
   }>;
 }
 
@@ -95,6 +100,7 @@ CRITICAL RULES:
 3. Connect new nodes to existing origin nodes using their exact IDs
 4. Both variants must be different approaches to solving the same insight
 5. This is an addition, not a replacement
+6. If any origin node is marked as UNNAMED/GENERIC, you MUST include a nodeUpdates entry for it with a meaningful label and description based on the insight and workflow context
 
 Respond with valid JSON only, no markdown code blocks.
 
@@ -108,6 +114,9 @@ Schema:
     ],
     "edges": [
       { "from": "existing-node-id-or-index", "to": 0, "label": "optional" }
+    ],
+    "nodeUpdates": [
+      { "id": "existing-node-id", "label": "Meaningful Name", "description": "What this step does" }
     ]
   },
   "alternative": {
@@ -118,10 +127,14 @@ Schema:
     ],
     "edges": [
       { "from": "existing-node-id-or-index", "to": 0, "label": "optional" }
+    ],
+    "nodeUpdates": [
+      { "id": "existing-node-id", "label": "Meaningful Name", "description": "What this step does" }
     ]
   }
 }
 
+nodeUpdates is OPTIONAL and only used when an origin node needs to be named/described.
 Node types: input, process, condition, output
 Edge "from" and "to" can be:
 - An existing node ID (string) to connect to the origin workflow
@@ -130,10 +143,27 @@ Edge "from" and "to" can be:
 Each variant MUST include at least one edge connecting to an existing node.
 The two variants should represent meaningfully different approaches.`;
 
+  function isGenericLabel(label: string, nodeId: string): boolean {
+    if (!label || label.trim() === '') return true;
+    if (label === nodeId) return true;
+    if (label.trim().length <= 3) return true;
+    const lower = label.toLowerCase().trim();
+    if (['new process', 'process', 'new node', 'node', 'untitled', 'step'].includes(lower)) return true;
+    if (/^node[-_]?[a-z0-9]{4,}$/i.test(label)) return true;
+    return false;
+  }
+
+  const genericNodeIds = new Set(
+    affectedNodeContext
+      .filter(n => isGenericLabel(n.label, n.id))
+      .map(n => n.id)
+  );
+
   const originNodeList = affectedNodeContext.length > 0
-    ? `Origin nodes (you should connect to these):\n${affectedNodeContext.map(n => 
-        `- ID: "${n.id}" | Label: "${n.label}" | Type: ${n.type}`
-      ).join('\n')}`
+    ? `Origin nodes (you should connect to these):\n${affectedNodeContext.map(n => {
+        const tag = genericNodeIds.has(n.id) ? ' [UNNAMED/GENERIC — add a nodeUpdates entry for this node]' : '';
+        return `- ID: "${n.id}" | Label: "${n.label}" | Type: ${n.type}${tag}`;
+      }).join('\n')}`
     : 'No specific origin nodes identified. Generate standalone improvement nodes.';
 
   const biasNote = heuristicBias.preferAlternative 
@@ -275,11 +305,31 @@ Both MUST connect to existing origin nodes and differ in structure/approach.`;
       });
     }
 
+    const variantNodeUpdates: NodeUpdate[] = [];
+    if (Array.isArray(parsedVariant.nodeUpdates)) {
+      for (const u of parsedVariant.nodeUpdates) {
+        if (
+          typeof u.id === 'string' &&
+          u.id.trim() &&
+          typeof u.label === 'string' &&
+          u.label.trim() &&
+          affectedNodeIds.includes(u.id)
+        ) {
+          variantNodeUpdates.push({
+            id: u.id,
+            label: u.label.trim(),
+            description: typeof u.description === 'string' ? u.description.trim() : '',
+          });
+        }
+      }
+    }
+
     return {
       nodes: variantNodes,
       edges: variantEdges,
       title: parsedVariant.title || 'Proposed Addition',
       description: parsedVariant.description || `Addition to address: ${insight.title}`,
+      nodeUpdates: variantNodeUpdates.length > 0 ? variantNodeUpdates : undefined,
     };
   };
 

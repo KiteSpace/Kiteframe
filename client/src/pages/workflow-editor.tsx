@@ -3435,12 +3435,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
     }
     
+    const nodeUpdates = variantData.nodeUpdates ?? [];
+
     withUndo(
       `Apply proposal from Insight: ${currentProposal.insightTitle}`,
       saveToHistory,
       () => {
-        // Use functional updates to ensure we're working with the latest canvas state
-        setNodes(currentNodes => [...currentNodes, ...newNodes]);
+        setNodes(currentNodes => {
+          const updatesMap: Record<string, typeof nodeUpdates[0]> = {};
+          for (const u of nodeUpdates) updatesMap[u.id] = u;
+          const updated = currentNodes.map(n => {
+            const u = updatesMap[n.id];
+            if (!u) return n;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                label: u.label,
+                description: u.description ?? n.data?.description ?? '',
+              },
+            };
+          });
+          return [...updated, ...newNodes];
+        });
         setEdges(currentEdges => [...currentEdges, ...newEdges]);
       }
     );
