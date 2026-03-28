@@ -398,7 +398,7 @@ export function DocSection({
         
         <div className={cn(
           "flex items-center gap-1 transition-opacity duration-150",
-          isHovered || isEditing || suggestion ? "opacity-100" : "opacity-0"
+          isHovered || isEditing || suggestion || isElaborating ? "opacity-100" : "opacity-0"
         )}>
           {!isReadOnly && isStale && onRegenerateSection && !isEditing && !suggestion && (
             <Button
