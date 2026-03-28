@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent, ReactNode } fr
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight } from 'lucide-react';
+import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight, AlignLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getRouter } from '@/ai/router';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ interface DocSectionProps {
   onSave: (sectionKey: string, value: string) => void;
   onResetToAI?: (sectionKey: string) => void;
   onRegenerateSection?: (sectionKey: string) => void;
+  onElaborate?: (sectionKey: string) => Promise<string | null>;
   onDismissInsight?: (insightId: string) => void;
   enableAISuggestions?: boolean;
   linkedNodes?: PRDNodeLink[];
@@ -228,6 +229,7 @@ export function DocSection({
   onSave,
   onResetToAI,
   onRegenerateSection,
+  onElaborate,
   onDismissInsight,
   enableAISuggestions = true,
   linkedNodes = [],
@@ -243,6 +245,7 @@ export function DocSection({
   const [editValue, setEditValue] = useState(content);
   const [isHovered, setIsHovered] = useState(false);
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
+  const [isElaborating, setIsElaborating] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -339,6 +342,26 @@ export function DocSection({
     setSuggestion(null);
   }, []);
 
+  const handleElaborate = useCallback(async () => {
+    if (!content || isElaborating || !onElaborate) return;
+
+    setIsElaborating(true);
+    try {
+      const elaborated = await onElaborate(sectionKey);
+      if (elaborated) {
+        onSave(sectionKey, elaborated);
+        toast({ title: 'Section elaborated', description: 'Content expanded with more detail.' });
+      }
+    } catch (error) {
+      toast({
+        title: 'Elaborate failed',
+        description: error instanceof Error ? error.message : 'Could not elaborate section',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsElaborating(false);
+    }
+  }, [content, isElaborating, onElaborate, sectionKey, onSave, toast]);
 
   return (
     <section
@@ -404,6 +427,23 @@ export function DocSection({
                 <Sparkles size={10} className="mr-1" />
               )}
               Suggest
+            </Button>
+          )}
+          {!isReadOnly && onElaborate && content && !isEditing && !suggestion && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+              onClick={handleElaborate}
+              disabled={isElaborating}
+              data-testid={`elaborate-${sectionKey}`}
+            >
+              {isElaborating ? (
+                <Loader2 size={10} className="mr-1 animate-spin" />
+              ) : (
+                <AlignLeft size={10} className="mr-1" />
+              )}
+              Elaborate
             </Button>
           )}
           {!isReadOnly && manuallyEdited && onResetToAI && !suggestion && (

@@ -34,7 +34,7 @@ import {
 } from '@/lib/kiteframe/utils/prdExport';
 import { type WorkflowPRD } from '@/ai/prdEngine';
 import { getRouter } from '@/ai/router';
-import { generateWorkflowPRD, generateSingleSection } from '@/ai/prdEngine';
+import { generateWorkflowPRD, generateSingleSection, elaborateSection } from '@/ai/prdEngine';
 import { reviewPRD, type PRDReviewResult, type PRDSuggestion } from '@/ai/prdSteward';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument } from '@/components/docs';
@@ -621,6 +621,16 @@ export function WorkflowPRDSection({
     }
   }, [prd, projectId, workflowId, workflowName, nodes, edges, toast]);
 
+  const handleElaborateSection = useCallback(async (sectionId: string): Promise<string | null> => {
+    if (!prd) return null;
+    const section = prd.sections.find(s => s.id === sectionId);
+    if (!section?.content) return null;
+
+    const model = extractSemanticWorkflowModel(workflowId, workflowName, nodes, edges);
+    const router = getRouter();
+    return elaborateSection(router, model, sectionId, section.content);
+  }, [prd, workflowId, workflowName, nodes, edges]);
+
   return (
     <div data-testid="workflow-prd-section">
       {isStale && prd && !isReadOnly && (
@@ -807,6 +817,7 @@ export function WorkflowPRDSection({
                   onSave={handleSectionSave}
                   onResetToAI={handleResetSection}
                   onRegenerateSection={handleRegenerateSection}
+                  onElaborate={handleElaborateSection}
                   onDismissInsight={handleDismissInsight}
                   linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
                   onLinkNode={() => handleLinkNode(section.id)}
