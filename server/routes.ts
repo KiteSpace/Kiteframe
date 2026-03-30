@@ -663,6 +663,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'User not found' });
       }
 
+      if (trial === true) {
+        const price = await stripeService.getPrice(priceId);
+        const priceMetadata = price?.metadata as Record<string, string> | null;
+        if (priceMetadata?.tier !== 'advanced') {
+          return res.status(400).json({ error: 'Trials are only available for the Advanced plan.' });
+        }
+      }
+
       let customerId = user.stripeCustomerId;
       if (!customerId) {
         const customer = await stripeService.createCustomer(
