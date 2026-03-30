@@ -1,5 +1,6 @@
 import { getStripeSync } from './stripeClient';
 import { storage } from './storage';
+import { stripeService } from './stripeService';
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string, uuid: string): Promise<void> {
@@ -42,7 +43,16 @@ export class WebhookHandlers {
       return;
     }
 
-    const priceTier = subscription.items?.data?.[0]?.price?.metadata?.tier;
+    let priceTier: string | undefined = subscription.items?.data?.[0]?.price?.metadata?.tier;
+
+    if (!priceTier) {
+      const priceId = subscription.items?.data?.[0]?.price?.id;
+      if (priceId) {
+        const price = await stripeService.getPrice(priceId);
+        priceTier = (price?.metadata as Record<string, string> | null)?.tier;
+      }
+    }
+
     const tier: 'free' | 'advanced' | 'pro' =
       priceTier === 'advanced' || priceTier === 'pro' ? priceTier : 'free';
 

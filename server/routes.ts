@@ -616,7 +616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       
       if (!user) {
-        return res.json({ subscription: null, tier: 'free', isAdmin: false });
+        return res.json({ subscription: null, tier: 'free', isAdmin: false, trialEnd: null });
       }
 
       // Check if user is admin
