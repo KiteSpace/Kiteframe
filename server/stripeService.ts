@@ -18,10 +18,11 @@ export class StripeService {
     priceId: string, 
     successUrl: string, 
     cancelUrl: string,
-    mode: 'subscription' | 'payment' = 'subscription'
+    mode: 'subscription' | 'payment' = 'subscription',
+    trialDays?: number
   ) {
     const stripe = await getUncachableStripeClient();
-    return await stripe.checkout.sessions.create({
+    const params: any = {
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
@@ -29,7 +30,11 @@ export class StripeService {
       success_url: successUrl,
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
-    });
+    };
+    if (trialDays && mode === 'subscription') {
+      params.subscription_data = { trial_period_days: trialDays };
+    }
+    return await stripe.checkout.sessions.create(params);
   }
 
   async createCustomerPortalSession(customerId: string, returnUrl: string) {

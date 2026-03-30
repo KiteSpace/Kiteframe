@@ -627,6 +627,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscription = await stripeService.getSubscription(user.stripeSubscriptionId);
       }
 
+      let trialEnd: string | null = null;
+      if (subscription && subscription.trial_end) {
+        const trialEndTs = typeof subscription.trial_end === 'string'
+          ? parseFloat(subscription.trial_end)
+          : Number(subscription.trial_end);
+        if (!isNaN(trialEndTs) && trialEndTs > 0) {
+          trialEnd = new Date(trialEndTs * 1000).toISOString();
+        }
+      }
+
       res.json({ 
         subscription,
         tier: isAdmin ? 'pro' : (user.subscriptionTier || 'free'),
@@ -634,6 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billingPeriodEnd: user.billingPeriodEnd,
         isAdmin,
         isUnlimited: isAdmin,
+        trialEnd,
       });
     } catch (error) {
       console.error('Error fetching subscription:', error);
@@ -646,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
-      const { priceId } = req.body;
+      const { priceId, trial } = req.body;
 
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
@@ -663,11 +674,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerId = customer.id;
       }
 
+      const trialDays = trial === true ? 7 : undefined;
       const session = await stripeService.createCheckoutSession(
         customerId,
         priceId,
         `${req.protocol}://${req.get('host')}/checkout/success`,
-        `${req.protocol}://${req.get('host')}/pricing`
+        `${req.protocol}://${req.get('host')}/pricing`,
+        'subscription',
+        trialDays
       );
 
       res.json({ url: session.url });
