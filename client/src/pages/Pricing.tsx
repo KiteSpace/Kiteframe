@@ -28,18 +28,18 @@ interface Product {
 
 const tierFeatures = {
   free: [
-    '25 AI credits per month',
+    '25 AI credits per day',
     'Basic workflow editor',
     'Download & upload Kiteframe files',
   ],
   advanced: [
-    '50 AI credits per month',
+    '50 AI credits per day',
     'All Free features',
     'Wireframe generator',
     'Cloud storage',
   ],
   pro: [
-    '150 AI credits per month',
+    '150 AI credits per day',
     'All Advanced features',
     'Image-to-workflow generator',
   ],
@@ -72,8 +72,8 @@ export default function Pricing() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const response = await apiRequest('POST', '/api/checkout', { priceId });
+    mutationFn: async ({ priceId, trial }: { priceId: string; trial?: boolean }) => {
+      const response = await apiRequest('POST', '/api/checkout', { priceId, trial: trial ?? false });
       return response.json();
     },
     onSuccess: (data) => {
@@ -104,12 +104,12 @@ export default function Pricing() {
     }).format(amount / 100);
   };
 
-  const handleSelectPlan = (priceId: string) => {
+  const handleSelectPlan = (priceId: string, trial?: boolean) => {
     if (!isAuthenticated) {
       window.location.href = '/api/login';
       return;
     }
-    checkoutMutation.mutate(priceId);
+    checkoutMutation.mutate({ priceId, trial });
   };
 
   if (productsLoading) {
@@ -246,7 +246,7 @@ export default function Pricing() {
                 ))}
               </ul>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2">
               <Button
                 className="w-full"
                 disabled={currentTier === 'advanced' || checkoutMutation.isPending}
@@ -254,15 +254,22 @@ export default function Pricing() {
                   const price = isAnnual
                     ? getPriceForInterval(advancedProduct!, 'year')
                     : getPriceForInterval(advancedProduct!, 'month');
-                  if (price) handleSelectPlan(price.id);
+                  if (price) handleSelectPlan(price.id, true);
                 }}
                 data-testid="button-select-advanced"
               >
                 {checkoutMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                {currentTier === 'advanced' ? 'Current Plan' : 'Upgrade to Advanced'}
+                {currentTier === 'advanced' ? 'Current Plan' : 'Start 7-day free trial'}
               </Button>
+              {currentTier !== 'advanced' && (
+                <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                  then {advancedProduct
+                    ? formatPrice(getPriceForInterval(advancedProduct, 'month')?.unit_amount || 500)
+                    : '$5'}/mo · cancel before day 7 to pay nothing
+                </p>
+              )}
             </CardFooter>
           </Card>
 
@@ -338,7 +345,7 @@ export default function Pricing() {
               <h3 className="font-medium text-slate-900 dark:text-slate-100">What are AI credits?</h3>
               <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
                 AI credits are used each time you generate workflows, get AI suggestions, or use any AI-powered features.
-                Each plan comes with a monthly allocation that resets on your billing date.
+                Each plan comes with a daily allowance that resets every 24 hours.
               </p>
             </div>
             <div>

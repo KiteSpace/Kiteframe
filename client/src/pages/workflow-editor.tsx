@@ -170,6 +170,7 @@ import { resetLayersState } from "@/stores/layersStateManager";
 import { prdNodeLinkStore, type PRDNodeLink } from "@/stores/prdNodeLinkStore";
 import { usePromptContextStoreOptional } from "@/contexts/PromptContextStore";
 import { useFeatureFlag } from "@/contexts/FeatureFlagContext";
+import { TrialBanner } from "@/components/TrialBanner";
 import { generateWorkflowPRD } from "@/ai/prdEngine";
 import { generateExperimentBranch } from "@/ai/workflow/generateExperimentBranch";
 import { runDecisionRepair } from "@/ai/repair/decisionRepair";
@@ -6459,6 +6460,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   return (
     <div className="h-screen flex flex-col bg-background">
+      <TrialBanner />
       {/* Header with Tabs */}
       <Toolbar
         onOpenAiSettings={() => setShowAiModal(true)}

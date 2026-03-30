@@ -54,6 +54,7 @@ export function useSubscription() {
     billingPeriodEnd?: string;
     isAdmin?: boolean;
     isUnlimited?: boolean;
+    trialEnd?: string | null;
   }>({
     queryKey: ['/api/subscription'],
   });
@@ -64,6 +65,8 @@ export function useSubscription() {
   // Admins always get Pro tier
   const tier = isAdmin ? 'pro' : ((data?.tier as 'free' | 'advanced' | 'pro') || 'free');
   const status = isAdmin ? 'active' : ((data?.status as SubscriptionData['status']) || null);
+  const isTrialing = status === 'trialing';
+  const trialEnd = data?.trialEnd ?? null;
 
   const subscriptionData: SubscriptionData = {
     tier,
@@ -77,6 +80,9 @@ export function useSubscription() {
   // Server considers user authenticated if subscription query returns data without 401
   const isServerAuthenticated = !isLoading && !error && data !== undefined;
 
+  // Trialing users on advanced or pro get full paid benefits
+  const isPaidOrTrialing = (tier === 'advanced' || tier === 'pro') && (status === 'active' || isTrialing);
+
   return {
     ...subscriptionData,
     isLoading,
@@ -84,10 +90,12 @@ export function useSubscription() {
     refetch,
     isAdmin,
     isUnlimited,
-    isPro: tier === 'pro' && status === 'active',
-    isAdvanced: (tier === 'advanced' || tier === 'pro') && status === 'active',
-    isPaid: isAdmin || ((tier === 'advanced' || tier === 'pro') && status === 'active'),
-    hasActiveSubscription: isAdmin || status === 'active',
+    isTrialing,
+    trialEnd,
+    isPro: tier === 'pro' && (status === 'active' || isTrialing),
+    isAdvanced: (tier === 'advanced' || tier === 'pro') && (status === 'active' || isTrialing),
+    isPaid: isAdmin || isPaidOrTrialing,
+    hasActiveSubscription: isAdmin || status === 'active' || isTrialing,
     isServerAuthenticated,
   };
 }

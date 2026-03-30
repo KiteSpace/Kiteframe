@@ -17,8 +17,8 @@ const KitelineDocs = lazy(() => import("@/pages/kiteline-docs"));
 const AdminCodes = lazy(() => import("@/pages/AdminCodes"));
 const AdminUserDetails = lazy(() => import("@/pages/AdminUserDetails"));
 const AdminGroupDetails = lazy(() => import("@/pages/AdminGroupDetails"));
-// Pricing page temporarily hidden while only free tier is active
-// const Pricing = lazy(() => import("@/pages/Pricing"));
+const Pricing = lazy(() => import("@/pages/Pricing"));
+const CheckoutSuccess = lazy(() => import("@/pages/CheckoutSuccess"));
 const Account = lazy(() => import("@/pages/Account"));
 const SignIn = lazy(() => import("@/pages/SignIn"));
 const WaitlistDashboard = lazy(() => import("@/pages/WaitlistDashboard"));
@@ -144,12 +144,14 @@ function Router() {
         <Route path="/waitlist" component={WaitlistDashboard} />
         <Route path="/demo" component={KitelineDemo} />
         <Route path="/docs" component={KitelineDocs} />
-        {/* Pricing page temporarily hidden while only free tier is active */}
+        <Route path="/pricing">
+          <BetaProtectedRoute component={Pricing} />
+        </Route>
         <Route path="/account">
           <BetaProtectedRoute component={Account} />
         </Route>
         <Route path="/checkout/success">
-          <BetaProtectedRoute component={Account} />
+          <BetaProtectedRoute component={CheckoutSuccess} />
         </Route>
         <Route path="/internal/x9k7m2p4" component={AdminCodes} />
         <Route path="/internal/x9k7m2p4/users/:userId" component={AdminUserDetails} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Coins, AlertCircle, Shield, Sparkles } from 'lucide-react';
 
 interface CreditsResponse {
@@ -29,7 +31,8 @@ interface RedeemResponse {
 
 export function CreditsWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  
+  const [, setLocation] = useLocation();
+
   useEffect(() => {
     const handleOpenCreditsDialog = () => setIsOpen(true);
     window.addEventListener('openCreditsDialog', handleOpenCreditsDialog);
@@ -38,6 +41,7 @@ export function CreditsWidget() {
   const [unlockCode, setUnlockCode] = useState('');
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  const { tier: subscriptionTier } = useSubscription();
 
   const { data: creditsData, isLoading } = useQuery({
     queryKey: ['/api/credits'],
@@ -170,6 +174,19 @@ export function CreditsWidget() {
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     Create Free Account
+                  </Button>
+                )}
+                {isAuthenticated && subscriptionTier === 'free' && (
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setLocation('/pricing');
+                    }}
+                    data-testid="button-trial-credits"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Start free 7-day trial
                   </Button>
                 )}
               </div>
