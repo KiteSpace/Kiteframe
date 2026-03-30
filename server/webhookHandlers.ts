@@ -46,15 +46,9 @@ export class WebhookHandlers {
       return;
     }
 
-    let tier: 'free' | 'advanced' | 'pro' = 'free';
-    try {
-      const price = subscription.items?.data?.[0]?.price;
-      if (price?.metadata?.tier) {
-        tier = price.metadata.tier as 'free' | 'advanced' | 'pro';
-      }
-    } catch (e) {
-      // Could not determine tier from price metadata; default to free
-    }
+    const priceTier = subscription.items?.data?.[0]?.price?.metadata?.tier;
+    const tier: 'free' | 'advanced' | 'pro' =
+      priceTier === 'advanced' || priceTier === 'pro' ? priceTier : 'free';
 
     let subscriptionTier: string;
     let subscriptionStatus: string;

@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import { storage } from './storage';
 import { getUncachableStripeClient } from './stripeClient';
 import { db } from './db';
@@ -22,7 +23,7 @@ export class StripeService {
     trialDays?: number
   ) {
     const stripe = await getUncachableStripeClient();
-    const params: any = {
+    const params: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],

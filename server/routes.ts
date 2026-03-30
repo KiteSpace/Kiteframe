@@ -628,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let trialEnd: string | null = null;
-      if (subscription && subscription.trial_end) {
+      if (subscription && subscription.status === 'trialing' && subscription.trial_end) {
         const trialEndTs = typeof subscription.trial_end === 'string'
           ? parseFloat(subscription.trial_end)
           : Number(subscription.trial_end);
