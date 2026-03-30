@@ -15,12 +15,8 @@ export class WebhookHandlers {
     const sync = await getStripeSync();
     await sync.processWebhook(payload, signature, uuid);
 
-    try {
-      const event = JSON.parse(payload.toString('utf8'));
-      await WebhookHandlers.syncUserSubscriptionTier(event);
-    } catch (err) {
-      console.error('Error syncing user subscription tier from webhook:', err);
-    }
+    const event = JSON.parse(payload.toString('utf8'));
+    await WebhookHandlers.syncUserSubscriptionTier(event);
   }
 
   static async syncUserSubscriptionTier(event: any): Promise<void> {
