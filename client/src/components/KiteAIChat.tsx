@@ -959,7 +959,7 @@ export function KiteAIChatBrain({
           { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
-        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000
+        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 4000 : 3000
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
