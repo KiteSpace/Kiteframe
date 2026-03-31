@@ -26,8 +26,6 @@ import { useToast } from "@/hooks/use-toast";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-import workflowScreenshot from "@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png";
-
 const LandingPreviewCanvas = lazy(
   () => import("@/components/landing/LandingPreviewCanvas"),
 );
@@ -40,7 +38,7 @@ function LazyCanvasLoader({
   variant,
   className,
 }: {
-  variant: "hero" | "features" | "objects";
+  variant: "hero" | "features" | "objects" | "kiteframe-demo";
   className?: string;
 }) {
   const [shouldLoad, setShouldLoad] = useState(false);
@@ -412,11 +410,9 @@ export default function LandingPage() {
               </ul>
             </div>
             <div className="flex items-center justify-center">
-              <img
-                src={workflowScreenshot}
-                alt="Kiteframe workflow example showing connected nodes"
-                className="rounded-xl border border-slate-200 dark:border-slate-700 max-h-[300px] object-contain"
-                data-testid="img-workflow-example"
+              <LazyCanvasLoader
+                variant="kiteframe-demo"
+                className="h-[420px] w-full"
               />
             </div>
           </div>

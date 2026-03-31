@@ -3,7 +3,7 @@ import { KiteFrameCanvas, PluginProvider } from '@/lib/kiteframe';
 import type { Node, Edge, CanvasObject, StickyNoteData, ShapeNodeData, TextNodeData } from '@/lib/kiteframe/types';
 
 interface LandingPreviewCanvasProps {
-  variant?: 'hero' | 'features' | 'objects';
+  variant?: 'hero' | 'features' | 'objects' | 'kiteframe-demo';
 }
 
 const HERO_NODES: Node[] = [
@@ -256,6 +256,137 @@ const HERO_MOBILE_EDGES: Edge[] = [
   { id: 'mobile-edge-2', source: 'mobile-node-2', target: 'mobile-node-3', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
   { id: 'mobile-edge-3', source: 'mobile-node-3', target: 'mobile-node-4', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
   { id: 'mobile-edge-4', source: 'mobile-node-4', target: 'mobile-node-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+];
+
+const KITEFRAME_DEMO_NODES: Node[] = [
+  {
+    id: '1',
+    type: 'input',
+    position: { x: 295.90, y: 390.62 },
+    data: {
+      label: 'User Signs Up',
+      description: 'You create an account and log in',
+      icon: 'UserPlus',
+      iconColor: 'hsl(142, 76%, 36%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '2',
+    type: 'ai',
+    position: { x: 545.90, y: 251.37 },
+    data: {
+      label: 'Prompt Chat',
+      description: 'You describe your project idea via chat interface',
+      icon: 'MessageSquare',
+      iconColor: 'hsl(221, 83%, 53%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '3',
+    type: 'process',
+    position: { x: 545.90, y: 390.62 },
+    data: {
+      label: 'Project Created',
+      description: 'New project tab opens with initial structure',
+      icon: 'FolderPlus',
+      iconColor: 'hsl(262, 83%, 58%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '4',
+    type: 'ai',
+    position: { x: 545.90, y: 522.74 },
+    data: {
+      label: 'Refine with Agent',
+      description: 'In-project AI agent helps refine scope and details',
+      icon: 'Bot',
+      iconColor: 'hsl(221, 83%, 53%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '5',
+    type: 'ai',
+    position: { x: 826.95, y: 251.37 },
+    data: {
+      label: 'Generate PRD',
+      description: 'AI creates comprehensive Product Requirements Document',
+      icon: 'FileText',
+      iconColor: 'hsl(24, 95%, 53%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '6',
+    type: 'ai',
+    position: { x: 826.95, y: 390.62 },
+    data: {
+      label: 'Generate Workflow',
+      description: 'AI builds visual workflow with nodes and edges',
+      icon: 'GitBranch',
+      iconColor: 'hsl(24, 95%, 53%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '7',
+    type: 'process',
+    position: { x: 826.95, y: 522.74 },
+    data: {
+      label: 'Export Bundle',
+      description: 'Package PRD + workflow as .kiteframe project bundle',
+      icon: 'Download',
+      iconColor: 'hsl(173, 58%, 39%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '8',
+    type: 'process',
+    position: { x: 1099.98, y: 390.62 },
+    data: {
+      label: 'Handoff',
+      description: 'You share the project bundle with PMs and engineers for implementation',
+      icon: 'Send',
+      iconColor: 'hsl(262, 83%, 58%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '9',
+    type: 'output',
+    position: { x: 1346.40, y: 390.62 },
+    data: {
+      label: 'SUCCESS! 🎉',
+      description: 'Your team has clear specs and workflow to build from, on time and under budget',
+      icon: 'CheckCircle2',
+      iconColor: 'hsl(142, 76%, 36%)',
+    },
+    width: 200, height: 100,
+    draggable: true, selectable: false, doubleClickable: false,
+  },
+];
+
+const KITEFRAME_DEMO_EDGES: Edge[] = [
+  { id: 'e1-2', source: '1', target: '2', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e2-3', source: '2', target: '3', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e3-4', source: '3', target: '4', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e4-5', source: '4', target: '5', type: 'step', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e5-6', source: '5', target: '6', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e6-7', source: '6', target: '7', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e7-8', source: '7', target: '8', type: 'step', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
+  { id: 'e8-9', source: '8', target: '9', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true },
 ];
 
 const FEATURE_NODES: Node[] = [
@@ -564,8 +695,8 @@ function calculateFitViewportForObjects(objects: CanvasObject[], containerWidth:
 export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPreviewCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mobileContainerRef = useRef<HTMLDivElement>(null);
-  const initialNodes = variant === 'hero' ? HERO_NODES : variant === 'features' ? FEATURE_NODES : [];
-  const initialEdges = variant === 'hero' ? HERO_EDGES : variant === 'features' ? FEATURE_EDGES : [];
+  const initialNodes = variant === 'hero' ? HERO_NODES : variant === 'features' ? FEATURE_NODES : variant === 'kiteframe-demo' ? KITEFRAME_DEMO_NODES : [];
+  const initialEdges = variant === 'hero' ? HERO_EDGES : variant === 'features' ? FEATURE_EDGES : variant === 'kiteframe-demo' ? KITEFRAME_DEMO_EDGES : [];
   const initialObjects = variant === 'objects' ? OBJECTS_DATA : [];
 
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
@@ -583,6 +714,9 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
       } else if (variant === 'objects') {
         const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, rect.width, rect.height, 30);
         setViewport(fitViewport);
+      } else if (variant === 'kiteframe-demo') {
+        const fitViewport = calculateFitViewport(KITEFRAME_DEMO_NODES, rect.width, rect.height, 40);
+        setViewport(fitViewport);
       }
     }
     if (variant === 'hero' && mobileContainerRef.current) {
@@ -593,7 +727,7 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
   }, [variant]);
 
   useEffect(() => {
-    if ((variant !== 'hero' && variant !== 'objects') || !containerRef.current) return;
+    if ((variant !== 'hero' && variant !== 'objects' && variant !== 'kiteframe-demo') || !containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -604,6 +738,9 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
             setViewport(fitViewport);
           } else if (variant === 'objects') {
             const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, width, height, 30);
+            setViewport(fitViewport);
+          } else if (variant === 'kiteframe-demo') {
+            const fitViewport = calculateFitViewport(KITEFRAME_DEMO_NODES, width, height, 40);
             setViewport(fitViewport);
           }
         }
