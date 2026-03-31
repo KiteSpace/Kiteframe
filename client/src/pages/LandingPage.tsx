@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
+import workflowScreenshot from "@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png";
 const LandingPreviewCanvas = lazy(
   () => import("@/components/landing/LandingPreviewCanvas"),
 );
@@ -320,7 +321,7 @@ export default function LandingPage() {
               className="text-center text-sm text-muted-foreground mt-4"
               data-testid="text-demo-hint"
             >
-              Mission Critical Initiative — Two paths, one outcome
+              From idea to handoff — powered by AI
             </p>
           </div>
         </section>
@@ -410,9 +411,11 @@ export default function LandingPage() {
               </ul>
             </div>
             <div className="flex items-center justify-center">
-              <LazyCanvasLoader
-                variant="kiteframe-demo"
-                className="h-[420px] w-full"
+              <img
+                src={workflowScreenshot}
+                alt="Kiteframe workflow example showing connected nodes"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 max-h-[300px] object-contain"
+                data-testid="img-workflow-example"
               />
             </div>
           </div>

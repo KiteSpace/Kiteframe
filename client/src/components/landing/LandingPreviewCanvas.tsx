@@ -8,176 +8,124 @@ interface LandingPreviewCanvasProps {
 
 const HERO_NODES: Node[] = [
   {
-    id: '1-kiteai-1766183815176-0',
+    id: '1',
     type: 'input',
-    position: { x: 234.20, y: 232.84 },
+    position: { x: 295.90, y: 390.62 },
     data: {
-      label: 'Business-Critical Initiative',
-      description: "It's go time!",
-      icon: 'ArrowRight',
-      iconColor: 'text-blue-500',
-      fontSize: 18,
-      bold: true,
-      textAlign: 'center',
-      nodeIcon: '⭐',
-      iconVisible: true,
-      colors: { headerBackground: '#6366f1', bodyBackground: '#eff0fe', borderColor: '#6366f1', headerTextColor: '#000000' }
+      label: 'User Signs Up',
+      description: 'You create an account and log in',
+      icon: 'UserPlus',
+      iconColor: 'hsl(142, 76%, 36%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
-    id: '3-kiteai-1766183815176-2',
+    id: '2',
+    type: 'ai',
+    position: { x: 545.90, y: 251.37 },
+    data: {
+      label: 'Prompt Chat',
+      description: 'You describe your project idea via chat interface',
+      icon: 'MessageSquare',
+      iconColor: 'hsl(221, 83%, 53%)',
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '3',
     type: 'process',
-    position: { x: 484.40, y: 132.84 },
+    position: { x: 545.90, y: 390.62 },
     data: {
-      label: 'Hey KiteAI!',
-      description: 'Hi, how can I help you?',
-      nodeIcon: '💡',
-      iconVisible: true,
-      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
+      label: 'Project Created',
+      description: 'New project tab opens with initial structure',
+      icon: 'FolderPlus',
+      iconColor: 'hsl(262, 83%, 58%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
-    id: '4-kiteai-1766183815176-3',
+    id: '4',
+    type: 'ai',
+    position: { x: 545.90, y: 522.74 },
+    data: {
+      label: 'Refine with Agent',
+      description: 'In-project AI agent helps refine scope and details',
+      icon: 'Bot',
+      iconColor: 'hsl(221, 83%, 53%)',
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '5',
+    type: 'ai',
+    position: { x: 826.95, y: 251.37 },
+    data: {
+      label: 'Generate PRD',
+      description: 'AI creates comprehensive Product Requirements Document',
+      icon: 'FileText',
+      iconColor: 'hsl(24, 95%, 53%)',
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '6',
+    type: 'ai',
+    position: { x: 826.95, y: 390.62 },
+    data: {
+      label: 'Generate Workflow',
+      description: 'AI builds visual workflow with nodes and edges',
+      icon: 'GitBranch',
+      iconColor: 'hsl(24, 95%, 53%)',
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
+  },
+  {
+    id: '7',
     type: 'process',
-    position: { x: 715.13, y: 132.84 },
+    position: { x: 826.95, y: 522.74 },
     data: {
-      label: 'Collaboration Powered by Kite AI',
-      description: 'Clear alignment on scope, roles, and success criteria',
-      nodeIcon: '⚡',
-      iconVisible: true,
-      colors: { headerBackground: '#3b82f6', bodyBackground: '#ebf3fe', borderColor: '#3b82f6', headerTextColor: '#000000' }
+      label: 'Export Bundle',
+      description: 'Package PRD + workflow as .kiteframe project bundle',
+      icon: 'Download',
+      iconColor: 'hsl(173, 58%, 39%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
-    id: '6-kiteai-1766183815176-5',
+    id: '8',
     type: 'process',
-    position: { x: 947.63, y: 132.84 },
+    position: { x: 1099.98, y: 390.62 },
     data: {
-      label: 'Magic',
-      description: 'Kite AI generates a structured PRD in seconds',
-      nodeIcon: '⭐',
-      iconVisible: true,
-      colors: { headerBackground: '#8b5cf6', bodyBackground: '#f3effe', borderColor: '#8b5cf6', headerTextColor: '#000000' }
+      label: 'Handoff',
+      description: 'You share the project bundle with PMs and engineers for implementation',
+      icon: 'Send',
+      iconColor: 'hsl(262, 83%, 58%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
-    id: '7-kiteai-1766183815176-6',
-    type: 'process',
-    position: { x: 1180.43, y: 132.84 },
-    data: {
-      label: "Let's go!",
-      description: 'Teams execute with confidence',
-      nodeIcon: '🚀',
-      iconVisible: true,
-      colors: { headerBackground: '#06b6d4', bodyBackground: '#e6f8fb', borderColor: '#06b6d4', headerTextColor: '#000000' }
-    },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: 'node-1766184941202-z2uv9om2z',
+    id: '9',
     type: 'output',
-    position: { x: 1413.00, y: 132.84 },
+    position: { x: 1346.40, y: 390.62 },
     data: {
-      label: 'Launch Day',
-      description: 'On time and under budget.',
-      nodeIcon: '🎯',
-      iconVisible: true,
-      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
+      label: 'SUCCESS! 🎉',
+      description: 'Your team has clear specs and workflow to build from, on time and under budget',
+      icon: 'CheckCircle2',
+      iconColor: 'hsl(142, 76%, 36%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '9-kiteai-1766183815176-8',
-    type: 'process',
-    position: { x: 483.40, y: 332.84 },
-    data: { label: 'Kickoff', description: 'So are you leading this meeting, or am I?' },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '10-kiteai-1766183815176-9',
-    type: 'process',
-    position: { x: 368.84, y: 498.36 },
-    data: { label: 'Scatter', description: 'Everyone get to it!' },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '11-kiteai-1766183815176-10',
-    type: 'process',
-    position: { x: 716.13, y: 320.50 },
-    data: { label: 'Requirements doc created', description: 'Hmmmm, this seems incomplete and outdated. Who took notes??' },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '12-kiteai-1766183815176-11',
-    type: 'process',
-    position: { x: 617.42, y: 653.99 },
-    data: { label: 'Design review', description: 'This is what the PRD stated. Did I miss a meeting?' },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '13-kiteai-1766183815176-12',
-    type: 'process',
-    position: { x: 892.43, y: 631.10 },
-    data: { label: 'Engineering questions surface late', description: "We're going to need Craig over in ML Sys dept for this..." },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '14-kiteai-1766183815176-13',
-    type: 'process',
-    position: { x: 892.43, y: 441.59 },
-    data: { label: 'Another meeting scheduled', description: "Well, we're running out sprints. Let's build and we can address the tech debt after release." },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '15-kiteai-1766183815176-14',
-    type: 'process',
-    position: { x: 986.97, y: 302.60 },
-    data: {
-      label: 'Scope changes introduced',
-      description: "There's no time!",
-      colors: { headerBackground: '#f8fafc', bodyBackground: '#ffffff', borderColor: '#e2e8f0', headerTextColor: '#0f172a' }
-    },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
-  },
-  {
-    id: '16-kiteai-1766183815176-15',
-    type: 'process',
-    position: { x: 1180.43, y: 498.66 },
-    data: {
-      label: 'Launch?',
-      description: '¯\\_(ツ)_/¯',
-      fontSize: 20,
-      bold: true,
-      textAlign: 'center',
-      nodeIcon: '🚩',
-      iconVisible: true,
-      colors: { headerBackground: '#f97316', bodyBackground: '#fef1e8', borderColor: '#f97316', headerTextColor: '#000000' }
-    },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
 ];
 
 const HERO_EDGES: Edge[] = [
-  { id: 'edge-1766184325682', source: '1-kiteai-1766183815176-0', target: '3-kiteai-1766183815176-2', type: 'bezier', style: { strokeColor: '#22c55e', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766352137830', source: '4-kiteai-1766183815176-3', target: '6-kiteai-1766183815176-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-2', source: '3-kiteai-1766183815176-2', target: '4-kiteai-1766183815176-3', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-5', source: '6-kiteai-1766183815176-5', target: '7-kiteai-1766183815176-6', type: 'straight', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184980436', source: '7-kiteai-1766183815176-6', target: 'node-1766184941202-z2uv9om2z', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184327845', source: '1-kiteai-1766183815176-0', target: '9-kiteai-1766183815176-8', type: 'bezier', style: { strokeColor: '#eab308', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-8', source: '9-kiteai-1766183815176-8', target: '10-kiteai-1766183815176-9', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-9', source: '10-kiteai-1766183815176-9', target: '11-kiteai-1766183815176-10', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-10', source: '11-kiteai-1766183815176-10', target: '12-kiteai-1766183815176-11', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184048804', source: '10-kiteai-1766183815176-9', target: '12-kiteai-1766183815176-11', type: 'step', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184029305', source: '12-kiteai-1766183815176-11', target: '14-kiteai-1766183815176-13', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184074938', source: '12-kiteai-1766183815176-11', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-1766184454549', source: '14-kiteai-1766183815176-13', target: '13-kiteai-1766183815176-12', type: 'bezier', style: { strokeColor: '#64748b', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
-  { id: 'edge-1766184043755', source: '14-kiteai-1766183815176-13', target: '10-kiteai-1766183815176-9', type: 'step', style: { strokeColor: '#ef4444', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
-  { id: 'edge-kiteai-13', source: '14-kiteai-1766183815176-13', target: '15-kiteai-1766183815176-14', type: 'bezier', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'edge-kiteai-14', source: '15-kiteai-1766183815176-14', target: '16-kiteai-1766183815176-15', type: 'straight', style: { strokeColor: '#1e293b', strokeWidth: 2 }, markerEnd: true, animated: true, interactable: false },
+  { id: 'e1-2', source: '1', target: '2', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e2-3', source: '2', target: '3', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e3-4', source: '3', target: '4', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e4-5', source: '4', target: '5', type: 'step', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e5-6', source: '5', target: '6', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e6-7', source: '6', target: '7', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e7-8', source: '7', target: '8', type: 'step', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'e8-9', source: '8', target: '9', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
 ];
 
 const HERO_MOBILE_NODES: Node[] = [
@@ -186,76 +134,81 @@ const HERO_MOBILE_NODES: Node[] = [
     type: 'input',
     position: { x: 278.96, y: -100 },
     data: {
-      label: 'Business-Critical Initiative',
-      description: "It's go time!",
-      fontSize: 18,
-      bold: true,
-      textAlign: 'center',
-      nodeIcon: '✅',
-      iconVisible: true,
-      colors: { headerBackground: '#64748b', bodyBackground: '#f0f1f3', borderColor: '#64748b', headerTextColor: '#ffffff' }
+      label: 'User Signs Up',
+      description: 'You create an account and log in',
+      icon: 'UserPlus',
+      iconColor: 'hsl(142, 76%, 36%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
     id: 'mobile-node-2',
-    type: 'process',
-    position: { x: 278.96, y: 35.20 },
+    type: 'ai',
+    position: { x: 278.96, y: 35 },
     data: {
-      label: 'Hey KiteAI!',
-      description: 'Hi, how can I help you?',
-      nodeIcon: '💡',
-      iconVisible: true,
-      colors: { headerBackground: '#06b6d4', bodyBackground: '#e6f8fb', borderColor: '#06b6d4', headerTextColor: '#000000' }
+      label: 'Prompt Chat',
+      description: 'You describe your project idea via chat interface',
+      icon: 'MessageSquare',
+      iconColor: 'hsl(221, 83%, 53%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
     id: 'mobile-node-3',
-    type: 'process',
-    position: { x: 278.96, y: 168.91 },
+    type: 'ai',
+    position: { x: 278.96, y: 170 },
     data: {
-      label: 'Collaboration Powered by Kite AI',
-      description: 'Clear alignment on scope, roles, and success criteria',
-      nodeIcon: '⚡',
-      iconVisible: true,
-      colors: { headerBackground: '#3b82f6', bodyBackground: '#ebf3fe', borderColor: '#3b82f6', headerTextColor: '#000000' }
+      label: 'Refine with Agent',
+      description: 'In-project AI agent helps refine scope and details',
+      icon: 'Bot',
+      iconColor: 'hsl(221, 83%, 53%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
     id: 'mobile-node-4',
-    type: 'process',
-    position: { x: 278.96, y: 323.57 },
+    type: 'ai',
+    position: { x: 278.96, y: 305 },
     data: {
-      label: 'Magic',
-      description: 'Kite AI generates a structured PRD in seconds',
-      nodeIcon: '⭐',
-      iconVisible: true,
-      colors: { headerBackground: '#8b5cf6', bodyBackground: '#f3effe', borderColor: '#8b5cf6', headerTextColor: '#000000' }
+      label: 'Generate PRD',
+      description: 'AI creates comprehensive Product Requirements Document',
+      icon: 'FileText',
+      iconColor: 'hsl(24, 95%, 53%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
   {
     id: 'mobile-node-5',
     type: 'process',
-    position: { x: 278.96, y: 461.94 },
+    position: { x: 278.96, y: 440 },
     data: {
-      label: "Let's go!",
-      description: 'Teams execute with confidence',
-      nodeIcon: '🚀',
-      iconVisible: true,
-      colors: { headerBackground: '#22c55e', bodyBackground: '#e9f9ef', borderColor: '#22c55e', headerTextColor: '#000000' }
+      label: 'Export Bundle',
+      description: 'Package PRD + workflow as .kiteframe project bundle',
+      icon: 'Download',
+      iconColor: 'hsl(173, 58%, 39%)',
     },
-    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
+  },
+  {
+    id: 'mobile-node-6',
+    type: 'output',
+    position: { x: 278.96, y: 575 },
+    data: {
+      label: 'SUCCESS! 🎉',
+      description: 'Your team has clear specs and workflow to build from',
+      icon: 'CheckCircle2',
+      iconColor: 'hsl(142, 76%, 36%)',
+    },
+    width: 200, height: 100, draggable: false, selectable: false, doubleClickable: false,
   },
 ];
 
 const HERO_MOBILE_EDGES: Edge[] = [
-  { id: 'mobile-edge-1', source: 'mobile-node-1', target: 'mobile-node-2', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'mobile-edge-2', source: 'mobile-node-2', target: 'mobile-node-3', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'mobile-edge-3', source: 'mobile-node-3', target: 'mobile-node-4', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
-  { id: 'mobile-edge-4', source: 'mobile-node-4', target: 'mobile-node-5', type: 'bezier', style: { strokeColor: '#3b82f6', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-1', source: 'mobile-node-1', target: 'mobile-node-2', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-2', source: 'mobile-node-2', target: 'mobile-node-3', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-3', source: 'mobile-node-3', target: 'mobile-node-4', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-4', source: 'mobile-node-4', target: 'mobile-node-5', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
+  { id: 'mobile-edge-5', source: 'mobile-node-5', target: 'mobile-node-6', type: 'bezier', style: { strokeColor: 'hsl(221.2, 83.2%, 53.3%)', strokeWidth: 2 }, markerEnd: true, interactable: false },
 ];
 
 const KITEFRAME_DEMO_NODES: Node[] = [
