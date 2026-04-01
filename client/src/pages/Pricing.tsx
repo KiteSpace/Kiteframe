@@ -203,12 +203,20 @@ export default function Pricing() {
     checkoutMutation.mutate({ priceId, trial });
   };
 
+  const openBillingPortal = async () => {
+    const res = await fetch('/api/billing/portal', { method: 'POST' });
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+  };
+
   const getCtaForTier = (tierId: 'free' | 'advanced' | 'pro') => {
     if (tierId === 'free') {
+      const isDowngrade = currentTier !== 'free';
       return {
-        label: currentTier === 'free' ? 'Current plan' : 'Downgrade',
+        label: currentTier === 'free' ? 'Current plan' : 'Downgrade to Free',
         disabled: currentTier === 'free',
-        onClick: undefined as (() => void) | undefined,
+        showSpinner: false,
+        onClick: isDowngrade ? openBillingPortal : undefined,
         style: {
           background: '#f1f5f9',
           color: '#64748b',
@@ -218,24 +226,31 @@ export default function Pricing() {
     }
     if (tierId === 'advanced') {
       const isCurrent = currentTier === 'advanced';
+      const isDowngrade = currentTier === 'pro';
       const price = advancedProduct
         ? (isAnnual
           ? getPriceForInterval(advancedProduct, 'year')
           : getPriceForInterval(advancedProduct, 'month'))
         : undefined;
       const hasPrice = !!price;
+      const label = isCurrent
+        ? 'Current plan'
+        : isDowngrade
+        ? 'Downgrade to Advanced'
+        : 'Start 7-day free trial';
       return {
-        label: isCurrent ? 'Current plan' : 'Start 7-day free trial',
-        disabled: isCurrent || checkoutMutation.isPending || !hasPrice,
-        onClick: isCurrent || !hasPrice ? undefined : () => {
+        label,
+        disabled: isCurrent || (isDowngrade ? false : !hasPrice),
+        showSpinner: !isCurrent && !isDowngrade && checkoutMutation.isPending,
+        onClick: isCurrent ? undefined : isDowngrade ? openBillingPortal : !hasPrice ? undefined : () => {
           handleSelectPlan(price!.id, true);
         },
         style: {
-          background: isCurrent ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          color: isCurrent ? '#64748b' : '#ffffff',
+          background: isCurrent || isDowngrade ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+          color: isCurrent || isDowngrade ? '#64748b' : '#ffffff',
           border: 'none',
         } as CSSProperties,
-        trialNote: isCurrent ? null : `then $${getDisplayPrice('advanced').monthly}/mo · cancel before day 7 to pay nothing`,
+        trialNote: (!isCurrent && !isDowngrade) ? `then $${getDisplayPrice('advanced').monthly}/mo · cancel before day 7 to pay nothing` : null,
       };
     }
     // pro
@@ -249,6 +264,7 @@ export default function Pricing() {
     return {
       label: isCurrent ? 'Current plan' : 'Upgrade to Pro',
       disabled: isCurrent || checkoutMutation.isPending || !hasPrice,
+      showSpinner: !isCurrent && checkoutMutation.isPending,
       onClick: isCurrent || !hasPrice ? undefined : () => {
         handleSelectPlan(price!.id, false);
       },
@@ -459,7 +475,7 @@ export default function Pricing() {
                   }}
                   data-testid={`button-select-${tierId}`}
                 >
-                  {checkoutMutation.isPending && !cta.disabled ? (
+                  {cta.showSpinner ? (
                     <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                   ) : null}
                   {cta.label}
