@@ -218,15 +218,17 @@ export default function Pricing() {
     }
     if (tierId === 'advanced') {
       const isCurrent = currentTier === 'advanced';
-      const price = isAnnual
-        ? getPriceForInterval(advancedProduct!, 'year')
-        : getPriceForInterval(advancedProduct!, 'month');
+      const price = advancedProduct
+        ? (isAnnual
+          ? getPriceForInterval(advancedProduct, 'year')
+          : getPriceForInterval(advancedProduct, 'month'))
+        : undefined;
+      const hasPrice = !!price;
       return {
         label: isCurrent ? 'Current plan' : 'Start 7-day free trial',
-        disabled: isCurrent || checkoutMutation.isPending,
-        onClick: isCurrent || !advancedProduct ? undefined : () => {
-          if (price) handleSelectPlan(price.id, true);
-          else handleSelectPlan('', true);
+        disabled: isCurrent || checkoutMutation.isPending || !hasPrice,
+        onClick: isCurrent || !hasPrice ? undefined : () => {
+          handleSelectPlan(price!.id, true);
         },
         style: {
           background: isCurrent ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6, #2563eb)',
@@ -238,15 +240,17 @@ export default function Pricing() {
     }
     // pro
     const isCurrent = currentTier === 'pro';
-    const price = isAnnual
-      ? getPriceForInterval(proProduct!, 'year')
-      : getPriceForInterval(proProduct!, 'month');
+    const price = proProduct
+      ? (isAnnual
+        ? getPriceForInterval(proProduct, 'year')
+        : getPriceForInterval(proProduct, 'month'))
+      : undefined;
+    const hasPrice = !!price;
     return {
       label: isCurrent ? 'Current plan' : 'Upgrade to Pro',
-      disabled: isCurrent || checkoutMutation.isPending,
-      onClick: isCurrent || !proProduct ? undefined : () => {
-        if (price) handleSelectPlan(price.id, false);
-        else handleSelectPlan('', false);
+      disabled: isCurrent || checkoutMutation.isPending || !hasPrice,
+      onClick: isCurrent || !hasPrice ? undefined : () => {
+        handleSelectPlan(price!.id, false);
       },
       style: {
         background: isCurrent ? '#f1f5f9' : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
