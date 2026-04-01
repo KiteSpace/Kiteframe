@@ -118,7 +118,7 @@ export function CombinedCreditsTier() {
                     <p className="text-[11px] opacity-80 mb-2.5 leading-snug">
                       Unlock 2× credits, workflow reasoning &amp; PRD generation.
                     </p>
-                    <button className="w-full py-1.5 rounded-md bg-white text-blue-700 text-xs font-semibold hover:bg-blue-50 transition-colors flex items-center justify-center gap-1.5">
+                    <button className="w-full py-1.5 rounded-md bg-white/20 hover:bg-white/30 border border-white/40 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
                       <TrendingUp size={11} />
                       Upgrade plan
                     </button>
