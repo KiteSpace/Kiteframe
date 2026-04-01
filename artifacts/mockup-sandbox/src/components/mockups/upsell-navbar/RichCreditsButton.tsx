@@ -9,12 +9,12 @@ const user = {
   email: "alex@company.io",
 };
 
-const credits = 5;
+const credits = 12;
 const maxCredits = 25;
 const creditsPercent = Math.round((credits / maxCredits) * 100);
 const isLow = credits <= 8;
 
-export function RichCreditsPill() {
+export function RichCreditsButton() {
   const [creditsOpen, setCreditsOpen] = useState(true);
   const [avatarOpen, setAvatarOpen] = useState(false);
 
