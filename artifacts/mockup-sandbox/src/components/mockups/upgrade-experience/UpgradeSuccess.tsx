@@ -40,24 +40,6 @@ export default function UpgradeSuccess() {
           textAlign: "center",
         }}
       >
-        {/* Animated checkmark */}
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #3b82f6, #2563eb)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 24px",
-            boxShadow: "0 8px 32px rgba(59,130,246,0.35)",
-            fontSize: 36,
-          }}
-        >
-          ✓
-        </div>
-
         {/* Headline */}
         <h1
           style={{
