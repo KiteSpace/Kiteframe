@@ -1,24 +1,16 @@
 import {
-  Plus,
-  Sparkles,
-  Bot,
   Settings,
-  Workflow,
-  ChevronDown,
   Sun,
   Moon,
   Bug,
-  Coins,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { AuthButton } from "./AuthButton";
 import { CreditsWidget } from "./CreditsWidget";
+import { CreditsTierPill } from "./CreditsTierPill";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { useSubscription } from "@/hooks/useSubscription";
 
 interface EditorSettings {
   nodeAutoConnect: boolean;
@@ -36,14 +28,6 @@ interface ToolbarProps {
   children?: React.ReactNode;
 }
 
-interface CreditsResponse {
-  success: boolean;
-  credits: number;
-  userIdentifier: string;
-  isUnlimited?: boolean;
-  isAdmin?: boolean;
-}
-
 export function Toolbar({
   onOpenAiSettings,
   isDarkMode,
@@ -57,18 +41,6 @@ export function Toolbar({
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const { dailyCredits } = useSubscription();
-
-  // Fetch credits for the settings dropdown
-  const { data: creditsData } = useQuery<CreditsResponse>({
-    queryKey: ['/api/credits'],
-    refetchInterval: 30000,
-  });
-
-  const credits = creditsData?.credits ?? 0;
-  const isUnlimited = credits >= 999999;
-  const maxCredits = dailyCredits || 25;
-  const creditsPercentage = isUnlimited ? 100 : Math.min(100, Math.round((credits / maxCredits) * 100));
 
   useEffect(() => {
     if (!showSettingsDropdown) return;
@@ -98,10 +70,15 @@ export function Toolbar({
         <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6 flex-shrink-0" />
         {children}
       </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
+
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Credits + tier pill */}
+        <CreditsTierPill />
+
         {/* Authentication */}
         <AuthButton />
 
+        {/* Settings gear */}
         <div className="relative">
           <button
             ref={settingsButtonRef}
@@ -151,106 +128,71 @@ export function Toolbar({
                 </button>
               )}
 
-              {/* Divider */}
-              <div className="border-b border-border my-2"></div>
-
-              {/* AI Credits Section */}
-              <div className="px-3 py-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Coins size={14} className="text-amber-500" />
-                    <span>AI Credits</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {isUnlimited ? '∞' : `${creditsPercentage}%`}
-                  </span>
-                </div>
-                <Progress 
-                  value={creditsPercentage} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isUnlimited ? 'Unlimited credits' : `${credits} of ${maxCredits} remaining`}
-                </p>
-                <button
-                  className="w-full mt-2 text-xs text-primary hover:underline text-left"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.dispatchEvent(new CustomEvent('openCreditsDialog'));
-                    setShowSettingsDropdown(false);
-                  }}
-                  data-testid="button-manage-credits"
-                >
-                  Manage credits →
-                </button>
-              </div>
-
-              {/* Divider */}
-              <div className="border-b border-border my-2"></div>
-
               {/* Editor Settings Toggles */}
               {editorSettings && onEditorSettingsChange && (
-                <div className="space-y-3">
-                  {/* Node Auto-Connect Toggle */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <Label
-                        htmlFor="auto-connect-toggle"
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Node Auto-Connect
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Automatically connect nodes when moved close
-                      </p>
+                <>
+                  <div className="border-b border-border my-2" />
+                  <div className="space-y-3">
+                    {/* Node Auto-Connect Toggle */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="auto-connect-toggle"
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          Node Auto-Connect
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Automatically connect nodes when moved close
+                        </p>
+                      </div>
+                      <Switch
+                        id="auto-connect-toggle"
+                        checked={editorSettings.nodeAutoConnect}
+                        onCheckedChange={(checked) =>
+                          onEditorSettingsChange({
+                            ...editorSettings,
+                            nodeAutoConnect: checked,
+                          })
+                        }
+                        data-testid="toggle-auto-connect"
+                      />
                     </div>
-                    <Switch
-                      id="auto-connect-toggle"
-                      checked={editorSettings.nodeAutoConnect}
-                      onCheckedChange={(checked) =>
-                        onEditorSettingsChange({
-                          ...editorSettings,
-                          nodeAutoConnect: checked,
-                        })
-                      }
-                      data-testid="toggle-auto-connect"
-                    />
-                  </div>
 
-                  {/* Snap to Guides Toggle */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <Label
-                        htmlFor="snap-guides-toggle"
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Snap to Guides
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Snap objects for precise alignment
-                      </p>
+                    {/* Snap to Guides Toggle */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="snap-guides-toggle"
+                          className="text-sm font-medium cursor-pointer"
+                        >
+                          Snap to Guides
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Snap objects for precise alignment
+                        </p>
+                      </div>
+                      <Switch
+                        id="snap-guides-toggle"
+                        checked={editorSettings.snapToGuides}
+                        onCheckedChange={(checked) =>
+                          onEditorSettingsChange({
+                            ...editorSettings,
+                            snapToGuides: checked,
+                          })
+                        }
+                        data-testid="toggle-snap-guides"
+                      />
                     </div>
-                    <Switch
-                      id="snap-guides-toggle"
-                      checked={editorSettings.snapToGuides}
-                      onCheckedChange={(checked) =>
-                        onEditorSettingsChange({
-                          ...editorSettings,
-                          snapToGuides: checked,
-                        })
-                      }
-                      data-testid="toggle-snap-guides"
-                    />
                   </div>
-
-                </div>
+                </>
               )}
             </div>
           )}
         </div>
       </div>
-      
-      {/* Hidden CreditsWidget - renders the dialog only, triggered via openCreditsDialog event */}
+
+      {/* Hidden CreditsWidget — renders the dialog only, triggered via openCreditsDialog event */}
       <div className="hidden">
         <CreditsWidget />
       </div>

@@ -50,6 +50,7 @@ Preferred communication style: Simple, everyday language.
 - **IP-Based Tracking**: Unauthenticated users tracked by IP address; signed-in users tracked by account ID.
 - **Unlock Codes**: Bonus credits via redeemable codes (admin-generated), can grant fixed credits or unlimited access.
 - **Integration**: Stripe for checkout, customer portal, webhooks.
+- **CreditsTierPill**: Toolbar pill showing `🪙 {credits} · {tier}` with an orange alert dot when credits ≤ 8. Clicking opens a dropdown with a credit progress bar + blue-gradient Advanced plan upgrade card (free users only). Replaces the credits section in the settings dropdown. `CreditsWidget` dialog (for unlock codes) still accessible via "Manage credits →" inside the pill dropdown.
 
 ### Canvas and Workflow System
 - **Node Types**: Input, process, condition, output, AI, experiment, image.
