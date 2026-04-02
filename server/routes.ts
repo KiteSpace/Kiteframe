@@ -1637,6 +1637,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
       };
       
+      // Complexity heuristic for workflow_generate: route simple prompts to Haiku
+      const COMPLEXITY_KEYWORDS = /\b(if|when|unless|condition|loop|retry|branch|parallel|decision|fallback|alternative|exception|error handling|multiple|either|otherwise|in case|depends on|based on|check whether|validate|approval|escalat)\b/i;
+      function isSimpleWorkflowPrompt(msgs: any[]): boolean {
+        const lastUser = [...msgs].reverse().find((m: any) => m.role === 'user');
+        if (!lastUser) return false;
+        const text = typeof lastUser.content === 'string' ? lastUser.content
+          : Array.isArray(lastUser.content) ? lastUser.content.map((c: any) => c.text || '').join(' ')
+          : '';
+        const wordCount = text.trim().split(/\s+/).length;
+        return wordCount <= 20 && !COMPLEXITY_KEYWORDS.test(text);
+      }
+
       // Resolve model based on taskType routing policy
       let resolvedModel = model;
       let resolvedProvider = provider;
@@ -1646,6 +1658,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!policy.allowUserOverride || !model) {
           resolvedModel = policy.model;
           resolvedProvider = policy.provider;
+        }
+        // Downgrade workflow_generate to Haiku for short, simple prompts
+        if (taskType === 'workflow_generate' && isSimpleWorkflowPrompt(req.body.messages || [])) {
+          resolvedModel = 'claude-haiku-4-5-20251001';
+          resolvedProvider = 'anthropic';
         }
       }
       
