@@ -1,6 +1,6 @@
 import sgMail from '@sendgrid/mail';
 
-const FROM_ADDRESS = 'info@kiteframe.space';
+const FROM_ADDRESS = process.env.SENDGRID_FROM || 'info@kiteframe.space';
 
 function isConfigured(): boolean {
   if (!process.env.SENDGRID_API_KEY) {
