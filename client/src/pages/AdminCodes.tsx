@@ -1119,6 +1119,15 @@ function BetaUsersTab({ authHeader }: { authHeader: string }) {
     enabled: !!betaGroup?.id,
   });
 
+  const { data: betaSlots } = useQuery({
+    queryKey: ['/internal/beta-slots'],
+    queryFn: async () => {
+      const res = await fetch('/internal/beta-slots', { headers: { 'Authorization': authHeader } });
+      if (!res.ok) return null;
+      return res.json() as Promise<{ count: number; cap: number | null; shouldAutoApprove: boolean }>;
+    },
+  });
+
   const createBetaGroupMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch('/internal/groups', {
@@ -1255,6 +1264,35 @@ function BetaUsersTab({ authHeader }: { authHeader: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Beta Slots Indicator */}
+      <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/40">
+        <Settings className="w-4 h-4 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          {betaSlots?.cap !== null && betaSlots?.cap !== undefined ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">Beta Slots</span>
+              <Badge variant={betaSlots.count >= betaSlots.cap ? 'destructive' : 'secondary'}>
+                {betaSlots.count} / {betaSlots.cap} used
+              </Badge>
+              {betaSlots.count >= betaSlots.cap ? (
+                <span className="text-xs text-destructive">Cap reached — new signups go to waitlist</span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{betaSlots.cap - betaSlots.count} slots remaining · auto-approving new signups</span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Beta Slots</span>
+              <Badge variant="outline">Manual approval mode</Badge>
+              <span className="text-xs text-muted-foreground">Set <code className="bg-muted px-1 rounded">BETA_SIGNUP_CAP</code> env var to enable auto-approval</span>
+            </div>
+          )}
+        </div>
+        {betaSlots && (
+          <span className="text-xs text-muted-foreground shrink-0">{betaSlots.count} total beta users</span>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

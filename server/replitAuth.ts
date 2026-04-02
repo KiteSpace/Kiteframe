@@ -10,7 +10,7 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { db } from "./db";
 import { users, oauthProviders } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { authRateLimiter } from "./middleware/rateLimiter";
 import crypto from "crypto";
 
@@ -26,6 +26,19 @@ function isAdminEmail(email: string | undefined | null): boolean {
   if (!email) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
   return adminEmails.includes(email.toLowerCase());
+}
+
+export async function getBetaSlots(): Promise<{ count: number; cap: number | null; shouldAutoApprove: boolean }> {
+  const capEnv = process.env.BETA_SIGNUP_CAP;
+  const cap = capEnv ? parseInt(capEnv, 10) : null;
+
+  const [{ value: betaCount }] = await db
+    .select({ value: count() })
+    .from(users)
+    .where(eq(users.isBeta, true));
+
+  const shouldAutoApprove = cap !== null && !isNaN(cap) && betaCount < cap;
+  return { count: betaCount, cap: cap && !isNaN(cap) ? cap : null, shouldAutoApprove };
 }
 
 const getOidcConfig = memoize(
@@ -116,7 +129,9 @@ async function upsertUser(claims: any) {
     }
 
     if (!dbUser) {
-      // No existing user found, create a new one with waitlist status
+      // No existing user found — check beta cap before creating
+      const betaSlots = await getBetaSlots();
+      const autoApprove = betaSlots.shouldAutoApprove || isAdminEmail(email);
       const [newUser] = await db.insert(users).values({
         id: replitProviderId,
         email: email,
@@ -127,8 +142,12 @@ async function upsertUser(claims: any) {
         authProviderId: replitProviderId,
         subscriptionTier: 'free',
         subscriptionStatus: 'active',
-        waitlistRequestedAt: new Date(),
+        isBeta: autoApprove,
+        waitlistRequestedAt: autoApprove ? null : new Date(),
       }).returning();
+      if (autoApprove) {
+        console.log(`[BETA] Auto-approved new user ${email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+      }
       dbUser = newUser;
     } else {
       // Existing user found by email, update their profile info
@@ -225,6 +244,9 @@ async function findOrCreateUser(profile: OAuthProfile) {
   }
 
   if (!user) {
+    // Check beta cap before creating
+    const betaSlots = await getBetaSlots();
+    const autoApprove = betaSlots.shouldAutoApprove || isAdminEmail(profile.email);
     const [newUser] = await db.insert(users).values({
       email: profile.email,
       firstName: profile.firstName,
@@ -234,8 +256,12 @@ async function findOrCreateUser(profile: OAuthProfile) {
       authProviderId: profile.providerId,
       subscriptionTier: 'free',
       subscriptionStatus: 'active',
-      waitlistRequestedAt: new Date(),
+      isBeta: autoApprove,
+      waitlistRequestedAt: autoApprove ? null : new Date(),
     }).returning();
+    if (autoApprove) {
+      console.log(`[BETA] Auto-approved new user ${profile.email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+    }
     user = newUser;
   } else if (!user.waitlistRequestedAt && !user.isBeta) {
     await db.update(users)

@@ -35,7 +35,7 @@ import { adminLoginRateLimiter } from "./middleware/rateLimiter";
 import { unlockCodes } from "@shared/schema";
 import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, getBetaSlots } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
@@ -4216,6 +4216,16 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         error: 'Failed to fetch waitlist',
         details: error.message 
       });
+    }
+  });
+
+  // Admin: Beta slot status (count vs cap)
+  app.get('/internal/beta-slots', requireHttps, requireAdminAuth, async (_req, res) => {
+    try {
+      const slots = await getBetaSlots();
+      res.json(slots);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch beta slots' });
     }
   });
 
