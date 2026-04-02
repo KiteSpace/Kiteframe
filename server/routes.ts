@@ -4004,8 +4004,11 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       const loginLink = `${baseUrl}/internal/docs?token=${rawToken}`;
       
       // Send email with the link
-      await sendDocsAccessEmail(grant.email, loginLink);
-      
+      const emailSent = await sendDocsAccessEmail(grant.email, loginLink);
+      if (!emailSent) {
+        return res.status(500).json({ error: 'Failed to send login link email' });
+      }
+
       res.json({ success: true, message: 'Login link sent' });
     } catch (error: any) {
       console.error('Docs access send link error:', error);
