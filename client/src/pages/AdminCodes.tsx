@@ -1128,6 +1128,62 @@ function BetaUsersTab({ authHeader }: { authHeader: string }) {
     },
   });
 
+  const { data: waitlistData, refetch: refetchWaitlist } = useQuery({
+    queryKey: ['/internal/beta/waitlist'],
+    queryFn: async () => {
+      const res = await fetch('/internal/beta/waitlist', { headers: { 'Authorization': authHeader } });
+      if (!res.ok) return { users: [] };
+      return res.json() as Promise<{ users: any[] }>;
+    },
+  });
+
+  const { data: approvedData, refetch: refetchApproved } = useQuery({
+    queryKey: ['/internal/beta/approved'],
+    queryFn: async () => {
+      const res = await fetch('/internal/beta/approved', { headers: { 'Authorization': authHeader } });
+      if (!res.ok) return { users: [] };
+      return res.json() as Promise<{ users: any[] }>;
+    },
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: async ({ userId, sendEmail }: { userId: string; sendEmail: boolean }) => {
+      const res = await fetch('/internal/beta/accept', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, sendEmail }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to accept user');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: 'User Accepted', description: data.emailSent ? 'User accepted and approval email sent' : 'User accepted (no email sent)' });
+      refetchWaitlist();
+      refetchApproved();
+      queryClient.invalidateQueries({ queryKey: ['/internal/beta-slots'] });
+    },
+    onError: (error: any) => toast({ title: 'Error', description: error.message, variant: 'destructive' }),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await fetch('/internal/beta/revoke', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed to revoke user');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Access Revoked', description: 'User moved back to waitlist' });
+      refetchWaitlist();
+      refetchApproved();
+      queryClient.invalidateQueries({ queryKey: ['/internal/beta-slots'] });
+    },
+    onError: (error: any) => toast({ title: 'Error', description: error.message, variant: 'destructive' }),
+  });
+
   const createBetaGroupMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch('/internal/groups', {
@@ -1292,6 +1348,96 @@ function BetaUsersTab({ authHeader }: { authHeader: string }) {
           <span className="text-xs text-muted-foreground shrink-0">{betaSlots.count} total beta users</span>
         )}
       </div>
+
+      {/* Waitlist */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-blue-500" />
+            Waitlist ({waitlistData?.users?.length ?? 0})
+          </CardTitle>
+          <CardDescription>
+            Users who signed up but are waiting for approval. Accepting sends them an approval email and grants access.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!waitlistData?.users?.length ? (
+            <p className="text-muted-foreground text-center py-6 text-sm">No users on the waitlist</p>
+          ) : (
+            <div className="space-y-2">
+              {waitlistData.users.map((user: any) => (
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50">
+                  <div>
+                    <p className="font-medium text-sm">{user.email || 'No email'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.firstName} {user.lastName} · {user.authProvider} ·{' '}
+                      Requested {user.waitlistRequestedAt ? new Date(user.waitlistRequestedAt).toLocaleDateString() : '—'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => acceptMutation.mutate({ userId: user.id, sendEmail: false })}
+                      disabled={acceptMutation.isPending}
+                      title="Accept without sending email"
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => acceptMutation.mutate({ userId: user.id, sendEmail: true })}
+                      disabled={acceptMutation.isPending}
+                    >
+                      <Send className="w-4 h-4 mr-1" />
+                      Accept &amp; Email
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Approved Organic Signups */}
+      {(approvedData?.users?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Check className="w-5 h-5 text-green-500" />
+              Approved Signups ({approvedData!.users.length})
+            </CardTitle>
+            <CardDescription>
+              Organically accepted users (not manually added via the Beta group). Revoking moves them back to the waitlist.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {approvedData!.users.map((user: any) => (
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50">
+                  <div>
+                    <p className="font-medium text-sm">{user.email || 'No email'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.firstName} {user.lastName} · {user.authProvider} ·{' '}
+                      Approved {user.betaGrantedAt ? new Date(user.betaGrantedAt).toLocaleDateString() : '—'}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => revokeMutation.mutate(user.id)}
+                    disabled={revokeMutation.isPending}
+                  >
+                    <UserX className="w-4 h-4 mr-1" />
+                    Revoke
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

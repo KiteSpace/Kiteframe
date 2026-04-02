@@ -9,8 +9,8 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { db } from "./db";
-import { users, oauthProviders } from "@shared/schema";
-import { eq, and, count } from "drizzle-orm";
+import { users, oauthProviders, userGroups, userGroupMemberships } from "@shared/schema";
+import { eq, and, count, not, inArray } from "drizzle-orm";
 import { authRateLimiter } from "./middleware/rateLimiter";
 import crypto from "crypto";
 
@@ -28,14 +28,26 @@ function isAdminEmail(email: string | undefined | null): boolean {
   return adminEmails.includes(email.toLowerCase());
 }
 
+const BETA_GROUP_NAME = 'Beta';
+
 export async function getBetaSlots(): Promise<{ count: number; cap: number | null; shouldAutoApprove: boolean }> {
   const capEnv = process.env.BETA_SIGNUP_CAP;
   const cap = capEnv ? parseInt(capEnv, 10) : null;
 
+  // Only count organic signups (isBeta=true but NOT manually added via the Beta group)
+  const betaGroupMemberIds = db
+    .select({ userId: userGroupMemberships.userId })
+    .from(userGroupMemberships)
+    .innerJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
+    .where(eq(userGroups.name, BETA_GROUP_NAME));
+
   const [{ value: betaCount }] = await db
     .select({ value: count() })
     .from(users)
-    .where(eq(users.isBeta, true));
+    .where(and(
+      eq(users.isBeta, true),
+      not(inArray(users.id, betaGroupMemberIds))
+    ));
 
   const shouldAutoApprove = cap !== null && !isNaN(cap) && betaCount < cap;
   return { count: betaCount, cap: cap && !isNaN(cap) ? cap : null, shouldAutoApprove };

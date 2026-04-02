@@ -4246,6 +4246,108 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // Admin: List waitlisted users (isBeta=false with waitlistRequestedAt set)
+  app.get('/internal/beta/waitlist', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { isNull, isNotNull, desc } = await import('drizzle-orm');
+      const waitlisted = await db.query.users.findMany({
+        where: and(
+          eq(users.isBeta, false),
+          isNotNull(users.waitlistRequestedAt)
+        ),
+        orderBy: [desc(users.waitlistRequestedAt)],
+        columns: {
+          id: true, email: true, firstName: true, lastName: true,
+          profileImageUrl: true, waitlistRequestedAt: true, authProvider: true,
+        },
+      });
+      res.json({ users: waitlisted });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch waitlist', details: error.message });
+    }
+  });
+
+  // Admin: Accept a waitlisted user (set isBeta=true, clear waitlistRequestedAt)
+  app.post('/internal/beta/accept', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { userId, sendEmail: shouldSendEmail = true } = req.body;
+      if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      await db.update(users).set({
+        isBeta: true,
+        betaGrantedAt: new Date(),
+        waitlistRequestedAt: null,
+        updatedAt: new Date(),
+      }).where(eq(users.id, userId));
+
+      await logBetaAction(req, 'beta_grant', userId, user.email || undefined);
+
+      let emailSent = false;
+      if (shouldSendEmail && user.email) {
+        emailSent = await sendBetaApprovalEmail(user.email, user.firstName);
+      }
+
+      res.json({ success: true, userId, emailSent });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to accept user', details: error.message });
+    }
+  });
+
+  // Admin: Revoke beta access from an organic user (puts them back on waitlist)
+  app.post('/internal/beta/revoke', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      await db.update(users).set({
+        isBeta: false,
+        waitlistRequestedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(users.id, userId));
+
+      await logBetaAction(req, 'beta_revoke', userId, user.email || undefined);
+
+      res.json({ success: true, userId });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to revoke user', details: error.message });
+    }
+  });
+
+  // Admin: List organically approved beta users (isBeta=true, NOT in Beta group)
+  app.get('/internal/beta/approved', requireHttps, requireAdminAuth, async (_req, res) => {
+    try {
+      const { isNull, isNotNull, desc, not: notOp, inArray: inArrayOp } = await import('drizzle-orm');
+      const { userGroups: ug, userGroupMemberships: ugm } = await import('@shared/schema');
+      const betaGroupMemberIds = db
+        .select({ userId: ugm.userId })
+        .from(ugm)
+        .innerJoin(ug, eq(ugm.groupId, ug.id))
+        .where(eq(ug.name, 'Beta'));
+
+      const approved = await db
+        .select({
+          id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName,
+          betaGrantedAt: users.betaGrantedAt, authProvider: users.authProvider,
+        })
+        .from(users)
+        .where(and(
+          eq(users.isBeta, true),
+          notOp(inArrayOp(users.id, betaGroupMemberIds))
+        ))
+        .orderBy(desc(users.betaGrantedAt));
+
+      res.json({ users: approved });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch approved users', details: error.message });
+    }
+  });
+
   // Admin: Grant beta access to a user
   app.post('/internal/x9k7m2p4/beta/grant', requireHttps, requireAdminAuth, async (req, res) => {
     try {
