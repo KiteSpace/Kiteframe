@@ -3240,7 +3240,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           isUnlimited: true,
           isAdmin: true,
           resetsDaily: false,
-          creditCosts: { general_chat: 1, vision_ingestion: 3, workflow_reasoning: 2, workflow_experiments: 2, prd_generation: 2 },
+          creditCosts: { general_chat: 1, vision_ingestion: 5, workflow_reasoning: 3, workflow_experiments: 3, prd_generation: 3 },
         });
       }
       
@@ -3258,7 +3258,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
             : 'free'
         ),
         lastResetAt: creditRecord.lastResetAt,
-        creditCosts: { general_chat: 1, vision_ingestion: 3, workflow_reasoning: 2, workflow_experiments: 2, prd_generation: 2 },
+        creditCosts: { general_chat: 1, vision_ingestion: 5, workflow_reasoning: 3, workflow_experiments: 3, prd_generation: 3 },
       });
     } catch (error: any) {
       console.error('Get credits error:', error);

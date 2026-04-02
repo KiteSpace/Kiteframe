@@ -19,10 +19,10 @@ export type CreditCostType = 'general_chat' | 'vision_ingestion' | 'workflow_rea
 
 const CREDIT_COSTS: Record<CreditCostType, number> = {
   general_chat: 1,
-  vision_ingestion: 3,
-  workflow_reasoning: 2,
-  workflow_experiments: 2,
-  prd_generation: 2,
+  vision_ingestion: 5,
+  workflow_reasoning: 3,
+  workflow_experiments: 3,
+  prd_generation: 3,
 };
 
 export function getCreditCost(taskType?: string): number {

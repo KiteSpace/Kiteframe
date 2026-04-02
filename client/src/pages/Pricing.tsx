@@ -107,9 +107,9 @@ const tierData = {
 
 const creditCosts = [
   { action: 'AI chat message', cost: 1, icon: '💬' },
-  { action: 'Workflow generate / edit', cost: 2, icon: '🔀' },
-  { action: 'PRD document generation', cost: 2, icon: '📄' },
-  { action: 'Image analysis & import', cost: 3, icon: '🖼️' },
+  { action: 'Workflow generate / edit', cost: 3, icon: '🔀' },
+  { action: 'PRD document generation', cost: 3, icon: '📄' },
+  { action: 'Image analysis & import', cost: 5, icon: '🖼️' },
 ];
 
 const faqs = [

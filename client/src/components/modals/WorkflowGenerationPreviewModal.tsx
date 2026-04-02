@@ -40,13 +40,13 @@ const MODE_INFO: Record<WorkflowGenerationMode, { label: string; description: st
     label: 'AI Refined',
     description: 'AI-optimized flow',
     icon: Sparkles,
-    creditCost: '~1 credit',
+    creditCost: '~3 credits',
   },
   ai_vision: {
     label: 'AI Vision',
     description: 'Visual + semantic analysis',
     icon: Eye,
-    creditCost: '~2 credits',
+    creditCost: '~5 credits',
   },
 };
 
