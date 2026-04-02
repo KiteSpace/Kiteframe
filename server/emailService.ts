@@ -1,4 +1,14 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
+
+const FROM_ADDRESS = 'info@kiteframe.space';
+
+function isConfigured(): boolean {
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SENDGRID_API_KEY not configured, skipping email send');
+    return false;
+  }
+  return true;
+}
 
 interface EmailOptions {
   to: string;
@@ -9,34 +19,20 @@ interface EmailOptions {
   replyTo?: string;
 }
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'mail.privateemail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
-
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    console.warn('SMTP credentials not configured, skipping email send');
-    return false;
-  }
+  if (!isConfigured()) return false;
+
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
   try {
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'info@kiteframe.space',
+    await sgMail.send({
       to: options.to,
-      cc: options.cc,
-      replyTo: options.replyTo,
+      from: FROM_ADDRESS,
       subject: options.subject,
       text: options.text,
       html: options.html || options.text.replace(/\n/g, '<br>'),
+      ...(options.cc ? { cc: options.cc } : {}),
+      ...(options.replyTo ? { replyTo: options.replyTo } : {}),
     });
     return true;
   } catch (error) {
@@ -47,9 +43,9 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
 export async function sendBetaApprovalEmail(userEmail: string, firstName?: string | null): Promise<boolean> {
   const name = firstName || 'there';
-  
+
   const subject = "You're in! Welcome to the Kiteframe Beta";
-  
+
   const text = `Hi ${name},
 
 Great news! Your request to join the Kiteframe beta has been approved.
@@ -134,7 +130,7 @@ export async function sendContactEmail(
   message: string
 ): Promise<boolean> {
   const subject = `[Kiteframe Contact] Message from ${senderName}`;
-  
+
   const text = `New contact form submission from Kiteframe website:
 
 From: ${senderName}
@@ -182,4 +178,35 @@ This message was sent via the contact form on kiteframe.space`;
     text,
     html,
   });
+}
+
+export async function sendDocsAccessEmail(
+  recipientEmail: string,
+  loginLink: string
+): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+
+  try {
+    await sgMail.send({
+      to: recipientEmail,
+      from: FROM_ADDRESS,
+      subject: 'Your Kiteframe Developer Documentation Access',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Developer Documentation Access</h2>
+          <p>You've been granted access to Kiteframe's internal developer documentation.</p>
+          <p>Click the link below to access the docs:</p>
+          <p><a href="${loginLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Documentation</a></p>
+          <p style="color: #666; font-size: 14px;">This link expires in 24 hours. After clicking, you'll stay logged in for 30 days.</p>
+          <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to send docs access email:', error);
+    return false;
+  }
 }

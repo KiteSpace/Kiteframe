@@ -41,7 +41,7 @@ import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
 import { csrfProtection } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
-import { sendBetaApprovalEmail, sendContactEmail } from "./emailService";
+import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
@@ -4004,24 +4004,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       const loginLink = `${baseUrl}/internal/docs?token=${rawToken}`;
       
       // Send email with the link
-      const sgMail = await import('@sendgrid/mail');
-      sgMail.default.setApiKey(process.env.SENDGRID_API_KEY!);
-      
-      await sgMail.default.send({
-        to: grant.email,
-        from: 'info@kiteframe.space',
-        subject: 'Your Kiteframe Developer Documentation Access',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Developer Documentation Access</h2>
-            <p>You've been granted access to Kiteframe's internal developer documentation.</p>
-            <p>Click the link below to access the docs:</p>
-            <p><a href="${loginLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Documentation</a></p>
-            <p style="color: #666; font-size: 14px;">This link expires in 24 hours. After clicking, you'll stay logged in for 30 days.</p>
-            <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-          </div>
-        `,
-      });
+      await sendDocsAccessEmail(grant.email, loginLink);
       
       res.json({ success: true, message: 'Login link sent' });
     } catch (error: any) {
