@@ -721,32 +721,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Helper function to verify Turnstile token
-  async function verifyTurnstileToken(token: string, ip?: string): Promise<boolean> {
-    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  // Verify a Google reCAPTCHA v3 token. Minimum score 0.5 (0=bot, 1=human).
+  async function verifyRecaptchaToken(token: string, action?: string, ip?: string): Promise<boolean> {
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     if (!secretKey) {
-      console.warn('TURNSTILE_SECRET_KEY not configured, skipping verification');
+      console.warn('RECAPTCHA_SECRET_KEY not configured, skipping verification');
       return true;
     }
-    
-    try {
-      const formData = new URLSearchParams();
-      formData.append('secret', secretKey);
-      formData.append('response', token);
-      if (ip) formData.append('remoteip', ip);
 
-      const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    try {
+      const body = new URLSearchParams();
+      body.append('secret', secretKey);
+      body.append('response', token);
+      if (ip) body.append('remoteip', ip);
+
+      const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
         method: 'POST',
-        body: formData,
+        body,
       });
 
-      const result = await response.json() as { success: boolean; 'error-codes'?: string[] };
+      const result = await res.json() as {
+        success: boolean;
+        score?: number;
+        action?: string;
+        'error-codes'?: string[];
+      };
+
       if (!result.success) {
-        console.warn('Turnstile verification failed:', result['error-codes']);
+        console.warn('reCAPTCHA verification failed:', result['error-codes']);
+        return false;
       }
-      return result.success;
+
+      const score = result.score ?? 0;
+      if (score < 0.5) {
+        console.warn(`reCAPTCHA score too low: ${score}`);
+        return false;
+      }
+
+      if (action && result.action && result.action !== action) {
+        console.warn(`reCAPTCHA action mismatch: expected ${action}, got ${result.action}`);
+        return false;
+      }
+
+      return true;
     } catch (error) {
-      console.error('Turnstile verification error:', error);
+      console.error('reCAPTCHA verification error:', error);
       return false;
     }
   }
@@ -754,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Waitlist endpoint - public, allows both authenticated and unauthenticated users
   app.post('/api/waitlist', csrfProtection, waitlistRateLimiter, async (req: any, res) => {
     try {
-      const { email, role, useCase, turnstileToken, hp } = req.body;
+      const { email, role, useCase, recaptchaToken, hp } = req.body;
 
       // Honeypot check - if filled, delay and reject (bots fill hidden fields)
       if (hp) {
@@ -778,16 +797,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Email too long' });
       }
 
-      // Verify Turnstile token if secret key is configured (strict enforcement)
-      if (process.env.TURNSTILE_SECRET_KEY) {
-        if (!turnstileToken) {
-          console.warn('Turnstile token missing - possible bypass attempt or misconfigured frontend');
+      // Verify reCAPTCHA token (strict enforcement when key is configured)
+      if (process.env.RECAPTCHA_SECRET_KEY) {
+        if (!recaptchaToken) {
+          console.warn('reCAPTCHA token missing - possible bypass attempt');
           return res.status(400).json({ error: 'Security verification required. Please refresh the page and try again.' });
         }
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
-        const isValid = await verifyTurnstileToken(turnstileToken, clientIp);
+        const isValid = await verifyRecaptchaToken(recaptchaToken, 'waitlist', clientIp);
         if (!isValid) {
-          return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+          return res.status(400).json({ error: 'Security check failed. Please try again.' });
         }
       }
 
@@ -2750,7 +2769,7 @@ Respond with only the corrected JSON data:`;
   // Contact Form endpoint with honeypot spam protection
   app.post('/api/contact', waitlistRateLimiter, async (req, res) => {
     try {
-      const { name, email, message, website } = req.body;
+      const { name, email, message, website, recaptchaToken } = req.body;
       
       // Honeypot check - if website field is filled, it's a bot
       if (website) {
@@ -2767,6 +2786,18 @@ Respond with only the corrected JSON data:`;
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Invalid email address' });
+      }
+
+      // Verify reCAPTCHA token when configured
+      if (process.env.RECAPTCHA_SECRET_KEY) {
+        if (!recaptchaToken) {
+          return res.status(400).json({ error: 'Security verification required. Please refresh the page and try again.' });
+        }
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+        const isValid = await verifyRecaptchaToken(recaptchaToken, 'contact', clientIp);
+        if (!isValid) {
+          return res.status(400).json({ error: 'Security check failed. Please try again.' });
+        }
       }
       
       // Sanitize inputs

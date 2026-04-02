@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
+import { useRecaptcha } from "@/hooks/useRecaptcha";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +108,7 @@ export default function LandingPage() {
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const { toast } = useToast();
+  const { getToken } = useRecaptcha();
   
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/user"],
@@ -137,6 +139,7 @@ export default function LandingPage() {
     
     setContactSubmitting(true);
     try {
+      const recaptchaToken = await getToken('contact');
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,6 +147,7 @@ export default function LandingPage() {
           name: contactForm.name,
           email: contactForm.email,
           message: contactForm.message,
+          ...(recaptchaToken && { recaptchaToken }),
           // Only include honeypot if filled (by bots) - empty string is omitted
           ...(contactForm.website && { website: contactForm.website }),
         }),

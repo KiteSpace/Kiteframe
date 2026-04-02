@@ -1,6 +1,7 @@
 import { LogIn, LogOut, User, ChevronDown, Settings, Crown, Sparkles, Shield, HelpCircle, Mail, Send, Loader2, Check, X } from 'lucide-react';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useState, useRef, useEffect } from 'react';
+import { useRecaptcha } from '@/hooks/useRecaptcha';
 import { SignInModal } from './SignInModal';
 import { SignUpModal } from './SignUpModal';
 import { useLocation } from 'wouter';
@@ -16,6 +17,7 @@ function ContactModal({ user, onClose }: { user: any; onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const { getToken } = useRecaptcha();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,10 +25,16 @@ function ContactModal({ user, onClose }: { user: any; onClose: () => void }) {
     setSubmitting(true);
     setError('');
     try {
+      const recaptchaToken = await getToken('contact');
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, email: form.email, message: form.message }),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          message: form.message,
+          ...(recaptchaToken && { recaptchaToken }),
+        }),
       });
       if (res.ok) {
         setSubmitted(true);

@@ -6,6 +6,7 @@ import { Check, Loader2, Clock, Mail } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { FullBleedSection } from '@/components/layout/FullBleedSection';
 import { apiRequest } from '@/lib/queryClient';
+import { useRecaptcha } from '@/hooks/useRecaptcha';
 
 type WaitlistRole = 'pm' | 'design' | 'engineering' | 'founder';
 
@@ -20,6 +21,7 @@ export default function WaitlistAuthenticated() {
   const [role, setRole] = useState<WaitlistRole | ''>('');
   const [useCase, setUseCase] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { getToken } = useRecaptcha();
 
   const { data: userData } = useQuery<{
     id: string;
@@ -43,7 +45,7 @@ export default function WaitlistAuthenticated() {
   }, [userData]);
 
   const waitlistMutation = useMutation({
-    mutationFn: async (data: { role?: string; useCase?: string }) => {
+    mutationFn: async (data: { role?: string; useCase?: string; recaptchaToken?: string }) => {
       return apiRequest('POST', '/api/waitlist/update', data);
     },
     onSuccess: () => {
@@ -51,10 +53,12 @@ export default function WaitlistAuthenticated() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    const recaptchaToken = await getToken('waitlist') ?? undefined;
     waitlistMutation.mutate({
       role: role || undefined,
       useCase: useCase || undefined,
+      ...(recaptchaToken && { recaptchaToken }),
     });
   };
 
