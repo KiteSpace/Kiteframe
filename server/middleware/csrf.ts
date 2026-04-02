@@ -3,6 +3,8 @@ import type { Request, Response, NextFunction } from 'express';
 const ALLOWED_ORIGINS = [
   'https://kiteframe-workflow-editor.replit.app',
   'https://kiteframe.dev',
+  'https://kiteframe.space',
+  'https://www.kiteframe.space',
 ];
 
 const isDevEnvironment = process.env.NODE_ENV !== 'production' || process.env.REPLIT_DEV === 'true';

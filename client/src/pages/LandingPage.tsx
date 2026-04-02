@@ -198,7 +198,7 @@ export default function LandingPage() {
               className="px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 rounded-full"
               data-testid="badge-beta"
             >
-              Private Beta
+              Beta
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -336,7 +336,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <div className="font-semibold text-foreground">
-                    Private Beta
+                    Beta
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Exclusive early access
@@ -634,7 +634,7 @@ export default function LandingPage() {
             className="text-3xl font-bold text-foreground text-center mb-4"
             data-testid="heading-waitlist"
           >
-            Join the private beta
+            Join the beta
           </h2>
           <p className="text-lg text-muted-foreground text-center mb-8">
             Sign in to request access. We'll notify you when your spot is ready.
@@ -738,7 +738,7 @@ export default function LandingPage() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <span className="font-semibold text-foreground">Kiteframe</span>
-                  <span className="text-sm text-muted-foreground">· Private Beta</span>
+                  <span className="text-sm text-muted-foreground">· Beta</span>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Visual workflow planning for product teams.

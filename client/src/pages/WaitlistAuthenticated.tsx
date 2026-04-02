@@ -79,7 +79,7 @@ export default function WaitlistAuthenticated() {
                   You're on the waitlist!
                 </h1>
                 <p className="text-muted-foreground mb-6" data-testid="text-waitlist-confirmed-body">
-                  Thanks for your interest in Kiteframe. We're currently in private beta and granting access in waves.
+                  Thanks for your interest in Kiteframe. We're currently in beta and granting access in waves.
                 </p>
                 
                 <div className="bg-muted/50 rounded-lg p-4 mb-6">
@@ -145,7 +145,7 @@ export default function WaitlistAuthenticated() {
                   Almost there!
                 </h1>
                 <p className="text-muted-foreground mb-6" data-testid="text-waitlist-body">
-                  Kiteframe is currently in private beta. Let us know how you'd use it and we'll notify you when access is available.
+                  Kiteframe is currently in beta. Let us know how you'd use it and we'll notify you when access is available.
                 </p>
 
                 <div className="space-y-4">

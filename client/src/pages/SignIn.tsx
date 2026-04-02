@@ -72,7 +72,7 @@ export default function SignIn() {
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-foreground" data-testid="text-logo">Kiteframe</span>
             <span className="px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 rounded-full">
-              Private Beta
+              Beta
             </span>
           </div>
         </header>

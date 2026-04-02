@@ -109,7 +109,7 @@ export default function WaitlistDashboard() {
               </a>
             </Link>
             <span className="px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 rounded-full">
-              Private Beta
+              Beta
             </span>
           </div>
           <Button variant="ghost" onClick={handleLogout} data-testid="button-logout-header">

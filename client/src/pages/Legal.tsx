@@ -25,7 +25,7 @@ By accessing or using the Service, you agree to be bound by these Terms.
 
 1. BETA SERVICE STATUS
 
-Kiteframe is offered as a private beta and provided "AS IS" without warranties of any kind.
+Kiteframe is offered as a beta and provided "AS IS" without warranties of any kind.
 
 ---
 
@@ -200,8 +200,6 @@ Applies until public launch or access revocation.`
 const navItems: { id: DocumentType; label: string }[] = [
   { id: 'terms', label: 'Terms and Conditions' },
   { id: 'privacy', label: 'Privacy Policy' },
-  { id: 'beta-expectations', label: 'Beta Expectations' },
-  { id: 'beta-confidentiality', label: 'Beta Confidentiality' },
 ];
 
 export default function Legal() {
