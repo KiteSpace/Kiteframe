@@ -211,6 +211,19 @@ export default function Pricing() {
 
   const getCtaForTier = (tierId: 'free' | 'advanced' | 'pro') => {
     if (tierId === 'free') {
+      if (!isAuthenticated) {
+        return {
+          label: 'Create free account',
+          disabled: false,
+          showSpinner: false,
+          onClick: () => { window.location.href = '/signin'; },
+          style: {
+            background: 'linear-gradient(135deg, #0f172a, #334155)',
+            color: '#ffffff',
+            border: 'none',
+          } as CSSProperties,
+        };
+      }
       const isDowngrade = currentTier !== 'free';
       return {
         label: currentTier === 'free' ? 'Current plan' : 'Downgrade to Free',
