@@ -62,8 +62,8 @@ const tierData = {
   advanced: {
     name: 'Advanced',
     tagline: 'For power users who need more AI',
-    fallbackMonthly: 500,
-    fallbackAnnual: 4800,
+    fallbackMonthly: 600,
+    fallbackAnnual: 6000,
     credits: 50,
     icon: '✨',
     iconBg: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
@@ -85,7 +85,7 @@ const tierData = {
     name: 'Pro',
     tagline: 'For professionals & teams',
     fallbackMonthly: 1000,
-    fallbackAnnual: 9600,
+    fallbackAnnual: 10800,
     credits: 150,
     icon: '👑',
     iconBg: 'linear-gradient(135deg, #fde68a, #f59e0b)',
@@ -297,14 +297,6 @@ export default function Pricing() {
       }}
     >
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
-
-        {/* Intro Banner */}
-        <div
-          className="mb-9 rounded-xl px-5 py-3 text-center text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg, #2AF1FF 0%, #FF1F97 100%)', letterSpacing: '0.01em' }}
-        >
-          🎉 Lock in introductory pricing — create an account today
-        </div>
 
         {/* Header */}
         <div className="text-center mb-9">
