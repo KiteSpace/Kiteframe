@@ -83,7 +83,7 @@ const tierData = {
   },
   pro: {
     name: 'Pro',
-    tagline: 'For professionals & teams',
+    tagline: 'For professionals',
     fallbackMonthly: 1000,
     fallbackAnnual: 10800,
     credits: 150,
