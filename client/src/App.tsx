@@ -144,9 +144,7 @@ function Router() {
         <Route path="/waitlist" component={WaitlistDashboard} />
         <Route path="/demo" component={KitelineDemo} />
         <Route path="/docs" component={KitelineDocs} />
-        <Route path="/pricing">
-          <BetaProtectedRoute component={Pricing} />
-        </Route>
+        <Route path="/pricing" component={Pricing} />
         <Route path="/account">
           <BetaProtectedRoute component={Account} />
         </Route>

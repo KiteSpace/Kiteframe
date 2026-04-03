@@ -18,16 +18,16 @@ async function createProducts() {
   console.log('Creating Advanced tier product...');
   const advancedProduct = await stripe.products.create({
     name: 'KiteAI Advanced',
-    description: 'Advanced tier with 150 AI credits per month for power users',
+    description: 'Advanced tier with 50 AI credits per day for power users',
     metadata: {
       tier: 'advanced',
-      credits: '150',
+      credits: '50',
     },
   });
 
   const advancedMonthly = await stripe.prices.create({
     product: advancedProduct.id,
-    unit_amount: 1499, // $14.99
+    unit_amount: 600, // $6.00
     currency: 'usd',
     recurring: { interval: 'month' },
     metadata: {
@@ -38,7 +38,7 @@ async function createProducts() {
 
   const advancedAnnual = await stripe.prices.create({
     product: advancedProduct.id,
-    unit_amount: 14390, // $143.90 (20% off = ~$12/month)
+    unit_amount: 6000, // $60.00/yr ($5/mo)
     currency: 'usd',
     recurring: { interval: 'year' },
     metadata: {
@@ -47,25 +47,29 @@ async function createProducts() {
     },
   });
 
+  await stripe.products.update(advancedProduct.id, {
+    default_price: advancedMonthly.id,
+  });
+
   console.log(`Created Advanced product: ${advancedProduct.id}`);
-  console.log(`  Monthly price: ${advancedMonthly.id} ($14.99/month)`);
-  console.log(`  Annual price: ${advancedAnnual.id} ($143.90/year)`);
+  console.log(`  Monthly price: ${advancedMonthly.id} ($6.00/month)`);
+  console.log(`  Annual price: ${advancedAnnual.id} ($60.00/year = $5/mo)`);
 
   // Pro tier
   console.log('Creating Pro tier product...');
   const proProduct = await stripe.products.create({
     name: 'KiteAI Pro',
-    description: 'Pro tier with 500 AI credits per month and cloud-saved projects',
+    description: 'Pro tier with 150 AI credits per day and full feature access',
     metadata: {
       tier: 'pro',
-      credits: '500',
+      credits: '150',
       features: 'cloud_saved_projects,priority_support',
     },
   });
 
   const proMonthly = await stripe.prices.create({
     product: proProduct.id,
-    unit_amount: 2999, // $29.99
+    unit_amount: 1000, // $10.00
     currency: 'usd',
     recurring: { interval: 'month' },
     metadata: {
@@ -76,7 +80,7 @@ async function createProducts() {
 
   const proAnnual = await stripe.prices.create({
     product: proProduct.id,
-    unit_amount: 28790, // $287.90 (20% off = ~$24/month)
+    unit_amount: 10800, // $108.00/yr ($9/mo)
     currency: 'usd',
     recurring: { interval: 'year' },
     metadata: {
@@ -85,15 +89,19 @@ async function createProducts() {
     },
   });
 
+  await stripe.products.update(proProduct.id, {
+    default_price: proMonthly.id,
+  });
+
   console.log(`Created Pro product: ${proProduct.id}`);
-  console.log(`  Monthly price: ${proMonthly.id} ($29.99/month)`);
-  console.log(`  Annual price: ${proAnnual.id} ($287.90/year)`);
+  console.log(`  Monthly price: ${proMonthly.id} ($10.00/month)`);
+  console.log(`  Annual price: ${proAnnual.id} ($108.00/year = $9/mo)`);
 
   console.log('\nAll products created successfully!');
   console.log('\nTier Summary:');
-  console.log('- Free: 25 credits/month (no subscription needed)');
-  console.log('- Advanced: 150 credits/month ($14.99/month or $143.90/year)');
-  console.log('- Pro: 500 credits/month + Cloud Saved Projects ($29.99/month or $287.90/year)');
+  console.log('- Free: 25 credits/day (no subscription needed)');
+  console.log('- Advanced: 50 credits/day ($6.00/month or $60.00/year)');
+  console.log('- Pro: 150 credits/day ($10.00/month or $108.00/year)');
 }
 
 createProducts()

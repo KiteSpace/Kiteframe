@@ -341,13 +341,13 @@ export default function Pricing() {
               Annual
               {isAnnual && (
                 <span className="text-xs font-bold rounded-full px-2 py-0.5" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                  Save 20%
+                  Save up to 17%
                 </span>
               )}
             </button>
             {!isAnnual && (
               <span className="text-xs font-semibold mr-1" style={{ color: '#16a34a' }}>
-                ↑ Save 20% annually
+                ↑ Save with annual billing
               </span>
             )}
           </div>
