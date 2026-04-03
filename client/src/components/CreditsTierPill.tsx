@@ -15,7 +15,7 @@ export function CreditsTierPill() {
   const ref = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
-  const { tier, isAdvanced, isPro, isAdmin, dailyCredits } = useSubscription();
+  const { isAdvanced, isPro, isAdmin, dailyCredits, isServerAuthenticated } = useSubscription();
 
   const { data: creditsData } = useQuery<CreditsResponse>({
     queryKey: ['/api/credits'],
@@ -30,8 +30,11 @@ export function CreditsTierPill() {
 
   const tierLabel = isAdmin ? 'Admin' : isPro ? 'Pro' : (isAdvanced ? 'Advanced' : 'Free');
 
-  // Only show the upgrade card for authenticated free-tier users
-  const showUpgradeCard = isAuthenticated && !isAdmin && !isAdvanced && !isPro;
+  // Show upgrade card for free-tier users signed in via any provider.
+  // isAuthenticated covers Firebase-based sign-in; isServerAuthenticated covers
+  // backend-session-only sign-in (Google/GitHub/Replit OAuth via Passport.js).
+  const isSignedIn = isAuthenticated || isServerAuthenticated;
+  const showUpgradeCard = isSignedIn && !isAdmin && !isAdvanced && !isPro;
 
   useEffect(() => {
     if (!open) return;

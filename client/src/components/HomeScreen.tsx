@@ -472,7 +472,7 @@ export function HomeScreen({
         {/* AI Hero Section */}
         <HomeHero
           onStartDesigning={handleStartDesigning}
-          onImportFigma={onImportFigma ? handleImportFigmaWithGate : undefined}
+          onImportFigma={undefined}
           onUploadImage={handleUploadImageWithGate}
           isGenerating={isGenerating}
           isDisabled={isOutOfCredits}
