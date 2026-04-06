@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -134,7 +136,10 @@ const faqs = [
 export default function Pricing() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const { isAuthenticated } = useReplitAuth();
+  const { isAuthenticated: isReplitAuthenticated } = useReplitAuth();
+  const { isAuthenticated: isFirebaseAuthenticated } = useAuth();
+  const { isServerAuthenticated } = useSubscription();
+  const isAuthenticated = isReplitAuthenticated || isFirebaseAuthenticated || isServerAuthenticated;
   const { toast } = useToast();
 
   const { data: productsData, isLoading: productsLoading } = useQuery<{ data: Product[] }>({
@@ -306,9 +311,112 @@ export default function Pricing() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)',
         color: '#0f172a',
-        padding: '48px 32px 80px',
       }}
     >
+      {/* Navbar */}
+      <nav
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 32px',
+          height: 56,
+          borderBottom: '1px solid #e2e8f0',
+          background: 'rgba(248,250,252,0.95)',
+          backdropFilter: 'blur(8px)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        {/* Logo */}
+        <a
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            textDecoration: 'none',
+            color: '#0f172a',
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="28" height="28" rx="7" fill="#0f172a"/>
+            <path d="M14 5L22 10.5V17.5L14 23L6 17.5V10.5L14 5Z" fill="none" stroke="#f8fafc" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M14 5L14 23" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M6 10.5L22 10.5" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M6 17.5L22 17.5" stroke="#f8fafc" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5"/>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em' }}>Kiteframe</span>
+        </a>
+
+        {/* Auth actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isAuthenticated ? (
+            <a
+              href="/app"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '7px 16px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: '#0f172a',
+                color: '#f8fafc',
+                textDecoration: 'none',
+                transition: 'opacity 0.15s',
+              }}
+              onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
+              onMouseOut={e => (e.currentTarget.style.opacity = '1')}
+            >
+              Go to app →
+            </a>
+          ) : (
+            <>
+              <a
+                href="/signin"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '7px 14px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: '#475569',
+                  textDecoration: 'none',
+                  transition: 'color 0.15s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.color = '#0f172a')}
+                onMouseOut={e => (e.currentTarget.style.color = '#475569')}
+              >
+                Sign in
+              </a>
+              <a
+                href="/signin"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '7px 16px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: '#0f172a',
+                  color: '#f8fafc',
+                  textDecoration: 'none',
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
+                onMouseOut={e => (e.currentTarget.style.opacity = '1')}
+              >
+                Get started free
+              </a>
+            </>
+          )}
+        </div>
+      </nav>
+
+      <div style={{ padding: '48px 32px 80px' }}>
       <div style={{ maxWidth: 960, margin: '0 auto' }}>
 
         {/* Header */}
@@ -563,6 +671,7 @@ export default function Pricing() {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
