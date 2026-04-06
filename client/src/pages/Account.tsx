@@ -40,6 +40,18 @@ const tierInfo = {
     color: 'bg-slate-100 text-slate-800',
     credits: 25,
   },
+  advanced: {
+    name: 'Advanced',
+    icon: Zap,
+    color: 'bg-blue-100 text-blue-800',
+    credits: 100,
+  },
+  pro: {
+    name: 'Pro',
+    icon: Zap,
+    color: 'bg-purple-100 text-purple-800',
+    credits: 500,
+  },
 };
 
 export default function Account() {
@@ -64,7 +76,7 @@ export default function Account() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, '_blank', 'noopener,noreferrer');
       }
     },
     onError: (error: Error) => {
@@ -123,9 +135,12 @@ export default function Account() {
     );
   }
 
-  const currentTier = 'free' as keyof typeof tierInfo;
+  const rawTier = subscriptionData?.tier ?? 'free';
+  const currentTier = (rawTier in tierInfo ? rawTier : 'free') as keyof typeof tierInfo;
   const tier = tierInfo[currentTier];
   const TierIcon = tier.icon;
+  const isTrialing = subscriptionData?.status === 'trialing';
+  const showManageButton = currentTier !== 'free' || (subscriptionData?.status === 'active' || isTrialing);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
@@ -197,17 +212,39 @@ export default function Account() {
                     <p className="text-sm text-slate-500">{tier.credits} credits/day</p>
                   </div>
                 </div>
-                <Badge 
-                  variant={subscriptionData?.status === 'active' ? 'default' : 'secondary'}
-                >
-                  {subscriptionData?.status || 'Active'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {isTrialing ? (
+                    <Badge variant="outline" className="text-amber-600 border-amber-400">
+                      Trialing
+                    </Badge>
+                  ) : (
+                    <Badge 
+                      variant={subscriptionData?.status === 'active' ? 'default' : 'secondary'}
+                    >
+                      {subscriptionData?.status === 'active' ? 'Active' : subscriptionData?.status || 'Active'}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {subscriptionData?.billingPeriodEnd && (
                 <p className="text-sm text-slate-500 mb-4">
                   Next billing date: {new Date(subscriptionData.billingPeriodEnd).toLocaleDateString()}
                 </p>
+              )}
+
+              {showManageButton && (
+                <Button
+                  variant="outline"
+                  onClick={() => portalMutation.mutate()}
+                  disabled={portalMutation.isPending}
+                  data-testid="button-manage-subscription"
+                >
+                  {portalMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Manage Subscription
+                </Button>
               )}
 
             </CardContent>
