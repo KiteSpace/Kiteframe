@@ -372,7 +372,7 @@ export class CreditService {
       await db.insert(userCredits).values({
         userIdentifier: userId,
         credits: dailyCredits,
-        isUnlimited: tier === 'pro',
+        isUnlimited: false,
         lastResetAt: new Date(),
       });
     }
