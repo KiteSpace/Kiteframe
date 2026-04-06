@@ -345,23 +345,13 @@ export default function Pricing() {
               Go to app →
             </a>
           ) : (
-            <>
-              {/* "Sign in" hidden on very small screens to prevent overflow */}
-              <a
-                href="/signin"
-                className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors hover:text-slate-900"
-                style={{ color: '#475569', textDecoration: 'none' }}
-              >
-                Sign in
-              </a>
-              <a
-                href="/signin"
-                className="inline-flex items-center px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-opacity hover:opacity-85 whitespace-nowrap"
-                style={{ background: '#0f172a', color: '#f8fafc', textDecoration: 'none' }}
-              >
-                Get started free
-              </a>
-            </>
+            <a
+              href="/signin"
+              className="inline-flex items-center px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors hover:text-slate-900"
+              style={{ color: '#475569', textDecoration: 'none' }}
+            >
+              Sign in
+            </a>
           )}
         </div>
       </nav>
