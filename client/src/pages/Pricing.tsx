@@ -4,7 +4,6 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useAuth } from '@/hooks/useAuth';
-import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -138,18 +137,22 @@ export default function Pricing() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { isAuthenticated: isReplitAuthenticated } = useReplitAuth();
   const { isAuthenticated: isFirebaseAuthenticated } = useAuth();
-  const { isServerAuthenticated } = useSubscription();
-  const isAuthenticated = isReplitAuthenticated || isFirebaseAuthenticated || isServerAuthenticated;
   const { toast } = useToast();
 
   const { data: productsData, isLoading: productsLoading } = useQuery<{ data: Product[] }>({
     queryKey: ['/api/products'],
   });
 
-  const { data: subscriptionData } = useQuery<{ tier?: string; status?: string; billingPeriodEnd?: string }>({
+  // Single subscription query: ungated so Passport.js session users are detected too.
+  // retry: false avoids retrying 401s for unauthenticated visitors.
+  const { data: subscriptionData, isLoading: subLoading, error: subError } = useQuery<{ tier?: string; status?: string; billingPeriodEnd?: string }>({
     queryKey: ['/api/subscription'],
-    enabled: isAuthenticated,
+    retry: false,
   });
+
+  // isServerAuthenticated: subscription query succeeded → user has a backend session
+  const isServerAuthenticated = !subLoading && !subError && subscriptionData !== undefined;
+  const isAuthenticated = isReplitAuthenticated || isFirebaseAuthenticated || isServerAuthenticated;
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ priceId, trial }: { priceId: string; trial?: boolean }) => {
