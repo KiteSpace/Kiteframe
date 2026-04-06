@@ -314,100 +314,47 @@ export default function Pricing() {
       }}
     >
       {/* Navbar */}
-      <nav
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 32px',
-          height: 56,
-          borderBottom: '1px solid #e2e8f0',
-          background: 'rgba(248,250,252,0.95)',
-          backdropFilter: 'blur(8px)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-        }}
-      >
+      <nav className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-8 h-14 bg-[#f8fafc]/95 backdrop-blur-sm">
         {/* Logo */}
         <a
           href="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            textDecoration: 'none',
-            color: '#0f172a',
-          }}
+          className="flex items-center gap-2 no-underline"
+          style={{ color: '#0f172a' }}
         >
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="28" height="28" rx="7" fill="#0f172a"/>
             <path d="M14 5L22 10.5V17.5L14 23L6 17.5V10.5L14 5Z" fill="none" stroke="#f8fafc" strokeWidth="1.5" strokeLinejoin="round"/>
             <path d="M14 5L14 23" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
             <path d="M6 10.5L22 10.5" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
             <path d="M6 17.5L22 17.5" stroke="#f8fafc" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5"/>
           </svg>
-          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em' }}>Kiteframe</span>
+          <span className="font-bold text-[15px] tracking-tight">Kiteframe</span>
         </a>
 
         {/* Auth actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <a
               href="/app"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '7px 16px',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                background: '#0f172a',
-                color: '#f8fafc',
-                textDecoration: 'none',
-                transition: 'opacity 0.15s',
-              }}
-              onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
-              onMouseOut={e => (e.currentTarget.style.opacity = '1')}
+              className="inline-flex items-center px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-opacity hover:opacity-85"
+              style={{ background: '#0f172a', color: '#f8fafc', textDecoration: 'none' }}
             >
               Go to app →
             </a>
           ) : (
             <>
+              {/* "Sign in" hidden on very small screens to prevent overflow */}
               <a
                 href="/signin"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '7px 14px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: '#475569',
-                  textDecoration: 'none',
-                  transition: 'color 0.15s',
-                }}
-                onMouseOver={e => (e.currentTarget.style.color = '#0f172a')}
-                onMouseOut={e => (e.currentTarget.style.color = '#475569')}
+                className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors hover:text-slate-900"
+                style={{ color: '#475569', textDecoration: 'none' }}
               >
                 Sign in
               </a>
               <a
                 href="/signin"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '7px 16px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  textDecoration: 'none',
-                  transition: 'opacity 0.15s',
-                }}
-                onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
-                onMouseOut={e => (e.currentTarget.style.opacity = '1')}
+                className="inline-flex items-center px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-opacity hover:opacity-85 whitespace-nowrap"
+                style={{ background: '#0f172a', color: '#f8fafc', textDecoration: 'none' }}
               >
                 Get started free
               </a>
