@@ -14,6 +14,7 @@ import {
   projectFolders,
   shareLinks,
   insightHistory,
+  userCredits,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -97,6 +98,7 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<void> {
     await this.deleteAllUserProjects(id);
     await db.delete(projectFolders).where(eq(projectFolders.userId, id));
+    await db.delete(userCredits).where(eq(userCredits.userIdentifier, id));
     await db.delete(users).where(eq(users.id, id));
   }
 

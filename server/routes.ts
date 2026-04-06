@@ -2788,11 +2788,10 @@ Respond with only the corrected JSON data:`;
         return res.status(400).json({ error: 'Invalid email address' });
       }
 
-      // Verify reCAPTCHA token when configured
-      if (process.env.RECAPTCHA_SECRET_KEY) {
-        if (!recaptchaToken) {
-          return res.status(400).json({ error: 'Security verification required. Please refresh the page and try again.' });
-        }
+      // Verify reCAPTCHA token when configured — skip gracefully if token missing
+      // (honeypot already handles most bots; hard-blocking missing tokens locks out
+      // legitimate users with ad blockers that prevent the reCAPTCHA script from loading)
+      if (process.env.RECAPTCHA_SECRET_KEY && recaptchaToken) {
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
         const isValid = await verifyRecaptchaToken(recaptchaToken, 'contact', clientIp);
         if (!isValid) {

@@ -124,6 +124,75 @@ https://kiteframe.space`;
   });
 }
 
+export async function sendWaitlistConfirmationEmail(userEmail: string, firstName?: string | null): Promise<boolean> {
+  const name = firstName || 'there';
+
+  const subject = "You're on the Kiteframe waitlist";
+
+  const text = `Hi ${name},
+
+Thanks for your interest in Kiteframe! You're now on our waitlist.
+
+We're currently in private beta and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.
+
+In the meantime, feel free to check out our site at https://kiteframe.space to learn more about what we're building.
+
+Talk soon,
+
+The Kiteframe Team
+https://kiteframe.space`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #2563eb; margin-bottom: 5px;">You're on the list</h1>
+    <p style="color: #666; font-size: 18px; margin-top: 0;">Kiteframe Waitlist Confirmation</p>
+  </div>
+  
+  <p>Hi ${name},</p>
+  
+  <p>Thanks for your interest in <strong>Kiteframe</strong>! You're now on our waitlist.</p>
+  
+  <p>We're currently in private beta and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.</p>
+  
+  <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <h3 style="margin-top: 0; color: #1e40af;">What is Kiteframe?</h3>
+    <p style="margin-bottom: 0;">A visual workflow editor with AI-powered generation, PRD creation, and intelligent diagram analysis — built for teams that think in systems.</p>
+  </div>
+
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="https://kiteframe.space" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Learn More</a>
+  </div>
+  
+  <p>Talk soon,</p>
+  
+  <p style="color: #666;">
+    The Kiteframe Team<br>
+    <a href="https://kiteframe.space" style="color: #2563eb;">kiteframe.space</a>
+  </p>
+  
+  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+  
+  <p style="font-size: 12px; color: #94a3b8; text-align: center;">
+    You received this email because you signed up for the Kiteframe waitlist.
+  </p>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: userEmail,
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendContactEmail(
   senderEmail: string,
   senderName: string,

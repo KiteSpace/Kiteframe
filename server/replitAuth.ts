@@ -12,6 +12,7 @@ import { db } from "./db";
 import { users, oauthProviders, userGroups, userGroupMemberships } from "@shared/schema";
 import { eq, and, count, not, inArray } from "drizzle-orm";
 import { authRateLimiter } from "./middleware/rateLimiter";
+import { sendWaitlistConfirmationEmail } from "./emailService";
 import crypto from "crypto";
 
 const handoffTokens = new Map<string, { user: any; expiresAt: number }>();
@@ -159,6 +160,8 @@ async function upsertUser(claims: any) {
       }).returning();
       if (autoApprove) {
         console.log(`[BETA] Auto-approved new user ${email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+      } else {
+        sendWaitlistConfirmationEmail(email, claims["first_name"]).catch(console.error);
       }
       dbUser = newUser;
     } else {
@@ -273,6 +276,8 @@ async function findOrCreateUser(profile: OAuthProfile) {
     }).returning();
     if (autoApprove) {
       console.log(`[BETA] Auto-approved new user ${profile.email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+    } else {
+      sendWaitlistConfirmationEmail(profile.email, profile.firstName).catch(console.error);
     }
     user = newUser;
   } else if (!user.waitlistRequestedAt && !user.isBeta) {
@@ -280,6 +285,7 @@ async function findOrCreateUser(profile: OAuthProfile) {
       .set({ waitlistRequestedAt: new Date() })
       .where(eq(users.id, user.id));
     user = { ...user, waitlistRequestedAt: new Date() };
+    sendWaitlistConfirmationEmail(user.email!, user.firstName).catch(console.error);
   }
 
   await linkOAuthProvider(user!.id, profile);

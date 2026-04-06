@@ -34,12 +34,12 @@ interface UpdateProjectParams {
 }
 
 export function useCloudProjects() {
-  const { isPro, isAdmin } = useSubscription();
+  const { isPro, isAdmin, isServerAuthenticated } = useSubscription();
   const [isCloudConnected, setIsCloudConnected] = useState(true);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  const hasCloudAccess = isPro || isAdmin;
+  const hasCloudAccess = isServerAuthenticated;
 
   const {
     data,

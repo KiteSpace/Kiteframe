@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
@@ -41,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Cloud, FolderOpen, Save, Trash2, MoreVertical, Loader2, Crown, Lock, Clock, Edit2 } from 'lucide-react';
+import { Cloud, Save, Trash2, MoreVertical, Loader2, Lock, Edit2 } from 'lucide-react';
 import type { SavedProject } from '@shared/schema';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 
@@ -230,7 +229,6 @@ export function SavedProjectsDrawer({
           <SheetTitle className="flex items-center gap-2">
             <Cloud className="h-5 w-5" />
             Cloud Projects
-            <Badge variant="secondary" className="ml-2">Pro</Badge>
           </SheetTitle>
           <SheetDescription>
             Save and load your workflows from the cloud
