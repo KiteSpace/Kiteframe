@@ -22,6 +22,7 @@ export function CreditsTierPill() {
     refetchInterval: 30000,
   });
 
+  const isCreditsLoading = creditsData === undefined;
   const credits = creditsData?.credits ?? 0;
   const isUnlimited = (creditsData?.isUnlimited ?? false) || credits >= 999999;
   const maxCredits = dailyCredits || 25;
@@ -60,7 +61,7 @@ export function CreditsTierPill() {
         }`}
       >
         <Coins size={12} className={isLow ? 'text-orange-500' : 'text-amber-500'} />
-        <span data-testid="text-credits-count">{isUnlimited ? '∞' : credits}</span>
+        <span data-testid="text-credits-count">{isUnlimited ? '∞' : isCreditsLoading ? '…' : credits}</span>
         <span className="text-muted-foreground font-normal">·</span>
         <span className={isLow ? 'text-orange-700 dark:text-orange-400' : 'text-muted-foreground'}>
           {tierLabel}
@@ -83,7 +84,7 @@ export function CreditsTierPill() {
                 <span className="text-sm font-semibold text-foreground">AI Credits</span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {isUnlimited ? '∞' : `${credits} / ${maxCredits}`} today
+                {isUnlimited ? '∞' : isCreditsLoading ? '…' : `${credits} / ${maxCredits}`} today
               </span>
             </div>
 

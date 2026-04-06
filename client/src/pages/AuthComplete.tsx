@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Loader2 } from 'lucide-react';
+import { queryClient } from '@/lib/queryClient';
 
 export default function AuthComplete() {
   const [, setLocation] = useLocation();
@@ -51,6 +52,9 @@ export default function AuthComplete() {
 
         if (response.ok) {
           console.log('[AuthComplete] Session confirmed, redirecting to:', redirectTo);
+          queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
           setLocation(redirectTo);
           return;
         }
