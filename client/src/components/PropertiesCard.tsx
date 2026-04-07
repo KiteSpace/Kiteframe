@@ -322,7 +322,7 @@ export function PropertiesCard({
                 <Button
                   onClick={() => {
                     // Wireframe is Advanced tier and up
-                    const tier = (window as any).__subscriptionTier;
+                    const tier = window.__subscriptionTier;
                     if (tier && tier !== 'free') {
                       const event = new CustomEvent('generateWireframe', {
                         detail: { nodeId: selectedNode.id, node: selectedNode }

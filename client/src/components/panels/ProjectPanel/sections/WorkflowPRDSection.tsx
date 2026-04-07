@@ -8,7 +8,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, MoreHorizontal, Copy, Download, Upload, History, RotateCw, FileJson, Code, Printer } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertTriangle, X, MoreHorizontal, Copy, Download, Upload, History, RotateCw, FileJson, Code, Printer, Lock } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { extractSemanticWorkflowModel } from '@/lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { isWorkflowStale, storeHash, computeWorkflowHash } from '@/lib/kiteframe/utils/semanticHash';
@@ -187,6 +188,8 @@ export function WorkflowPRDSection({
   const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useState<string | null>(null);
   const prevUpdateKeyRef = useRef(0);
   const { toast } = useToast();
+  const { isAdvanced, isAdmin } = useSubscription();
+  const canExportPRD = isAdvanced || isAdmin;
   const prdLinks = usePRDNodeLinks(projectId);
   
   const { updateKey } = usePRDGenerationState(projectId);
@@ -765,18 +768,51 @@ export function WorkflowPRDSection({
                     <Copy size={14} className="mr-2" />
                     Copy as Markdown
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleCopyPrototypingPrompt} data-testid="copy-prototyping-prompt">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!canExportPRD) {
+                        window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'prd-export' } }));
+                        return;
+                      }
+                      handleCopyPrototypingPrompt();
+                    }}
+                    data-testid="copy-prototyping-prompt"
+                    className={!canExportPRD ? 'opacity-70' : ''}
+                  >
                     <Code size={14} className="mr-2" />
                     Copy Prototyping Prompt
+                    {!canExportPRD && <Lock size={12} className="ml-auto text-blue-500" />}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleDownloadMarkdown} data-testid="download-prd-markdown">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!canExportPRD) {
+                        window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'prd-export' } }));
+                        return;
+                      }
+                      handleDownloadMarkdown();
+                    }}
+                    data-testid="download-prd-markdown"
+                    className={!canExportPRD ? 'opacity-70' : ''}
+                  >
                     <Download size={14} className="mr-2" />
                     Download .md
+                    {!canExportPRD && <Lock size={12} className="ml-auto text-blue-500" />}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownloadKiteframePRD} data-testid="download-kiteframe-prd">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!canExportPRD) {
+                        window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'prd-export' } }));
+                        return;
+                      }
+                      handleDownloadKiteframePRD();
+                    }}
+                    data-testid="download-kiteframe-prd"
+                    className={!canExportPRD ? 'opacity-70' : ''}
+                  >
                     <FileJson size={14} className="mr-2" />
                     Download .kiteframe-prd.json
+                    {!canExportPRD && <Lock size={12} className="ml-auto text-blue-500" />}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handlePrintPRD} data-testid="print-prd">
                     <Printer size={14} className="mr-2" />

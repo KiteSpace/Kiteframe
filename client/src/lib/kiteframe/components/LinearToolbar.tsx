@@ -2379,19 +2379,16 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
                 canUseWireframe 
                   ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
-                  : "text-gray-400 bg-gray-300 dark:bg-gray-600 dark:text-gray-500 cursor-not-allowed opacity-60"
+                  : "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 cursor-pointer"
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                if (canUseWireframe) {
-                  onWireframe?.();
-                }
+                onWireframe?.();
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              disabled={!canUseWireframe}
-              title={canUseWireframe ? "Generate wireframe mockup" : "Pro feature - Upgrade to use Wireframe"}
+              title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to Advanced to use Wireframe"}
               data-testid="toolbar-button-wireframe"
-              tabIndex={canUseWireframe ? 0 : -1}
+              tabIndex={0}
             >
               <Sparkles size={14} />
               <span>Wireframe</span>

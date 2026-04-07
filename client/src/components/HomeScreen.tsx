@@ -41,6 +41,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
+import { useSubscription } from "@/hooks/useSubscription";
 import { HomeHero } from "./HomeHero";
 
 interface RecentProject {
@@ -183,6 +184,9 @@ export function HomeScreen({
     openCreditsDialog,
   } = useCreditsGate();
 
+  const { isAdvanced, isAdmin } = useSubscription();
+  const canUploadImage = isAdvanced || isAdmin;
+
   // User is considered authenticated if either Firebase or server session auth is present
   const isUserAuthenticated =
     isAuthenticated || isServerAuthenticated || hasCloudAccess;
@@ -221,9 +225,13 @@ export function HomeScreen({
 
   const handleUploadImageWithGate = useCallback(
     (_files: FileList): boolean => {
+      if (!canUploadImage) {
+        window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'image-to-workflow' } }));
+        return false;
+      }
       return true;
     },
-    [],
+    [canUploadImage],
   );
 
   const handleImportFigmaWithGate = useCallback((): boolean => {

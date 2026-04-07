@@ -2132,7 +2132,7 @@ function WorkflowEditorContent({
 
   // Sync subscription tier to window global so deep components (PropertiesCard) can access it
   useEffect(() => {
-    (window as any).__subscriptionTier = subscriptionTier;
+    window.__subscriptionTier = subscriptionTier;
   }, [subscriptionTier]);
 
   // Listen for showFeatureUpsell events from deep components
@@ -7282,7 +7282,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onImport={() => setShowImportModal(true)}
                     onShare={() => setShowShareModal(true)}
                     onOpenAiGenerator={() => setShowAiGenerator(true)}
-                    onUploadImage={() => setShowImageAnalysisModal(true)}
+                    onUploadImage={() => {
+                      if (!isAdvanced && !isAdmin) {
+                        setFeatureUpsell({
+                          featureName: 'Image to Workflow',
+                          requiredTier: 'advanced',
+                          description: 'Convert diagrams and photos into interactive workflows using AI vision. Upgrade to Advanced or Pro to use this feature.',
+                        });
+                        return;
+                      }
+                      setShowImageAnalysisModal(true);
+                    }}
                     onImportFigma={() => setShowFigmaModal(true)}
                     onCreateTemplate={(templateType: string) => {
                       // Create a new tab if none are open
