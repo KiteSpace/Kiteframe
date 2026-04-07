@@ -2372,8 +2372,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Wireframe button - only for Basic nodes and Compound nodes (not for image/table/form/code/experiment nodes) */}
-          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'output' && node?.type !== 'experiment' && !isInlineEditing && (
+          {/* Wireframe button - shown for all node types except image/table/form/code/experiment */}
+          {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'experiment' && !isInlineEditing && (
             <button
               className={cn(
                 "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
@@ -2383,7 +2383,11 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                onWireframe?.();
+                if (!canUseWireframe) {
+                  window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
+                } else {
+                  onWireframe?.();
+                }
               }}
               onMouseDown={(e) => e.stopPropagation()}
               title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to Advanced to use Wireframe"}
