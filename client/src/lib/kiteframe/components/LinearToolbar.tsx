@@ -2384,6 +2384,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (!canUseWireframe) {
+                  onClose();
                   window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
                 } else {
                   onWireframe?.();
