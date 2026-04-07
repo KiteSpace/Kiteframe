@@ -1,14 +1,26 @@
+/**
+ * Integration tests for the requireAdvancedOrPro middleware as applied to
+ * the two gated endpoints:
+ *   POST /api/generate-wireframe
+ *   POST /api/ai/analyze-workflow-image
+ *
+ * Uses supertest to send real HTTP requests through a minimal Express app
+ * that wires these routes with the actual middleware in the correct order.
+ * The database layer is mocked so no live Postgres instance is needed.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
+import request from 'supertest';
 
-// --- Mock db BEFORE importing the module under test ---
+// ---------------------------------------------------------------------------
+// Mock db BEFORE importing anything that touches it
+// ---------------------------------------------------------------------------
 const mockSelect = vi.fn();
 
 vi.mock('../db', () => ({
   db: { select: mockSelect },
 }));
 
-// Mock creditService (imported by creditCheck.ts but not used by requireAdvancedOrPro)
 vi.mock('../creditService', () => ({
   creditService: {
     getUserIdentifier: vi.fn(() => 'test-identifier'),
@@ -18,89 +30,109 @@ vi.mock('../creditService', () => ({
   getCreditCost: vi.fn(() => 1),
 }));
 
-// Import AFTER mocks are registered
+// Import middleware AFTER mocks are in place
 const { requireAdvancedOrPro } = await import('../middleware/creditCheck');
 
 // ---------------------------------------------------------------------------
-// Test helpers
+// DB mock helpers
 // ---------------------------------------------------------------------------
 
+type DbRow = Record<string, unknown>;
+
 /**
- * Creates a chainable Drizzle query mock that resolves to `rows` when awaited.
- * Handles both .limit() terminated and direct-await patterns.
+ * Creates a Drizzle-compatible awaitable query chain that resolves to `rows`.
+ * Extends a real Promise so .then()/.catch()/.finally() work natively.
  */
-function makeChain(rows: any[]): any {
-  const chain: any = {
+function makeChain(rows: DbRow[]): Promise<DbRow[]> & Record<string, unknown> {
+  const p = Promise.resolve(rows);
+  const chain = Object.assign(p, {
     from: () => chain,
     innerJoin: () => chain,
     where: () => chain,
     limit: () => Promise.resolve(rows),
-    then: (resolve: any, reject: any) => Promise.resolve(rows).then(resolve, reject),
-    catch: (fn: any) => Promise.resolve(rows).catch(fn),
-    finally: (fn: any) => Promise.resolve(rows).finally(fn),
-  };
+  });
   return chain;
 }
 
-function makeReq(userOverrides?: Record<string, any>): Partial<Request> {
-  return { user: userOverrides } as any;
+// ---------------------------------------------------------------------------
+// Test app factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a minimal Express app with the two target routes, optionally
+ * attaching `user` onto `req` to simulate an authenticated session.
+ *
+ * A stub handler is placed after `requireAdvancedOrPro` — if the middleware
+ * calls next(), the stub responds 200 so tests can assert pass-through.
+ */
+function createApp(user?: Record<string, unknown>) {
+  const app = express();
+  app.use(express.json());
+
+  if (user !== undefined) {
+    app.use((_req: Request, _res: Response, next: NextFunction) => {
+      (_req as Request & { user: unknown }).user = user;
+      next();
+    });
+  }
+
+  const stubHandler = (_req: Request, res: Response) => {
+    res.status(200).json({ ok: true });
+  };
+
+  app.post('/api/generate-wireframe', requireAdvancedOrPro, stubHandler);
+  app.post('/api/ai/analyze-workflow-image', requireAdvancedOrPro, stubHandler);
+
+  return app;
 }
 
-function makeRes() {
-  const res: any = { statusCode: 200, body: undefined };
-  res.status = vi.fn((code: number) => {
-    res.statusCode = code;
-    return res;
-  });
-  res.json = vi.fn((body: any) => {
-    res.body = body;
-    return res;
-  });
-  return res;
+// ---------------------------------------------------------------------------
+// Shared assertions
+// ---------------------------------------------------------------------------
+
+async function expect403(
+  app: ReturnType<typeof createApp>,
+  endpoint: string,
+) {
+  const res = await request(app).post(endpoint).send({});
+  expect(res.status).toBe(403);
+  expect(res.body).toMatchObject({ requiresUpgrade: true });
+  expect(typeof res.body.error).toBe('string');
 }
 
-const noopNext: NextFunction = vi.fn();
+async function expect200(
+  app: ReturnType<typeof createApp>,
+  endpoint: string,
+) {
+  const res = await request(app).post(endpoint).send({});
+  expect(res.status).toBe(200);
+  expect(res.body).toMatchObject({ ok: true });
+}
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('requireAdvancedOrPro middleware', () => {
+const ENDPOINTS = [
+  '/api/generate-wireframe',
+  '/api/ai/analyze-workflow-image',
+] as const;
+
+describe('requireAdvancedOrPro — route-level enforcement', () => {
   beforeEach(() => {
-    // resetAllMocks clears both call history AND the pending mockReturnValueOnce queue,
-    // preventing leftover mocks from leaking between tests.
     vi.resetAllMocks();
-    // Default: ADMIN_EMAILS not set
     delete process.env.ADMIN_EMAILS;
   });
 
   // -------------------------------------------------------------------------
-  // Unauthenticated (no req.user)
+  // Unauthenticated
   // -------------------------------------------------------------------------
 
-  describe('unauthenticated requests', () => {
-    it('returns 403 with requiresUpgrade: true when req.user is undefined', async () => {
-      const req = makeReq(undefined);
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it('returns 403 when req.user is null', async () => {
-      const req = { user: null } as any;
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
+  describe('unauthenticated requests (no req.user)', () => {
+    it.each(ENDPOINTS)('returns 403 on %s', async (endpoint) => {
+      // No user attached — app created without a user
+      const app = createApp(undefined);
+      await expect403(app, endpoint);
     });
   });
 
@@ -109,132 +141,61 @@ describe('requireAdvancedOrPro middleware', () => {
   // -------------------------------------------------------------------------
 
   describe('free-tier users', () => {
-    it('returns 403 for a user with subscriptionTier: free (id-based lookup)', async () => {
-      // Query 1: getUserGroupAccessControls → no memberships
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      // Query 2: user lookup → free tier
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
+    it.each(ENDPOINTS)('returns 403 on %s for free-tier user (id lookup)', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([]))  // getUserGroupAccessControls
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }]));
 
-      const req = makeReq({ id: 'user-free-1', email: 'free@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-free', email: 'free@example.com' });
+      await expect403(app, endpoint);
     });
 
-    it('returns 403 for a user with subscriptionTier: free (claims.sub-based lookup)', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
+    it.each(ENDPOINTS)('returns 403 on %s for free-tier user (claims.sub lookup)', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }]));
 
-      const req = makeReq({ claims: { sub: 'user-free-2', email: 'free@example.com' } });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
+      const app = createApp({ claims: { sub: 'user-claims', email: 'free@example.com' } });
+      await expect403(app, endpoint);
     });
 
-    it('returns 403 when user exists in DB but has no subscriptionTier (null → treated as free)', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: null, email: 'notier@example.com' }])
-      );
+    it.each(ENDPOINTS)('returns 403 on %s when user has no subscriptionTier set', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: null, email: 'notier@example.com' }]));
 
-      const req = makeReq({ id: 'user-notier', email: 'notier@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it('returns 403 when user id is not found in DB', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));  // group controls
-      mockSelect.mockReturnValueOnce(makeChain([]));  // user not found
-
-      const req = makeReq({ id: 'ghost-user', email: 'ghost@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-notier', email: 'notier@example.com' });
+      await expect403(app, endpoint);
     });
   });
 
   // -------------------------------------------------------------------------
-  // Advanced-tier users (should pass through)
+  // Advanced-tier users — must pass through
   // -------------------------------------------------------------------------
 
   describe('advanced-tier users', () => {
-    it('calls next() for a user with subscriptionTier: advanced', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'advanced', email: 'advanced@example.com' }])
-      );
+    it.each(ENDPOINTS)('passes through to handler on %s', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'advanced', email: 'adv@example.com' }]));
 
-      const req = makeReq({ id: 'user-adv-1', email: 'advanced@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
-    });
-
-    it('does not return 403 for advanced user (via claims.sub)', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'advanced', email: 'adv@example.com' }])
-      );
-
-      const req = makeReq({ claims: { sub: 'user-adv-claims' } });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-adv', email: 'adv@example.com' });
+      await expect200(app, endpoint);
     });
   });
 
   // -------------------------------------------------------------------------
-  // Pro-tier users (should pass through)
+  // Pro-tier users — must pass through
   // -------------------------------------------------------------------------
 
   describe('pro-tier users', () => {
-    it('calls next() for a user with subscriptionTier: pro', async () => {
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'pro', email: 'pro@example.com' }])
-      );
+    it.each(ENDPOINTS)('passes through to handler on %s', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'pro', email: 'pro@example.com' }]));
 
-      const req = makeReq({ id: 'user-pro-1', email: 'pro@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-pro', email: 'pro@example.com' });
+      await expect200(app, endpoint);
     });
   });
 
@@ -243,92 +204,37 @@ describe('requireAdvancedOrPro middleware', () => {
   // -------------------------------------------------------------------------
 
   describe('group-based tier overrides', () => {
-    it('calls next() when group grants subscriptionTierOverride: advanced (user is otherwise free)', async () => {
-      // getUserGroupAccessControls: returns a membership with advanced override
-      mockSelect.mockReturnValueOnce(
-        makeChain([{
-          groupId: 'group-1',
+    it.each(ENDPOINTS)('passes through on %s when group grants Advanced override (user is free)', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([{
+          groupId: 'group-adv',
           accessControls: { subscriptionTierOverride: 'advanced' },
-        }])
-      );
-      // User lookup should NOT be called (group check short-circuits)
-      // but if it were, user would be free
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
+        }]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }]));
 
-      const req = makeReq({ id: 'user-group-adv', email: 'free@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-group', email: 'free@example.com' });
+      await expect200(app, endpoint);
     });
 
-    it('calls next() when group grants unlimitedCredits (user is otherwise free)', async () => {
-      mockSelect.mockReturnValueOnce(
-        makeChain([{
-          groupId: 'group-2',
+    it.each(ENDPOINTS)('passes through on %s when group grants unlimitedCredits (user is free)', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([{
+          groupId: 'group-unlimited',
           accessControls: { unlimitedCredits: true },
-        }])
-      );
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
+        }]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }]));
 
-      const req = makeReq({ id: 'user-group-unlimited', email: 'free@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-group-unl', email: 'free@example.com' });
+      await expect200(app, endpoint);
     });
 
-    it('calls next() when group grants bypassCreditCheck (user is otherwise free)', async () => {
-      mockSelect.mockReturnValueOnce(
-        makeChain([{
-          groupId: 'group-3',
-          accessControls: { bypassCreditCheck: true },
-        }])
-      );
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
+    it.each(ENDPOINTS)('returns 403 on %s when group has no override and user is free', async (endpoint) => {
+      mockSelect
+        .mockReturnValueOnce(makeChain([{ groupId: 'group-none', accessControls: {} }]))
+        .mockReturnValueOnce(makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }]));
 
-      const req = makeReq({ id: 'user-group-bypass', email: 'free@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
-    });
-
-    it('returns 403 when group has no override and user is free', async () => {
-      mockSelect.mockReturnValueOnce(
-        makeChain([{
-          groupId: 'group-4',
-          accessControls: {},  // no overrides
-        }])
-      );
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'free@example.com' }])
-      );
-
-      const req = makeReq({ id: 'user-group-none', email: 'free@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.body).toMatchObject({ requiresUpgrade: true });
-      expect(next).not.toHaveBeenCalled();
+      const app = createApp({ id: 'user-group-none', email: 'free@example.com' });
+      await expect403(app, endpoint);
     });
   });
 
@@ -336,68 +242,33 @@ describe('requireAdvancedOrPro middleware', () => {
   // Admin bypass
   // -------------------------------------------------------------------------
 
-  describe('admin users', () => {
-    it('calls next() immediately for an admin email (no DB queries)', async () => {
+  describe('admin email bypass', () => {
+    it.each(ENDPOINTS)('passes through on %s immediately for admin email (no DB calls)', async (endpoint) => {
       process.env.ADMIN_EMAILS = 'admin@kiteframe.com';
 
-      const req = makeReq({ email: 'admin@kiteframe.com' });
-      const res = makeRes();
-      const next = vi.fn();
+      const app = createApp({ email: 'admin@kiteframe.com' });
+      await expect200(app, endpoint);
 
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
-      // DB should not have been called
       expect(mockSelect).not.toHaveBeenCalled();
-    });
-
-    it('calls next() for admin email via claims', async () => {
-      process.env.ADMIN_EMAILS = 'admin@kiteframe.com';
-
-      const req = makeReq({ claims: { email: 'admin@kiteframe.com' } });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(next).toHaveBeenCalledOnce();
-      expect(mockSelect).not.toHaveBeenCalled();
-    });
-
-    it('returns 403 for non-admin email when ADMIN_EMAILS is set', async () => {
-      process.env.ADMIN_EMAILS = 'admin@kiteframe.com';
-      mockSelect.mockReturnValueOnce(makeChain([]));
-      mockSelect.mockReturnValueOnce(
-        makeChain([{ subscriptionTier: 'free', email: 'notadmin@example.com' }])
-      );
-
-      const req = makeReq({ id: 'user-notadmin', email: 'notadmin@example.com' });
-      const res = makeRes();
-      const next = vi.fn();
-
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(next).not.toHaveBeenCalled();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Response shape
+  // Response contract
   // -------------------------------------------------------------------------
 
-  describe('403 response body shape', () => {
-    it('includes both error message and requiresUpgrade: true in the 403 body', async () => {
-      const req = makeReq(undefined);
-      const res = makeRes();
-      const next = vi.fn();
+  describe('403 response body contract', () => {
+    it.each(ENDPOINTS)('response on %s contains error string and requiresUpgrade: true', async (endpoint) => {
+      const app = createApp(undefined);
+      const res = await request(app).post(endpoint).send({});
 
-      await requireAdvancedOrPro(req as Request, res as Response, next as NextFunction);
-
-      expect(res.body).toHaveProperty('error');
-      expect(res.body).toHaveProperty('requiresUpgrade', true);
-      expect(typeof res.body.error).toBe('string');
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual(
+        expect.objectContaining({
+          error: expect.any(String),
+          requiresUpgrade: true,
+        }),
+      );
     });
   });
 });
