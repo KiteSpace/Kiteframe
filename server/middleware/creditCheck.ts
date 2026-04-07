@@ -184,11 +184,26 @@ export async function requireAdvancedOrPro(
     if (user) {
       // Primary: look up by userId (most reliable path)
       const userId = user.claims?.sub || user.id || null;
-      if (userId) {
+      const resolvedId = userId || (userEmail ? await findUserIdByEmail(userEmail) : null);
+
+      if (resolvedId) {
+        // Check group-based tier overrides first (same pattern as requireCredits)
+        const groupControls = await getUserGroupAccessControls(resolvedId);
+        if (groupControls.bypassCreditCheck || groupControls.unlimitedCredits) {
+          next();
+          return;
+        }
+        const groupTier = groupControls.subscriptionTierOverride;
+        if (groupTier && ['advanced', 'pro'].includes(groupTier)) {
+          next();
+          return;
+        }
+
+        // Then check DB subscription tier
         const result = await db
           .select({ subscriptionTier: users.subscriptionTier, email: users.email })
           .from(users)
-          .where(eq(users.id, userId))
+          .where(eq(users.id, resolvedId))
           .limit(1);
         const dbUser = result[0];
         if (dbUser) {
@@ -199,27 +214,6 @@ export async function requireAdvancedOrPro(
           if (['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
             next();
             return;
-          }
-        }
-      } else if (userEmail) {
-        // Fallback: look up by email (same pattern as requireCredits)
-        const lookupId = await findUserIdByEmail(userEmail);
-        if (lookupId) {
-          const result = await db
-            .select({ subscriptionTier: users.subscriptionTier, email: users.email })
-            .from(users)
-            .where(eq(users.id, lookupId))
-            .limit(1);
-          const dbUser = result[0];
-          if (dbUser) {
-            if (isAdminUser(dbUser.email)) {
-              next();
-              return;
-            }
-            if (['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
-              next();
-              return;
-            }
           }
         }
       }
