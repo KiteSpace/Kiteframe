@@ -94,8 +94,8 @@ function sanitizeUserForResponse(user: any, options?: { isAdmin?: boolean }) {
 
 // Project limits per tier
 const PROJECT_LIMITS = {
-  free: 20,
-  advanced: 100,
+  free: 10,
+  advanced: 50,
   pro: 100,
 } as const;
 

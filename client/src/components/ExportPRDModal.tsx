@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileText, FileJson, FileCode, ExternalLink, Download } from 'lucide-react';
+import { Loader2, FileText, FileJson, FileCode, ExternalLink, Download, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { assembleProjectPRD, getAvailableWorkflowsForExport, type WorkflowCanvasData } from '@/lib/prd/assembleProjectPRD';
 import { downloadPrototypingPrompt } from '@/lib/prd/exporters/exportToPrototypingPrompt';
@@ -14,6 +15,7 @@ import { exportToGoogleDocs } from '@/lib/prd/exporters/exportToGoogleDocs';
 import type { WorkflowPRD } from '@/ai/prdEngine';
 import { loadWorkflowPRD } from '@/lib/kiteframe/utils/prdStorage';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import { useSubscription } from '@/hooks/useSubscription';
 
 type ExportFormat = 'prototyping-prompt' | 'kiteframe-json' | 'markdown' | 'google-docs';
 
@@ -49,6 +51,9 @@ export function ExportPRDModal({
   workflows
 }: ExportPRDModalProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { isAdvanced, isAdmin } = useSubscription();
+  const canExport = isAdvanced || isAdmin;
   const [selectedWorkflows, setSelectedWorkflows] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<ExportFormat>('prototyping-prompt');
   const [isExporting, setIsExporting] = useState(false);
@@ -214,7 +219,27 @@ export function ExportPRDModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        {!canExport && (
+          <div className="py-6 flex flex-col items-center gap-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+              <Lock className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Advanced plan required</h3>
+              <p className="text-sm text-muted-foreground">
+                Exporting PRD documents requires an Advanced or Pro subscription. Upgrade to unlock full export capabilities including Markdown, JSON, and Google Docs formats.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose}>Maybe later</Button>
+              <Button onClick={() => { onClose(); navigate('/pricing'); }} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Upgrade to Advanced
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {canExport && <div className="space-y-6 py-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Workflows</Label>
@@ -301,30 +326,32 @@ export function ExportPRDModal({
               </div>
             </RadioGroup>
           </div>
-        </div>
+        </div>}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} data-testid="button-cancel-export">
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleExport} 
-            disabled={isExporting || selectedWorkflows.size === 0}
-            data-testid="button-export-prd"
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Exporting...
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {canExport && (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} data-testid="button-cancel-export">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleExport} 
+              disabled={isExporting || selectedWorkflows.size === 0}
+              data-testid="button-export-prd"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

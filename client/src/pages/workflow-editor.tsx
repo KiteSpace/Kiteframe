@@ -39,6 +39,7 @@ import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
 import { BugReportModal } from "@/components/BugReportModal";
+import { FeatureUpsellDialog } from "@/components/FeatureUpsellDialog";
 import { ContextMenu } from "@/components/ContextMenu";
 import { MissingImagesModal } from "@/components/MissingImagesModal";
 import { NewTabModal } from "@/components/NewTabModal";
@@ -434,7 +435,7 @@ function WorkflowEditorContent({
     openCreditsDialog,
   } = useCreditsGate();
 
-  const { isPro, isAdmin } = useSubscription();
+  const { isPro, isAdmin, isAdvanced, tier: subscriptionTier } = useSubscription();
   const { isAuthenticated } = useAuth();
   const {
     projects: cloudProjects,
@@ -2128,6 +2129,41 @@ function WorkflowEditorContent({
       window.removeEventListener("generateWireframe", handleGenerateWireframe);
     };
   }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
+
+  // Sync subscription tier to window global so deep components (PropertiesCard) can access it
+  useEffect(() => {
+    (window as any).__subscriptionTier = subscriptionTier;
+  }, [subscriptionTier]);
+
+  // Listen for showFeatureUpsell events from deep components
+  useEffect(() => {
+    const handleShowFeatureUpsell = (event: CustomEvent<{ type: string }>) => {
+      const type = event.detail?.type;
+      if (type === 'wireframe') {
+        setFeatureUpsell({
+          featureName: 'Mockup Wireframe',
+          requiredTier: 'advanced',
+          description: 'Generate AI-powered wireframe mockups for your workflow nodes. Upgrade to Advanced or Pro to use this feature.',
+        });
+      } else if (type === 'image-to-workflow') {
+        setFeatureUpsell({
+          featureName: 'Image to Workflow',
+          requiredTier: 'advanced',
+          description: 'Upload images to automatically generate workflows using AI vision. Upgrade to Advanced or Pro to use this feature.',
+        });
+      } else if (type === 'prd-export') {
+        setFeatureUpsell({
+          featureName: 'PRD Export',
+          requiredTier: 'advanced',
+          description: 'Export your Product Requirements Documents in multiple formats. Upgrade to Advanced or Pro to use this feature.',
+        });
+      }
+    };
+    window.addEventListener('showFeatureUpsell', handleShowFeatureUpsell as EventListener);
+    return () => {
+      window.removeEventListener('showFeatureUpsell', handleShowFeatureUpsell as EventListener);
+    };
+  }, []);
 
   // Listen for editNodeHyperlink event from HyperlinkButton edit action
   useEffect(() => {
@@ -5028,6 +5064,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
+  const [featureUpsell, setFeatureUpsell] = useState<{ featureName: string; requiredTier: 'advanced' | 'pro'; description: string } | null>(null);
   const [generatorPrompt, setGeneratorPrompt] = useState("");
   const [showImageAnalysisModal, setShowImageAnalysisModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -12392,6 +12429,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         <BugReportModal onClose={() => setShowBugReportModal(false)} />
       )}
 
+      {/* Feature Upsell Dialog */}
+      {featureUpsell && (
+        <FeatureUpsellDialog
+          isOpen={true}
+          onClose={() => setFeatureUpsell(null)}
+          featureName={featureUpsell.featureName}
+          requiredTier={featureUpsell.requiredTier}
+          description={featureUpsell.description}
+        />
+      )}
+
       {/* Phase 5: REPLACE Confirmation Dialog */}
       <AlertDialog 
         open={!!pendingReplaceConfirmation} 
@@ -14102,7 +14150,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           }}
           onWireframe={() => {
             if (linearToolbar.node) {
-              if (true) {
+              if (isAdvanced || isAdmin) {
                 const event = new CustomEvent("generateWireframe", {
                   detail: {
                     nodeId: linearToolbar.node.id,
@@ -14110,11 +14158,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   },
                 });
                 window.dispatchEvent(event);
+                setLinearToolbar(null);
+              } else {
+                setLinearToolbar(null);
+                setFeatureUpsell({
+                  featureName: 'Mockup Wireframe',
+                  requiredTier: 'advanced',
+                  description: 'Generate AI-powered wireframe mockups for your workflow nodes. Upgrade to Advanced or Pro to use this feature.',
+                });
               }
-              setLinearToolbar(null);
             }
           }}
-          canUseWireframe={true}
+          canUseWireframe={isAdvanced || isAdmin}
           onGenerateWorkflow={async () => {
             if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
               const semantic = linearToolbar.node.data.figmaSemantic;

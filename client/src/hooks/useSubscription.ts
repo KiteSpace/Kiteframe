@@ -21,8 +21,8 @@ const TIER_DAILY_CREDITS = {
 } as const;
 
 const TIER_PROJECT_LIMITS = {
-  free: 20,
-  advanced: 100,
+  free: 10,
+  advanced: 50,
   pro: 100,
 } as const;
 

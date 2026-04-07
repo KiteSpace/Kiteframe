@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Loader2, Download, FileText, Package, AlertCircle } from 'lucide-react';
+import { Loader2, Download, FileText, Package, AlertCircle, Lock } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { assembleProjectPRD, getAvailableWorkflowsForExport, type WorkflowCanvasData } from '@/lib/prd/assembleProjectPRD';
 import { 
@@ -56,6 +58,9 @@ interface WorkflowWithPRD {
   hasPRD: boolean;
 }
 
+// PRD-gated exports (require Advanced/Pro tier)
+const PRD_GATED_EXPORTS: ExportOption[] = ['prd_document', 'prd_markdown', 'prototype_prompt', 'figma_make_prompt', 'jira_csv', 'bundle_builder', 'bundle_design', 'bundle_project', 'bundle_ai_agent'];
+
 export function ExportProjectModal({
   isOpen,
   onClose,
@@ -68,6 +73,9 @@ export function ExportProjectModal({
   onShareCreated
 }: ExportProjectModalProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { isAdvanced, isAdmin } = useSubscription();
+  const canUsePRDExports = isAdvanced || isAdmin;
   const [selectedExports, setSelectedExports] = useState<Set<ExportOption>>(new Set());
   const [selectedWorkflows, setSelectedWorkflows] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
@@ -94,6 +102,9 @@ export function ExportProjectModal({
   }, [isOpen, selectableWorkflows.length]);
 
   const handleToggleExport = useCallback((exportId: ExportOption, checked: boolean) => {
+    if (checked && PRD_GATED_EXPORTS.includes(exportId) && !canUsePRDExports) {
+      return;
+    }
     setSelectedExports(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -103,7 +114,7 @@ export function ExportProjectModal({
       }
       return newSet;
     });
-  }, []);
+  }, [canUsePRDExports]);
 
   const handleSelectAllWorkflows = (checked: boolean) => {
     if (checked) {
@@ -321,7 +332,8 @@ export function ExportProjectModal({
             <div className="border rounded-lg divide-y">
               {INDIVIDUAL_EXPORTS.map(option => {
                 const needsPRD = optionRequiresPRD(option.id);
-                const isDisabled = needsPRD && !hasPRDs;
+                const isPRDGated = PRD_GATED_EXPORTS.includes(option.id) && !canUsePRDExports;
+                const isDisabled = (needsPRD && !hasPRDs) || isPRDGated;
                 
                 return (
                   <div 
@@ -340,11 +352,20 @@ export function ExportProjectModal({
                       htmlFor={`export-${option.id}`} 
                       className="flex-1 cursor-pointer"
                     >
-                      <div className="font-medium text-sm">{option.label}</div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {option.label}
+                        {isPRDGated && <Lock className="w-3 h-3 text-blue-500" />}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {option.description}
                       </p>
-                      {isDisabled && (
+                      {isPRDGated && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Advanced plan required
+                        </p>
+                      )}
+                      {!isPRDGated && isDisabled && (
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
                           Requires generated PRD
@@ -366,7 +387,8 @@ export function ExportProjectModal({
             <div className="border rounded-lg divide-y">
               {BUNDLE_EXPORTS.map(option => {
                 const needsPRD = optionRequiresPRD(option.id);
-                const isDisabled = needsPRD && !hasPRDs;
+                const isPRDGated = PRD_GATED_EXPORTS.includes(option.id) && !canUsePRDExports;
+                const isDisabled = (needsPRD && !hasPRDs) || isPRDGated;
                 
                 return (
                   <div 
@@ -385,11 +407,20 @@ export function ExportProjectModal({
                       htmlFor={`export-${option.id}`} 
                       className="flex-1 cursor-pointer"
                     >
-                      <div className="font-medium text-sm">{option.label}</div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {option.label}
+                        {isPRDGated && <Lock className="w-3 h-3 text-blue-500" />}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {option.description}
                       </p>
-                      {isDisabled && (
+                      {isPRDGated && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Advanced plan required
+                        </p>
+                      )}
+                      {!isPRDGated && isDisabled && (
                         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
                           Requires generated PRD
@@ -449,6 +480,18 @@ export function ExportProjectModal({
             </div>
           )}
         </div>
+
+        {!canUsePRDExports && (
+          <div className="mx-0 px-0 py-2 flex items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              Upgrade to unlock PRD exports, bundles, and more
+            </p>
+            <Button size="sm" variant="outline" onClick={() => { onClose(); navigate('/pricing'); }} className="text-xs border-blue-500 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 shrink-0">
+              Upgrade
+            </Button>
+          </div>
+        )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {!canExport && (

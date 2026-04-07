@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
-import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare, Lock } from 'lucide-react';
 import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt';
 import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph';
 import { getRouter, extractJSON } from '@/ai/router';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface ImageAnalysisResult {
   success: boolean;
@@ -35,6 +36,8 @@ interface AiWorkflowGeneratorProps {
 }
 
 export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }: AiWorkflowGeneratorProps) {
+  const { isAdvanced, isAdmin } = useSubscription();
+  const canUseImageMode = isAdvanced || isAdmin;
   const [mode, setMode] = useState<'text' | 'image'>('text');
   const [prompt, setPrompt] = useState(initialPrompt);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -425,7 +428,13 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
               Text Prompt
             </button>
             <button
-              onClick={() => setMode('image')}
+              onClick={() => {
+                if (canUseImageMode) {
+                  setMode('image');
+                } else {
+                  window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'image-to-workflow' } }));
+                }
+              }}
               className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
                 mode === 'image' 
                   ? 'bg-background text-foreground shadow-sm' 
@@ -433,8 +442,11 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
               }`}
               data-testid="tab-image-upload"
             >
-              <FileImage size={16} />
+              {canUseImageMode ? <FileImage size={16} /> : <Lock size={16} />}
               Upload Image
+              {!canUseImageMode && (
+                <span className="text-[9px] px-1 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium ml-1">Advanced</span>
+              )}
             </button>
           </div>
 
