@@ -7,8 +7,13 @@
  * Uses supertest to send real HTTP requests through a minimal Express app
  * that wires these routes with the actual middleware in the correct order.
  * The database layer is mocked so no live Postgres instance is needed.
+ *
+ * A separate describe block ("route wiring sanity") reads routes.ts source
+ * as a static assertion so accidental middleware removal is caught.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import request from 'supertest';
 
@@ -270,5 +275,33 @@ describe('requireAdvancedOrPro — route-level enforcement', () => {
         }),
       );
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Route-wiring sanity: verify requireAdvancedOrPro is present in routes.ts
+// ---------------------------------------------------------------------------
+
+describe('route-wiring sanity — requireAdvancedOrPro in routes.ts', () => {
+  const routesSrc = readFileSync(
+    resolve(__dirname, '../routes.ts'),
+    'utf-8',
+  );
+
+  it('registers requireAdvancedOrPro on POST /api/generate-wireframe', () => {
+    // Find the line that registers the route and confirm middleware is listed
+    const wireframeLine = routesSrc
+      .split('\n')
+      .find((line) => line.includes("app.post('/api/generate-wireframe'") || line.includes('app.post("/api/generate-wireframe"'));
+    expect(wireframeLine).toBeDefined();
+    expect(wireframeLine).toContain('requireAdvancedOrPro');
+  });
+
+  it('registers requireAdvancedOrPro on POST /api/ai/analyze-workflow-image', () => {
+    const analyzeImageLine = routesSrc
+      .split('\n')
+      .find((line) => line.includes("app.post('/api/ai/analyze-workflow-image'") || line.includes('app.post("/api/ai/analyze-workflow-image"'));
+    expect(analyzeImageLine).toBeDefined();
+    expect(analyzeImageLine).toContain('requireAdvancedOrPro');
   });
 });
