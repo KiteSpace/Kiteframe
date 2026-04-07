@@ -182,29 +182,45 @@ export async function requireAdvancedOrPro(
     }
 
     if (user) {
+      // Primary: look up by userId (most reliable path)
       const userId = user.claims?.sub || user.id || null;
       if (userId) {
-        const { db } = await import('../db');
-        const { users } = await import('@shared/schema');
-        const { eq } = await import('drizzle-orm');
-        const result = await db.select({ subscriptionTier: users.subscriptionTier, email: users.email })
+        const result = await db
+          .select({ subscriptionTier: users.subscriptionTier, email: users.email })
           .from(users)
           .where(eq(users.id, userId))
           .limit(1);
         const dbUser = result[0];
-        if (dbUser && isAdminUser(dbUser.email)) {
-          next();
-          return;
+        if (dbUser) {
+          if (isAdminUser(dbUser.email)) {
+            next();
+            return;
+          }
+          if (['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
+            next();
+            return;
+          }
         }
-        if (dbUser && ['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
-          next();
-          return;
-        }
-      } else {
-        const inMemoryTier: string = (user as any).subscriptionTier || '';
-        if (['advanced', 'pro'].includes(inMemoryTier)) {
-          next();
-          return;
+      } else if (userEmail) {
+        // Fallback: look up by email (same pattern as requireCredits)
+        const lookupId = await findUserIdByEmail(userEmail);
+        if (lookupId) {
+          const result = await db
+            .select({ subscriptionTier: users.subscriptionTier, email: users.email })
+            .from(users)
+            .where(eq(users.id, lookupId))
+            .limit(1);
+          const dbUser = result[0];
+          if (dbUser) {
+            if (isAdminUser(dbUser.email)) {
+              next();
+              return;
+            }
+            if (['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
+              next();
+              return;
+            }
+          }
         }
       }
     }

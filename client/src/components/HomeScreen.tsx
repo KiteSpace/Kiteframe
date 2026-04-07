@@ -484,6 +484,7 @@ export function HomeScreen({
           onUploadImage={handleUploadImageWithGate}
           isGenerating={isGenerating}
           isDisabled={isOutOfCredits}
+          isImageLocked={!canUploadImage}
         />
 
         {/* Recent Projects Section */}

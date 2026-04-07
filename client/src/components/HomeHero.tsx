@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, ArrowUp } from "lucide-react";
+import { Upload, FileText, ArrowUp, Lock } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { FullBleedSection } from "@/components/layout/FullBleedSection";
 import { InlineFigmaImport } from "./home/InlineFigmaImport";
@@ -15,6 +15,7 @@ interface HomeHeroProps {
   onUploadDocument?: () => void;
   isGenerating?: boolean;
   isDisabled?: boolean;
+  isImageLocked?: boolean;
 }
 
 export function HomeHero({
@@ -24,6 +25,7 @@ export function HomeHero({
   onUploadDocument,
   isGenerating = false,
   isDisabled = false,
+  isImageLocked = false,
 }: HomeHeroProps) {
   const {
     context,
@@ -226,21 +228,29 @@ export function HomeHero({
               )}
               <button
                 onClick={handleImageClick}
-                disabled={isDisabled || !canAddMoreImages}
+                disabled={isDisabled || (!isImageLocked && !canAddMoreImages)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
-                  !canAddMoreImages
-                    ? "bg-muted/30 text-muted-foreground/50 cursor-not-allowed"
-                    : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
+                  isImageLocked
+                    ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
+                    : !canAddMoreImages
+                      ? "bg-muted/30 text-muted-foreground/50 cursor-not-allowed"
+                      : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
                 } disabled:opacity-50`}
+                title={isImageLocked ? "Upgrade to Advanced to use image-to-workflow" : undefined}
                 data-testid="button-hero-image"
               >
-                <Upload className="w-4 h-4" />
+                {isImageLocked ? <Lock className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                 <div className="text-left">
-                  <div className="font-medium text-xs">Image</div>
+                  <div className="font-medium text-xs flex items-center gap-1">
+                    Image
+                    {isImageLocked && <span className="text-[9px] px-1 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium">Advanced</span>}
+                  </div>
                   <div className="text-[10px] opacity-70">
-                    {!canAddMoreImages
-                      ? "1/1 added"
-                      : `${context.attachments.filter((a) => a.type === "image").length}/1 added`}
+                    {isImageLocked
+                      ? "Upgrade to use"
+                      : !canAddMoreImages
+                        ? "1/1 added"
+                        : `${context.attachments.filter((a) => a.type === "image").length}/1 added`}
                   </div>
                 </div>
               </button>
