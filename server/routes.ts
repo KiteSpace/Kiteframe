@@ -26,7 +26,7 @@ import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
-import { requireCredits, getUserGroupAccessControls } from "./middleware/creditCheck";
+import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction } from "./middleware/auditLog";
@@ -1932,24 +1932,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
-  app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+  app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
-      // Require Advanced or Pro tier
-      const reqUser = req.user;
-      const reqUserEmail = reqUser?.email || reqUser?.claims?.email;
-      if (!reqUser || (!isAdminUser(reqUserEmail) && !['advanced', 'pro'].includes(reqUser.subscriptionTier || ''))) {
-        // Re-check against DB for accurate tier
-        const reqUserId = reqUser ? (reqUser.claims?.sub || reqUser.id || null) : null;
-        if (reqUserId) {
-          const dbUser = await storage.getUser(reqUserId);
-          if (!dbUser || (!isAdminUser(dbUser.email) && !['advanced', 'pro'].includes(dbUser.subscriptionTier || ''))) {
-            return res.status(403).json({ error: 'This feature requires an Advanced or Pro plan. Upgrade at kiteframe.space/pricing.', requiresUpgrade: true });
-          }
-        } else {
-          return res.status(403).json({ error: 'This feature requires an Advanced or Pro plan. Upgrade at kiteframe.space/pricing.', requiresUpgrade: true });
-        }
-      }
-
       const { label, description, nodeType } = req.body;
       
       if (!label || !nodeType) {
@@ -3045,23 +3029,8 @@ Respond with only the corrected JSON data:`;
   });
 
   // AI Image-to-Workflow Analysis endpoint
-  app.post("/api/ai/analyze-workflow-image", requireUSOnly, requireCredits, upload.single('image'), async (req: any, res) => {
+  app.post("/api/ai/analyze-workflow-image", requireUSOnly, requireAdvancedOrPro, requireCredits, upload.single('image'), async (req, res) => {
     try {
-      // Require Advanced or Pro tier
-      const reqUser = req.user;
-      const reqUserEmail = reqUser?.email || reqUser?.claims?.email;
-      if (!reqUser || (!isAdminUser(reqUserEmail) && !['advanced', 'pro'].includes(reqUser.subscriptionTier || ''))) {
-        const reqUserId = reqUser ? (reqUser.claims?.sub || reqUser.id || null) : null;
-        if (reqUserId) {
-          const dbUser = await storage.getUser(reqUserId);
-          if (!dbUser || (!isAdminUser(dbUser.email) && !['advanced', 'pro'].includes(dbUser.subscriptionTier || ''))) {
-            return res.status(403).json({ error: 'This feature requires an Advanced or Pro plan. Upgrade at kiteframe.space/pricing.', requiresUpgrade: true });
-          }
-        } else {
-          return res.status(403).json({ error: 'This feature requires an Advanced or Pro plan. Upgrade at kiteframe.space/pricing.', requiresUpgrade: true });
-        }
-      }
-
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
       }

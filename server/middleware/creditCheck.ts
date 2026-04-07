@@ -167,6 +167,58 @@ export async function requireCredits(
   }
 }
 
+export async function requireAdvancedOrPro(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const user = (req as any).user;
+    const userEmail = user?.email || user?.claims?.email;
+
+    if (isAdminUser(userEmail)) {
+      next();
+      return;
+    }
+
+    if (user) {
+      const userId = user.claims?.sub || user.id || null;
+      if (userId) {
+        const { db } = await import('../db');
+        const { users } = await import('@shared/schema');
+        const { eq } = await import('drizzle-orm');
+        const result = await db.select({ subscriptionTier: users.subscriptionTier, email: users.email })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        const dbUser = result[0];
+        if (dbUser && isAdminUser(dbUser.email)) {
+          next();
+          return;
+        }
+        if (dbUser && ['advanced', 'pro'].includes(dbUser.subscriptionTier || '')) {
+          next();
+          return;
+        }
+      } else {
+        const inMemoryTier: string = (user as any).subscriptionTier || '';
+        if (['advanced', 'pro'].includes(inMemoryTier)) {
+          next();
+          return;
+        }
+      }
+    }
+
+    res.status(403).json({
+      error: 'This feature requires an Advanced or Pro plan. Upgrade at kiteframe.space/pricing.',
+      requiresUpgrade: true,
+    });
+  } catch (error) {
+    console.error('Tier check error:', error);
+    res.status(500).json({ error: 'Could not verify plan tier.' });
+  }
+}
+
 export { getUserGroupAccessControls, MergedAccessControls };
 
 declare global {
