@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { UpsellTooltip } from '@/components/UpsellTooltip';
 import { 
   Palette, 
   Type, 
@@ -2374,33 +2375,35 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           
           {/* Wireframe button - shown for all node types except image/table/form/code/experiment */}
           {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'experiment' && !isInlineEditing && (
-            <button
-              className={cn(
-                "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
-                canUseWireframe 
-                  ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
-                  : "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 cursor-pointer"
-              )}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!canUseWireframe) {
-                  onClose();
-                  window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
-                } else {
-                  onWireframe?.();
-                }
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-              title={canUseWireframe ? "Generate wireframe mockup" : "Upgrade to Advanced to use Wireframe"}
-              data-testid="toolbar-button-wireframe"
-              tabIndex={0}
-            >
-              <Sparkles size={14} />
-              <span>Wireframe</span>
-              {!canUseWireframe && (
-                <Lock size={12} className="ml-0.5" />
-              )}
-            </button>
+            <UpsellTooltip disabled={canUseWireframe} featureName="wireframe mockups" side="top">
+              <button
+                className={cn(
+                  "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
+                  canUseWireframe 
+                    ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
+                    : "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 cursor-pointer"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!canUseWireframe) {
+                    onClose();
+                    window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
+                  } else {
+                    onWireframe?.();
+                  }
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                title={canUseWireframe ? "Generate wireframe mockup" : undefined}
+                data-testid="toolbar-button-wireframe"
+                tabIndex={0}
+              >
+                <Sparkles size={14} />
+                <span>Wireframe</span>
+                {!canUseWireframe && (
+                  <Lock size={12} className="ml-0.5" />
+                )}
+              </button>
+            </UpsellTooltip>
           )}
           
           {/* Delete button always last */}
