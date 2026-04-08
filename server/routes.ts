@@ -941,10 +941,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Delete all user data
+      // Invalidate ALL active sessions for this user across every browser/device
+      // before deleting the user row, so they cannot continue using the app.
+      await db.execute(
+        sql`DELETE FROM sessions WHERE sess::jsonb -> 'passport' -> 'user' ->> 'id' = ${userId}`
+      );
+
+      // Delete all user data (projects, folders, credits, insight history, and user row)
       await storage.deleteUser(userId);
 
-      // Logout the user
+      // Destroy the current server-side session and clear the cookie
       req.logout(() => {
         res.json({ success: true, message: 'Account deleted successfully' });
       });
