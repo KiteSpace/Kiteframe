@@ -96,9 +96,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
+    // Delete savedProjects (notNull FK — must precede user row deletion)
     await this.deleteAllUserProjects(id);
+    // Delete projectFolders (notNull FK — must precede user row deletion)
     await db.delete(projectFolders).where(eq(projectFolders.userId, id));
+    // Delete insight history (nullable FK, no cascade — clean up orphan rows)
+    await db.delete(insightHistory).where(eq(insightHistory.userId, id));
+    // Delete credit record (keyed by userIdentifier which equals userId for signed-in users)
     await db.delete(userCredits).where(eq(userCredits.userIdentifier, id));
+    // Delete user row — oauthProviders and userGroupMemberships cascade automatically
     await db.delete(users).where(eq(users.id, id));
   }
 
