@@ -6356,13 +6356,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       let rawSaved = localStorage.getItem(key);
 
       // One-time migration: when a signed-in user's namespaced key is empty but the
-      // legacy unnamespaced key has data, move the data across and remove the old key.
+      // legacy unnamespaced key has data, copy it to the namespaced key.
       const currentUserId = userIdRef.current;
       if (!rawSaved && currentUserId) {
         const legacyData = localStorage.getItem('kiteframe_workflows');
         if (legacyData) {
+          // Copy (not move) to the namespaced key — we intentionally leave the legacy key
+          // in place so that anonymous sessions on the same browser are unaffected.
           localStorage.setItem(key, legacyData);
-          localStorage.removeItem('kiteframe_workflows');
           rawSaved = legacyData;
         }
       }
