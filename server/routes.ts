@@ -5295,22 +5295,30 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         return res.status(404).json({ error: 'User not found' });
       }
       
-      // Delete related data in order
       const { userCredits, oauthProviders, aiUsageEvents } = await import('@shared/schema');
-      
-      // Delete group memberships
+
+      // 1. Invalidate all active sessions for this user so they are immediately logged out
+      await db.execute(
+        sql`DELETE FROM sessions WHERE sess::jsonb -> 'passport' -> 'user' ->> 'id' = ${userId}`
+      );
+
+      // 2. Delete saved projects and project folders (FK to users — must delete before user row)
+      await db.delete(savedProjects).where(eq(savedProjects.userId, userId));
+      await db.delete(projectFolders).where(eq(projectFolders.userId, userId));
+
+      // 3. Delete group memberships
       await db.delete(userGroupMemberships).where(eq(userGroupMemberships.userId, userId));
       
-      // Delete credits
+      // 4. Delete credits
       await db.delete(userCredits).where(eq(userCredits.userIdentifier, userId));
       
-      // Delete oauth providers
+      // 5. Delete oauth providers (FK to users with no onDelete — must delete before user row)
       await db.delete(oauthProviders).where(eq(oauthProviders.userId, userId));
       
-      // Delete AI usage events (optional - could keep for analytics)
+      // 6. Delete AI usage events
       await db.delete(aiUsageEvents).where(eq(aiUsageEvents.userId, userId));
       
-      // Delete the user
+      // 7. Delete the user record
       await db.delete(users).where(eq(users.id, userId));
       
       res.json({

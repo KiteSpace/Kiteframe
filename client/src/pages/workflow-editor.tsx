@@ -67,6 +67,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useFirebaseWorkflows } from "../hooks/useFirebaseWorkflows";
 import { useAuth } from "../hooks/useAuth";
+import { useReplitAuth } from "../hooks/useReplitAuth";
 import { useCreditsGate } from "../hooks/useCreditsGate";
 import { useCloudProjects } from "../hooks/useCloudProjects";
 import { useSubscription } from "../hooks/useSubscription";
@@ -437,6 +438,23 @@ function WorkflowEditorContent({
 
   const { isPro, isAdmin, isAdvanced, tier: subscriptionTier } = useSubscription();
   const { isAuthenticated } = useAuth();
+  const { user: serverUser, isLoading: serverUserLoading } = useReplitAuth();
+
+  // Compute a per-user localStorage key to isolate each account's projects.
+  // Falls back to the legacy unnamespaced key for unauthenticated (anonymous) sessions.
+  const storageKey = serverUser?.id
+    ? `kiteframe_workflows_${serverUser.id}`
+    : 'kiteframe_workflows';
+
+  // Stable ref so save/load callbacks always read the current key without needing
+  // to be rebuilt whenever the user identity resolves.
+  const storageKeyRef = useRef(storageKey);
+  storageKeyRef.current = storageKey;
+
+  // Mirror the user ID in a ref for the migration check inside loadFromLocalStorage.
+  const userIdRef = useRef<string | null>(serverUser?.id ?? null);
+  userIdRef.current = serverUser?.id ?? null;
+
   const {
     projects: cloudProjects,
     isLoading: cloudProjectsLoading,
@@ -6322,10 +6340,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
   }, [nodes, setNodes, setEdges, saveToHistory]);
 
-  // Local storage persistence for workflows
+  // Local storage persistence for workflows — keyed per user to isolate accounts.
+  // Uses refs so the callbacks are stable and don't rebuild when user identity resolves.
   const saveToLocalStorage = useCallback((tabsToSave: WorkflowTab[]) => {
     try {
-      localStorage.setItem("kiteframe_workflows", JSON.stringify(tabsToSave));
+      localStorage.setItem(storageKeyRef.current, JSON.stringify(tabsToSave));
     } catch (error) {
       console.error("❌ Failed to save workflows to local storage:", error);
     }
@@ -6333,9 +6352,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   const loadFromLocalStorage = useCallback((): WorkflowTab[] => {
     try {
-      const saved = localStorage.getItem("kiteframe_workflows");
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const key = storageKeyRef.current;
+      let rawSaved = localStorage.getItem(key);
+
+      // One-time migration: when a signed-in user's namespaced key is empty but the
+      // legacy unnamespaced key has data, move the data across and remove the old key.
+      const currentUserId = userIdRef.current;
+      if (!rawSaved && currentUserId) {
+        const legacyData = localStorage.getItem('kiteframe_workflows');
+        if (legacyData) {
+          localStorage.setItem(key, legacyData);
+          localStorage.removeItem('kiteframe_workflows');
+          rawSaved = legacyData;
+        }
+      }
+
+      if (rawSaved) {
+        const parsed = JSON.parse(rawSaved);
         // Backfill projectUuid and isOpen for legacy tabs
         return parsed.map((tab: WorkflowTab) => ({
           ...tab,
@@ -6373,6 +6406,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Also handles merging with pending chat draft if navigating from FullScreenChat
   useEffect(() => {
     if (isReadOnly) return; // Don't load in view mode
+
+    // Wait until we know who the user is (or confirmed they're anonymous) so that
+    // the correct per-user storage key is used from the very first load.
+    if (serverUserLoading) return;
     
     // Prevent double-processing via ref guard
     // If already processed, skip entirely - tabs were already set correctly
@@ -6440,7 +6477,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       setTabs(savedTabs);
       // Keep user on home screen by default, they can switch to a tab from there
     }
-  }, [loadFromLocalStorage, isReadOnly, createBlankTab, toast, promptContextStore]);
+  }, [loadFromLocalStorage, isReadOnly, serverUserLoading, createBlankTab, toast, promptContextStore]);
 
   // Handle reset in view mode: restore original data
   const handleViewReset = useCallback(() => {
