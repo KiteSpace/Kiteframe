@@ -682,14 +682,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerId = customer.id;
       }
 
-      const trialDays = trial === true ? 7 : undefined;
+      // Trial duration is controlled via the Stripe Dashboard on the Price object.
+      // Do not pass trial_period_days here — Stripe will apply whatever is configured
+      // on the Price, which can be changed at any time without a code deploy.
       const session = await stripeService.createCheckoutSession(
         customerId,
         priceId,
         `${req.protocol}://${req.get('host')}/checkout/success`,
         `${req.protocol}://${req.get('host')}/pricing`,
-        'subscription',
-        trialDays
+        'subscription'
       );
 
       res.json({ url: session.url });
