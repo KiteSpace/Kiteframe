@@ -3591,7 +3591,6 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         const searchTerm = `%${search}%`;
         whereCondition = or(
           ilike(sql`COALESCE(${aiUsageEvents.userId}, '')`, searchTerm),
-          ilike(sql`COALESCE(${aiUsageEvents.userIdentifier}, '')`, searchTerm),
           ilike(sql`COALESCE(${aiUsageEvents.feature}, '')`, searchTerm),
           ilike(sql`COALESCE(${aiUsageEvents.model}, '')`, searchTerm),
           ilike(sql`COALESCE(${users.email}, '')`, searchTerm)
@@ -3602,7 +3601,6 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       const baseQuery = db.select({
         id: aiUsageEvents.id,
         userId: aiUsageEvents.userId,
-        userIdentifier: aiUsageEvents.userIdentifier,
         feature: aiUsageEvents.feature,
         model: aiUsageEvents.model,
         units: aiUsageEvents.units,
