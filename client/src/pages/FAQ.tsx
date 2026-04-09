@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 import { FAQ_SECTIONS, HOW_TO_SECTIONS, SECURITY_SECTIONS, type FAQSection } from "@/lib/faqContent";
 import {
   Accordion,
@@ -121,18 +122,8 @@ export default function FAQPage() {
           </TabsContent>
         </Tabs>
 
-        <footer className="mt-12 pt-8 border-t text-center">
-          <p className="text-sm text-muted-foreground">
-            Have more questions?{" "}
-            <a
-              href="mailto:support@kiteframe.space"
-              className="text-primary hover:underline"
-            >
-              Contact us
-            </a>
-          </p>
-        </footer>
       </div>
     </div>
+    <SiteFooter />
   );
 }

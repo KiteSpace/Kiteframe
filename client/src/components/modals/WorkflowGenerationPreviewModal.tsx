@@ -93,7 +93,7 @@ export function WorkflowGenerationPreviewModal({
           <DialogTitle className="flex items-center gap-2">
             <Workflow className="h-5 w-5 text-primary" />
             Generate Workflow
-            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">Beta</span>
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded">Early Access</span>
           </DialogTitle>
           <DialogDescription>
             Select a generation mode and review the frames

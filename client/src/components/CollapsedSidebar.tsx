@@ -597,7 +597,7 @@ export function CollapsedSidebar({
                 <div className="flex items-center gap-2 w-full">
                   <Figma className="w-4 h-4 text-purple-500" />
                   <span className="text-xs font-medium">Import Figma</span>
-                  <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Early Access</span>
                 </div>
               </button>
             </div>

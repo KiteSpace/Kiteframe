@@ -237,7 +237,7 @@ export function ImageAnalysisModal({
           <DialogTitle className="flex items-center gap-2">
             <Workflow className="h-5 w-5 text-blue-500" />
             Analyze Image for Workflow
-            <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium">Beta</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium">Early Access</span>
           </DialogTitle>
           <DialogDescription>
             Upload a workflow diagram image for AI analysis

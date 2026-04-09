@@ -218,7 +218,7 @@ export function HomeHero({
                   <div className="text-left">
                     <div className="flex items-center gap-1">
                       <span className="font-medium text-xs">Figma</span>
-                      <span className="text-[9px] px-1 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
+                      <span className="text-[9px] px-1 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Early Access</span>
                     </div>
                     <div className="text-[10px] opacity-70">
                       {hasFigmaAttachment ? "1/1 added" : "Import design"}

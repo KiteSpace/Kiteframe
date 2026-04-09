@@ -274,7 +274,7 @@ export function FigmaFramePicker({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Generate workflows from selected frames</span>
-                  <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Beta</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded font-medium">Early Access</span>
                 </div>
                 <div className="text-xs text-muted-foreground">Analyze frames and create workflow nodes</div>
                 <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">This feature is experimental, results may vary</div>
