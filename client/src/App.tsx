@@ -9,6 +9,7 @@ import { FeatureFlagProvider } from "@/contexts/FeatureFlagContext";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { PageViewTracker } from "@/components/PageViewTracker";
+import { CookieBanner } from "@/components/CookieBanner";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const WorkflowEditor = lazy(() => import("@/pages/workflow-editor"));
@@ -177,6 +178,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            <CookieBanner />
           </TooltipProvider>
         </PromptContextStoreProvider>
       </FeatureFlagProvider>
