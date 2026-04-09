@@ -65,7 +65,7 @@ const TermsContent = (
         We operate the website <A href="https://kiteframe.space">https://kiteframe.space</A> (the <strong>"Site"</strong>), as well as any other related products and services that refer or link to these legal terms (the <strong>"Legal Terms"</strong>) (collectively, the <strong>"Services"</strong>).
       </P>
       <P>
-        You can contact us by email at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A> or by mail to 237 Broderick St, Apt 1, San Francisco, CA 94117, United States.
+        You can contact us by email at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A> or by mail to 522 W Riverside Ave, Ste N, Spokane, WA 99201, United States.
       </P>
       <P>
         These Legal Terms constitute a legally binding agreement made between you, whether personally or on behalf of an entity (<strong>"you"</strong>), and Kitespace LLC, concerning your access to and use of the Services. You agree that by accessing the Services, you have read, understood, and agreed to be bound by all of these Legal Terms. <strong>IF YOU DO NOT AGREE WITH ALL OF THESE LEGAL TERMS, THEN YOU ARE EXPRESSLY PROHIBITED FROM USING THE SERVICES AND YOU MUST DISCONTINUE USE IMMEDIATELY.</strong>
@@ -329,8 +329,8 @@ const TermsContent = (
       <P>In order to resolve a complaint regarding the Services or to receive further information regarding use of the Services, please contact us at:</P>
       <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 space-y-0.5">
         <p><strong>Kitespace LLC</strong></p>
-        <p>237 Broderick St, Apt 1</p>
-        <p>San Francisco, CA 94117</p>
+        <p>522 W Riverside Ave, Ste N</p>
+        <p>Spokane, WA 99201</p>
         <p>United States</p>
         <p><A href="mailto:info@kiteframe.space">info@kiteframe.space</A></p>
       </div>
