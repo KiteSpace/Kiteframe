@@ -346,13 +346,13 @@ const CookiesContent = (
 
     <div className="mb-8 space-y-3">
       <P>
-        This Cookies Policy explains what Cookies are and how We use them. You should read this policy so You can understand what type of cookies We use, or the information We collect using Cookies and how that information is used.
+        This Cookies Policy explains what Cookies and similar browser technologies are and how We use them. You should read this policy so You can understand what type of cookies and local storage items We use, the information We collect using these technologies, and how that information is used.
       </P>
       <P>
-        Cookies do not typically contain any information that personally identifies a user, but personal information that We store about You may be linked to the information stored in and obtained from Cookies. For further information on how We use, store and keep your personal data secure, see our <a href="/legal#privacy" className="text-violet-600 hover:text-violet-700 dark:text-violet-400 hover:underline">Privacy Policy</a>.
+        Cookies and local storage items do not typically contain any information that personally identifies a user, but personal information that We store about You may be linked to the information stored in and obtained from these technologies. For further information on how We use, store and keep your personal data secure, see our <a href="/legal#privacy" className="text-violet-600 hover:text-violet-700 dark:text-violet-400 hover:underline">Privacy Policy</a>.
       </P>
       <P>
-        We do not store sensitive personal information, such as mailing addresses, account passwords, etc. in the Cookies We use.
+        We do not store sensitive personal information, such as mailing addresses, account passwords, etc. in the Cookies or local storage items We use.
       </P>
     </div>
 
@@ -368,7 +368,7 @@ const CookiesContent = (
         <P>For the purposes of this Cookies Policy:</P>
         <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 text-sm leading-relaxed ml-2">
           <li><strong>Company</strong> (referred to as either "the Company", "We", "Us" or "Our" in this Cookies Policy) refers to Kitespace LLC, 522 W Riverside Ave, Ste N, Spokane, WA 99201.</li>
-          <li><strong>Cookies</strong> means small files that are placed on Your computer, mobile device or any other device by a website, containing details of your browsing history on that website among its many uses.</li>
+          <li><strong>Cookies</strong> means small files that are placed on Your computer, mobile device or any other device by a website. This policy also covers similar browser storage technologies such as <strong>Local Storage</strong>, which stores data in your browser without an expiry date.</li>
           <li><strong>Website</strong> refers to Kiteframe, accessible from <A href="https://kiteframe.space">https://kiteframe.space</A>.</li>
           <li><strong>You</strong> means the individual accessing or using the Website, or a company, or any legal entity on behalf of which such individual is accessing or using the Website, as applicable.</li>
         </ul>
@@ -392,10 +392,10 @@ const CookiesContent = (
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Purpose: These Cookies are essential to provide You with services available through the Website and to enable You to use some of its features. They help to authenticate users and prevent fraudulent use of user accounts. Without these Cookies, the services that You have asked for cannot be provided, and We only use these Cookies to provide You with those services.</p>
           </div>
           <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-1">
-            <p className="text-sm font-semibold text-foreground">Functionality Cookies</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Type: Persistent Cookies</p>
+            <p className="text-sm font-semibold text-foreground">Functionality Cookies &amp; Local Storage</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Type: Persistent (stored in browser local storage)</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">Administered by: Us</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Purpose: These Cookies allow Us to remember choices You make when You use the Website, such as remembering your login details or language preference. The purpose of these Cookies is to provide You with a more personal experience and to avoid You having to re-enter your preferences every time You use the Website.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Purpose: These technologies allow Us to remember choices You make when You use the Website, such as your dark mode preference, canvas layout settings, panel state, and your cookie consent selection. The purpose is to provide You with a more consistent experience and to avoid You having to re-configure your preferences every time You use the Website.</p>
           </div>
         </div>
       </SubSection>
