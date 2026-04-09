@@ -83,17 +83,41 @@ const TermsContent = (
 
     <div className="mb-8">
       <h2 className="text-lg font-bold text-foreground mb-3">TABLE OF CONTENTS</h2>
-      <ol className="list-decimal list-inside space-y-1 text-sm text-violet-600 dark:text-violet-400 ml-2">
+      <ol className="list-decimal list-inside space-y-1 text-sm ml-2">
         {[
-          'OUR SERVICES', 'INTELLECTUAL PROPERTY RIGHTS', 'USER REPRESENTATIONS',
-          'USER REGISTRATION', 'PURCHASES AND PAYMENT', 'SUBSCRIPTIONS', 'CANCELLATION',
-          'PROHIBITED ACTIVITIES', 'USER GENERATED CONTRIBUTIONS', 'CONTRIBUTION LICENSE',
-          'THIRD-PARTY WEBSITES AND CONTENT', 'SERVICES MANAGEMENT', 'PRIVACY POLICY',
-          'TERM AND TERMINATION', 'MODIFICATIONS AND INTERRUPTIONS', 'GOVERNING LAW',
-          'DISPUTE RESOLUTION', 'CORRECTIONS', 'DISCLAIMER', 'LIMITATIONS OF LIABILITY',
-          'INDEMNIFICATION', 'USER DATA', 'ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES',
-          'CALIFORNIA USERS AND RESIDENTS', 'MISCELLANEOUS', 'CONTACT US',
-        ].map((s, i) => <li key={i}>{s}</li>)}
+          ['services', 'OUR SERVICES'],
+          ['ip', 'INTELLECTUAL PROPERTY RIGHTS'],
+          ['userreps', 'USER REPRESENTATIONS'],
+          ['userreg', 'USER REGISTRATION'],
+          ['products', 'PURCHASES AND PAYMENT'],
+          ['subscriptions', 'SUBSCRIPTIONS'],
+          ['cancel', 'CANCELLATION'],
+          ['prohibited', 'PROHIBITED ACTIVITIES'],
+          ['ugc', 'USER GENERATED CONTRIBUTIONS'],
+          ['license', 'CONTRIBUTION LICENSE'],
+          ['thirdparty', 'THIRD-PARTY WEBSITES AND CONTENT'],
+          ['management', 'SERVICES MANAGEMENT'],
+          ['ppyes', 'PRIVACY POLICY'],
+          ['terms', 'TERM AND TERMINATION'],
+          ['modifications', 'MODIFICATIONS AND INTERRUPTIONS'],
+          ['law', 'GOVERNING LAW'],
+          ['disputes', 'DISPUTE RESOLUTION'],
+          ['corrections', 'CORRECTIONS'],
+          ['disclaimer', 'DISCLAIMER'],
+          ['liability', 'LIMITATIONS OF LIABILITY'],
+          ['indemnification', 'INDEMNIFICATION'],
+          ['userdata', 'USER DATA'],
+          ['electronic', 'ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES'],
+          ['california', 'CALIFORNIA USERS AND RESIDENTS'],
+          ['misc', 'MISCELLANEOUS'],
+          ['contact', 'CONTACT US'],
+        ].map(([anchor, label], i) => (
+          <li key={i}>
+            <a href={`#${anchor}`} className="text-violet-600 hover:text-violet-700 dark:text-violet-400 hover:underline">
+              {label}
+            </a>
+          </li>
+        ))}
       </ol>
     </div>
 
