@@ -247,7 +247,7 @@ export default function LandingPage() {
 
               {!isAuthenticated && (
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Already a Beta user?{" "}
+                  Already have an account?{" "}
                   <a
                     href="/signin"
                     className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium underline-offset-4 hover:underline"
