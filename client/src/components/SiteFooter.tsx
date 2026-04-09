@@ -81,6 +81,9 @@ export function SiteFooter() {
               <a href="/legal#privacy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-privacy">
                 Privacy
               </a>
+              <a href="/legal#cookies" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-cookies">
+                Cookies
+              </a>
             </div>
           </div>
 
