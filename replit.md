@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Project Limits**: Free=20 projects, Advanced/Pro=100 projects, Anonymous=1 project (single tab).
 - **IP-Based Tracking**: Unauthenticated users tracked by IP address; signed-in users tracked by account ID.
 - **Unlock Codes**: Bonus credits via redeemable codes (admin-generated), can grant fixed credits or unlimited access.
-- **Integration**: Stripe for checkout, customer portal, webhooks.
+- **Integration**: Stripe for checkout, customer portal, webhooks. Live keys are stored as Replit secrets (`STRIPE_LIVE_SECRET_KEY`, `STRIPE_LIVE_PUBLISHABLE_KEY`) — NOT via the Replit Stripe connector. The client (`server/stripeClient.ts`) reads these secrets directly and throws a loud error if they are missing or are not `sk_live_`/`pk_live_` prefixed. Do not add a Replit Stripe connector integration; use the secrets approach instead.
 - **CreditsTierPill**: Toolbar pill showing `🪙 {credits} · {tier}` with an orange alert dot when credits ≤ 8. Clicking opens a dropdown with a credit progress bar + blue-gradient Advanced plan upgrade card (free users only). Replaces the credits section in the settings dropdown. `CreditsWidget` dialog (for unlock codes) still accessible via "Manage credits →" inside the pill dropdown.
 
 ### Canvas and Workflow System
