@@ -81,6 +81,7 @@ export default function FAQPage() {
   }, []);
 
   return (
+    <>
     <div className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Button
@@ -125,5 +126,6 @@ export default function FAQPage() {
       </div>
     </div>
     <SiteFooter />
+    </>
   );
 }
