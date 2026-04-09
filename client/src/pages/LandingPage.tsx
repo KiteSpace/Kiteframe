@@ -641,7 +641,7 @@ export default function LandingPage() {
                 )}
 
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                  Already have beta access? Just sign in above.
+                  Already have an account? Just sign in above.
                 </p>
                 <p className="text-xs text-muted-foreground text-center pt-2 leading-relaxed">
                   By continuing, you acknowledge that you agree to Kiteframe's{' '}
