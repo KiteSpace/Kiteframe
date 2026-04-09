@@ -37,14 +37,16 @@ async function getCredentials() {
   if (isProduction) {
     connectionSettings = await fetchConnection('production');
     if (!connectionSettings || !connectionSettings.settings?.publishable || !connectionSettings.settings?.secret) {
-      connectionSettings = await fetchConnection('development');
+      throw new Error(
+        'Stripe production connection is not configured. ' +
+        'Add a production Stripe connection with live keys in the Replit integrations panel before deploying.'
+      );
     }
   } else {
     connectionSettings = await fetchConnection('development');
-  }
-
-  if (!connectionSettings || (!connectionSettings.settings?.publishable || !connectionSettings.settings?.secret)) {
-    throw new Error('Stripe connection not found (tried production and development environments)');
+    if (!connectionSettings || !connectionSettings.settings?.publishable || !connectionSettings.settings?.secret) {
+      throw new Error('Stripe development connection not found. Configure a Stripe connection in the Replit integrations panel.');
+    }
   }
 
   return {
