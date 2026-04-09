@@ -450,57 +450,202 @@ const documents: Record<DocumentType, { title: string; icon: typeof FileText; co
   'privacy': {
     title: 'Privacy Policy',
     icon: Shield,
-    content: `KITEFRAME — PRIVACY POLICY (BETA)
+    content: (
+      <>
+        <div className="mb-6 space-y-1">
+          <p className="text-xs text-muted-foreground italic">Effective Date: April 9, 2026</p>
+          <p className="text-xs text-muted-foreground italic">Last Updated: April 9, 2026</p>
+        </div>
 
-Last edited: 12/22/25
+        <div className="mb-8 space-y-3">
+          <P>
+            This Privacy Policy describes how Kiteframe.space ("Kiteframe," "we," "us," or "our") collects, uses, and handles your information when you use our website and services (the "Service"). By using the Service, you agree to the practices described in this policy.
+          </P>
+        </div>
 
-Kiteframe is a product of Kitespace, LLC, a Wyoming limited liability company.
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-This Privacy Policy explains how Kiteframe handles user information.
+        <Section title="1. Information We Collect">
+          <SubSection title="a. Account & Identity Information">
+            <P>When you sign in using a third-party OAuth provider (Google, GitHub, or Replit), we receive and store:</P>
+            <UL items={[
+              'Email address, first name, last name, and profile photo URL',
+              'OAuth provider IDs (to identify your account across sessions)',
+            ]} />
+            <P>We do not store your OAuth provider passwords.</P>
+          </SubSection>
 
----
+          <SubSection title="b. Billing Information">
+            <P>If you subscribe to a paid plan, we use Stripe to process payments. We store:</P>
+            <UL items={[
+              'Your Stripe customer and subscription IDs',
+              'Your billing tier and billing period',
+            ]} />
+            <P>We do not store raw credit card numbers or payment details — those are handled entirely by Stripe. See <A href="https://stripe.com/privacy">Stripe's Privacy Policy</A> for more information.</P>
+          </SubSection>
 
-1. INFORMATION COLLECTED
+          <SubSection title="c. Waitlist Applications">
+            <P>If you applied to join Kiteframe's waitlist, we collected and stored:</P>
+            <UL items={[
+              'Your selected role (e.g., PM, designer, engineer, founder)',
+              'A free-text description of your intended use case',
+              'Timestamps for when your application was submitted, approved, or rejected',
+            ]} />
+          </SubSection>
 
-Account info, usage metrics, and user-provided content.
+          <SubSection title="d. User-Created Content">
+            <P>We store the content you create within the Service, including:</P>
+            <UL items={[
+              'Project names and descriptions',
+              'Workflow diagrams, including the full node and edge data (your actual flowcharts)',
+              'Project version history and auto-saves',
+              'Notes attached to projects',
+              'Chat messages sent within collaboration rooms',
+            ]} />
+            <P>This content is yours. We store it to provide the Service and do not use it to train AI models.</P>
+          </SubSection>
 
----
+          <SubSection title="e. AI Usage Metadata">
+            <P>When you use AI-powered features, we log metadata about those interactions, including:</P>
+            <UL items={[
+              'The model used and the type of task (e.g., chat, workflow generation, vision)',
+              'Token counts and credit cost',
+              'Timestamps',
+            ]} />
+            <P>We do <strong>not</strong> log or store the content of your AI prompts.</P>
+          </SubSection>
 
-2. DATA USAGE
+          <SubSection title="f. Site Analytics">
+            <P>We collect privacy-friendly analytics to understand how the Service is used:</P>
+            <UL items={[
+              'Page routes visited',
+              'An anonymized visitor hash (derived from a hashed combination of IP address and user agent — your raw IP is never stored)',
+              'Country code, device type, and referrer domain',
+              'Whether the visitor was authenticated',
+            ]} />
+          </SubSection>
 
-Used solely to operate and improve the Service.
+          <SubSection title="g. Contact Form">
+            <P>If you submit our contact form, your name, email, and message are sent to us via SendGrid and are <strong>not</strong> stored in our database. They exist only in our email inbox.</P>
+          </SubSection>
 
----
+          <SubSection title="h. Admin Audit Logs">
+            <P>For security and accountability, we log certain administrative actions. These logs capture the IP address and user agent of the admin performing the action — not of regular users.</P>
+          </SubSection>
+        </Section>
 
-3. AI PROCESSING
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-User data is not used to train AI models. AI usage follows OpenAI and third-party policies.
+        <Section title="2. How We Use Your Information">
+          <P>We use the information we collect to:</P>
+          <UL items={[
+            'Provide, operate, and improve the Service',
+            'Authenticate your identity and manage your account',
+            'Process billing and manage your subscription',
+            'Enable collaboration features within projects',
+            'Respond to support requests and contact form inquiries',
+            'Analyze usage patterns to improve performance and user experience',
+            'Maintain security and detect misuse',
+          ]} />
+        </Section>
 
----
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-4. DATA ACCESS
+        <Section title="3. How We Share Your Information">
+          <P>We do not sell your personal information. We may share information with:</P>
+          <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 text-sm leading-relaxed ml-2">
+            <li><strong>Service providers</strong> — such as Stripe (billing), SendGrid (email delivery), and our hosting and infrastructure providers — solely to operate the Service</li>
+            <li><strong>Law enforcement or legal process</strong> — if required by applicable law or to protect the rights, property, or safety of Kiteframe, our users, or the public</li>
+            <li><strong>Business transfers</strong> — in connection with a merger, acquisition, or sale of assets, your information may be transferred as part of that transaction</li>
+          </ul>
+        </Section>
 
-Projects are not accessed unless explicitly shared or required for support with consent.
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
----
+        <Section title="4. Data Retention">
+          <P>We retain your account and content data for as long as your account is active or as needed to provide the Service. If you delete your account, we will delete or anonymize your personal data within a reasonable period, except where retention is required by law or for legitimate business purposes (such as resolving disputes or fraud prevention).</P>
+          <P>Contact form submissions are retained only as long as our standard email inbox retention period.</P>
+        </Section>
 
-5. SECURITY
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-Reasonable safeguards are applied; no system is fully secure.
+        <Section title="5. Your Choices">
+          <P>You may:</P>
+          <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 text-sm leading-relaxed ml-2">
+            <li><strong>Update your account information</strong> through your account settings</li>
+            <li><strong>Delete your account</strong> by contacting us at the email below — we will process deletion requests promptly</li>
+            <li><strong>Opt out of non-essential communications</strong> by using the unsubscribe link in any email we send</li>
+          </ul>
+        </Section>
 
----
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-6. USER RESPONSIBILITY
+        <Section title="6. Data Security">
+          <P>We use reasonable administrative, technical, and physical safeguards to protect your information. However, no system is completely secure, and we cannot guarantee absolute security. Please use a strong, unique password and notify us immediately if you suspect unauthorized access to your account.</P>
+        </Section>
 
-Users must comply with their organization's data and IP rules.
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
----
+        <Section title="7. Children's Privacy">
+          <P>Kiteframe.space is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If you believe we have inadvertently collected such information, please contact us and we will delete it promptly.</P>
+        </Section>
 
-7. DATA RETENTION
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
 
-Data retained only as long as necessary to operate the Service.
+        <Section title="8. Third-Party Services">
+          <P>Our Service integrates with or links to third-party services including Google, GitHub, Replit, and Stripe. This Privacy Policy does not cover those services' data practices. We encourage you to review their respective privacy policies.</P>
+        </Section>
 
-Contact: info@kiteframe.space`,
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+        <Section title="9. U.S. State Privacy Rights">
+          <P>Several U.S. states have enacted consumer privacy laws that may grant you additional rights depending on where you live. We honor these rights for all U.S. residents where applicable.</P>
+
+          <SubSection title="California (CCPA / CPRA)">
+            <P>California residents have the following rights under the California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA):</P>
+            <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 text-sm leading-relaxed ml-2">
+              <li><strong>Right to Know</strong> — You may request that we disclose the categories and specific pieces of personal information we have collected about you, the purposes for collection, and the categories of third parties with whom we share it.</li>
+              <li><strong>Right to Delete</strong> — You may request deletion of personal information we have collected, subject to certain exceptions.</li>
+              <li><strong>Right to Correct</strong> — You may request correction of inaccurate personal information we hold about you.</li>
+              <li><strong>Right to Opt Out of Sale or Sharing</strong> — We do not sell personal information or share it for cross-context behavioral advertising.</li>
+              <li><strong>Right to Limit Use of Sensitive Personal Information</strong> — We do not use sensitive personal information beyond what is necessary to provide the Service.</li>
+              <li><strong>Right to Non-Discrimination</strong> — We will not discriminate against you for exercising any of these rights.</li>
+            </ul>
+            <P>To submit a request, contact us at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A>. We will respond within 45 days. We may need to verify your identity before processing your request.</P>
+          </SubSection>
+
+          <SubSection title="Virginia, Colorado, Connecticut, Texas & Other State Laws">
+            <P>Residents of Virginia, Colorado, Connecticut, Texas, Oregon, Montana, Iowa, Delaware, New Hampshire, New Jersey, Indiana, Tennessee, Minnesota, and Nebraska may have rights similar to those described above under their respective state laws, including:</P>
+            <UL items={[
+              'The right to access personal data we hold about you',
+              'The right to correct inaccuracies in your personal data',
+              'The right to delete personal data you have provided or that we have collected',
+              'The right to obtain a portable copy of your data',
+              'The right to opt out of the sale of personal data and targeted advertising (we do neither)',
+              'The right to opt out of profiling for decisions that produce legal or similarly significant effects (we do not conduct such profiling)',
+            ]} />
+            <P>To exercise any of these rights, please contact us at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A>. We will respond within the timeframe required by your state's law (generally 45–60 days). We will not discriminate against you for exercising these rights.</P>
+            <P><strong>Appeals:</strong> If we decline to take action on your request, you may appeal by emailing us at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A> with the subject line "Privacy Rights Appeal." We will respond to appeals within the timeframe required by applicable law.</P>
+          </SubSection>
+        </Section>
+
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+        <Section title="10. Changes to This Policy">
+          <P>We may update this Privacy Policy from time to time. When we do, we will revise the "Last Updated" date at the top of this page. If changes are material, we will notify you by email or through a notice on the Service. Your continued use of the Service after changes take effect constitutes your acceptance of the updated policy.</P>
+        </Section>
+
+        <hr className="my-6 border-slate-200 dark:border-slate-700" />
+
+        <Section title="11. Contact Us">
+          <P>If you have questions or concerns about this Privacy Policy or your data, please contact us at:</P>
+          <div className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-400">
+            <p><strong>Email:</strong> <A href="mailto:info@kiteframe.space">info@kiteframe.space</A></p>
+            <p><strong>Website:</strong> <A href="https://kiteframe.space">https://kiteframe.space</A></p>
+          </div>
+        </Section>
+      </>
+    ),
   },
   'beta-expectations': {
     title: 'Beta Expectations',
