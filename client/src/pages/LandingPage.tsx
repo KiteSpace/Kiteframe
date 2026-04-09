@@ -284,7 +284,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <div className="font-semibold text-foreground">
-                    Beta
+                    Early Access
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Exclusive early access

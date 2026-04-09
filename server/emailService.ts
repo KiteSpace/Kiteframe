@@ -44,13 +44,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 export async function sendBetaApprovalEmail(userEmail: string, firstName?: string | null): Promise<boolean> {
   const name = firstName || 'there';
 
-  const subject = "You're in! Welcome to the Kiteframe Beta";
+  const subject = "You're in! Welcome to the Kiteframe";
 
   const text = `Hi ${name},
 
-Great news! Your request to join the Kiteframe beta has been approved.
+Great news! Your request to join the Kiteframe has been approved.
 
-You can now access the full workflow editor and all beta features. Simply sign in at:
+You can now access Kiteframe by signing in at:
 https://kiteframe.space
 
 What you can do now:
@@ -76,14 +76,14 @@ https://kiteframe.space`;
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center; margin-bottom: 30px;">
     <h1 style="color: #2563eb; margin-bottom: 5px;">🎉 You're In!</h1>
-    <p style="color: #666; font-size: 18px; margin-top: 0;">Welcome to the Kiteframe Beta</p>
+    <p style="color: #666; font-size: 18px; margin-top: 0;">Welcome to Kiteframe</p>
   </div>
   
   <p>Hi ${name},</p>
   
-  <p>Great news! Your request to join the <strong>Kiteframe beta</strong> has been approved.</p>
+  <p>Great news! Your request to join <strong>Kiteframe</strong> has been approved.</p>
   
-  <p>You can now access the full workflow editor and all beta features:</p>
+  <p>You can now access Kiteframe!</p>
   
   <div style="text-align: center; margin: 30px 0;">
     <a href="https://kiteframe.space" style="background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Sign In to Kiteframe</a>
@@ -111,7 +111,7 @@ https://kiteframe.space`;
   <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
   
   <p style="font-size: 12px; color: #94a3b8; text-align: center;">
-    You received this email because you requested access to the Kiteframe beta.
+    You received this email because you requested access to Kiteframe.
   </p>
 </body>
 </html>`;
@@ -133,7 +133,7 @@ export async function sendWaitlistConfirmationEmail(userEmail: string, firstName
 
 Thanks for your interest in Kiteframe! You're now on our waitlist.
 
-We're currently in private beta and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.
+We're currently in an early access launch and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.
 
 In the meantime, feel free to check out our site at https://kiteframe.space to learn more about what we're building.
 
@@ -159,7 +159,7 @@ https://kiteframe.space`;
   
   <p>Thanks for your interest in <strong>Kiteframe</strong>! You're now on our waitlist.</p>
   
-  <p>We're currently in private beta and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.</p>
+  <p>We're currently in an early access launch and working through requests as fast as we can. We'll email you as soon as a spot opens up — usually within a few days.</p>
   
   <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin: 20px 0;">
     <h3 style="margin-top: 0; color: #1e40af;">What is Kiteframe?</h3>
