@@ -228,7 +228,7 @@ export default function LandingPage() {
                   }
                   data-testid="button-hero-cta"
                 >
-                  Request Beta Access
+                  Create an Account
                 </Button>
                 <Button
                   size="lg"
