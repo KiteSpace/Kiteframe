@@ -55,7 +55,9 @@ async function initStripe() {
   }
 }
 
-await initStripe();
+// Kick off Stripe init in the background — do NOT await here so the server
+// opens port 5000 immediately even if the DB is slow or temporarily unavailable.
+initStripe().catch((err) => console.error('Background Stripe init failed:', err));
 
 app.post(
   '/api/stripe/webhook/:uuid',
@@ -126,12 +128,8 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  // Seed feature flags on startup
-  try {
-    await seedFeatureFlags();
-  } catch (error) {
-    console.error('Failed to seed feature flags:', error);
-  }
+  // Seed feature flags in the background — non-blocking so port opens immediately
+  seedFeatureFlags().catch((error) => console.error('Failed to seed feature flags:', error));
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
