@@ -192,7 +192,7 @@ export default function LandingPage() {
                 onClick={() => (window.location.href = "/signin")}
                 data-testid="button-signin-header"
               >
-                Already a Beta user? Sign in
+                Already have an account? Sign in
               </Button>
             )}
           </div>
