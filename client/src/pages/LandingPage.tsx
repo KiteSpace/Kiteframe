@@ -645,9 +645,8 @@ export default function LandingPage() {
                 </p>
                 <p className="text-xs text-muted-foreground text-center pt-2 leading-relaxed">
                   By continuing, you acknowledge that you agree to Kiteframe's{' '}
-                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-waitlist-terms">Terms and Conditions</a>,{' '}
-                  <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-waitlist-privacy">Privacy Policy</a>, and{' '}
-                  <a href="/legal#beta-expectations" className="text-violet-600 hover:underline" data-testid="link-waitlist-beta-terms">Beta Terms</a>.
+                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-waitlist-terms">Terms and Conditions</a>{' '}
+                  and <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-waitlist-privacy">Privacy Policy</a>.
                 </p>
               </div>
             </div>
