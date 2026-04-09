@@ -151,9 +151,8 @@ export default function SignIn() {
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   By continuing, you acknowledge that you agree to Kiteframe's{' '}
-                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-terms">Terms and Conditions</a>,{' '}
-                  <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-privacy">Privacy Policy</a>, and{' '}
-                  <a href="/legal#beta-expectations" className="text-violet-600 hover:underline" data-testid="link-beta-terms">Beta Terms</a>.
+                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-terms">Terms and Conditions</a>{' '}
+                  and <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-privacy">Privacy Policy</a>.
                 </p>
               </div>
             </CardContent>
