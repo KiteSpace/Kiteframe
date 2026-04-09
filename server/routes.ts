@@ -1947,11 +1947,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Node label and type are required' });
       }
 
-      // Create prompt for wireframe generation
-      const prompt = `Create a simple, clean SVG wireframe mockup for a UI component representing "${label}".
+      const sanitize = (value: string, maxLength: number) =>
+        String(value).replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLength);
 
-Node Type: ${nodeType}
-Description: ${description || 'No description provided'}
+      const safeLabel = sanitize(label, 100);
+      const safeNodeType = sanitize(nodeType, 50);
+      const safeDescription = description ? sanitize(description, 300) : 'No description provided';
+
+      // Create prompt for wireframe generation
+      const prompt = `Create a simple, clean SVG wireframe mockup for a UI component representing "${safeLabel}".
+
+Node Type: ${safeNodeType}
+Description: ${safeDescription}
 
 Requirements:
 - Generate ONLY the SVG code, no explanations
