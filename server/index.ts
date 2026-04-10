@@ -21,24 +21,41 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "https://js.stripe.com",
+        "https://js.stripe.com",          // Stripe.js
+        "https://*.replit.com",            // Replit CDN (auth widgets, assets)
       ],
       styleSrc: [
         "'self'",
-        "'unsafe-inline'", // Required for React inline styles
+        "'unsafe-inline'",                 // Required for React style={} props
       ],
       fontSrc: ["'self'", "data:"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://lh3.googleusercontent.com",     // Google profile pictures
+        "https://*.googleusercontent.com",        // Google avatar variants
+        "https://avatars.githubusercontent.com",  // GitHub profile pictures
+        "https://*.githubusercontent.com",         // GitHub raw assets
+        "https://*.replit.com",                   // Replit avatars / CDN assets
+        "https://track.sendgrid.net",             // SendGrid open/click pixel
+      ],
       connectSrc: [
         "'self'",
-        "https://api.stripe.com",
-        "https://js.stripe.com",
+        "https://api.stripe.com",         // Stripe API (Stripe.js calls)
+        "https://js.stripe.com",          // Stripe.js internal requests
+        "https://accounts.google.com",   // Google OAuth token endpoint
+        "https://github.com",             // GitHub OAuth
+        "https://api.github.com",         // GitHub user API (post-auth)
+        "https://replit.com",             // Replit OIDC / auth
+        "https://*.replit.com",           // Replit CDN / auth subdomains
       ],
       frameSrc: [
-        "https://js.stripe.com",
-        "https://hooks.stripe.com",
+        "https://js.stripe.com",          // Stripe payment element iframes
+        "https://hooks.stripe.com",       // Stripe 3DS iframes
+        "https://accounts.google.com",   // Google OAuth popup
       ],
-      frameAncestors: ["'none'"],
+      frameAncestors: ["'none'"],         // Prevent clickjacking
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
@@ -46,7 +63,7 @@ app.use(helmet({
     },
   },
   hsts: {
-    maxAge: 31536000,        // 1 year
+    maxAge: 31536000,         // 1 year
     includeSubDomains: true,
     preload: false,
   },
