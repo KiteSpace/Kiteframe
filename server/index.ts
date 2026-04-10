@@ -38,7 +38,6 @@ app.use(helmet({
         "https://avatars.githubusercontent.com",  // GitHub profile pictures
         "https://*.githubusercontent.com",         // GitHub raw assets
         "https://*.replit.com",                   // Replit avatars / CDN assets
-        "https://track.sendgrid.net",             // SendGrid open/click pixel
       ],
       connectSrc: [
         "'self'",
