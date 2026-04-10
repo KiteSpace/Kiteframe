@@ -1,13 +1,24 @@
-import sgMail from '@sendgrid/mail';
+import nodemailer from 'nodemailer';
 
-const FROM_ADDRESS = process.env.SENDGRID_FROM || 'info@kiteframe.space';
+const FROM_ADDRESS = process.env.SMTP_USER || 'info@kiteframe.space';
 
-function isConfigured(): boolean {
-  if (!process.env.SENDGRID_API_KEY) {
-    console.warn('SENDGRID_API_KEY not configured, skipping email send');
-    return false;
+function createTransport() {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+
+  if (!host || !user || !pass) {
+    console.warn('SMTP credentials not fully configured (SMTP_HOST, SMTP_USER, SMTP_PASS required)');
+    return null;
   }
-  return true;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
 }
 
 interface EmailOptions {
@@ -20,14 +31,13 @@ interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  if (!isConfigured()) return false;
-
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+  const transporter = createTransport();
+  if (!transporter) return false;
 
   try {
-    await sgMail.send({
-      to: options.to,
+    await transporter.sendMail({
       from: FROM_ADDRESS,
+      to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html || options.text.replace(/\n/g, '<br>'),
@@ -116,12 +126,7 @@ https://kiteframe.space`;
 </body>
 </html>`;
 
-  return sendEmail({
-    to: userEmail,
-    subject,
-    text,
-    html,
-  });
+  return sendEmail({ to: userEmail, subject, text, html });
 }
 
 export async function sendWaitlistConfirmationEmail(userEmail: string, firstName?: string | null): Promise<boolean> {
@@ -185,12 +190,7 @@ https://kiteframe.space`;
 </body>
 </html>`;
 
-  return sendEmail({
-    to: userEmail,
-    subject,
-    text,
-    html,
-  });
+  return sendEmail({ to: userEmail, subject, text, html });
 }
 
 export async function sendContactEmail(
@@ -253,29 +253,19 @@ export async function sendDocsAccessEmail(
   recipientEmail: string,
   loginLink: string
 ): Promise<boolean> {
-  if (!isConfigured()) return false;
-
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-
-  try {
-    await sgMail.send({
-      to: recipientEmail,
-      from: FROM_ADDRESS,
-      subject: 'Your Kiteframe Developer Documentation Access',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Developer Documentation Access</h2>
-          <p>You've been granted access to Kiteframe's internal developer documentation.</p>
-          <p>Click the link below to access the docs:</p>
-          <p><a href="${loginLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Documentation</a></p>
-          <p style="color: #666; font-size: 14px;">This link expires in 24 hours. After clicking, you'll stay logged in for 30 days.</p>
-          <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-        </div>
-      `,
-    });
-    return true;
-  } catch (error) {
-    console.error('Failed to send docs access email:', error);
-    return false;
-  }
+  return sendEmail({
+    to: recipientEmail,
+    subject: 'Your Kiteframe Developer Documentation Access',
+    text: `You've been granted access to Kiteframe's internal developer documentation.\n\nClick the link below to access the docs:\n${loginLink}\n\nThis link expires in 24 hours. After clicking, you'll stay logged in for 30 days.\n\nIf you didn't request this, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Developer Documentation Access</h2>
+        <p>You've been granted access to Kiteframe's internal developer documentation.</p>
+        <p>Click the link below to access the docs:</p>
+        <p><a href="${loginLink}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Access Documentation</a></p>
+        <p style="color: #666; font-size: 14px;">This link expires in 24 hours. After clicking, you'll stay logged in for 30 days.</p>
+        <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `,
+  });
 }
