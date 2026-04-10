@@ -103,6 +103,10 @@ export function SignInModal({ open, onOpenChange, onSignUpClick }: SignInModalPr
             </div>
           </div>
 
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+            By signing in, you agree to receive account-related emails from Kiteframe.
+          </p>
+
           <div className="text-center text-sm text-slate-600 dark:text-slate-300">
             Don't have an account yet?{' '}
             <button

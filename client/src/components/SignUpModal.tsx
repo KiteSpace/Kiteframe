@@ -192,6 +192,10 @@ export function SignUpModal({ open, onOpenChange, onSignInClick }: SignUpModalPr
             </div>
           </div>
 
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+            By creating an account, you agree to receive transactional emails about your account and service updates from Kiteframe.
+          </p>
+
           <div className="text-center text-sm text-slate-600 dark:text-slate-300">
             Already have an account?{' '}
             <button

@@ -193,7 +193,7 @@ const TermsContent = (
 
     <Section id="products" title="5. PURCHASES AND PAYMENT">
       <P>We accept the following forms of payment: Visa, Mastercard, American Express, and other major credit cards via Stripe.</P>
-      <P>You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services. You further agree to promptly update account and payment information, including email address, payment method, and payment card expiration date, so that we can complete your transactions and contact you as needed. Sales tax will be added to the price of purchases as deemed required by us. We may change prices at any time. All payments shall be in US dollars.</P>
+      <P>You agree to provide current, complete, and accurate purchase and account information for all purchases made via the Services. You further agree to promptly update account and payment information, including email address, payment method, and payment card expiration date, so that we can complete your transactions and contact you as needed. Sales tax will be added to the price of purchases as deemed required by us. We may change prices; where a price increase affects an active subscription, we will notify you by email at least 30 days in advance. All payments shall be in US dollars.</P>
       <P>You agree to pay all charges at the prices then in effect for your purchases and any applicable fees, and you authorize us to charge your chosen payment provider for any such amounts upon placing your order. We reserve the right to correct any errors or mistakes in pricing, even if we have already requested or received payment.</P>
       <P>We reserve the right to refuse any order placed through the Services. We may, in our sole discretion, limit or cancel quantities purchased per person, per household, or per order. These restrictions may include orders placed by or under the same customer account, the same payment method, and/or orders that use the same billing or shipping address. We reserve the right to limit or prohibit orders that, in our sole judgment, appear to be placed by dealers, resellers, or distributors.</P>
     </Section>
@@ -206,7 +206,7 @@ const TermsContent = (
         <P>All purchases are non-refundable. You can cancel your subscription at any time by logging into your account. Your cancellation will take effect at the end of the current paid term. If you have any questions or are unsatisfied with our Services, please email us at <A href="mailto:info@kiteframe.space">info@kiteframe.space</A>.</P>
       </SubSection>
       <SubSection title="Fee Changes">
-        <P>We may, from time to time, make changes to the subscription fee and will communicate any price changes to you in accordance with applicable law.</P>
+        <P>We may, from time to time, make changes to the subscription fee. If we increase the price of your current subscription plan, we will notify you by email at least 30 days before the new price takes effect. Your continued use of the Services after the effective date of the price change constitutes your acceptance of the new price. If you do not agree to the new price, you may cancel your subscription before the change takes effect.</P>
       </SubSection>
     </Section>
 
@@ -526,7 +526,7 @@ const documents: Record<DocumentType, { title: string; icon: typeof FileText; co
           </SubSection>
 
           <SubSection title="g. Contact Form">
-            <P>If you submit our contact form, your name, email, and message are sent to us via SendGrid and are <strong>not</strong> stored in our database. They exist only in our email inbox.</P>
+            <P>If you submit our contact form, your name, email, and message are sent to us via our email service and are <strong>not</strong> stored in our database. They exist only in our email inbox.</P>
           </SubSection>
 
           <SubSection title="h. Admin Audit Logs">
@@ -554,7 +554,7 @@ const documents: Record<DocumentType, { title: string; icon: typeof FileText; co
         <Section title="3. How We Share Your Information">
           <P>We do not sell your personal information. We may share information with:</P>
           <ul className="list-disc list-inside space-y-2 text-slate-600 dark:text-slate-400 text-sm leading-relaxed ml-2">
-            <li><strong>Service providers</strong> — such as Stripe (billing), SendGrid (email delivery), and our hosting and infrastructure providers — solely to operate the Service</li>
+            <li><strong>Service providers</strong> — such as Stripe (billing), Namecheap Private Email (email delivery), and our hosting and infrastructure providers — solely to operate the Service</li>
             <li><strong>Law enforcement or legal process</strong> — if required by applicable law or to protect the rights, property, or safety of Kiteframe, our users, or the public</li>
             <li><strong>Business transfers</strong> — in connection with a merger, acquisition, or sale of assets, your information may be transferred as part of that transaction</li>
           </ul>
