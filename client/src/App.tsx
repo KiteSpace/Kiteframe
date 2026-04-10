@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { CookieBanner } from "@/components/CookieBanner";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const WorkflowEditor = lazy(() => import("@/pages/workflow-editor"));
@@ -177,6 +178,7 @@ function App() {
         <PromptContextStoreProvider>
           <TooltipProvider>
             <Toaster />
+            <AnnouncementBanner />
             <Router />
             <CookieBanner />
           </TooltipProvider>

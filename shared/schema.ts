@@ -627,3 +627,56 @@ export interface ResolvedFeatureFlags {
     groupName?: string;
   };
 }
+
+// ============================================
+// ANNOUNCEMENTS / BROADCAST BANNERS
+// ============================================
+
+export const announcementTypeEnum = ['info', 'warning', 'success', 'critical'] as const;
+export type AnnouncementType = typeof announcementTypeEnum[number];
+
+export const announcementAudienceEnum = ['all', 'free', 'advanced', 'pro', 'paid', 'beta'] as const;
+export type AnnouncementAudience = typeof announcementAudienceEnum[number];
+
+export const announcements = pgTable("announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  type: varchar("type").notNull().default('info'), // info, warning, success, critical
+  targetAudience: varchar("target_audience").notNull().default('all'), // all, free, advanced, pro, paid, beta
+  ctaLabel: varchar("cta_label"), // Optional CTA button label
+  ctaUrl: varchar("cta_url"),     // Optional CTA button URL
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at"), // Null = never expires
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_announcements_active").on(table.isActive),
+  index("IDX_announcements_audience").on(table.targetAudience),
+  index("IDX_announcements_expires").on(table.expiresAt),
+]);
+
+export const announcementDismissals = pgTable("announcement_dismissals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  announcementId: varchar("announcement_id").references(() => announcements.id, { onDelete: 'cascade' }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  dismissedAt: timestamp("dismissed_at").defaultNow(),
+}, (table) => [
+  index("IDX_announcement_dismissals_ann").on(table.announcementId),
+  index("IDX_announcement_dismissals_user").on(table.userId),
+]);
+
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAnnouncementDismissalSchema = createInsertSchema(announcementDismissals).omit({
+  id: true,
+  dismissedAt: true,
+});
+
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type AnnouncementDismissal = typeof announcementDismissals.$inferSelect;

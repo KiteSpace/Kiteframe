@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink, FileText, Send, Flag, UserX, Settings } from 'lucide-react';
+import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink, FileText, Send, Flag, UserX, Settings, Megaphone, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import AdminAnalytics from './AdminAnalytics';
 
@@ -427,7 +427,21 @@ function UsersTab({ authHeader }: { authHeader: string }) {
   const [editCredits, setEditCredits] = useState<number>(0);
   const [editUnlimited, setEditUnlimited] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [exportTier, setExportTier] = useState<string>('all');
+  const [exportStatus, setExportStatus] = useState<string>('all');
+  const [exportBeta, setExportBeta] = useState(false);
   const limit = 20;
+
+  const handleExportCSV = () => {
+    const params = new URLSearchParams();
+    if (exportTier !== 'all') params.set('tier', exportTier);
+    if (exportStatus !== 'all') params.set('status', exportStatus);
+    if (exportBeta) params.set('beta', 'true');
+    const url = `/internal/users/export.csv${params.toString() ? '?' + params.toString() : ''}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.click();
+  };
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['/internal/users', page, search],
@@ -549,6 +563,49 @@ function UsersTab({ authHeader }: { authHeader: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Export Emails</p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="space-y-1">
+                <Label className="text-xs">Tier</Label>
+                <Select value={exportTier} onValueChange={setExportTier}>
+                  <SelectTrigger className="h-8 w-32 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All tiers</SelectItem>
+                    <SelectItem value="free">Free</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                    <SelectItem value="pro">Pro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Status</Label>
+                <Select value={exportStatus} onValueChange={setExportStatus}>
+                  <SelectTrigger className="h-8 w-36 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="canceled">Canceled</SelectItem>
+                    <SelectItem value="past_due">Past due</SelectItem>
+                    <SelectItem value="trialing">Trialing</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1.5 pb-1">
+                <Checkbox id="export-beta" checked={exportBeta} onCheckedChange={v => setExportBeta(v as boolean)} />
+                <Label htmlFor="export-beta" className="text-xs cursor-pointer">Beta only</Label>
+              </div>
+              <Button size="sm" onClick={handleExportCSV} className="h-8" data-testid="button-export-csv">
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -2576,6 +2633,264 @@ function FeatureFlagsTab({ authHeader }: { authHeader: string }) {
   );
 }
 
+// ─── Announcement type helpers ───────────────────────────────────────────────
+
+interface AdminAnnouncement {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  targetAudience: string;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+const ANN_TYPE_BADGE: Record<string, string> = {
+  info:     'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  warning:  'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  success:  'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  critical: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+};
+
+const ANN_TYPE_ICON: Record<string, React.ReactNode> = {
+  info:     <Info className="h-3.5 w-3.5" />,
+  warning:  <AlertTriangle className="h-3.5 w-3.5" />,
+  success:  <CheckCircle className="h-3.5 w-3.5" />,
+  critical: <AlertCircle className="h-3.5 w-3.5" />,
+};
+
+const AUDIENCE_LABELS: Record<string, string> = {
+  all: 'All users', free: 'Free tier', advanced: 'Advanced tier',
+  pro: 'Pro tier', paid: 'Paid (Advanced + Pro)', beta: 'Beta users',
+};
+
+const BLANK_ANN = { title: '', message: '', type: 'info', targetAudience: 'all', ctaLabel: '', ctaUrl: '', isActive: true, expiresAt: '', hasCta: false };
+
+function AnnouncementsTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<AdminAnnouncement | null>(null);
+  const [form, setForm] = useState({ ...BLANK_ANN, hasCta: false });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['/internal/x9k7m2p4/announcements'],
+    queryFn: async () => {
+      const res = await fetch('/internal/x9k7m2p4/announcements', { headers: { 'Authorization': authHeader } });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: typeof form & { id?: string }) => {
+      const { id, hasCta, ...body } = payload;
+      const cleanBody = { ...body, ctaLabel: hasCta ? body.ctaLabel : null, ctaUrl: hasCta ? body.ctaUrl : null, expiresAt: body.expiresAt || null };
+      const url = id ? `/internal/x9k7m2p4/announcements/${id}` : '/internal/x9k7m2p4/announcements';
+      const res = await fetch(url, { method: id ? 'PUT' : 'POST', headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify(cleanBody) });
+      if (!res.ok) throw new Error('Failed to save');
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: editing ? 'Announcement updated' : 'Announcement created' }); setDialogOpen(false); refetch(); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/internal/x9k7m2p4/announcements/${id}`, { method: 'DELETE', headers: { 'Authorization': authHeader } });
+      if (!res.ok) throw new Error('Failed to delete');
+    },
+    onSuccess: () => { toast({ title: 'Announcement deleted' }); setDeleteId(null); refetch(); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const openCreate = () => { setEditing(null); setForm({ ...BLANK_ANN, hasCta: false }); setDialogOpen(true); };
+  const openEdit = (a: AdminAnnouncement) => {
+    setEditing(a);
+    setForm({ title: a.title, message: a.message, type: a.type, targetAudience: a.targetAudience, ctaLabel: a.ctaLabel || '', ctaUrl: a.ctaUrl || '', isActive: a.isActive, expiresAt: a.expiresAt ? new Date(a.expiresAt).toISOString().slice(0, 16) : '', hasCta: !!(a.ctaLabel || a.ctaUrl) });
+    setDialogOpen(true);
+  };
+
+  const announcements: AdminAnnouncement[] = data?.announcements || [];
+
+  // Live preview styles
+  const PREVIEW_BANNER: Record<string, string> = {
+    info: 'bg-blue-50 border-blue-200', warning: 'bg-amber-50 border-amber-200', success: 'bg-green-50 border-green-200', critical: 'bg-red-50 border-red-200',
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2"><Megaphone className="w-5 h-5" />Broadcast Announcements</CardTitle>
+              <CardDescription>Create banners shown to users at the top of the app. Target by tier, set expiry, and include optional CTA buttons.</CardDescription>
+            </div>
+            <Button onClick={openCreate} data-testid="button-create-announcement"><Plus className="w-4 h-4 mr-1" />New Announcement</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? <p className="text-muted-foreground">Loading...</p> : announcements.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No announcements yet. Create one to broadcast a message to your users.</p>
+          ) : (
+            <div className="space-y-3">
+              {announcements.map(a => {
+                const isExpired = a.expiresAt && new Date(a.expiresAt) < new Date();
+                return (
+                  <div key={a.id} className={`border rounded-lg p-4 ${!a.isActive || isExpired ? 'opacity-60' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 space-y-1.5">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${ANN_TYPE_BADGE[a.type] || ANN_TYPE_BADGE.info}`}>
+                            {ANN_TYPE_ICON[a.type]}{a.type}
+                          </span>
+                          <Badge variant="outline" className="text-xs">{AUDIENCE_LABELS[a.targetAudience] || a.targetAudience}</Badge>
+                          {!a.isActive && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+                          {isExpired && <Badge variant="destructive" className="text-xs">Expired</Badge>}
+                          {a.expiresAt && !isExpired && <Badge variant="outline" className="text-xs text-muted-foreground">Expires {new Date(a.expiresAt).toLocaleDateString()}</Badge>}
+                        </div>
+                        <p className="font-medium text-sm">{a.title}</p>
+                        <p className="text-sm text-muted-foreground">{a.message}</p>
+                        {a.ctaLabel && <p className="text-xs text-blue-600">CTA: {a.ctaLabel} → {a.ctaUrl}</p>}
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(a)} data-testid={`button-edit-ann-${a.id}`}><Edit className="w-3.5 h-3.5" /></Button>
+                        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(a.id)} data-testid={`button-delete-ann-${a.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create / Edit dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit Announcement' : 'New Announcement'}</DialogTitle>
+            <DialogDescription>Banners appear at the top of the app for all targeted users until dismissed or expired.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="info">Info</SelectItem>
+                    <SelectItem value="warning">Warning</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Audience</Label>
+                <Select value={form.targetAudience} onValueChange={v => setForm(f => ({ ...f, targetAudience: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(AUDIENCE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Title <span className="text-destructive">*</span></Label>
+              <Input placeholder="Short headline" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Message <span className="text-destructive">*</span></Label>
+              <Textarea placeholder="Body text shown after the title (optional context)" value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} rows={2} />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox id="hasCta" checked={form.hasCta} onCheckedChange={v => setForm(f => ({ ...f, hasCta: v as boolean }))} />
+              <Label htmlFor="hasCta" className="cursor-pointer">Include a call-to-action button</Label>
+            </div>
+
+            {form.hasCta && (
+              <div className="grid grid-cols-2 gap-3 pl-6">
+                <div className="space-y-1.5">
+                  <Label>Button label</Label>
+                  <Input placeholder="e.g., Learn more" value={form.ctaLabel} onChange={e => setForm(f => ({ ...f, ctaLabel: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Button URL</Label>
+                  <Input placeholder="https://... or /page" value={form.ctaUrl} onChange={e => setForm(f => ({ ...f, ctaUrl: e.target.value }))} />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Expires at <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input type="datetime-local" value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))} />
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <Switch id="isActive" checked={form.isActive} onCheckedChange={v => setForm(f => ({ ...f, isActive: v }))} />
+                <Label htmlFor="isActive" className="cursor-pointer">Active (visible to users)</Label>
+              </div>
+            </div>
+
+            {/* Live preview */}
+            {form.title && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Preview</Label>
+                <div className={`border rounded-lg px-4 py-2.5 flex items-start gap-3 ${PREVIEW_BANNER[form.type] || PREVIEW_BANNER.info}`}>
+                  <span className={`mt-0.5 flex-shrink-0 ${form.type === 'info' ? 'text-blue-500' : form.type === 'warning' ? 'text-amber-500' : form.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                    {ANN_TYPE_ICON[form.type]}
+                  </span>
+                  <div className="flex-1 text-sm">
+                    <span className="font-medium">{form.title}</span>
+                    {form.message && <span className="font-normal text-slate-600 ml-1">— {form.message}</span>}
+                  </div>
+                  {form.hasCta && form.ctaLabel && (
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-md text-white flex-shrink-0 ${form.type === 'info' ? 'bg-blue-600' : form.type === 'warning' ? 'bg-amber-600' : form.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+                      {form.ctaLabel}
+                    </span>
+                  )}
+                  <span className="text-slate-400 flex-shrink-0"><X className="h-3.5 w-3.5" /></span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => saveMutation.mutate({ ...form, id: editing?.id })} disabled={!form.title.trim() || !form.message.trim() || saveMutation.isPending}>
+              {saveMutation.isPending ? 'Saving...' : editing ? 'Save changes' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete announcement?</DialogTitle>
+            <DialogDescription>This will remove the announcement for all users immediately. This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteId && deleteMutation.mutate(deleteId)} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export default function AdminCodes() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -2869,7 +3184,7 @@ export default function AdminCodes() {
         </div>
 
         <Tabs defaultValue="waitlist" className="w-full">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full grid-cols-10">
             <TabsTrigger value="waitlist" data-testid="tab-waitlist-management">
               <ClipboardList className="w-4 h-4 mr-2" />
               Waitlist
@@ -2905,6 +3220,10 @@ export default function AdminCodes() {
             <TabsTrigger value="analytics" data-testid="tab-analytics-dashboard">
               <BarChart3 className="w-4 h-4 mr-2" />
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="announce" data-testid="tab-announcements">
+              <Megaphone className="w-4 h-4 mr-2" />
+              Announce
             </TabsTrigger>
           </TabsList>
 
@@ -3133,6 +3452,10 @@ export default function AdminCodes() {
 
           <TabsContent value="analytics">
             <AdminAnalytics authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="announce" className="mt-6">
+            <AnnouncementsTab authHeader={authHeader} />
           </TabsContent>
         </Tabs>
       </div>

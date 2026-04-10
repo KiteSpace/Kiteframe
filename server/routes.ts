@@ -21,6 +21,8 @@ import {
   userCredits,
   pageViews,
   docAccessGrants,
+  announcements,
+  announcementDismissals,
 } from "@shared/schema";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
@@ -5850,6 +5852,196 @@ jane@example.com,Jane,Smith,pro,GroupC
         error: 'Failed to generate CSV template',
         details: error.message 
       });
+    }
+  });
+
+  // =====================================
+  // Email Export
+  // =====================================
+
+  app.get('/internal/users/export.csv', requireAdminAuth, async (req, res) => {
+    try {
+      const { tier, beta, status } = req.query;
+      const { sql: sqlFn } = await import('drizzle-orm');
+
+      let query = db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        subscriptionTier: users.subscriptionTier,
+        subscriptionStatus: users.subscriptionStatus,
+        isBeta: users.isBeta,
+        createdAt: users.createdAt,
+      }).from(users);
+
+      const conditions: any[] = [isNotNull(users.email)];
+      if (tier && tier !== 'all') conditions.push(eq(users.subscriptionTier, tier as string));
+      if (beta === 'true') conditions.push(eq(users.isBeta, true));
+      if (status && status !== 'all') conditions.push(eq(users.subscriptionStatus, status as string));
+
+      const allUsers = await query.where(and(...conditions)).orderBy(desc(users.createdAt));
+
+      const header = 'email,first_name,last_name,subscription_tier,subscription_status,is_beta,joined_at\n';
+      const rows = allUsers.map(u =>
+        [
+          u.email || '',
+          u.firstName || '',
+          u.lastName || '',
+          u.subscriptionTier || 'free',
+          u.subscriptionStatus || 'active',
+          u.isBeta ? 'true' : 'false',
+          u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : '',
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="kiteframe-users-${Date.now()}.csv"`);
+      res.send(header + rows);
+    } catch (error: any) {
+      console.error('User export error:', error);
+      res.status(500).json({ error: 'Failed to export users', details: error.message });
+    }
+  });
+
+  // =====================================
+  // Announcements (Public)
+  // =====================================
+
+  // Get active announcements for the current authenticated user
+  app.get('/api/announcements', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user?.claims?.sub || user?.id;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      // Get current user data to check tier/beta
+      const currentUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
+      if (!currentUser) return res.json({ announcements: [] });
+
+      const now = new Date();
+
+      // Fetch all active, non-expired announcements
+      const allActive = await db.select().from(announcements).where(
+        and(
+          eq(announcements.isActive, true),
+          or(isNull(announcements.expiresAt), gte(announcements.expiresAt, now))
+        )
+      ).orderBy(desc(announcements.createdAt));
+
+      // Filter by audience
+      const userTier = currentUser.subscriptionTier || 'free';
+      const isBeta = currentUser.isBeta || false;
+      const visible = allActive.filter(a => {
+        const aud = a.targetAudience;
+        if (aud === 'all') return true;
+        if (aud === 'beta') return isBeta;
+        if (aud === 'paid') return userTier === 'advanced' || userTier === 'pro';
+        return aud === userTier;
+      });
+
+      if (visible.length === 0) return res.json({ announcements: [] });
+
+      // Remove dismissed ones
+      const dismissed = await db.select({ announcementId: announcementDismissals.announcementId })
+        .from(announcementDismissals)
+        .where(eq(announcementDismissals.userId, userId));
+      const dismissedIds = new Set(dismissed.map(d => d.announcementId));
+
+      res.json({ announcements: visible.filter(a => !dismissedIds.has(a.id)) });
+    } catch (error: any) {
+      console.error('Get announcements error:', error);
+      res.status(500).json({ error: 'Failed to get announcements' });
+    }
+  });
+
+  // Dismiss an announcement
+  app.post('/api/announcements/:id/dismiss', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const userId = user?.claims?.sub || user?.id;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+      const { id } = req.params;
+
+      // Upsert (ignore if already dismissed)
+      await db.insert(announcementDismissals)
+        .values({ announcementId: id, userId })
+        .onConflictDoNothing();
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Dismiss announcement error:', error);
+      res.status(500).json({ error: 'Failed to dismiss announcement' });
+    }
+  });
+
+  // =====================================
+  // Announcements (Admin CRUD)
+  // =====================================
+
+  app.get('/internal/x9k7m2p4/announcements', requireHttps, requireAdminAuth, async (_req, res) => {
+    try {
+      const all = await db.select().from(announcements).orderBy(desc(announcements.createdAt));
+      res.json({ announcements: all });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to list announcements' });
+    }
+  });
+
+  app.post('/internal/x9k7m2p4/announcements', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { title, message, type, targetAudience, ctaLabel, ctaUrl, isActive, expiresAt } = req.body;
+      if (!title?.trim() || !message?.trim()) {
+        return res.status(400).json({ error: 'Title and message are required' });
+      }
+      const [created] = await db.insert(announcements).values({
+        title: title.trim(),
+        message: message.trim(),
+        type: type || 'info',
+        targetAudience: targetAudience || 'all',
+        ctaLabel: ctaLabel?.trim() || null,
+        ctaUrl: ctaUrl?.trim() || null,
+        isActive: isActive !== false,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      }).returning();
+      res.json({ success: true, announcement: created });
+    } catch (error: any) {
+      console.error('Create announcement error:', error);
+      res.status(500).json({ error: 'Failed to create announcement' });
+    }
+  });
+
+  app.put('/internal/x9k7m2p4/announcements/:id', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, message, type, targetAudience, ctaLabel, ctaUrl, isActive, expiresAt } = req.body;
+      const [updated] = await db.update(announcements).set({
+        title: title?.trim(),
+        message: message?.trim(),
+        type,
+        targetAudience,
+        ctaLabel: ctaLabel?.trim() || null,
+        ctaUrl: ctaUrl?.trim() || null,
+        isActive,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        updatedAt: new Date(),
+      }).where(eq(announcements.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: 'Announcement not found' });
+      res.json({ success: true, announcement: updated });
+    } catch (error: any) {
+      console.error('Update announcement error:', error);
+      res.status(500).json({ error: 'Failed to update announcement' });
+    }
+  });
+
+  app.delete('/internal/x9k7m2p4/announcements/:id', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(announcements).where(eq(announcements.id, id));
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Delete announcement error:', error);
+      res.status(500).json({ error: 'Failed to delete announcement' });
     }
   });
 
