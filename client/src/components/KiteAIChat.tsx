@@ -1088,7 +1088,19 @@ export function KiteAIChatBrain({
               }
               
               // Phase 2: Fix-scope validation (only when modifying existing workflow)
-              if (!proposalRejected && currentNodes.length > 0) {
+              // Skip when the user explicitly requests structural changes like adding failure paths,
+              // error handling, or creating/rebuilding the workflow — the guardrail is designed for
+              // narrow targeted repairs, not intentional structural expansions.
+              const STRUCTURAL_EXPANSION_SIGNALS = [
+                'error handling', 'failure path', 'fallback', 'edge case',
+                'create', 'rebuild', 'redesign', 'redo', 'generate', 'make', 'build',
+                'add failure', 'add error', 'what if', 'what happens if',
+                'rejection', 'retry', 'exception', 'handle failure', 'handle error',
+              ];
+              const msgLower = messageContent.toLowerCase();
+              const isStructuralExpansion = STRUCTURAL_EXPANSION_SIGNALS.some(sig => msgLower.includes(sig));
+
+              if (!proposalRejected && currentNodes.length > 0 && !isStructuralExpansion) {
                 const fixScope = createFixScope(baselineWorkflow);
                 const scopeResult = validateFixScope(fixScope, baselineWorkflow, proposedWorkflow);
                 
@@ -1106,10 +1118,14 @@ export function KiteAIChatBrain({
                     variant: "destructive"
                   });
                 }
+              } else if (isStructuralExpansion && currentNodes.length > 0) {
+                console.log('[AiStabilization] Skipping fix-scope validation - structural expansion request detected');
               }
               
               // Phase 3: Edit-first heuristic (only when modifying existing workflow)
-              if (!proposalRejected && currentNodes.length > 0) {
+              // Also skip for structural expansion requests - adding failure paths/error handling
+              // is inherently additive and shouldn't be penalized as "over-construction".
+              if (!proposalRejected && currentNodes.length > 0 && !isStructuralExpansion) {
                 // Normalize both baseline and proposed to symmetric structure for accurate diff
                 // Only compare label (the primary user-visible field) to avoid false positives
                 const normalizeNodeForDiff = (id: string, type: string | undefined, data: any) => ({
