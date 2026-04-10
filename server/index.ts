@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { runMigrations } from 'stripe-replit-sync';
@@ -11,13 +12,52 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-// Security headers applied to every response
+const isDev = app.get("env") === "development";
+
+// Security headers via Helmet — CSP is production-only (Vite dev server requires unsafe-inline)
+app.use(helmet({
+  contentSecurityPolicy: isDev ? false : {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "https://js.stripe.com",
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'", // Required for React inline styles
+      ],
+      fontSrc: ["'self'", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: [
+        "'self'",
+        "https://api.stripe.com",
+        "https://js.stripe.com",
+      ],
+      frameSrc: [
+        "https://js.stripe.com",
+        "https://hooks.stripe.com",
+      ],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,        // 1 year
+    includeSubDomains: true,
+    preload: false,
+  },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  crossOriginEmbedderPolicy: false,          // Allow Stripe iframes & third-party resources
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // Allow OAuth popups
+}));
+
+// Permissions-Policy — not part of Helmet defaults, set explicitly
 app.use((_req: Request, res: Response, next: NextFunction) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 

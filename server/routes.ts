@@ -40,7 +40,7 @@ import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated, getBetaSlots } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
-import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter } from "./middleware/rateLimiter";
+import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
 import { csrfProtection } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
 import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./emailService";
@@ -5909,7 +5909,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   // =====================================
 
   // Get active announcements for the current authenticated user
-  app.get('/api/announcements', isAuthenticated, async (req, res) => {
+  app.get('/api/announcements', generalRateLimiter, isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const userId = user?.claims?.sub || user?.id;
@@ -5956,7 +5956,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   });
 
   // Dismiss an announcement
-  app.post('/api/announcements/:id/dismiss', isAuthenticated, async (req, res) => {
+  app.post('/api/announcements/:id/dismiss', generalRateLimiter, isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const userId = user?.claims?.sub || user?.id;

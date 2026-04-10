@@ -82,6 +82,7 @@
     "firebase": "^12.2.1",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^11.13.1",
+    "helmet": "^8.1.0",
     "input-otp": "^1.4.2",
     "jsdom": "^27.0.0",
     "jspdf": "^4.2.1",
