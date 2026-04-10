@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -324,13 +325,7 @@ export default function Pricing() {
           className="flex items-center gap-2 no-underline"
           style={{ color: '#0f172a' }}
         >
-          <svg width="26" height="26" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="28" height="28" rx="7" fill="#0f172a"/>
-            <path d="M14 5L22 10.5V17.5L14 23L6 17.5V10.5L14 5Z" fill="none" stroke="#f8fafc" strokeWidth="1.5" strokeLinejoin="round"/>
-            <path d="M14 5L14 23" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M6 10.5L22 10.5" stroke="#f8fafc" strokeWidth="1.5" strokeLinecap="round"/>
-            <path d="M6 17.5L22 17.5" stroke="#f8fafc" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5"/>
-          </svg>
+          <img src={kiteframeIcon} alt="Kiteframe" className="w-7 h-7" />
           <span className="font-bold text-[15px] tracking-tight">Kiteframe</span>
         </a>
 
