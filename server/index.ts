@@ -74,7 +74,7 @@ app.use(helmet({
 
 // Permissions-Policy — not part of Helmet defaults, set explicitly
 app.use((_req: Request, res: Response, next: NextFunction) => {
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   next();
 });
 
