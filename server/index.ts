@@ -23,12 +23,14 @@ app.use(helmet({
         "'self'",
         "https://js.stripe.com",          // Stripe.js
         "https://*.replit.com",            // Replit CDN (auth widgets, assets)
+        "'sha256-O+WhTQr0Wi4S217qJDCCjsXpTYoLh5WuHV/jsnKLSrE='", // Vite modulepreload polyfill (inline)
       ],
       styleSrc: [
         "'self'",
         "'unsafe-inline'",                 // Required for React style={} props
+        "https://fonts.googleapis.com",   // Google Fonts stylesheet
       ],
-      fontSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],  // Google Fonts files
       imgSrc: [
         "'self'",
         "data:",
