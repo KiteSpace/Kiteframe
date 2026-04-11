@@ -11,6 +11,7 @@ import NotFound from "@/pages/not-found";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { CookieBanner } from "@/components/CookieBanner";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { WelcomeModal } from "@/components/WelcomeModal";
 
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const WorkflowEditor = lazy(() => import("@/pages/workflow-editor"));
@@ -36,8 +37,10 @@ const FAQ = lazy(() => import("@/pages/FAQ"));
 interface AuthUser {
   id: string;
   email?: string;
+  firstName?: string;
   isBeta?: boolean;
   isAdmin?: boolean;
+  isNewUser?: boolean;
   waitlistRequestedAt?: string | null;
 }
 
@@ -179,6 +182,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <AnnouncementBanner />
+            <WelcomeModal />
             <Router />
             <CookieBanner />
           </TooltipProvider>

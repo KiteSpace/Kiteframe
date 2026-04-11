@@ -261,7 +261,7 @@ async function linkOAuthProvider(userId: string, profile: OAuthProfile) {
   }
 }
 
-async function findOrCreateUser(profile: OAuthProfile) {
+async function findOrCreateUser(profile: OAuthProfile): Promise<{ user: any; isNewUser: boolean }> {
   const existingProvider = await db.query.oauthProviders.findFirst({
     where: and(
       eq(oauthProviders.provider, profile.provider),
@@ -277,7 +277,7 @@ async function findOrCreateUser(profile: OAuthProfile) {
     const user = await db.query.users.findFirst({
       where: eq(users.id, existingProvider.userId),
     });
-    return user;
+    return { user, isNewUser: false };
   }
 
   let user = null;
@@ -286,6 +286,8 @@ async function findOrCreateUser(profile: OAuthProfile) {
       where: eq(users.email, profile.email),
     });
   }
+
+  let isNewUser = false;
 
   if (!user) {
     // Check beta cap before creating
@@ -309,6 +311,7 @@ async function findOrCreateUser(profile: OAuthProfile) {
       sendWaitlistConfirmationEmail(profile.email, profile.firstName).catch(console.error);
     }
     user = newUser;
+    isNewUser = true;
   } else if (!user.waitlistRequestedAt && !user.isBeta) {
     await db.update(users)
       .set({ waitlistRequestedAt: new Date() })
@@ -318,7 +321,7 @@ async function findOrCreateUser(profile: OAuthProfile) {
   }
 
   await linkOAuthProvider(user!.id, profile);
-  return user;
+  return { user, isNewUser };
 }
 
 export async function setupAuth(app: Express) {
@@ -420,8 +423,8 @@ export async function setupAuth(app: Express) {
           lastName: profile.name?.familyName,
           profileImageUrl: profile.photos?.[0]?.value,
         };
-        const user = await findOrCreateUser(oauthProfile);
-        done(null, user);
+        const { user, isNewUser } = await findOrCreateUser(oauthProfile);
+        done(null, { ...user, _isNewUser: isNewUser });
       } catch (error) {
         done(error as Error);
       }
@@ -429,7 +432,7 @@ export async function setupAuth(app: Express) {
 
     app.get('/api/auth/google',
       authRateLimiter,
-      passport.authenticate('google', { scope: ['profile', 'email'] })
+      passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })
     );
 
     app.get('/api/auth/google/callback',
@@ -445,16 +448,24 @@ export async function setupAuth(app: Express) {
           return res.redirect('/?error=account_suspended');
         }
 
+        // Capture and clear the new-user flag from the passport user object
+        const isNewUser = !!user?._isNewUser;
+        if (user?._isNewUser !== undefined) delete user._isNewUser;
+
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
         
+        // Persist new-user flag in session so /api/auth/user can return it once
+        if (isNewUser) (req.session as any).isNewUser = true;
+
         console.log('[AUTH] Google callback:', {
           userExists: !!user,
           userId: user?.id,
           email: user?.email,
           isBeta: user?.isBeta,
           isAdmin,
+          isNewUser,
           sessionId: req.sessionID,
           isAuthenticated: req.isAuthenticated?.(),
           finalDestination,
@@ -527,8 +538,8 @@ export async function setupAuth(app: Express) {
           displayName: profile.displayName || profile.username,
           profileImageUrl: profile.photos?.[0]?.value,
         };
-        const user = await findOrCreateUser(oauthProfile);
-        done(null, user);
+        const { user, isNewUser } = await findOrCreateUser(oauthProfile);
+        done(null, { ...user, _isNewUser: isNewUser });
       } catch (error) {
         done(error as Error);
       }
@@ -552,16 +563,24 @@ export async function setupAuth(app: Express) {
           return res.redirect('/?error=account_suspended');
         }
 
+        // Capture and clear the new-user flag from the passport user object
+        const isNewUser = !!user?._isNewUser;
+        if (user?._isNewUser !== undefined) delete user._isNewUser;
+
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
-        
+
+        // Persist new-user flag in session so /api/auth/user can return it once
+        if (isNewUser) (req.session as any).isNewUser = true;
+
         console.log('[AUTH] GitHub callback:', {
           userExists: !!user,
           userId: user?.id,
           email: user?.email,
           isBeta: user?.isBeta,
           isAdmin,
+          isNewUser,
           sessionId: req.sessionID,
           isAuthenticated: req.isAuthenticated?.(),
           finalDestination,

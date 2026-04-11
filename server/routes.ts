@@ -455,6 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Find or create user in database
       let user = await storage.getUserByEmail(email || '');
+      const isNewFirebaseUser = !user;
       
       if (!user && email) {
         // Create new user from Firebase auth
@@ -514,6 +515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Failed to establish session:', err);
           return res.status(500).json({ error: 'Failed to establish session' });
         }
+
+        // Flag new registrations so the welcome modal shows once
+        if (isNewFirebaseUser) (req.session as any).isNewUser = true;
 
         const isAdmin = isAdminUser(user!.email);
         
@@ -599,11 +603,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Consume the one-time new-user flag set during OAuth/Firebase registration
+      const session = req.session as any;
+      const isNewUser = !!session.isNewUser;
+      if (isNewUser) {
+        delete session.isNewUser;
+        req.session.save(() => {});
+      }
+
       // Check if user is admin and sanitize response
       const isAdmin = isAdminUser(user.email);
       const responseUser = sanitizeUserForResponse({ ...user, authProvider }, { isAdmin });
       
-      res.json(responseUser);
+      res.json({ ...responseUser, ...(isNewUser ? { isNewUser: true } : {}) });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
