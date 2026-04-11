@@ -46,6 +46,7 @@ export default function ViewOnlyViewer() {
   const [originalViewport, setOriginalViewport] = useState({ x: 0, y: 0, zoom: 1 });
   
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [panelStorageSeeded, setPanelStorageSeeded] = useState(false);
   const [liveUpdates, setLiveUpdates] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
@@ -105,24 +106,32 @@ export default function ViewOnlyViewer() {
       setOriginalCanvasObjects(JSON.parse(JSON.stringify(loadedCanvasObjects)));
       setOriginalViewport({ ...loadedViewport });
 
-      // Seed localStorage with author's PRD/notes so the right panel can display them.
-      // We use shareId as the projectId key since that's what ViewOnlyViewer passes to ProjectPanel.
+      // Seed (or clear) localStorage with author's PRD/notes before ProjectPanel mounts.
+      // We always write or remove each key so stale data from a previous share load is never shown.
+      // panelStorageSeeded gates ProjectPanel rendering so child tabs read the correct data on mount.
       if (shareId) {
         try {
           if (data.prdData) {
             localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(data.prdData));
+          } else {
+            localStorage.removeItem(`prd-project-${shareId}`);
           }
           if (data.notesData) {
             localStorage.setItem(`kiteframe-notes-${shareId}`, data.notesData);
+          } else {
+            localStorage.removeItem(`kiteframe-notes-${shareId}`);
           }
           if (data.detailsData) {
             localStorage.setItem(`kiteframe-details-${shareId}`, data.detailsData);
+          } else {
+            localStorage.removeItem(`kiteframe-details-${shareId}`);
           }
         } catch (e) {
           // Ignore storage errors
         }
       }
 
+      setPanelStorageSeeded(true);
       setDataLoaded(true);
     }
   }, [data, shareId]);
@@ -428,15 +437,18 @@ export default function ViewOnlyViewer() {
             />
           </div>
 
-          {/* Project Panel - docked right side */}
-          <ProjectPanel
-            nodes={nodes}
-            edges={edges}
-            canvasObjects={canvasObjects}
-            projectId={shareId}
-            projectName={projectName}
-            isReadOnly={true}
-          />
+          {/* Project Panel - docked right side. Only mount after localStorage is seeded
+              so NotesTab/ProjectDocTab read the correct PRD/notes data on first render. */}
+          {panelStorageSeeded && (
+            <ProjectPanel
+              nodes={nodes}
+              edges={edges}
+              canvasObjects={canvasObjects}
+              projectId={shareId}
+              projectName={projectName}
+              isReadOnly={true}
+            />
+          )}
         </div>
       </div>
     </AiProvider>
