@@ -23,7 +23,7 @@ import {
   workflowComments,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -110,11 +110,22 @@ export class DatabaseStorage implements IStorage {
     await db.delete(insightHistory).where(eq(insightHistory.userId, id));
     // Delete credit record (keyed by userIdentifier which equals userId for signed-in users)
     await db.delete(userCredits).where(eq(userCredits.userIdentifier, id));
-    // Delete collaboration sub-records before rooms (NO ACTION FKs)
+    // Delete the user's own content in rooms they participate in (userId FK, NO ACTION)
     await db.delete(workflowComments).where(eq(workflowComments.userId, id));
     await db.delete(chatMessages).where(eq(chatMessages.userId, id));
     await db.delete(roomParticipants).where(eq(roomParticipants.userId, id));
-    await db.delete(collaborationRooms).where(eq(collaborationRooms.ownerId, id));
+    // For rooms the user owns, remove ALL sub-records by roomId (other users' data too)
+    // so the room rows can be deleted without violating NO ACTION roomId constraints
+    const ownedRooms = await db.select({ id: collaborationRooms.id })
+      .from(collaborationRooms)
+      .where(eq(collaborationRooms.ownerId, id));
+    if (ownedRooms.length > 0) {
+      const ownedRoomIds = ownedRooms.map(r => r.id);
+      await db.delete(workflowComments).where(inArray(workflowComments.roomId, ownedRoomIds));
+      await db.delete(chatMessages).where(inArray(chatMessages.roomId, ownedRoomIds));
+      await db.delete(roomParticipants).where(inArray(roomParticipants.roomId, ownedRoomIds));
+      await db.delete(collaborationRooms).where(inArray(collaborationRooms.id, ownedRoomIds));
+    }
     // Delete remaining nullable-FK rows with NO ACTION constraints
     await db.delete(workflowSnapshots).where(eq(workflowSnapshots.userId, id));
     await db.delete(aiUsageEvents).where(eq(aiUsageEvents.userId, id));
