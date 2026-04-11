@@ -38,7 +38,7 @@ import { adminLoginRateLimiter } from "./middleware/rateLimiter";
 import { unlockCodes } from "@shared/schema";
 import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
-import { setupAuth, isAuthenticated, getBetaSlots } from "./replitAuth";
+import { setupAuth, isAuthenticated, getBetaSlots, invalidateBanCache } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
@@ -6097,6 +6097,8 @@ jane@example.com,Jane,Smith,pro,GroupC
         reason: reason || null,
         accountDeleted: false,
       });
+      // Flush cache entry immediately so enforcement takes effect at once
+      invalidateBanCache(email);
 
       // 2. Invalidate active sessions for the user
       if (userId) {
@@ -6139,6 +6141,7 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
 
       await storage.deleteBannedEmail(id);
+      invalidateBanCache(existing.email);
       await logBanAction(req, 'unban', id, { email: existing.email, reason });
       res.json({ success: true });
     } catch (error: any) {

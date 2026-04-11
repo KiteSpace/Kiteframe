@@ -48,6 +48,10 @@ async function isBannedEmail(email: string | undefined | null): Promise<boolean>
   return banned;
 }
 
+export function invalidateBanCache(email: string): void {
+  banCache.delete(email.toLowerCase());
+}
+
 function isAdminEmail(email: string | undefined | null): boolean {
   if (!email) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
