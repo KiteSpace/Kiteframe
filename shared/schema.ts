@@ -695,7 +695,6 @@ export const bannedEmails = pgTable("banned_emails", {
   accountDeleted: boolean("account_deleted").notNull().default(false), // true = ban + wipe performed
   bannedAt: timestamp("banned_at").defaultNow(),
 }, (table) => [
-  index("IDX_banned_emails_email").on(table.email),
   index("IDX_banned_emails_user_id").on(table.userId),
 ]);
 
