@@ -1558,6 +1558,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           canvasObjects: workflowData?.canvasObjects,
           viewport: workflowData?.viewport,
           flowSettings: workflowData?.flowSettings,
+          prdData: workflowData?.prdData || null,
+          notesData: workflowData?.notesData || null,
+          detailsData: workflowData?.detailsData || null,
           isOwner: false
         });
       }

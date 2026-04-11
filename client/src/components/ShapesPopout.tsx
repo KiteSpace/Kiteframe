@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Square, Circle, Triangle, Hexagon } from 'lucide-react';
+import { Square, Circle, Triangle, Hexagon, Minus, ArrowRight, PenTool } from 'lucide-react';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 
 interface ShapesPopoutProps {
@@ -24,6 +24,9 @@ export function ShapesPopout({ isOpen, onClose, onCreateShape, onCreateShapeAtPo
     { type: 'circle', icon: Circle, color: 'text-green-500', label: 'Circle' },
     { type: 'triangle', icon: Triangle, color: 'text-yellow-500', label: 'Triangle' },
     { type: 'hexagon', icon: Hexagon, color: 'text-purple-500', label: 'Hexagon' },
+    { type: 'line', icon: Minus, color: 'text-gray-500', label: 'Line' },
+    { type: 'arrow', icon: ArrowRight, color: 'text-orange-500', label: 'Arrow' },
+    { type: 'polygon', icon: PenTool, color: 'text-pink-500', label: 'Polygon' },
   ];
 
   // Drag and drop handlers for shapes

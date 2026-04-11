@@ -214,6 +214,7 @@ import {
   saveWorkflowPRD,
   saveWorkflowPRDVersion,
   saveProjectPRD,
+  loadProjectPRD,
 } from "@/lib/kiteframe/utils/prdStorage";
 import {
   afterWorkflowCreation,
@@ -5603,20 +5604,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const screenWidth = objWidth * viewport.zoom;
       const screenHeight = objHeight * viewport.zoom;
 
+      const movingShapeType = (currentObject.data as any)?.shapeType;
+      const movingHandlePad = ['line', 'arrow', 'polygon'].includes(movingShapeType) ? 28 : 0;
+
       // Only update if position changed
       if (
         linearToolbar.x !== screenX + screenWidth / 2 ||
-        linearToolbar.y !== screenY
+        linearToolbar.y !== screenY - movingHandlePad
       ) {
         setLinearToolbar((prev) =>
           prev
             ? {
                 ...prev,
                 x: screenX + screenWidth / 2,
-                y: screenY,
+                y: screenY - movingHandlePad,
                 nodeRect: {
-                  top: screenY,
-                  bottom: screenY + screenHeight,
+                  top: screenY - movingHandlePad,
+                  bottom: screenY + screenHeight + movingHandlePad,
                   left: screenX,
                   right: screenX + screenWidth,
                   width: screenWidth,
@@ -7395,6 +7399,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onToggleExpanded={() =>
                       setIsToolbarExpanded((prev) => !prev)
                     }
+                    onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
                   />
 
                   {/* Node Types Popout */}
@@ -9838,12 +9843,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               const screenWidth = objWidth * viewport.zoom;
                               const screenHeight = objHeight * viewport.zoom;
 
+                              // Add extra clearance for line/arrow/polygon shapes so the toolbar
+                              // doesn't overlap with the resize/endpoint handles
+                              const shapeType = (canvasObject.data as any)?.shapeType;
+                              const handlePad = ['line', 'arrow', 'polygon'].includes(shapeType) ? 28 : 0;
+
                               return {
                                 x: screenX + screenWidth / 2,
-                                y: screenY,
+                                y: screenY - handlePad,
                                 nodeRect: {
-                                  top: screenY,
-                                  bottom: screenY + screenHeight,
+                                  top: screenY - handlePad,
+                                  bottom: screenY + screenHeight + handlePad,
                                   left: screenX,
                                   right: screenX + screenWidth,
                                   width: screenWidth,
@@ -14774,6 +14784,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           canvasObjects,
           viewport,
           metadata: activeTab?.metadata,
+          prdData: loadProjectPRD(projectIdentifier),
+          notesData: (() => { try { return localStorage.getItem(`kiteframe-notes-${projectIdentifier}`); } catch { return null; } })(),
+          detailsData: (() => { try { return localStorage.getItem(`kiteframe-details-${projectIdentifier}`); } catch { return null; } })(),
         }}
         onLoadProject={(workflowData) => {
           saveToHistory("Load project");

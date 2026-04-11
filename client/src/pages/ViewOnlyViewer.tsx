@@ -24,6 +24,9 @@ interface SharedProjectData {
   isOwner?: boolean;
   redirect?: string;
   projectUuid?: string;
+  prdData?: any | null;
+  notesData?: string | null;
+  detailsData?: string | null;
 }
 
 export default function ViewOnlyViewer() {
@@ -101,9 +104,28 @@ export default function ViewOnlyViewer() {
       setOriginalEdges(JSON.parse(JSON.stringify(loadedEdges)));
       setOriginalCanvasObjects(JSON.parse(JSON.stringify(loadedCanvasObjects)));
       setOriginalViewport({ ...loadedViewport });
+
+      // Seed localStorage with author's PRD/notes so the right panel can display them.
+      // We use shareId as the projectId key since that's what ViewOnlyViewer passes to ProjectPanel.
+      if (shareId) {
+        try {
+          if (data.prdData) {
+            localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(data.prdData));
+          }
+          if (data.notesData) {
+            localStorage.setItem(`kiteframe-notes-${shareId}`, data.notesData);
+          }
+          if (data.detailsData) {
+            localStorage.setItem(`kiteframe-details-${shareId}`, data.detailsData);
+          }
+        } catch (e) {
+          // Ignore storage errors
+        }
+      }
+
       setDataLoaded(true);
     }
-  }, [data]);
+  }, [data, shareId]);
 
   useEffect(() => {
     liveUpdatesRef.current = liveUpdates;

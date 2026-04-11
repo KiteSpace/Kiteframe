@@ -56,6 +56,9 @@ interface WorkflowData {
     linksFormat: 'bulleted' | 'text';
     categories: string[];
   };
+  prdData?: any | null;
+  notesData?: string | null;
+  detailsData?: string | null;
 }
 
 interface SavedProjectsDrawerProps {

@@ -26,6 +26,7 @@ interface CollapsedSidebarProps {
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   readOnly?: boolean;
+  onShowKeyboardShortcuts?: () => void;
 }
 
 export function CollapsedSidebar({
@@ -49,7 +50,8 @@ export function CollapsedSidebar({
   sidebarIcons,
   isExpanded = false,
   onToggleExpanded,
-  readOnly = false
+  readOnly = false,
+  onShowKeyboardShortcuts,
 }: CollapsedSidebarProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -336,6 +338,15 @@ export function CollapsedSidebar({
     }
   };
 
+  const getHotkey = (iconKey: string): string | null => {
+    switch (iconKey) {
+      case 'workflow': return 'N';
+      case 'download':
+      case 'export': return '⌘S';
+      default: return null;
+    }
+  };
+
   const isPopoutIcon = (iconKey: string): boolean => {
     return ['workflow', 'shapes', 'route', 'palette'].includes(iconKey);
   };
@@ -408,7 +419,12 @@ export function CollapsedSidebar({
                 </TooltipTrigger>
                 {!isExpanded && (
                   <TooltipContent side="right">
-                    <p>{getTooltipText(iconKey)}</p>
+                    <div className="flex items-center gap-2">
+                      <span>{getTooltipText(iconKey)}</span>
+                      {getHotkey(iconKey) && (
+                        <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded font-mono">{getHotkey(iconKey)}</kbd>
+                      )}
+                    </div>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -448,7 +464,12 @@ export function CollapsedSidebar({
                 </TooltipTrigger>
                 {!isExpanded && (
                   <TooltipContent side="right">
-                    <p>{getTooltipText(iconKey)}</p>
+                    <div className="flex items-center gap-2">
+                      <span>{getTooltipText(iconKey)}</span>
+                      {getHotkey(iconKey) && (
+                        <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded font-mono">{getHotkey(iconKey)}</kbd>
+                      )}
+                    </div>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -482,13 +503,42 @@ export function CollapsedSidebar({
                 </TooltipTrigger>
                 {!isExpanded && (
                   <TooltipContent side="right">
-                    <p>{getTooltipText(iconKey)}</p>
+                    <div className="flex items-center gap-2">
+                      <span>{getTooltipText(iconKey)}</span>
+                      {getHotkey(iconKey) && (
+                        <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded font-mono">{getHotkey(iconKey)}</kbd>
+                      )}
+                    </div>
                   </TooltipContent>
                 )}
               </Tooltip>
             );
           })}
         </div>
+
+        {/* Keyboard Shortcuts Help Button */}
+        {onShowKeyboardShortcuts && (
+          <>
+            <div className="border-b border-border my-2"></div>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onShowKeyboardShortcuts}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-accent transition-colors text-muted-foreground text-sm font-medium mx-auto"
+                  data-testid="button-keyboard-help"
+                >
+                  ?
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <div className="flex items-center gap-2">
+                  <span>Keyboard Shortcuts</span>
+                  <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded font-mono">?</kbd>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
       </div>
 
       {/* Templates Popout */}
