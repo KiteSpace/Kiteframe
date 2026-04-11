@@ -76,6 +76,16 @@ interface WaitlistUser {
   createdAt: string | null;
 }
 
+interface BannedEmailEntry {
+  id: string;
+  email: string;
+  userId: string | null;
+  displayName: string | null;
+  reason: string | null;
+  accountDeleted: boolean;
+  bannedAt: string | null;
+}
+
 const ROLE_LABELS: Record<string, string> = {
   pm: 'Product Manager',
   design: 'Designer',
@@ -2669,6 +2679,224 @@ const AUDIENCE_LABELS: Record<string, string> = {
 
 const BLANK_ANN = { title: '', message: '', type: 'info', targetAudience: 'all', ctaLabel: '', ctaUrl: '', isActive: true, expiresAt: '', hasCta: false };
 
+function BannedTab({ authHeader }: { authHeader: string }) {
+  const { toast } = useToast();
+  const [banEmail, setBanEmail] = useState('');
+  const [banReason, setBanReason] = useState('');
+  const [deleteOnBan, setDeleteOnBan] = useState(false);
+  const [unbanDialogOpen, setUnbanDialogOpen] = useState(false);
+  const [unbanTarget, setUnbanTarget] = useState<BannedEmailEntry | null>(null);
+  const [unbanReason, setUnbanReason] = useState('');
+
+  const { data: bans = [], isLoading, refetch } = useQuery<BannedEmailEntry[]>({
+    queryKey: ['/internal/x9k7m2p4/bans'],
+    queryFn: async () => {
+      const res = await fetch('/internal/x9k7m2p4/bans', { headers: { 'Authorization': authHeader } });
+      if (!res.ok) throw new Error('Failed to fetch bans');
+      return res.json();
+    },
+  });
+
+  const banMutation = useMutation({
+    mutationFn: async (payload: { email: string; reason?: string; deleteAccount?: boolean }) => {
+      const res = await fetch('/internal/x9k7m2p4/bans', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to ban');
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: deleteOnBan ? 'Account banned & deleted' : 'Account banned' });
+      setBanEmail('');
+      setBanReason('');
+      setDeleteOnBan(false);
+      refetch();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const unbanMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      const res = await fetch(`/internal/x9k7m2p4/bans/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error('Failed to unban');
+    },
+    onSuccess: () => {
+      toast({ title: 'Email unbanned' });
+      setUnbanDialogOpen(false);
+      setUnbanTarget(null);
+      setUnbanReason('');
+      refetch();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const handleBan = () => {
+    if (!banEmail.trim()) return;
+    banMutation.mutate({ email: banEmail.trim(), reason: banReason.trim() || undefined, deleteAccount: deleteOnBan });
+  };
+
+  const openUnban = (entry: BannedEmailEntry) => {
+    setUnbanTarget(entry);
+    setUnbanReason('');
+    setUnbanDialogOpen(true);
+  };
+
+  const formatDate = (d: string | null) => {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Ban className="w-5 h-5 text-destructive" />
+            Ban Account
+          </CardTitle>
+          <CardDescription>
+            Banned accounts are immediately signed out and blocked from re-logging in or re-registering.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="ban-email">Email address</Label>
+            <Input
+              id="ban-email"
+              type="email"
+              placeholder="user@example.com"
+              value={banEmail}
+              onChange={(e) => setBanEmail(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ban-reason">Reason (internal — not shown to user)</Label>
+            <Textarea
+              id="ban-reason"
+              placeholder="Internal reason — not shown to user"
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="delete-on-ban"
+              checked={deleteOnBan}
+              onCheckedChange={(v) => setDeleteOnBan(v as boolean)}
+            />
+            <Label htmlFor="delete-on-ban" className="cursor-pointer font-normal">
+              Also permanently delete account data
+            </Label>
+          </div>
+          {deleteOnBan && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <strong>Warning:</strong> This will erase all projects, AI history, and profile data. The email ban will remain so they cannot re-register. This cannot be undone.
+            </div>
+          )}
+          <Button
+            variant={deleteOnBan ? 'destructive' : 'default'}
+            onClick={handleBan}
+            disabled={!banEmail.trim() || banMutation.isPending}
+            className={!deleteOnBan ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
+          >
+            <Ban className="w-4 h-4 mr-2" />
+            {deleteOnBan ? 'Ban & Delete' : 'Ban Account'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Banned Accounts</CardTitle>
+          <CardDescription>{bans.length} banned email{bans.length !== 1 ? 's' : ''}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : bans.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No banned accounts.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-left py-2 pr-4 font-medium">Email</th>
+                    <th className="text-left py-2 pr-4 font-medium">Name</th>
+                    <th className="text-left py-2 pr-4 font-medium">Reason</th>
+                    <th className="text-left py-2 pr-4 font-medium">Banned</th>
+                    <th className="text-left py-2 pr-4 font-medium">Data deleted</th>
+                    <th className="text-left py-2 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bans.map((entry) => (
+                    <tr key={entry.id} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-mono text-xs">{entry.email}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{entry.displayName || '—'}</td>
+                      <td className="py-2 pr-4 text-muted-foreground max-w-[180px] truncate" title={entry.reason || undefined}>
+                        {entry.reason ? (entry.reason.length > 40 ? entry.reason.slice(0, 40) + '…' : entry.reason) : '—'}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">{formatDate(entry.bannedAt)}</td>
+                      <td className="py-2 pr-4">
+                        {entry.accountDeleted
+                          ? <Badge variant="destructive" className="text-xs">Yes</Badge>
+                          : <Badge variant="secondary" className="text-xs">No</Badge>}
+                      </td>
+                      <td className="py-2">
+                        <Button size="sm" variant="outline" onClick={() => openUnban(entry)}>
+                          Unban
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={unbanDialogOpen} onOpenChange={setUnbanDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unban {unbanTarget?.email}?</DialogTitle>
+            <DialogDescription>
+              This will remove the ban and allow the account to log in again.
+              {unbanTarget?.accountDeleted && ' Note: account data was previously deleted — the user would be starting fresh.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="unban-reason">Reason (optional)</Label>
+            <Input
+              id="unban-reason"
+              placeholder="e.g. false positive, appeal approved"
+              value={unbanReason}
+              onChange={(e) => setUnbanReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnbanDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => unbanTarget && unbanMutation.mutate({ id: unbanTarget.id, reason: unbanReason || undefined })}
+              disabled={unbanMutation.isPending}
+            >
+              Confirm Unban
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function AnnouncementsTab({ authHeader }: { authHeader: string }) {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -3184,7 +3412,7 @@ export default function AdminCodes() {
         </div>
 
         <Tabs defaultValue="waitlist" className="w-full">
-          <TabsList className="grid w-full grid-cols-10">
+          <TabsList className="grid w-full grid-cols-11">
             <TabsTrigger value="waitlist" data-testid="tab-waitlist-management">
               <ClipboardList className="w-4 h-4 mr-2" />
               Waitlist
@@ -3224,6 +3452,10 @@ export default function AdminCodes() {
             <TabsTrigger value="announce" data-testid="tab-announcements">
               <Megaphone className="w-4 h-4 mr-2" />
               Announce
+            </TabsTrigger>
+            <TabsTrigger value="banned" data-testid="tab-banned-accounts">
+              <Ban className="w-4 h-4 mr-2" />
+              Banned
             </TabsTrigger>
           </TabsList>
 
@@ -3456,6 +3688,10 @@ export default function AdminCodes() {
 
           <TabsContent value="announce" className="mt-6">
             <AnnouncementsTab authHeader={authHeader} />
+          </TabsContent>
+
+          <TabsContent value="banned" className="mt-6">
+            <BannedTab authHeader={authHeader} />
           </TabsContent>
         </Tabs>
       </div>
