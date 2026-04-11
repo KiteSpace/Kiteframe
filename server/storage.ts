@@ -15,6 +15,12 @@ import {
   shareLinks,
   insightHistory,
   userCredits,
+  aiUsageEvents,
+  workflowSnapshots,
+  collaborationRooms,
+  roomParticipants,
+  chatMessages,
+  workflowComments,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -104,7 +110,15 @@ export class DatabaseStorage implements IStorage {
     await db.delete(insightHistory).where(eq(insightHistory.userId, id));
     // Delete credit record (keyed by userIdentifier which equals userId for signed-in users)
     await db.delete(userCredits).where(eq(userCredits.userIdentifier, id));
-    // Delete user row — oauthProviders and userGroupMemberships cascade automatically
+    // Delete collaboration sub-records before rooms (NO ACTION FKs)
+    await db.delete(workflowComments).where(eq(workflowComments.userId, id));
+    await db.delete(chatMessages).where(eq(chatMessages.userId, id));
+    await db.delete(roomParticipants).where(eq(roomParticipants.userId, id));
+    await db.delete(collaborationRooms).where(eq(collaborationRooms.ownerId, id));
+    // Delete remaining nullable-FK rows with NO ACTION constraints
+    await db.delete(workflowSnapshots).where(eq(workflowSnapshots.userId, id));
+    await db.delete(aiUsageEvents).where(eq(aiUsageEvents.userId, id));
+    // Delete user row — oauthProviders, userGroupMemberships, and announcement_dismissals cascade automatically
     await db.delete(users).where(eq(users.id, id));
   }
 
