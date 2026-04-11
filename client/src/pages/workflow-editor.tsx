@@ -5604,8 +5604,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const screenWidth = objWidth * viewport.zoom;
       const screenHeight = objHeight * viewport.zoom;
 
-      const movingShapeType = (currentObject.data as any)?.shapeType;
-      const movingHandlePad = ['line', 'arrow', 'polygon'].includes(movingShapeType) ? 28 : 0;
+      const movingShapeType = currentObject.type === 'shape'
+        ? (currentObject.data as ShapeNodeData).shapeType
+        : undefined;
+      const movingHandlePad = (movingShapeType === 'line' || movingShapeType === 'arrow' || movingShapeType === 'polygon') ? 28 : 0;
 
       // Only update if position changed
       if (
@@ -9845,8 +9847,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                               // Add extra clearance for line/arrow/polygon shapes so the toolbar
                               // doesn't overlap with the resize/endpoint handles
-                              const shapeType = (canvasObject.data as any)?.shapeType;
-                              const handlePad = ['line', 'arrow', 'polygon'].includes(shapeType) ? 28 : 0;
+                              const shapeType = canvasObject.type === 'shape'
+                                ? (canvasObject.data as ShapeNodeData).shapeType
+                                : undefined;
+                              const handlePad = (shapeType === 'line' || shapeType === 'arrow' || shapeType === 'polygon') ? 28 : 0;
 
                               return {
                                 x: screenX + screenWidth / 2,

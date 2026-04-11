@@ -10,6 +10,7 @@ import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
+import type { ProjectPRD } from '../ai/prdEngine';
 import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
@@ -24,7 +25,7 @@ interface SharedProjectData {
   isOwner?: boolean;
   redirect?: string;
   projectUuid?: string;
-  prdData?: any | null;
+  prdData?: ProjectPRD | null;
   notesData?: string | null;
   detailsData?: string | null;
 }

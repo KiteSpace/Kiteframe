@@ -43,6 +43,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Cloud, Save, Trash2, MoreVertical, Loader2, Lock, Edit2 } from 'lucide-react';
 import type { SavedProject } from '@shared/schema';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import type { ProjectPRD } from '@/ai/prdEngine';
 
 interface WorkflowData {
   nodes: Node[];
@@ -56,7 +57,7 @@ interface WorkflowData {
     linksFormat: 'bulleted' | 'text';
     categories: string[];
   };
-  prdData?: any | null;
+  prdData?: ProjectPRD | null;
   notesData?: string | null;
   detailsData?: string | null;
 }
