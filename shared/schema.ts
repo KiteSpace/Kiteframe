@@ -680,3 +680,29 @@ export const insertAnnouncementDismissalSchema = createInsertSchema(announcement
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type AnnouncementDismissal = typeof announcementDismissals.$inferSelect;
+
+// ============================================
+// BAN SYSTEM
+// ============================================
+
+export const bannedEmails = pgTable("banned_emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  userId: varchar("user_id"),      // DB user id at time of ban (nullable — email-only bans allowed)
+  displayName: varchar("display_name"), // Cached for admin table display
+  oauthSub: varchar("oauth_sub"),  // Stable OAuth provider sub/uid to block re-registration
+  reason: text("reason"),          // Internal admin reason (never shown to user)
+  accountDeleted: boolean("account_deleted").notNull().default(false), // true = ban + wipe performed
+  bannedAt: timestamp("banned_at").defaultNow(),
+}, (table) => [
+  index("IDX_banned_emails_email").on(table.email),
+  index("IDX_banned_emails_user_id").on(table.userId),
+]);
+
+export const insertBannedEmailSchema = createInsertSchema(bannedEmails).omit({
+  id: true,
+  bannedAt: true,
+});
+
+export type BannedEmail = typeof bannedEmails.$inferSelect;
+export type InsertBannedEmail = z.infer<typeof insertBannedEmailSchema>;
