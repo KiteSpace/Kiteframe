@@ -2715,7 +2715,7 @@ function BannedTab({ authHeader }: { authHeader: string }) {
       setDeleteOnBan(false);
       refetch();
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to ban', variant: 'destructive' }),
   });
 
   const unbanMutation = useMutation({
@@ -2725,7 +2725,10 @@ function BannedTab({ authHeader }: { authHeader: string }) {
         headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
       });
-      if (!res.ok) throw new Error('Failed to unban');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || 'Failed to unban');
+      }
     },
     onSuccess: () => {
       toast({ title: 'Email unbanned' });
@@ -2734,7 +2737,7 @@ function BannedTab({ authHeader }: { authHeader: string }) {
       setUnbanReason('');
       refetch();
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (err: unknown) => toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to unban', variant: 'destructive' }),
   });
 
   const handleBan = () => {
@@ -2790,7 +2793,7 @@ function BannedTab({ authHeader }: { authHeader: string }) {
             <Checkbox
               id="delete-on-ban"
               checked={deleteOnBan}
-              onCheckedChange={(v) => setDeleteOnBan(v as boolean)}
+              onCheckedChange={(v) => setDeleteOnBan(v === true)}
             />
             <Label htmlFor="delete-on-ban" className="cursor-pointer font-normal">
               Also permanently delete account data
