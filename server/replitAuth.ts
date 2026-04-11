@@ -23,6 +23,31 @@ setInterval(() => {
   }
 }, 60_000);
 
+// ---------------------------------------------------------------------------
+// Ban check cache — 60-second in-memory TTL keyed by lowercased email
+// ---------------------------------------------------------------------------
+interface BanCacheEntry { banned: boolean; expiresAt: number }
+const banCache = new Map<string, BanCacheEntry>();
+const BAN_CACHE_TTL_MS = 60_000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of banCache.entries()) {
+    if (entry.expiresAt < now) banCache.delete(key);
+  }
+}, 60_000);
+
+async function isBannedEmail(email: string | undefined | null): Promise<boolean> {
+  if (!email) return false;
+  const key = email.toLowerCase();
+  const cached = banCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.banned;
+  const row = await storage.getBannedEmail(key);
+  const banned = !!row;
+  banCache.set(key, { banned, expiresAt: Date.now() + BAN_CACHE_TTL_MS });
+  return banned;
+}
+
 function isAdminEmail(email: string | undefined | null): boolean {
   if (!email) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
@@ -408,6 +433,14 @@ export async function setupAuth(app: Express) {
       passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
       async (req, res) => {
         const user = req.user as any;
+
+        // Ban check — destroy session and redirect if email is banned
+        if (await isBannedEmail(user?.email)) {
+          console.warn('[AUTH] Google login blocked — banned email:', user?.email);
+          req.logout(() => {});
+          return res.redirect('/?error=account_suspended');
+        }
+
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
@@ -507,6 +540,14 @@ export async function setupAuth(app: Express) {
       passport.authenticate('github', { failureRedirect: '/?error=github_auth_failed' }),
       async (req, res) => {
         const user = req.user as any;
+
+        // Ban check — destroy session and redirect if email is banned
+        if (await isBannedEmail(user?.email)) {
+          console.warn('[AUTH] GitHub login blocked — banned email:', user?.email);
+          req.logout(() => {});
+          return res.redirect('/?error=account_suspended');
+        }
+
         const isAdmin = isAdminEmail(user?.email);
         const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
         const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
@@ -675,10 +716,17 @@ export async function setupAuth(app: Express) {
         console.error('[AUTH] Replit auth no user returned, info:', info);
         return res.redirect(`https://${originDomain}/?error=replit_auth_no_user`);
       }
-      req.logIn(user, (loginErr) => {
+      req.logIn(user, async (loginErr) => {
         if (loginErr) {
           console.error('[AUTH] Replit logIn error:', loginErr);
           return res.redirect(`https://${originDomain}/?error=replit_login_error`);
+        }
+
+        // Ban check — destroy session and redirect if email is banned
+        if (await isBannedEmail(user?.email)) {
+          console.warn('[AUTH] Replit login blocked — banned email:', user?.email);
+          req.logout(() => {});
+          return res.redirect(`https://${originDomain}/?error=account_suspended`);
         }
         
         const isAdmin = isAdminEmail(user?.email);
@@ -784,6 +832,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   if (!req.isAuthenticated() || !user) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Ban check — 60-second cached lookup so it doesn't hit DB on every request
+  if (await isBannedEmail(user.email)) {
+    console.warn('[AUTH] isAuthenticated blocked — banned email:', user.email);
+    return res.status(403).json({ error: 'account_suspended', message: 'Account suspended. Contact support.' });
   }
 
   // For Google/GitHub OAuth users, they don't have expires_at (no OIDC refresh)

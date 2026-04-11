@@ -23,6 +23,7 @@ import {
   docAccessGrants,
   announcements,
   announcementDismissals,
+  bannedEmails,
 } from "@shared/schema";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
@@ -31,7 +32,7 @@ import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls } from "./middleware/creditCheck";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
-import { logBetaAction, logCodeAction } from "./middleware/auditLog";
+import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
 import { requireHttps } from "./middleware/httpsEnforce";
 import { adminLoginRateLimiter } from "./middleware/rateLimiter";
 import { unlockCodes } from "@shared/schema";
@@ -479,6 +480,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!user) {
         return res.status(500).json({ error: 'Failed to create or find user' });
+      }
+
+      // Ban check — reject suspended accounts before establishing a session
+      if (user.email) {
+        const ban = await storage.getBannedEmail(user.email);
+        if (ban) {
+          console.warn('[AUTH] Firebase sync blocked — banned email:', user.email);
+          return res.status(403).json({ error: 'account_suspended', message: 'Account suspended. Contact support.' });
+        }
       }
 
       // Establish session by setting req.user with the same structure as Passport
@@ -6045,6 +6055,95 @@ jane@example.com,Jane,Smith,pro,GroupC
     } catch (error: any) {
       console.error('Delete announcement error:', error);
       res.status(500).json({ error: 'Failed to delete announcement' });
+    }
+  });
+
+  // =====================================
+  // BAN MANAGEMENT (admin only)
+  // =====================================
+
+  // GET /internal/x9k7m2p4/bans — list all banned emails, newest first
+  app.get('/internal/x9k7m2p4/bans', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const rows = await storage.listBannedEmails();
+      res.json(rows);
+    } catch (error: any) {
+      console.error('List bans error:', error);
+      res.status(500).json({ error: 'Failed to list bans' });
+    }
+  });
+
+  // POST /internal/x9k7m2p4/bans — ban an email (optionally delete the account)
+  app.post('/internal/x9k7m2p4/bans', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { email, userId, displayName, oauthSub, reason, deleteAccount } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: 'email is required' });
+      }
+
+      // Upsert — if already banned, just return the existing row
+      const existing = await storage.getBannedEmail(email);
+      if (existing) {
+        return res.status(409).json({ error: 'Email is already banned', ban: existing });
+      }
+
+      // 1. Create ban record
+      const ban = await storage.createBannedEmail({
+        email,
+        userId: userId || null,
+        displayName: displayName || null,
+        oauthSub: oauthSub || null,
+        reason: reason || null,
+        accountDeleted: false,
+      });
+
+      // 2. Invalidate active sessions for the user
+      if (userId) {
+        await db.execute(
+          sql`DELETE FROM sessions WHERE sess::jsonb -> 'passport' -> 'user' ->> 'id' = ${userId}`
+        );
+      }
+
+      // 3. Audit log — ban
+      await logBanAction(req, 'ban', ban.id, { email, userId, reason });
+
+      // 4. If deleteAccount requested and userId provided — wipe profile data
+      if (deleteAccount && userId) {
+        await storage.deleteUser(userId);
+        // Mark the tombstone row as deleted
+        await db.update(bannedEmails)
+          .set({ accountDeleted: true })
+          .where(eq(bannedEmails.id, ban.id));
+        // Audit log — ban_delete
+        await logBanAction(req, 'ban_delete', userId, { email, reason });
+        return res.json({ ...ban, accountDeleted: true, deleted: true });
+      }
+
+      res.json({ ...ban, deleted: false });
+    } catch (error: any) {
+      console.error('Create ban error:', error);
+      res.status(500).json({ error: 'Failed to ban email', details: error.message });
+    }
+  });
+
+  // DELETE /internal/x9k7m2p4/bans/:id — remove a ban (unban)
+  app.delete('/internal/x9k7m2p4/bans/:id', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+
+      const [existing] = await db.select().from(bannedEmails).where(eq(bannedEmails.id, id)).limit(1);
+      if (!existing) {
+        return res.status(404).json({ error: 'Ban not found' });
+      }
+
+      await storage.deleteBannedEmail(id);
+      await logBanAction(req, 'unban', id, { email: existing.email, reason });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Delete ban error:', error);
+      res.status(500).json({ error: 'Failed to unban email', details: error.message });
     }
   });
 

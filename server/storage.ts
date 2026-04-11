@@ -9,6 +9,8 @@ import {
   type InsertShareLink,
   type InsightHistory,
   type InsertInsightHistory,
+  type BannedEmail,
+  type InsertBannedEmail,
   users,
   savedProjects,
   projectFolders,
@@ -21,6 +23,7 @@ import {
   roomParticipants,
   chatMessages,
   workflowComments,
+  bannedEmails,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, inArray } from "drizzle-orm";
@@ -53,6 +56,11 @@ export interface IStorage {
   getInsightHistory(userId: string, projectId?: string): Promise<InsightHistory[]>;
   createInsightHistory(data: InsertInsightHistory): Promise<InsightHistory>;
   updateInsightHistory(id: string, data: Partial<InsertInsightHistory>): Promise<InsightHistory | undefined>;
+  // Ban management
+  getBannedEmail(email: string): Promise<BannedEmail | undefined>;
+  listBannedEmails(): Promise<BannedEmail[]>;
+  createBannedEmail(data: InsertBannedEmail): Promise<BannedEmail>;
+  deleteBannedEmail(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -363,6 +371,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(insightHistory.id, id))
       .returning();
     return updated;
+  }
+
+  async getBannedEmail(email: string): Promise<BannedEmail | undefined> {
+    const [row] = await db
+      .select()
+      .from(bannedEmails)
+      .where(eq(bannedEmails.email, email.toLowerCase()))
+      .limit(1);
+    return row;
+  }
+
+  async listBannedEmails(): Promise<BannedEmail[]> {
+    return db
+      .select()
+      .from(bannedEmails)
+      .orderBy(desc(bannedEmails.bannedAt));
+  }
+
+  async createBannedEmail(data: InsertBannedEmail): Promise<BannedEmail> {
+    const [row] = await db
+      .insert(bannedEmails)
+      .values({ ...data, email: data.email.toLowerCase() })
+      .returning();
+    return row;
+  }
+
+  async deleteBannedEmail(id: string): Promise<void> {
+    await db.delete(bannedEmails).where(eq(bannedEmails.id, id));
   }
 }
 

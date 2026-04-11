@@ -15,7 +15,10 @@ export type AdminAction =
   | 'user_group_delete'
   | 'user_add_to_group'
   | 'user_remove_from_group'
-  | 'credits_adjust';
+  | 'credits_adjust'
+  | 'ban'
+  | 'unban'
+  | 'ban_delete';
 
 interface AuditLogEntry {
   action: AdminAction;
@@ -94,6 +97,24 @@ export async function logCodeAction(
     adminIdentifier: adminUser,
     targetId: codeId,
     targetType: 'code',
+    details,
+    ...ctx,
+  });
+}
+
+export async function logBanAction(
+  req: Request,
+  action: 'ban' | 'unban' | 'ban_delete',
+  targetId: string,
+  details?: Record<string, unknown>
+): Promise<void> {
+  const ctx = getRequestContext(req);
+  const adminUser = (req as any).adminUser || 'admin';
+  await logAdminAction({
+    action,
+    adminIdentifier: adminUser,
+    targetId,
+    targetType: 'user',
     details,
     ...ctx,
   });
