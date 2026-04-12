@@ -10,6 +10,7 @@ export interface ChatMessageListProps {
   isLoading?: boolean;
   mode: 'panel' | 'floating' | 'fullscreen' | 'discussion';
   onFollowUpClick?: (question: string) => void;
+  onWorkflowChipSelect?: (chipId: string) => void;
 }
 
 export interface ChatMessageListRef {
@@ -28,7 +29,8 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   messages,
   isLoading = false,
   mode,
-  onFollowUpClick
+  onFollowUpClick,
+  onWorkflowChipSelect
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -143,6 +145,7 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
                 key={message.id}
                 message={message}
                 onFollowUpClick={onFollowUpClick}
+                onWorkflowChipSelect={onWorkflowChipSelect}
                 isFirstInGroup={groupInfo?.isFirstInGroup}
                 isLastInGroup={groupInfo?.isLastInGroup}
                 className={marginClass}

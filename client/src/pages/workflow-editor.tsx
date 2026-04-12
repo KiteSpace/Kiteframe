@@ -11850,6 +11850,66 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 projectName={activeTab?.name}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onApplyWorkflow={(workflow) => {
+                  // Non-destructive mode: add modified workflow as new copy alongside original
+                  if (workflow.nonDestructive) {
+                    saveToHistory("Add modified workflow");
+                    
+                    const workflowNodes = workflow.nodes;
+                    const workflowEdges = workflow.edges;
+                    const offset = calculateWorkflowOffset(workflowNodes);
+                    const batchId = Date.now();
+                    const nodeIdMapping: { [oldId: string]: string } = {};
+
+                    const offsetNodes = workflowNodes.map(
+                      (node: Node, index: number) => {
+                        const oldId = node.id || `node-${index}`;
+                        const newId = `node-${batchId}-${index}`;
+                        nodeIdMapping[oldId] = newId;
+
+                        const nodeData = { ...node.data };
+                        if (index === 0 && workflow.selectedGroupLabel) {
+                          (nodeData as any).label = `${workflow.selectedGroupLabel} — Modified`;
+                        }
+
+                        return {
+                          ...node,
+                          id: newId,
+                          position: {
+                            x: node.position.x + offset.x,
+                            y: node.position.y + offset.y,
+                          },
+                          selected: false,
+                          data: {
+                            ...nodeData,
+                            meta: {
+                              ...(nodeData as any)?.meta,
+                              createdAt: Date.now(),
+                            },
+                          },
+                        };
+                      },
+                    );
+
+                    const offsetEdges = workflowEdges.map(
+                      (edge: Edge, index: number) => ({
+                        ...edge,
+                        id: `edge-${batchId}-${index}`,
+                        source: nodeIdMapping[edge.source] || edge.source,
+                        target: nodeIdMapping[edge.target] || edge.target,
+                        selected: false,
+                      }),
+                    );
+
+                    setNodes((prev) => [...prev, ...offsetNodes]);
+                    setEdges((prev) => [...prev, ...offsetEdges]);
+
+                    toast({
+                      title: "Modified Workflow Added",
+                      description: `Added ${offsetNodes.length} nodes as a modified copy. Your original workflow is unchanged.`,
+                    });
+                    return;
+                  }
+                  
                   // V1 STABILIZATION: Merge-Safe Workflow Mutation
                   // All chat-driven mutations MUST pass through merge-safe validation
                   // This prevents orphan nodes, floating islands, and invalid graph states

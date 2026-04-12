@@ -13,6 +13,7 @@ import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '.
 import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceScoring';
 import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
+import { detectWorkflowGroups, type WorkflowGroup } from '../utils/workflowGroups';
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
@@ -136,6 +137,7 @@ export interface ChatMessage {
     maturity?: WorkflowMaturity;
   };
   followUps?: string[];
+  workflowChips?: { id: string; label: string; nodeCount: number }[];
 }
 
 interface WorkflowDiff {
@@ -201,6 +203,8 @@ export interface ApplyWorkflowPayload {
   mergeBranchDecision?: MergeBranchDecision;
   aiMode?: AiMode;
   bypassConfirmation?: boolean;
+  nonDestructive?: boolean;
+  selectedGroupLabel?: string;
 }
 
 export interface ReplaceWorkflowPayload {
@@ -260,6 +264,10 @@ export function KiteAIChatBrain({
   // AUTHORITATIVE WORKFLOW DRAFT - Single source of truth for the current workflow
   // This replaces message-embedded workflow ownership. Preview/Create always use this.
   const [currentWorkflowDraft, setCurrentWorkflowDraft] = useState<WorkflowDraft | null>(null);
+  
+  const [selectedWorkflowGroup, setSelectedWorkflowGroup] = useState<WorkflowGroup | null>(null);
+  const selectedWorkflowGroupRef = useRef<WorkflowGroup | null>(null);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -652,21 +660,35 @@ export function KiteAIChatBrain({
     }
   };
 
+  const scopedNodes = useMemo(() => {
+    if (!selectedWorkflowGroup) return currentNodes;
+    return currentNodes.filter(n => selectedWorkflowGroup.nodeIds.has(n.id));
+  }, [currentNodes, selectedWorkflowGroup]);
+
+  const scopedEdges = useMemo(() => {
+    if (!selectedWorkflowGroup) return currentEdges;
+    return currentEdges.filter(e => selectedWorkflowGroup.edgeIds.has(e.id));
+  }, [currentEdges, selectedWorkflowGroup]);
+
   const buildCanvasContext = useCallback(() => {
-    if (currentNodes.length === 0) {
+    if (scopedNodes.length === 0) {
       return "The canvas is currently empty.";
     }
 
-    const nodeTypes = currentNodes.reduce((acc, node) => {
+    const nodeTypes = scopedNodes.reduce((acc, node) => {
       const type = node.type || 'process';
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const nodeLabels = currentNodes.map(n => n.data?.label || 'Unnamed').join(', ');
+    const nodeLabels = scopedNodes.map(n => n.data?.label || 'Unnamed').join(', ');
     
-    return `Current canvas has ${currentNodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')}) and ${currentEdges.length} connections. Node labels: ${nodeLabels}`;
-  }, [currentNodes, currentEdges]);
+    let context = `Current workflow has ${scopedNodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')}) and ${scopedEdges.length} connections. Node labels: ${nodeLabels}`;
+    if (selectedWorkflowGroup) {
+      context = `Working on workflow: "${selectedWorkflowGroup.label}". ${context}`;
+    }
+    return context;
+  }, [scopedNodes, scopedEdges, selectedWorkflowGroup]);
 
   // Shared message sending function - accepts optional message override and files for programmatic calls
   const handleSend = async (messageOverride?: string, filesOverride?: File[]) => {
@@ -685,6 +707,36 @@ export function KiteAIChatBrain({
       if (ctaAction === 'signup') openSignup();
       else openCreditsDialog();
       return;
+    }
+
+    // Multi-workflow selection: if canvas has 2+ disconnected groups and no group
+    // is selected yet, intercept workflow-related messages and ask which to work on
+    if (mode !== 'fullscreen' && !selectedWorkflowGroup && !selectedWorkflowGroupRef.current && !hasPendingFiles) {
+      const groups = detectWorkflowGroups(currentNodes, currentEdges);
+      if (groups.length >= 2) {
+        const lowerMsg = messageContent.toLowerCase();
+        const isWorkflowRelated = WORKFLOW_GENERATION_SIGNALS.some(s => lowerMsg.includes(s)) ||
+          /workflow|node|edge|process|flow|diagram/i.test(messageContent);
+        if (isWorkflowRelated) {
+          const userMsg: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            role: 'user',
+            content: messageContent,
+            timestamp: new Date(),
+          };
+          const selectionMsg: ChatMessage = {
+            id: `msg-${Date.now() + 1}`,
+            role: 'assistant',
+            content: 'Which workflow would you like to work on?',
+            timestamp: new Date(),
+            workflowChips: groups.map(g => ({ id: g.id, label: g.label, nodeCount: g.nodeCount })),
+          };
+          setMessages(prev => [...prev, userMsg, selectionMsg]);
+          setPendingUserMessage(messageContent);
+          setInputValue('');
+          return;
+        }
+      }
     }
 
     // Phase 7: Unified Conversation Engine - run actionability scoring
@@ -895,8 +947,8 @@ export function KiteAIChatBrain({
         mode: 'in_project',
         userMessage: messageContent,
         projectContext: {
-          nodes: currentNodes,
-          edges: currentEdges,
+          nodes: scopedNodes,
+          edges: scopedEdges,
           canvasObjects: currentCanvasObjects,
           projectName: projectId
         },
@@ -906,15 +958,15 @@ export function KiteAIChatBrain({
         }
       });
       
-      const hasCanvasContext = currentNodes.length > 0;
-      const hasSemanticData = currentNodes.some(n => n.data?.label || n.data?.description);
+      const hasCanvasContext = scopedNodes.length > 0;
+      const hasSemanticData = scopedNodes.some(n => n.data?.label || n.data?.description);
       
       const kiteAIContext = buildKiteAIContext(
         'in_project',
         effectiveRole,
         {
-          nodes: currentNodes,
-          edges: currentEdges,
+          nodes: scopedNodes,
+          edges: scopedEdges,
           canvasObjects: currentCanvasObjects,
           projectName: projectId
         }
@@ -930,8 +982,8 @@ export function KiteAIChatBrain({
       // AI Stabilization Phase 1: Capture diagnostic baseline BEFORE AI generates workflow
       if (aiStabilizationEnabled) {
         const baselineWorkflow = {
-          nodes: currentNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
-          edges: currentEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
+          nodes: scopedNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
+          edges: scopedEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
         };
         baselineDiagnosticsRef.current = captureDiagnosticBaseline(baselineWorkflow);
         console.log('[AiStabilization] Baseline captured:', {
@@ -1032,7 +1084,7 @@ export function KiteAIChatBrain({
               
               mergeBranchDecision = detectMergeBranchIntent({
                 userMessage: messageContent,
-                hasExistingWorkflow: currentNodes.length > 0,
+                hasExistingWorkflow: scopedNodes.length > 0,
                 previousUserMessages: previousMessages.slice(-3),
               });
               
@@ -1076,8 +1128,8 @@ export function KiteAIChatBrain({
               };
               
               const baselineWorkflow = {
-                nodes: currentNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
-                edges: currentEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
+                nodes: scopedNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
+                edges: scopedEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
               };
               
               // Phase 1: Compute diagnostic delta
@@ -1123,7 +1175,7 @@ export function KiteAIChatBrain({
               const msgLower = messageContent.toLowerCase();
               const isStructuralExpansion = STRUCTURAL_EXPANSION_SIGNALS.some(sig => msgLower.includes(sig));
 
-              if (!proposalRejected && currentNodes.length > 0 && !isStructuralExpansion) {
+              if (!proposalRejected && scopedNodes.length > 0 && !isStructuralExpansion) {
                 const fixScope = createFixScope(baselineWorkflow);
                 const scopeResult = validateFixScope(fixScope, baselineWorkflow, proposedWorkflow);
                 
@@ -1141,14 +1193,14 @@ export function KiteAIChatBrain({
                     variant: "destructive"
                   });
                 }
-              } else if (isStructuralExpansion && currentNodes.length > 0) {
+              } else if (isStructuralExpansion && scopedNodes.length > 0) {
                 console.log('[AiStabilization] Skipping fix-scope validation - structural expansion request detected');
               }
               
               // Phase 3: Edit-first heuristic (only when modifying existing workflow)
               // Also skip for structural expansion requests - adding failure paths/error handling
               // is inherently additive and shouldn't be penalized as "over-construction".
-              if (!proposalRejected && currentNodes.length > 0 && !isStructuralExpansion) {
+              if (!proposalRejected && scopedNodes.length > 0 && !isStructuralExpansion) {
                 // Normalize both baseline and proposed to symmetric structure for accurate diff
                 // Only compare label (the primary user-visible field) to avoid false positives
                 const normalizeNodeForDiff = (id: string, type: string | undefined, data: any) => ({
@@ -1166,8 +1218,8 @@ export function KiteAIChatBrain({
                 
                 const detailedDelta = computeDetailedWorkflowDelta(
                   {
-                    nodes: currentNodes.map(n => normalizeNodeForDiff(n.id, n.type, n.data)),
-                    edges: currentEdges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, e.data)),
+                    nodes: scopedNodes.map(n => normalizeNodeForDiff(n.id, n.type, n.data)),
+                    edges: scopedEdges.map(e => normalizeEdgeForDiff(e.id, e.source, e.target, e.data)),
                   },
                   {
                     nodes: proposedWorkflow.nodes.map((n: { id: string; type?: string; label?: string }) => normalizeNodeForDiff(n.id, n.type, { label: n.label })),
@@ -1408,21 +1460,52 @@ export function KiteAIChatBrain({
     // REPLACE: Use when canvas is empty (fresh start)
     // APPLY: Use when canvas has existing nodes (append/merge)
     const isCanvasEmpty = currentNodes.length === 0;
+
+    // Non-destructive mode: when a specific workflow group is selected,
+    // always add the modified workflow as a new copy alongside the original
+    if (selectedWorkflowGroup && onApplyWorkflow) {
+      onApplyWorkflow({
+        nodes: currentWorkflowDraft.nodes,
+        edges: currentWorkflowDraft.edges,
+        canvasObjects: currentWorkflowDraft.canvasObjects,
+        nonDestructive: true,
+        selectedGroupLabel: selectedWorkflowGroup.label,
+      });
+
+      setCurrentWorkflowDraft(null);
+      setWorkflowGenState(null);
+      setPendingQuickActions([]);
+      setHasExpandedOnce(false);
+      setMutationApproved(false);
+      setSelectedWorkflowGroup(null);
+      setPendingUserMessage(null);
+
+      logAiInteraction({
+        surface: 'project',
+        phase: 'in_project',
+        action: 'apply',
+        success: true,
+        nodeDelta: currentWorkflowDraft.nodes.length,
+        edgeDelta: currentWorkflowDraft.edges.length,
+      });
+
+      toast({
+        title: "Modified Workflow Added",
+        description: `Added "${selectedWorkflowGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
+      });
+      return;
+    }
     
     if (isCanvasEmpty && onReplaceWorkflow) {
-      // Empty canvas: Use REPLACE for clean insertion (no orphan risk)
       onReplaceWorkflow({
         nodes: currentWorkflowDraft.nodes,
         edges: currentWorkflowDraft.edges,
         canvasObjects: currentWorkflowDraft.canvasObjects,
       });
       
-      // Clear the draft after replacing
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
       setPendingQuickActions([]);
-      
-      // Phase Lock: Reset after successful creation
       setHasExpandedOnce(false);
       setMutationApproved(false);
       
@@ -1453,12 +1536,9 @@ export function KiteAIChatBrain({
       aiMode,
     });
 
-    // Clear the draft after applying
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
-    
-    // Phase Lock: Reset after successful application
     setHasExpandedOnce(false);
     setMutationApproved(false);
     
@@ -1480,13 +1560,50 @@ export function KiteAIChatBrain({
   // Explicit REPLACE handler - allows user to replace entire canvas even when not empty
   // Phase 4: Mode toggle removed - Replace always available when canvas has nodes
   const handleReplaceWorkflow = () => {
-    if (!currentWorkflowDraft || !onReplaceWorkflow) return;
+    if (!currentWorkflowDraft) return;
 
     // Phase 5: Dev guard - handleReplaceWorkflow should only be called in panel/floating mode
     if (process.env.NODE_ENV === 'development' && mode === 'fullscreen') {
       console.error('[KiteAI] Phase separation error: handleReplaceWorkflow called in fullscreen mode. This is a bug.');
       return;
     }
+
+    // Non-destructive mode: when a specific workflow group is selected,
+    // add the modified workflow as a new copy (same as Accept)
+    if (selectedWorkflowGroup && onApplyWorkflow) {
+      onApplyWorkflow({
+        nodes: currentWorkflowDraft.nodes,
+        edges: currentWorkflowDraft.edges,
+        canvasObjects: currentWorkflowDraft.canvasObjects,
+        nonDestructive: true,
+        selectedGroupLabel: selectedWorkflowGroup.label,
+      });
+
+      setCurrentWorkflowDraft(null);
+      setWorkflowGenState(null);
+      setPendingQuickActions([]);
+      setHasExpandedOnce(false);
+      setMutationApproved(false);
+      setSelectedWorkflowGroup(null);
+      setPendingUserMessage(null);
+
+      logAiInteraction({
+        surface: 'project',
+        phase: 'in_project',
+        action: 'apply',
+        success: true,
+        nodeDelta: currentWorkflowDraft.nodes.length,
+        edgeDelta: currentWorkflowDraft.edges.length,
+      });
+
+      toast({
+        title: "Modified Workflow Added",
+        description: `Added "${selectedWorkflowGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
+      });
+      return;
+    }
+
+    if (!onReplaceWorkflow) return;
 
     // REPLACE: Destructively replace entire canvas (with undo support)
     onReplaceWorkflow({
@@ -1495,12 +1612,9 @@ export function KiteAIChatBrain({
       canvasObjects: currentWorkflowDraft.canvasObjects,
     });
 
-    // Clear the draft after replacing
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
-    
-    // Phase Lock: Reset after successful replace
     setHasExpandedOnce(false);
     setMutationApproved(false);
     
@@ -1543,6 +1657,29 @@ export function KiteAIChatBrain({
       title: "Workflow Discarded",
       description: "The workflow draft has been cleared."
     });
+  };
+
+  const handleWorkflowChipSelect = (chipId: string) => {
+    const groups = detectWorkflowGroups(currentNodes, currentEdges);
+    const selected = groups.find(g => g.id === chipId);
+    if (!selected) return;
+
+    setSelectedWorkflowGroup(selected);
+    selectedWorkflowGroupRef.current = selected;
+
+    const confirmMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'assistant',
+      content: `Got it — I'll work on **"${selected.label}"** (${selected.nodeCount} nodes). Your other workflows won't be affected.`,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, confirmMsg]);
+
+    if (pendingUserMessage) {
+      const msg = pendingUserMessage;
+      setPendingUserMessage(null);
+      setTimeout(() => handleSend(msg), 100);
+    }
   };
 
   // UPDATED: Quick actions now use currentWorkflowDraft (authoritative)
@@ -1882,6 +2019,9 @@ export function KiteAIChatBrain({
       content: "Chat cleared! How can I help you with your workflow today?",
       timestamp: new Date()
     }]);
+    setSelectedWorkflowGroup(null);
+    selectedWorkflowGroupRef.current = null;
+    setPendingUserMessage(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -1975,6 +2115,7 @@ export function KiteAIChatBrain({
         isLoading={isLoading}
         mode={mode}
         onFollowUpClick={setInputValue}
+        onWorkflowChipSelect={handleWorkflowChipSelect}
       />
 
       {/* AUTHORITATIVE WORKFLOW DRAFT ACTIONS - Always visible when draft exists */}
@@ -1982,9 +2123,16 @@ export function KiteAIChatBrain({
         <div className="p-3 border-t border-border bg-muted/30 space-y-3">
           {/* Draft status badge */}
           <div className="flex items-center justify-between">
-            <Badge variant={currentWorkflowDraft.status === 'expanded' ? 'default' : 'secondary'} className="text-xs">
-              {currentWorkflowDraft.status === 'expanded' ? '✓ Expanded' : 'Draft'}: {currentWorkflowDraft.nodes.length} nodes, {currentWorkflowDraft.edges.length} edges
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={currentWorkflowDraft.status === 'expanded' ? 'default' : 'secondary'} className="text-xs">
+                {currentWorkflowDraft.status === 'expanded' ? '✓ Expanded' : 'Draft'}: {currentWorkflowDraft.nodes.length} nodes, {currentWorkflowDraft.edges.length} edges
+              </Badge>
+              {selectedWorkflowGroup && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  Modifying: {selectedWorkflowGroup.label}
+                </Badge>
+              )}
+            </div>
             {showDiffPreview && (
               <span className="text-xs text-muted-foreground">Preview active</span>
             )}
@@ -2059,14 +2207,16 @@ export function KiteAIChatBrain({
                     label: (e.data as any)?.label
                   }))
                 })}
-                title={currentNodes.length === 0 ? "Create new workflow on empty canvas" : "Add nodes to existing canvas"}
+                title={selectedWorkflowGroup
+                  ? `Add modified version of "${selectedWorkflowGroup.label}" — original will not be changed`
+                  : currentNodes.length === 0 ? "Create new workflow on empty canvas" : "Add nodes to existing canvas"}
               >
                 <Check className="w-3 h-3 mr-1" />
-                {currentNodes.length === 0 ? 'Create' : 'Add'}
+                {selectedWorkflowGroup ? 'Add Modified Workflow' : currentNodes.length === 0 ? 'Create' : 'Add'}
               </Button>
             )}
-            {/* Replace button - only show when canvas has existing nodes */}
-            {currentNodes.length > 0 && onReplaceWorkflow && (
+            {/* Replace button - only show when canvas has existing nodes and no group selected */}
+            {currentNodes.length > 0 && onReplaceWorkflow && !selectedWorkflowGroup && (
               <Button
                 size="sm"
                 variant="outline"

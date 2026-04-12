@@ -23,6 +23,7 @@ function sanitizeAssistantContent(content: string): string {
 interface ChatBubbleProps {
   message: ChatMessage;
   onFollowUpClick?: (question: string) => void;
+  onWorkflowChipSelect?: (chipId: string) => void;
   showAvatar?: boolean;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
@@ -42,6 +43,7 @@ const getRoleLabel = (role: string): { label: string; emoji: string } => {
 export function ChatBubble({ 
   message,
   onFollowUpClick,
+  onWorkflowChipSelect,
   isFirstInGroup = true,
   isLastInGroup = true,
   className = '',
@@ -139,6 +141,22 @@ export function ChatBubble({
                 data-testid={`button-followup-${message.id}-${i}`}
               >
                 {q}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {message.workflowChips && message.workflowChips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {message.workflowChips.map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => onWorkflowChipSelect?.(chip.id)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 hover:border-primary/50 rounded-full transition-colors"
+                data-testid={`chip-workflow-${chip.id}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                {chip.label} ({chip.nodeCount} nodes)
               </button>
             ))}
           </div>
