@@ -10542,7 +10542,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }),
                       );
                     }}
-                    onSaveAsTemplate={handleSaveAsTemplate}
                     savedTemplates={savedTemplates}
                     onGenerateFromTemplate={handleGenerateFromTemplate}
                     flowSettings={activeTab?.flowSettings}
