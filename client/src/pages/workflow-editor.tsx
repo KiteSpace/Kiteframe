@@ -204,6 +204,7 @@ import {
   ENABLE_SEMANTIC_COMPLETENESS_ENFORCEMENT,
 } from "@/ai/semantic";
 import { buildExperimentContext, getAnchorNodeId } from "@/lib/kiteframe/utils/experimentContext";
+import { exportWorkflow, downloadWorkflow, importWorkflow } from "@/lib/kiteframe/utils/exportImport";
 import type { ExperimentNodeData, WorkflowTool, ExperimentMode } from "@/lib/kiteframe/types";
 import { ExperimentTool } from "@/lib/kiteframe/components/ExperimentTool";
 import { extractSemanticWorkflowModel } from "@/lib/kiteframe/utils/extractSemanticWorkflowModel";
@@ -4447,29 +4448,41 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if (isCtrlOrCmd && e.key === "s" && !e.shiftKey) {
         e.preventDefault();
         if (activeTab) {
-          const workflowData = {
-            name: activeTab.name,
-            nodes: activeTab.nodes,
-            edges: activeTab.edges,
-            canvasObjects: activeTab.canvasObjects,
-            metadata: activeTab.metadata,
-            exportedAt: new Date().toISOString(),
-          };
-          const blob = new Blob([JSON.stringify(workflowData, null, 2)], {
-            type: "application/json",
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${activeTab.name.replace(/\s+/g, "-").toLowerCase()}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          toast({
-            title: "Workflow Saved",
-            description: `"${activeTab.name}" downloaded as JSON`,
-          });
+          try {
+            const exportData = exportWorkflow(
+              {
+                nodes: activeTab.nodes,
+                edges: activeTab.edges,
+                canvasObjects: activeTab.canvasObjects,
+                viewport: activeTab.viewport,
+              },
+              {
+                name: activeTab.name,
+                description: activeTab.metadata?.description,
+              },
+              {
+                projectId: projectIdentifier,
+                includeDocumentation: true,
+                workflowNames: Object.fromEntries(
+                  tabs.map((t) => [t.id, t.name]),
+                ),
+                projectDescription: activeTab.metadata?.description,
+              },
+            );
+            const safeFileName = `${activeTab.name.replace(/\s+/g, "-").toLowerCase()}.kiteframe`;
+            downloadWorkflow(exportData, safeFileName);
+            toast({
+              title: "Workflow Saved",
+              description: `"${activeTab.name}" downloaded as .kiteframe`,
+            });
+          } catch (err) {
+            console.error("[Export] Ctrl+S export failed:", err);
+            toast({
+              title: "Export Failed",
+              description: "Could not export workflow.",
+              variant: "destructive",
+            });
+          }
         }
         return;
       }
@@ -6897,29 +6910,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             onDownloadProject={(projectId) => {
               const tab = tabs.find((t) => t.id === projectId);
               if (tab) {
-                const workflowData = {
-                  name: tab.name,
-                  nodes: tab.nodes,
-                  edges: tab.edges,
-                  canvasObjects: tab.canvasObjects,
-                  metadata: tab.metadata,
-                  exportedAt: new Date().toISOString(),
-                };
-                const blob = new Blob([JSON.stringify(workflowData, null, 2)], {
-                  type: "application/json",
-                });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${tab.name.replace(/\s+/g, "-").toLowerCase()}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                toast({
-                  title: "Downloaded",
-                  description: `"${tab.name}" has been downloaded as JSON.`,
-                });
+                try {
+                  const tabProjectId =
+                    tab.projectUuid ||
+                    tab.cloudProjectId?.toString() ||
+                    tab.id;
+                  const exportData = exportWorkflow(
+                    {
+                      nodes: tab.nodes,
+                      edges: tab.edges,
+                      canvasObjects: tab.canvasObjects,
+                      viewport: tab.viewport,
+                    },
+                    {
+                      name: tab.name,
+                      description: tab.metadata?.description,
+                    },
+                    {
+                      projectId: tabProjectId,
+                      includeDocumentation: true,
+                      workflowNames: Object.fromEntries(
+                        tabs.map((t) => [t.id, t.name]),
+                      ),
+                      projectDescription: tab.metadata?.description,
+                    },
+                  );
+                  const safeFileName = `${tab.name.replace(/\s+/g, "-").toLowerCase()}.kiteframe`;
+                  downloadWorkflow(exportData, safeFileName);
+                  toast({
+                    title: "Downloaded",
+                    description: `"${tab.name}" has been downloaded as .kiteframe`,
+                  });
+                } catch (err) {
+                  console.error("[Export] Project download failed:", err);
+                  toast({
+                    title: "Download Failed",
+                    description: "Could not download project.",
+                    variant: "destructive",
+                  });
+                }
               }
             }}
             onDeleteProject={(projectId) => {
@@ -7376,64 +7405,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     onExport={() => {
-                      const comprehensiveWorkflow = {
-                        version: "1.0",
-                        timestamp: new Date().toISOString(),
-                        workflow: {
-                          id: activeTab?.id || `workflow-${Date.now()}`,
-                          name: activeTab?.name || "My Workflow",
-                          description: activeTab?.metadata?.description || "",
-                          links: activeTab?.metadata?.links || [],
-                          categories: activeTab?.metadata?.categories || [],
-                        },
-                        canvas: {
-                          nodes: nodes.map((node) => ({
-                            ...node,
-                            // Preserve all styling and data
-                            data: { ...node.data },
-                            style: node.style || {},
-                          })),
-                          edges: edges.map((edge) => ({
-                            ...edge,
-                            // Preserve all styling and data
-                            style: edge.style || {},
-                            data: edge.data || {},
-                          })),
-                          canvasObjects: canvasObjects.map((obj) => ({
-                            ...obj,
-                            // Preserve all styling and data
-                            data: { ...obj.data },
-                            style: obj.style || {},
-                          })),
-                          viewport: { ...viewport },
-                        },
-                      };
-
-                      const dataStr = JSON.stringify(
-                        comprehensiveWorkflow,
-                        null,
-                        2,
-                      );
-                      const dataUri =
-                        "data:application/json;charset=utf-8," +
-                        encodeURIComponent(dataStr);
-                      const safeFileName = comprehensiveWorkflow.workflow.name
-                        .replace(/[^a-z0-9]/gi, "_")
-                        .toLowerCase();
-                      const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
-
-                      const linkElement = document.createElement("a");
-                      linkElement.setAttribute("href", dataUri);
-                      linkElement.setAttribute(
-                        "download",
-                        exportFileDefaultName,
-                      );
-                      linkElement.click();
-
-                      toast({
-                        title: "Workflow Exported",
-                        description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
-                      });
+                      try {
+                        const exportData = exportWorkflow(
+                          { nodes, edges, canvasObjects, viewport },
+                          {
+                            name: activeTab?.name || "My Workflow",
+                            description:
+                              activeTab?.metadata?.description || "",
+                          },
+                          {
+                            projectId: projectIdentifier,
+                            includeDocumentation: true,
+                            workflowNames: Object.fromEntries(
+                              tabs.map((t) => [t.id, t.name]),
+                            ),
+                            projectDescription:
+                              activeTab?.metadata?.description,
+                          },
+                        );
+                        const safeFileName = `${(activeTab?.name || "workflow").replace(/[^a-z0-9]/gi, "_").toLowerCase()}.kiteframe`;
+                        downloadWorkflow(exportData, safeFileName);
+                        toast({
+                          title: "Workflow Exported",
+                          description: `"${activeTab?.name || "Workflow"}" exported with all content and documentation`,
+                        });
+                      } catch (err) {
+                        console.error("[Export] Toolbar export failed:", err);
+                        toast({
+                          title: "Export Failed",
+                          description: "Could not export workflow.",
+                          variant: "destructive",
+                        });
+                      }
                     }}
                     onImport={() => setShowImportModal(true)}
                     onShare={() => setShowShareModal(true)}
@@ -8666,58 +8669,38 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setSelectedEdgeId("");
                   }}
                   onExport={() => {
-                    const comprehensiveWorkflow = {
-                      version: "1.0",
-                      timestamp: new Date().toISOString(),
-                      workflow: {
-                        id: activeTab?.id || `workflow-${Date.now()}`,
-                        name: activeTab?.name || "My Workflow",
-                        description: activeTab?.metadata?.description || "",
-                        links: activeTab?.metadata?.links || [],
-                        categories: activeTab?.metadata?.categories || [],
-                      },
-                      canvas: {
-                        nodes: nodes.map((node) => ({
-                          ...node,
-                          data: { ...node.data },
-                          style: node.style || {},
-                        })),
-                        edges: edges.map((edge) => ({
-                          ...edge,
-                          style: edge.style || {},
-                          data: edge.data || {},
-                        })),
-                        canvasObjects: canvasObjects.map((obj) => ({
-                          ...obj,
-                          data: { ...obj.data },
-                          style: obj.style || {},
-                        })),
-                        viewport: { ...viewport },
-                      },
-                    };
-
-                    const dataStr = JSON.stringify(
-                      comprehensiveWorkflow,
-                      null,
-                      2,
-                    );
-                    const dataUri =
-                      "data:application/json;charset=utf-8," +
-                      encodeURIComponent(dataStr);
-                    const safeFileName = comprehensiveWorkflow.workflow.name
-                      .replace(/[^a-z0-9]/gi, "_")
-                      .toLowerCase();
-                    const exportFileDefaultName = `${safeFileName}_complete_workflow.json`;
-
-                    const linkElement = document.createElement("a");
-                    linkElement.setAttribute("href", dataUri);
-                    linkElement.setAttribute("download", exportFileDefaultName);
-                    linkElement.click();
-
-                    toast({
-                      title: "Workflow Exported",
-                      description: `"${comprehensiveWorkflow.workflow.name}" exported with all content and styling`,
-                    });
+                    try {
+                      const exportData = exportWorkflow(
+                        { nodes, edges, canvasObjects, viewport },
+                        {
+                          name: activeTab?.name || "My Workflow",
+                          description:
+                            activeTab?.metadata?.description || "",
+                        },
+                        {
+                          projectId: projectIdentifier,
+                          includeDocumentation: true,
+                          workflowNames: Object.fromEntries(
+                            tabs.map((t) => [t.id, t.name]),
+                          ),
+                          projectDescription:
+                            activeTab?.metadata?.description,
+                        },
+                      );
+                      const safeFileName = `${(activeTab?.name || "workflow").replace(/[^a-z0-9]/gi, "_").toLowerCase()}.kiteframe`;
+                      downloadWorkflow(exportData, safeFileName);
+                      toast({
+                        title: "Workflow Exported",
+                        description: `"${activeTab?.name || "Workflow"}" exported with all content and documentation`,
+                      });
+                    } catch (err) {
+                      console.error("[Export] Toolbar export failed:", err);
+                      toast({
+                        title: "Export Failed",
+                        description: "Could not export workflow.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                   onImport={() => {
                     // Create hidden file input for importing and appending to existing workflow
@@ -12270,6 +12253,74 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           onClose={() => setShowImportModal(false)}
           onImport={(importedData: any) => {
             try {
+              // Handle native .kiteframe v2.1.0 format (format === 'kiteframe-workflow')
+              if (importedData.format === "kiteframe-workflow") {
+                const currentWorkflowNames = Object.fromEntries(
+                  tabs.map((t) => [t.id, t.name]),
+                );
+                const result = importWorkflow(importedData, {
+                  restoreDocumentation: true,
+                  projectId: projectIdentifier,
+                  currentWorkflowNames,
+                });
+
+                if (!result.success || !result.data) {
+                  toast({
+                    title: "Import Failed",
+                    description:
+                      result.error || "Could not parse .kiteframe file.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                const { data } = result;
+
+                if (activeTab) {
+                  updateActiveTab({
+                    name: data.metadata.name,
+                    metadata: {
+                      name: data.metadata.name,
+                      description: data.metadata.description || "",
+                      links: activeTab.metadata.links || [],
+                      linksFormat: activeTab.metadata.linksFormat || "text",
+                      categories: activeTab.metadata.tags || [],
+                    },
+                  });
+                }
+
+                if (data.nodes) {
+                  setNodes(data.nodes as any[]);
+                }
+                if (data.edges) {
+                  setEdges(data.edges as any[]);
+                }
+                if (data.canvasObjects) {
+                  updateActiveTab({ canvasObjects: data.canvasObjects as any[] });
+                }
+                if (data.viewport) {
+                  setViewport(data.viewport);
+                }
+
+                setTimeout(() => saveToHistory("Import .kiteframe"), 0);
+
+                const docNote =
+                  data.documentation?.projectPRD ||
+                  data.documentation?.workflowPRDs?.length
+                    ? " — PRD documentation restored."
+                    : "";
+
+                toast({
+                  title: "Workflow Imported",
+                  description: `"${data.metadata.name}" imported successfully${docNote}`,
+                });
+
+                if (result.warnings?.length) {
+                  console.warn("[Import] Warnings:", result.warnings);
+                }
+                return;
+              }
+
               // Handle comprehensive workflow format (direct JSON import)
               if (
                 importedData.version &&
