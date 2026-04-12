@@ -1,4 +1,4 @@
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge } from '../lib/kiteframe/types';
 
 export interface WorkflowGroup {
   id: string;
