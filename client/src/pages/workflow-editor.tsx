@@ -12284,7 +12284,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       description: data.metadata.description || "",
                       links: activeTab.metadata.links || [],
                       linksFormat: activeTab.metadata.linksFormat || "text",
-                      categories: activeTab.metadata.tags || [],
+                      categories: activeTab.metadata.categories || [],
                     },
                   });
                 }
