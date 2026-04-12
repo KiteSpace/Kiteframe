@@ -6939,8 +6939,59 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onDuplicateProject={async (projectId) => {
+              // projectId may be either a tab ID (local/cloud-backed tab) or a raw
+              // cloud project ID (for cloud tiles not currently open as a tab).
+              const sourceTab = tabs.find((t) => t.id === projectId);
+
+              // Case 1: local-only tab (tab exists but has no cloud backing) — clone in browser
+              if (sourceTab && !sourceTab.cloudProjectId) {
+                const copyName = `${sourceTab.name} (Copy)`;
+                // Deep-clone to ensure the copy is fully isolated from the source
+                const clonedNodes = structuredClone(sourceTab.nodes);
+                const clonedEdges = structuredClone(sourceTab.edges);
+                const clonedCanvasObjects = structuredClone(sourceTab.canvasObjects);
+                const clonedViewport = structuredClone(sourceTab.viewport);
+                const clonedMetadata = structuredClone(sourceTab.metadata);
+                const newTab: WorkflowTab = {
+                  id: generateTabId(),
+                  name: copyName,
+                  nodes: clonedNodes,
+                  edges: clonedEdges,
+                  canvasObjects: clonedCanvasObjects,
+                  viewport: clonedViewport,
+                  selectedNodeId: "",
+                  selectedEdgeId: "",
+                  history: [
+                    {
+                      nodes: clonedNodes,
+                      edges: clonedEdges,
+                      canvasObjects: clonedCanvasObjects,
+                      viewport: clonedViewport,
+                    },
+                  ],
+                  historyIndex: 0,
+                  showImageModal: null,
+                  metadata: {
+                    ...clonedMetadata,
+                    name: copyName,
+                  },
+                  flowSettings: structuredClone(sourceTab.flowSettings || {}),
+                  isOpen: true,
+                };
+                setTabs((prev) => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                toast({
+                  title: "Duplicated",
+                  description: `"${copyName}" created as a copy.`,
+                });
+                return;
+              }
+
+              // Case 2: tab with cloud backing → use its cloudProjectId for the API call
+              // Case 3: no matching tab → projectId is a raw cloud project ID already
+              const cloudId = sourceTab?.cloudProjectId ?? projectId;
               try {
-                const res = await apiRequest("POST", `/api/projects/${projectId}/duplicate`);
+                const res = await apiRequest("POST", `/api/projects/${cloudId}/duplicate`);
                 const data = await res.json();
                 if (!res.ok) {
                   toast({
