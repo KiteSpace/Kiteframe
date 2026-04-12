@@ -1612,8 +1612,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Return view-only data from saved project
+        // Return view-only data from saved project.
+        // Documentation fields are stored in two possible shapes depending on how the project was saved:
+        //   1. Flat (prdData / notesData / detailsData) — written by SavedProjectsDrawer when the user
+        //      explicitly saves to the cloud; these are the canonical share-link fields.
+        //   2. Nested (workflowData.documentation.projectPRD) — written when a .kiteframe v2.1.0 file
+        //      is imported and its workflowData is persisted directly (e.g. server-side import tools).
+        // We surface whichever is present so every share-link code path works.
         const workflowData = project.workflowData as any;
+        const doc = workflowData?.documentation;
         return res.json({
           shareUuid: project.shareUuid,
           projectName: project.name,
@@ -1623,9 +1630,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           canvasObjects: workflowData?.canvasObjects,
           viewport: workflowData?.viewport,
           flowSettings: workflowData?.flowSettings,
-          prdData: workflowData?.prdData || null,
-          notesData: workflowData?.notesData || null,
-          detailsData: workflowData?.detailsData || null,
+          prdData: workflowData?.prdData ?? doc?.projectPRD ?? null,
+          workflowPRDs: workflowData?.workflowPRDs ?? doc?.workflowPRDs ?? null,
+          notesData: workflowData?.notesData ?? null,
+          detailsData: workflowData?.detailsData ?? null,
           isOwner: false
         });
       }

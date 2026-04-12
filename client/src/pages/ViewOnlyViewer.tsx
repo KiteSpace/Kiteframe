@@ -10,7 +10,8 @@ import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
-import type { ProjectPRD } from '../ai/prdEngine';
+import type { ProjectPRD, WorkflowPRD } from '../ai/prdEngine';
+import { saveWorkflowPRD } from '../lib/kiteframe/utils/prdStorage';
 import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
@@ -26,6 +27,7 @@ interface SharedProjectData {
   redirect?: string;
   projectUuid?: string;
   prdData?: ProjectPRD | null;
+  workflowPRDs?: WorkflowPRD[] | null;
   notesData?: string | null;
   detailsData?: string | null;
 }
@@ -107,15 +109,28 @@ export default function ViewOnlyViewer() {
       setOriginalCanvasObjects(JSON.parse(JSON.stringify(loadedCanvasObjects)));
       setOriginalViewport({ ...loadedViewport });
 
-      // Seed (or clear) localStorage with author's PRD/notes before ProjectPanel mounts.
+      // Seed (or clear) localStorage with the author's PRD/notes/details before ProjectPanel mounts.
       // We always write or remove each key so stale data from a previous share load is never shown.
       // panelStorageSeeded gates ProjectPanel rendering so child tabs read the correct data on mount.
+      //
+      // Documentation sources (either may be present depending on how the project was saved):
+      //   • prdData      — project-level PRD (flat key, written by SavedProjectsDrawer)
+      //   • workflowPRDs — per-workflow PRDs (array, written when a .kiteframe file was imported/saved)
+      //   • notesData    — free-form notes string
+      //   • detailsData  — project details/context string
       if (shareId) {
         try {
           if (data.prdData) {
             localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(data.prdData));
           } else {
             localStorage.removeItem(`prd-project-${shareId}`);
+          }
+          if (data.workflowPRDs && data.workflowPRDs.length > 0) {
+            for (const wPRD of data.workflowPRDs) {
+              if (wPRD.workflowId) {
+                saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
+              }
+            }
           }
           if (data.notesData) {
             localStorage.setItem(`kiteframe-notes-${shareId}`, data.notesData);
