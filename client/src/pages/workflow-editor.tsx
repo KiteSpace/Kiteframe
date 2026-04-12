@@ -63,7 +63,7 @@ import { OpenAICompatClient } from "../ai/OpenAICompatClient";
 import type { AiClient } from "../ai/types";
 import { logPreviewTopology, logRenderedGraph, logCommitAccept, logCommitFinalGraph, warnContentContractViolation } from "../ai/workflow/experimentDebugLogger";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useFirebaseWorkflows } from "../hooks/useFirebaseWorkflows";
 import { useAuth } from "../hooks/useAuth";
@@ -6935,6 +6935,67 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 toast({
                   title: "Deleted",
                   description: `"${tab.name}" has been deleted.`,
+                });
+              }
+            }}
+            onDuplicateProject={async (projectId) => {
+              try {
+                const res = await apiRequest("POST", `/api/projects/${projectId}/duplicate`);
+                const data = await res.json();
+                if (!res.ok) {
+                  toast({
+                    title: "Could not duplicate",
+                    description: data.error || "Failed to duplicate project.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                const project = data.project;
+                const workflowData = (project.workflowData as any) || {};
+                const name = project.name;
+                const newTab: WorkflowTab = {
+                  id: generateTabId(),
+                  name,
+                  nodes: workflowData.nodes || [],
+                  edges: workflowData.edges || [],
+                  canvasObjects: workflowData.canvasObjects || [],
+                  viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                  selectedNodeId: "",
+                  selectedEdgeId: "",
+                  history: [
+                    {
+                      nodes: workflowData.nodes || [],
+                      edges: workflowData.edges || [],
+                      canvasObjects: workflowData.canvasObjects || [],
+                      viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+                    },
+                  ],
+                  historyIndex: 0,
+                  showImageModal: null,
+                  metadata: {
+                    name,
+                    description: project.description || "",
+                    links: [],
+                    linksFormat: "text",
+                    categories: [],
+                  },
+                  flowSettings: workflowData.flowSettings || {},
+                  cloudProjectId: project.id,
+                  projectUuid: project.projectUuid || `cloud-${project.id}`,
+                  isOpen: true,
+                };
+                setTabs((prev) => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+                toast({
+                  title: "Duplicated",
+                  description: `"${name}" created as a copy.`,
+                });
+              } catch {
+                toast({
+                  title: "Error",
+                  description: "Failed to duplicate project.",
+                  variant: "destructive",
                 });
               }
             }}

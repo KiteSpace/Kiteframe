@@ -40,6 +40,7 @@ import {
   Download,
   Trash2,
   AlertCircle,
+  Copy,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -74,6 +75,7 @@ interface HomeScreenProps {
   onImportFigma?: () => void;
   onShareProject?: (projectId: string) => void;
   onDownloadProject?: (projectId: string) => void;
+  onDuplicateProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
   isGenerating?: boolean;
   hasCloudAccess?: boolean;
@@ -163,6 +165,7 @@ export function HomeScreen({
   onImportFigma,
   onShareProject,
   onDownloadProject,
+  onDuplicateProject,
   onDeleteProject,
   isGenerating = false,
   hasCloudAccess = false,
@@ -306,6 +309,16 @@ export function HomeScreen({
               >
                 <Download size={14} className="mr-2" />
                 Download
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicateProject?.(project.id);
+                }}
+                data-testid={`menu-duplicate-${project.id}`}
+              >
+                <Copy size={14} className="mr-2" />
+                Duplicate Project
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

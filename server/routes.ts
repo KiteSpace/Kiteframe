@@ -1065,6 +1065,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/projects/:id/duplicate', projectRateLimiter, isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const user = await storage.getUser(userId);
+
+      if (!(await hasCloudProjectAccess(user))) {
+        return res.status(403).json({ error: 'Sign in required for cloud-saved projects' });
+      }
+
+      const { id } = req.params;
+      const original = await storage.getSavedProject(id, userId);
+      if (!original) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
+      if (!projectLimit.allowed) {
+        return res.status(403).json({
+          error: `Project limit reached (${projectLimit.currentCount}/${projectLimit.limit}). Upgrade your plan for more projects.`,
+          currentCount: projectLimit.currentCount,
+          limit: projectLimit.limit,
+          limitReached: true,
+        });
+      }
+
+      const duplicate = await storage.createSavedProject({
+        userId,
+        name: `${original.name} (Copy)`,
+        description: original.description ?? undefined,
+        workflowData: original.workflowData as any ?? null,
+        thumbnail: original.thumbnail ?? undefined,
+        folderId: original.folderId ?? undefined,
+        tags: (original.tags || []) as string[],
+        isPublic: false,
+      });
+
+      res.json({ project: duplicate });
+    } catch (error) {
+      console.error('Error duplicating project:', error);
+      res.status(500).json({ error: 'Failed to duplicate project' });
+    }
+  });
+
   app.put('/api/projects/:id', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);
