@@ -216,6 +216,8 @@ import {
   saveWorkflowPRDVersion,
   saveProjectPRD,
   loadProjectPRD,
+  listWorkflowPRDs,
+  loadWorkflowPRD,
 } from "@/lib/kiteframe/utils/prdStorage";
 import {
   afterWorkflowCreation,
@@ -15011,6 +15013,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           viewport,
           metadata: activeTab?.metadata,
           prdData: loadProjectPRD(projectIdentifier),
+          workflowPRDs: (() => {
+            try {
+              const ids = listWorkflowPRDs(projectIdentifier);
+              const prds = ids.map((id) => loadWorkflowPRD(projectIdentifier, id)).filter(Boolean);
+              return prds.length > 0 ? prds : null;
+            } catch { return null; }
+          })(),
           notesData: (() => { try { return localStorage.getItem(`kiteframe-notes-${projectIdentifier}`); } catch { return null; } })(),
           detailsData: (() => { try { return localStorage.getItem(`kiteframe-details-${projectIdentifier}`); } catch { return null; } })(),
         }}

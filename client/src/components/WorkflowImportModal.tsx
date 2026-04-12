@@ -17,19 +17,11 @@ interface ProjectImportData {
 
 interface WorkflowImportModalProps {
   onClose: () => void;
-  onImport: (importData: { 
-    nodes: Node[], 
-    edges: Edge[], 
-    canvasObjects: any[], 
-    viewport?: { x: number; y: number; zoom: number }, 
-    workflowMetadata?: { 
-      name: string, 
-      description: string, 
-      links: any[], 
-      categories: any[] 
-    },
-    projectData?: ProjectImportData
-  }) => void;
+  // onImport receives either:
+  //   • A native .kiteframe v2.1.0 object (format==='kiteframe-workflow') passed as-is, OR
+  //   • The extracted { nodes, edges, canvasObjects, viewport, workflowMetadata, projectData }
+  // workflow-editor.tsx checks `importedData.format` first and routes accordingly.
+  onImport: (importData: any) => void;
 }
 
 interface ValidationResult {
@@ -55,10 +47,13 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.json')) {
+    const isKiteframe = file.name.endsWith('.kiteframe');
+    const isJson = file.name.endsWith('.json');
+
+    if (!isJson && !isKiteframe) {
       toast({
         title: "Invalid File Type",
-        description: "Please select a JSON file (.json)",
+        description: "Please select a .kiteframe or .json file",
         variant: "destructive"
       });
       return;
@@ -67,10 +62,34 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      console.log('File loaded, setting import data and validating...');
       setImportData(content);
-      validateWorkflowData(content);
-      console.log('File upload complete, modal should remain open');
+
+      if (isKiteframe) {
+        // .kiteframe files are validated client-side by importWorkflow() in workflow-editor.tsx.
+        // Pre-validate here just enough to confirm it is parseable JSON with the right format field.
+        try {
+          const parsed = JSON.parse(content);
+          if (parsed.format === 'kiteframe-workflow') {
+            setValidationResult({ isValid: true, errors: [], warnings: [] });
+            toast({
+              title: "Kiteframe File Loaded",
+              description: `"${parsed.metadata?.name || 'Workflow'}" ready to import — PRD documentation will be restored.`,
+              variant: "default"
+            });
+          } else {
+            // Has .kiteframe extension but wrong/no format field — fall through to server validation
+            validateWorkflowData(content);
+          }
+        } catch {
+          setValidationResult({
+            isValid: false,
+            errors: ['File is not valid JSON'],
+            warnings: []
+          });
+        }
+      } else {
+        validateWorkflowData(content);
+      }
     };
     reader.readAsText(file);
   };
@@ -213,6 +232,21 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
     try {
       const workflowData = JSON.parse(importData);
       console.log('Importing workflow data:', workflowData);
+
+      // Native .kiteframe v2.1.0 format — pass raw object directly.
+      // workflow-editor.tsx detects `format === 'kiteframe-workflow'` and calls
+      // importWorkflow(..., { restoreDocumentation: true }) which handles Zod validation
+      // and writes PRD/notes/intents back to localStorage.
+      if (workflowData.format === 'kiteframe-workflow') {
+        setAllowClose(true);
+        onImport(workflowData);
+        toast({
+          title: "Workflow Imported",
+          description: `"${workflowData.metadata?.name || 'Workflow'}" imported — documentation restored.`,
+          variant: "default"
+        });
+        return;
+      }
       
       // Extract nodes, edges, canvasObjects, and viewport using the same logic as server validation
       const extractWorkflowData = (data: any) => {
@@ -397,7 +431,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
                 data-testid="button-upload-file"
               >
                 <FileText size={16} />
-                Choose JSON File
+                Choose File (.kiteframe / .json)
               </Button>
               <span className="text-sm text-muted-foreground">
                 or paste JSON data below
@@ -407,7 +441,7 @@ export function WorkflowImportModal({ onClose, onImport }: WorkflowImportModalPr
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json"
+              accept=".kiteframe,.json"
               onChange={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

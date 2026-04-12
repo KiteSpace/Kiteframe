@@ -58,6 +58,7 @@ interface WorkflowData {
     categories: string[];
   };
   prdData?: ProjectPRD | null;
+  workflowPRDs?: any[] | null;
   notesData?: string | null;
   detailsData?: string | null;
 }
