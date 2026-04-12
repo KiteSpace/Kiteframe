@@ -5,7 +5,7 @@ import type { Request } from "express";
 import { geolocationService } from "./geolocation";
 import { analyticsService } from "./analyticsService";
 
-const TIER_DAILY_CREDITS = {
+export const TIER_DAILY_CREDITS = {
   free: 25,
   advanced: 50,
   pro: 150,

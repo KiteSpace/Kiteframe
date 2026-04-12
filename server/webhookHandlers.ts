@@ -1,6 +1,7 @@
 import { getStripeSync } from './stripeClient';
 import { storage } from './storage';
 import { stripeService } from './stripeService';
+import { creditService } from './creditService';
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string, uuid: string): Promise<void> {
@@ -76,6 +77,11 @@ export class WebhookHandlers {
       stripeSubscriptionId: subscription.id,
     });
 
-    console.log(`[Webhook] Updated user ${user.id}: tier=${subscriptionTier}, status=${subscriptionStatus} (event: ${event.type})`);
+    await creditService.syncUserCreditsWithTier(
+      user.id,
+      subscriptionTier as 'free' | 'advanced' | 'pro',
+    );
+
+    console.log(`[Webhook] Updated user ${user.id}: tier=${subscriptionTier}, status=${subscriptionStatus}, credits synced (event: ${event.type})`);
   }
 }

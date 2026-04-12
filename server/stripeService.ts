@@ -3,6 +3,7 @@ import { storage } from './storage';
 import { getUncachableStripeClient } from './stripeClient';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
+import { TIER_DAILY_CREDITS } from './creditService';
 
 export class StripeService {
   async createCustomer(email: string, userId: string, name?: string) {
@@ -148,12 +149,7 @@ export class StripeService {
   }
 
   getCreditsForTier(tier: 'free' | 'advanced' | 'pro'): number {
-    switch (tier) {
-      case 'free': return 25;
-      case 'advanced': return 150;
-      case 'pro': return 500;
-      default: return 25;
-    }
+    return TIER_DAILY_CREDITS[tier] ?? TIER_DAILY_CREDITS.free;
   }
 }
 
