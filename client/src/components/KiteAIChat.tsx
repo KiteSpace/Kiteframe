@@ -943,7 +943,21 @@ export function KiteAIChatBrain({
 
       const router = getRouter();
       const isExecutionReady = lastActionabilityRef.current?.newState === 'execution-ready';
-      const effectiveTaskType = isExecutionReady
+
+      // Detect explicit workflow generation intent regardless of Phase7 state.
+      // Phase7 is designed for ambiguous requests — clear generation signals should
+      // always bypass it and route directly to the reasoning model.
+      const WORKFLOW_GENERATION_SIGNALS = [
+        'workflow', 'flow', 'diagram', 'create', 'build', 'make', 'generate',
+        'design', 'map out', 'map the', 'add', 'cleanup', 'clean up', 'fix',
+        'improve', 'update', 'redesign', 'rebuild', 'redo', 'expand', 'extend',
+        'full', 'complete', 'entire', 'all', 'teardown', 'tear down', 'setup',
+        'set up', 'fill in', 'fill out', 'flesh out', 'missing', 'gaps',
+      ];
+      const msgLowerForRouting = messageContent.toLowerCase();
+      const hasWorkflowIntent = WORKFLOW_GENERATION_SIGNALS.some(sig => msgLowerForRouting.includes(sig));
+
+      const effectiveTaskType = (isExecutionReady || hasWorkflowIntent)
         ? 'workflow_reasoning'
         : 'general_chat';
 
@@ -1096,6 +1110,9 @@ export function KiteAIChatBrain({
                 'create', 'rebuild', 'redesign', 'redo', 'generate', 'make', 'build',
                 'add failure', 'add error', 'what if', 'what happens if',
                 'rejection', 'retry', 'exception', 'handle failure', 'handle error',
+                'cleanup', 'clean up', 'teardown', 'tear down', 'full', 'complete',
+                'entire', 'whole', 'setup', 'set up', 'expand', 'extend', 'flesh out',
+                'fill in', 'fill out', 'add missing', 'missing pieces', 'gaps',
               ];
               const msgLower = messageContent.toLowerCase();
               const isStructuralExpansion = STRUCTURAL_EXPANSION_SIGNALS.some(sig => msgLower.includes(sig));
@@ -1256,6 +1273,28 @@ export function KiteAIChatBrain({
             success: false,
             reason: 'parse_fail',
           });
+          // Strip the raw JSON from the visible response — it was either truncated
+          // (token limit hit mid-object) or malformed. Never show raw JSON in chat.
+          const jsonStart = responseText.indexOf('{');
+          if (jsonStart !== -1) {
+            const prose = responseText.slice(0, jsonStart).trim();
+            responseText = prose
+              ? `${prose}\n\nI hit a response limit while generating the workflow. Try asking for a smaller set of changes, or break it into a few steps.`
+              : "I hit a response limit while generating the workflow. Try asking for a smaller set of changes, or break it into a few steps.";
+          }
+        }
+      }
+
+      // Final safety net: if responseText still contains a raw JSON block
+      // (e.g. jsonMatch was null but the AI included JSON in a prose response),
+      // strip it so raw JSON is never rendered in the chat bubble.
+      if (!workflowProposal) {
+        const jsonStart = responseText.indexOf('{');
+        if (jsonStart !== -1 && responseText.includes('"nodes"')) {
+          const prose = responseText.slice(0, jsonStart).trim();
+          responseText = prose
+            ? `${prose}\n\nI wasn't able to process the workflow response. Try again with a more specific request.`
+            : "I wasn't able to process the workflow response. Try again with a more specific request.";
         }
       }
 

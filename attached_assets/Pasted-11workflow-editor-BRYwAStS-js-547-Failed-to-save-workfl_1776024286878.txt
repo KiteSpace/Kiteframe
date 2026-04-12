@@ -1,0 +1,48 @@
+11workflow-editor-BRYwAStS.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-BRYwAStS.js:547:43921
+    at workflow-editor-BRYwAStS.js:547:44596
+(anonymous) @ workflow-editor-BRYwAStS.js:547
+useAuth-r7EmifIG.js:1940 🔐 useAuth: Component mounted, checking auth state...
+KiteAIChat-_kTYolI2.js:188 [Phase7] Workflow context: Object
+useAuth-r7EmifIG.js:1940 🔄 Auth state changed: No user
+useAuth-r7EmifIG.js:1940 ℹ️ No redirect result found
+KiteAIChat-_kTYolI2.js:173 [KiteAI] LOW CONFIDENCE (0.33) - blocking progress
+KiteAIChat-_kTYolI2.js:173 [KiteAI] state=clarification score=1 confidence=0.33
+KiteAIChat-_kTYolI2.js:173 [KiteAI] reason: Confidence too low (0.33 < 0.4) - cannot proceed
+KiteAIChat-_kTYolI2.js:173 [KiteAI] vague replies: 1
+KiteAIChat-_kTYolI2.js:213 [Phase7] Surface: project | State: clarification | Score: 1 | Confidence: 0.33
+KiteAIChat-_kTYolI2.js:213 [KiteAIChat] Image attachment check: Object
+KiteAIChat-_kTYolI2.js:227 [AiStabilization] Baseline captured: Object
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Using claude-haiku-4-5-20251001 for general_chat
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Request started: Object
+workflow-editor-BRYwAStS.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-BRYwAStS.js:547:43921
+    at workflow-editor-BRYwAStS.js:547:44596
+(anonymous) @ workflow-editor-BRYwAStS.js:547
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Request completed: Object
+KiteAIChat-_kTYolI2.js:229 [KiteAI] JSON extraction: Object
+KiteAIChat-_kTYolI2.js:173 [KiteAI] LOW CONFIDENCE (0.28) - blocking progress
+KiteAIChat-_kTYolI2.js:173 [KiteAI] state=escalation score=1 confidence=0.28 (was: clarification)
+KiteAIChat-_kTYolI2.js:173 [KiteAI] escalation triggered
+KiteAIChat-_kTYolI2.js:173 [KiteAI] reason: Escalation triggered - confidence too low (0.28) after 2 vague replies
+KiteAIChat-_kTYolI2.js:173 [KiteAI] vague replies: 2
+KiteAIChat-_kTYolI2.js:213 [Phase7] Surface: project | State: escalation | Score: 1 | Confidence: 0.28
+KiteAIChat-_kTYolI2.js:213 [KiteAIChat] Image attachment check: Object
+KiteAIChat-_kTYolI2.js:227 [AiStabilization] Baseline captured: Object
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Using claude-haiku-4-5-20251001 for general_chat
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Request started: Object
+workflow-editor-BRYwAStS.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-BRYwAStS.js:547:43921
+    at workflow-editor-BRYwAStS.js:547:44596
+(anonymous) @ workflow-editor-BRYwAStS.js:547
+KiteAIChat-_kTYolI2.js:90 [AIRouter] Request completed: Object
+KiteAIChat-_kTYolI2.js:229 [KiteAI] JSON extraction: Object
+workflow-editor-BRYwAStS.js:547 [ACTIVITY] 💾 SAVED: "Update canvas objects" Object
+workflow-editor-BRYwAStS.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-BRYwAStS.js:547:43921
+    at workflow-editor-BRYwAStS.js:547:44596
+(anonymous) @ workflow-editor-BRYwAStS.js:547
+workflow-editor-BRYwAStS.js:245 🎯 HANDLE ICON CLICK CALLED: Object
+workflow-editor-BRYwAStS.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-BRYwAStS.js:547:43921
+    at workflow-editor-BRYwAStS.js:547:44596
