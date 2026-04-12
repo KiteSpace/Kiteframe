@@ -1,4 +1,5 @@
 import { useState, useCallback, lazy, Suspense } from "react";
+import { SiteFooter } from "./SiteFooter";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -639,6 +640,7 @@ export function HomeScreen({
           </div>
         </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }

@@ -208,6 +208,21 @@ const TermsContent = (
       <SubSection title="Fee Changes">
         <P>We may, from time to time, make changes to the subscription fee. If we increase the price of your current subscription plan, we will notify you by email at least 30 days before the new price takes effect. Your continued use of the Services after the effective date of the price change constitutes your acceptance of the new price. If you do not agree to the new price, you may cancel your subscription before the change takes effect.</P>
       </SubSection>
+      <SubSection title="AI Credits">
+        <P>Certain features of the Services consume AI credits ("Credits"). Credits are allocated as a daily allowance based on your subscription plan and reset each calendar day at midnight UTC. Unused Credits do not carry forward to the following day and have no monetary value. Credits may not be transferred, sold, or exchanged.</P>
+      </SubSection>
+      <SubSection title="Plan Upgrades">
+        <P>When you upgrade to a higher subscription tier, your new daily Credit allowance takes effect immediately. Any Credits remaining from your current day's allowance are replaced by your new tier's daily limit. You will be charged a prorated amount for the remainder of your current billing period.</P>
+      </SubSection>
+      <SubSection title="Plan Downgrades">
+        <P>When you downgrade to a lower subscription tier, your current plan's features and Credit limits remain active through the end of your current billing period. Your new plan and its associated Credit allowance take effect at the start of the next billing cycle. No partial refunds are issued for unused days in the current period.</P>
+      </SubSection>
+      <SubSection title="Annual Subscriptions">
+        <P>For annual subscribers, downgrade requests take effect at your annual renewal date. If you request a downgrade before your renewal date, any remaining subscription value may be applied as account credit toward future billing at our sole discretion. Annual subscriptions are non-refundable except where required by applicable law.</P>
+      </SubSection>
+      <SubSection title="Credit Limits">
+        <P>If your daily Credit balance reaches zero, AI-powered features will be temporarily unavailable until your Credits reset the following calendar day. You may upgrade your subscription plan at any time to increase your daily Credit allowance. We reserve the right to modify Credit allocations, feature availability, or plan terms at any time with reasonable notice.</P>
+      </SubSection>
     </Section>
 
     <Section id="cancel" title="7. CANCELLATION">

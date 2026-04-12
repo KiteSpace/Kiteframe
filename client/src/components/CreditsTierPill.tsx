@@ -1,13 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
-import { Coins, Sparkles, TrendingUp } from 'lucide-react';
+import { Coins, Sparkles, TrendingUp, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface CreditsResponse {
   credits: number;
   isUnlimited?: boolean;
+}
+
+function getResetInfo() {
+  const now = new Date();
+  const midnightUTC = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0)
+  );
+  const msLeft = midnightUTC.getTime() - now.getTime();
+  const hours = Math.floor(msLeft / (1000 * 60 * 60));
+  const minutes = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
+  const resetTimeLocal = midnightUTC.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return { hours, minutes, resetTimeLocal };
+}
+
+function formatCountdown(hours: number, minutes: number): string {
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours} hr`;
+  return `${hours} hr ${minutes} min`;
 }
 
 export function CreditsTierPill() {
@@ -16,11 +44,17 @@ export function CreditsTierPill() {
   const [, navigate] = useLocation();
   const { isAuthenticated } = useAuth();
   const { isAdvanced, isPro, isAdmin, dailyCredits, isServerAuthenticated } = useSubscription();
+  const [resetInfo, setResetInfo] = useState(getResetInfo);
 
   const { data: creditsData } = useQuery<CreditsResponse>({
     queryKey: ['/api/credits'],
     refetchInterval: 30000,
   });
+
+  useEffect(() => {
+    const id = setInterval(() => setResetInfo(getResetInfo()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const isCreditsLoading = creditsData === undefined;
   const credits = creditsData?.credits ?? 0;
@@ -31,11 +65,10 @@ export function CreditsTierPill() {
 
   const tierLabel = isAdmin ? 'Admin' : isPro ? 'Pro' : (isAdvanced ? 'Advanced' : 'Free');
 
-  // Show upgrade card for free-tier users signed in via any provider.
-  // isAuthenticated covers Firebase-based sign-in; isServerAuthenticated covers
-  // backend-session-only sign-in (Google/GitHub/Replit OAuth via Passport.js).
   const isSignedIn = isAuthenticated || isServerAuthenticated;
   const showUpgradeCard = isSignedIn && !isAdmin && !isAdvanced && !isPro;
+
+  const countdownLabel = formatCountdown(resetInfo.hours, resetInfo.minutes);
 
   useEffect(() => {
     if (!open) return;
@@ -50,28 +83,38 @@ export function CreditsTierPill() {
 
   return (
     <div className="relative" ref={ref}>
-      {/* Pill button */}
-      <button
-        onClick={() => setOpen(!open)}
-        data-testid="button-credits-pill"
-        className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all hover:shadow-sm ${
-          isLow
-            ? 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-800'
-            : 'bg-muted text-foreground border-border hover:bg-accent'
-        }`}
-      >
-        <Coins size={12} className={isLow ? 'text-orange-500' : 'text-amber-500'} />
-        <span data-testid="text-credits-count">{isUnlimited ? '∞' : isCreditsLoading ? '…' : credits}</span>
-        <span className="text-muted-foreground font-normal">·</span>
-        <span className={isLow ? 'text-orange-700 dark:text-orange-400' : 'text-muted-foreground'}>
-          {tierLabel}
-        </span>
+      {/* Pill button with reset tooltip */}
+      <TooltipProvider delayDuration={400}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setOpen(!open)}
+              data-testid="button-credits-pill"
+              className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all hover:shadow-sm ${
+                isLow
+                  ? 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-800'
+                  : 'bg-muted text-foreground border-border hover:bg-accent'
+              }`}
+            >
+              <Coins size={12} className={isLow ? 'text-orange-500' : 'text-amber-500'} />
+              <span data-testid="text-credits-count">{isUnlimited ? '∞' : isCreditsLoading ? '…' : credits}</span>
+              <span className="text-muted-foreground font-normal">·</span>
+              <span className={isLow ? 'text-orange-700 dark:text-orange-400' : 'text-muted-foreground'}>
+                {tierLabel}
+              </span>
 
-        {/* Orange alert dot when credits are low */}
-        {isLow && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-500 ring-1 ring-background" />
-        )}
-      </button>
+              {isLow && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-500 ring-1 ring-background" />
+              )}
+            </button>
+          </TooltipTrigger>
+          {!isUnlimited && (
+            <TooltipContent side="bottom" className="text-xs">
+              Resets in {countdownLabel}
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Dropdown */}
       {open && (
@@ -95,6 +138,17 @@ export function CreditsTierPill() {
                 style={{ width: `${creditsPercent}%` }}
               />
             </div>
+
+            {/* Reset time */}
+            {!isUnlimited && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <Clock size={11} className="text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground">
+                  Resets at {resetInfo.resetTimeLocal}
+                  <span className="text-muted-foreground/60 ml-1">· {countdownLabel}</span>
+                </span>
+              </div>
+            )}
 
             {isLow && !isUnlimited && (
               <p className="text-xs text-orange-600 dark:text-orange-400 mt-1.5 leading-tight">
