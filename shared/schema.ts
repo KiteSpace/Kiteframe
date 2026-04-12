@@ -348,8 +348,8 @@ export const shareLinks = pgTable("share_links", {
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type InsertShareLink = typeof shareLinks.$inferInsert;
 
-// AI feature types for usage tracking
-export const aiFeatureEnum = ['chat', 'workflow_generation', 'prd_generation', 'vision_analysis', 'image_upload', 'project_summary'] as const;
+// AI feature types for usage tracking — must match CreditCostType in creditService.ts
+export const aiFeatureEnum = ['general_chat', 'vision_ingestion', 'workflow_reasoning', 'workflow_experiments', 'prd_generation'] as const;
 export type AiFeature = typeof aiFeatureEnum[number];
 
 // AI model types
@@ -362,7 +362,7 @@ export const aiUsageEvents = pgTable("ai_usage_events", {
   userId: varchar("user_id").references(() => users.id),
   projectId: varchar("project_id"),
   workflowId: varchar("workflow_id"),
-  feature: varchar("feature").notNull(), // chat, workflow_generation, prd_generation, vision_analysis, image_upload, project_summary
+  feature: varchar("feature").notNull(), // general_chat, vision_ingestion, workflow_reasoning, workflow_experiments, prd_generation
   model: varchar("model").notNull(), // claude-3-haiku-20240307, claude-3-haiku-20240307, etc.
   promptTokens: integer("prompt_tokens").notNull().default(0),
   completionTokens: integer("completion_tokens").notNull().default(0),
@@ -370,7 +370,8 @@ export const aiUsageEvents = pgTable("ai_usage_events", {
   units: integer("units").notNull().default(0), // Base units (tokens / 500)
   multiplier: integer("multiplier").notNull().default(100), // Stored as percentage (100 = 1.0x, 150 = 1.5x)
   finalUnits: integer("final_units").notNull().default(0), // After multiplier
-  costEstimateUSD: integer("cost_estimate_usd").notNull().default(0), // Stored in microdollars (1 cent = 10000)
+  costEstimateMicrodollars: integer("cost_estimate_microdollars").notNull().default(0), // Stored in microdollars (1 USD = 1,000,000)
+  creditsCharged: integer("credits_charged"), // Credit cost deducted for this request (nullable for legacy rows)
   isVision: boolean("is_vision").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [

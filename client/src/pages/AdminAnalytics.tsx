@@ -45,23 +45,21 @@ interface CreditAlert {
   createdAt: string;
 }
 
-// AI Usage constants
+// AI Usage constants — feature names must match AiFeature / CreditCostType
 const FEATURE_LABELS: Record<string, string> = {
-  chat: "Chat",
-  workflow_generation: "Workflow Generation",
+  general_chat: "General Chat",
+  vision_ingestion: "Vision Ingestion",
+  workflow_reasoning: "Workflow Reasoning",
+  workflow_experiments: "Workflow Experiments",
   prd_generation: "PRD Generation",
-  vision_analysis: "Vision Analysis",
-  image_upload: "Image Upload",
-  project_summary: "Project Summary",
 };
 
 const FEATURE_COLORS: Record<string, string> = {
-  chat: "#3b82f6",
-  workflow_generation: "#22c55e",
+  general_chat: "#3b82f6",
+  vision_ingestion: "#8b5cf6",
+  workflow_reasoning: "#22c55e",
+  workflow_experiments: "#14b8a6",
   prd_generation: "#f59e0b",
-  vision_analysis: "#8b5cf6",
-  image_upload: "#ec4899",
-  project_summary: "#14b8a6",
 };
 
 const MODEL_COLORS: Record<string, string> = {

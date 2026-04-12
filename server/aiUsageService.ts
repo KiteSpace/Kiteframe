@@ -25,6 +25,9 @@ const COST_PER_1K_TOKENS: Record<string, number> = {
   'claude-opus-4-5-20251101': 45000,    // ~$0.045 per 1K tokens
 };
 
+/** Named constant so callers can convert without magic numbers. 1 USD = 1,000,000 microdollars. */
+export const MICRODOLLARS_PER_DOLLAR = 1_000_000;
+
 export interface UsageLogParams {
   userId?: string;
   projectId?: string;
@@ -35,6 +38,8 @@ export interface UsageLogParams {
   completionTokens: number;
   isVision?: boolean;
   isMultiFrame?: boolean;
+  /** Credit cost that was deducted for this request (from getCreditCost / requireCredits middleware). */
+  creditsCharged?: number;
 }
 
 export function calculateUnits(totalTokens: number): number {
@@ -81,7 +86,8 @@ export async function logAiUsage(params: UsageLogParams): Promise<void> {
     units: baseUnits,
     multiplier,
     finalUnits,
-    costEstimateUSD: costEstimate,
+    costEstimateMicrodollars: costEstimate,
+    creditsCharged: params.creditsCharged ?? null,
     isVision: params.isVision || false,
   };
 

@@ -1964,21 +1964,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usage = json.usage;
       if (usage) {
         const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+        const creditInfo = req.creditDeducted;
+        // Map taskType → AiFeature; fall back to general_chat
+        const TASK_TO_FEATURE: Record<string, import('./aiUsageService').UsageLogParams['feature']> = {
+          workflow_reasoning: 'workflow_reasoning',
+          workflow_experiments: 'workflow_experiments',
+          prd_generation: 'prd_generation',
+          vision_ingestion: 'vision_ingestion',
+          general_chat: 'general_chat',
+        };
+        const aiFeature = TASK_TO_FEATURE[taskType as string] || 'general_chat';
         logAiUsage({
           userId: userId || undefined,
-          feature: 'chat',
-          model: model || 'claude-haiku-4-5-20251001',
+          feature: aiFeature,
+          model: activeModel || 'claude-haiku-4-5-20251001',
           promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
           completionTokens: usage.completion_tokens || usage.output_tokens || 0,
+          creditsCharged: creditInfo?.creditCost,
         }).catch(console.error);
       }
       
-      const creditInfo = req.creditDeducted;
+      const creditInfo2 = req.creditDeducted;
       res.json({ 
         text: responseText,
-        credits: creditInfo ? {
-          remaining: creditInfo.remainingCredits,
-          cost: creditInfo.creditCost,
+        credits: creditInfo2 ? {
+          remaining: creditInfo2.remainingCredits,
+          cost: creditInfo2.creditCost,
         } : undefined,
       });
     } catch (error: any) {
@@ -2096,6 +2107,21 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         country = undefined;
       }
       analyticsService.trackAIRequest(userIdentifier, country, 'anthropic').catch(console.error);
+
+      // Log AI usage metrics for wireframe generation
+      const wireframeUsage = json.usage;
+      if (wireframeUsage) {
+        const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+        const wireframeCreditInfo = req.creditDeducted;
+        logAiUsage({
+          userId: userId || undefined,
+          feature: 'workflow_reasoning',
+          model: 'claude-sonnet-4-5-20250929',
+          promptTokens: wireframeUsage.input_tokens || 0,
+          completionTokens: wireframeUsage.output_tokens || 0,
+          creditsCharged: wireframeCreditInfo?.creditCost,
+        }).catch(console.error);
+      }
       
       res.json({ svg });
     } catch (error: any) {
@@ -3298,17 +3324,19 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         edgeCount: analysisResult.edges?.length || 0
       });
 
-      // Log AI usage metrics for vision analysis
+      // Log AI usage metrics for vision ingestion
       const visionUsage = aiResult.usage;
       if (visionUsage) {
         const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+        const visionCreditInfo = req.creditDeducted;
         logAiUsage({
           userId: userId || undefined,
-          feature: 'vision_analysis',
+          feature: 'vision_ingestion',
           model: 'claude-sonnet-4-5-20250929',
           promptTokens: visionUsage.input_tokens || 0,
           completionTokens: visionUsage.output_tokens || 0,
           isVision: true,
+          creditsCharged: visionCreditInfo?.creditCost,
         }).catch(console.error);
       }
 
