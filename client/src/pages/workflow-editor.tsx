@@ -4544,7 +4544,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       }
 
       // + - Show quick create radial menu at mouse position
-      if ((e.key === "+" || (e.key === "=" && e.shiftKey)) && !isCtrlOrCmd) {
+      if (e.key === "+" && !isCtrlOrCmd) {
         e.preventDefault();
 
         // Dismiss any open toolbar
