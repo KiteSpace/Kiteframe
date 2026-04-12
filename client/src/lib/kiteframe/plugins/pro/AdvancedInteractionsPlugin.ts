@@ -99,11 +99,9 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
   private handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.proFeaturesManager) return;
 
-    // Only handle shortcuts when focused on the canvas
     const target = event.target as HTMLElement;
     
-    // Skip if user is in an input field, textarea, or contenteditable element
-    // This allows normal text editing (including paste) in form fields
+    // Skip if user is typing in an input, textarea, or contenteditable element
     if (
       target.tagName === 'INPUT' ||
       target.tagName === 'TEXTAREA' ||
@@ -111,13 +109,13 @@ export class AdvancedInteractionsPlugin implements KiteFramePlugin {
     ) {
       return;
     }
-    
-    if (target.closest('.kiteframe-canvas')) {
-      const selectedNodes = this.getSelectedNodes();
-      const selectedCanvasObjects = this.getSelectedCanvasObjects();
-      const handled = this.proFeaturesManager.handleKeyboardShortcut(event, selectedNodes, selectedCanvasObjects);
-      
-    }
+
+    // Fire copy-paste shortcuts from anywhere in the editor while the plugin
+    // is active — no need to require focus inside the canvas element itself,
+    // since clicking panels/toolbars moves focus away while items stay selected.
+    const selectedNodes = this.getSelectedNodes();
+    const selectedCanvasObjects = this.getSelectedCanvasObjects();
+    this.proFeaturesManager.handleKeyboardShortcut(event, selectedNodes, selectedCanvasObjects);
   };
 
   private getSelectedNodes(): Node[] {

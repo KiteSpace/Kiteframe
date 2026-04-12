@@ -3356,18 +3356,21 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     let updatedObjects: CanvasObject[];
 
     if (e.shiftKey) {
-      // Shift+Click: Toggle selection of this object without affecting node selections
+      // Shift+Click: Toggle this object into the selection without affecting node selections
       updatedObjects = (props.canvasObjects || []).map((canvasObject) =>
         canvasObject.id === objectId
           ? { ...canvasObject, selected: !canvasObject.selected }
           : canvasObject,
       );
     } else {
-      // Regular click: Select only this object, deselect other canvas objects but preserve node selections
+      // Regular click: Select only this object; clear all other selections including nodes
       updatedObjects = (props.canvasObjects || []).map((canvasObject) => ({
         ...canvasObject,
         selected: canvasObject.id === objectId,
       }));
+      if (props.nodes.some((n) => n.selected)) {
+        props.onNodesChange(props.nodes.map((n) => ({ ...n, selected: false })));
+      }
     }
 
     props.onCanvasObjectsChange?.(updatedObjects);
@@ -5097,7 +5100,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }
 
                     if (e.shiftKey) {
-                      // Shift+Click: Toggle selection of this node without affecting canvas objects
+                      // Shift+Click: Toggle this node into the selection without affecting canvas objects
                       const updatedNodes = props.nodes.map((node) =>
                         node.id === n.id
                           ? { ...node, selected: !node.selected }
@@ -5105,12 +5108,17 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       );
                       props.onNodesChange(updatedNodes);
                     } else {
-                      // Regular click: Select only this node, deselect other nodes but preserve canvas object selections
+                      // Regular click: Select only this node; clear all other selections including canvas objects
                       const updatedNodes = props.nodes.map((node) => ({
                         ...node,
                         selected: node.id === n.id,
                       }));
                       props.onNodesChange(updatedNodes);
+                      if (props.canvasObjects?.some((o) => o.selected)) {
+                        props.onCanvasObjectsChange?.(
+                          (props.canvasObjects || []).map((o) => ({ ...o, selected: false }))
+                        );
+                      }
                     }
 
                     props.onNodeClick?.(e, n);
