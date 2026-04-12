@@ -2125,8 +2125,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   // Wheel/pinch zoom (cursor-anchored) - using native event for passive: false
   const handleWheel = useCallback((e: WheelEvent) => {
-    // Check if the wheel event originated inside a scrollable table content area
     const target = e.target as HTMLElement;
+
+    // Don't intercept wheel events inside any open canvas modal
+    if (target.closest('[data-canvas-modal="true"]')) {
+      return;
+    }
+
+    // Check if the wheel event originated inside a scrollable table content area
     const scrollableTable = target.closest('[data-table-scrollable="true"]');
     if (scrollableTable) {
       // Don't intercept - let the table handle its own scrolling
@@ -6284,7 +6290,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
         {/* Variable Name Dialog for Table→Code connections */}
         {pendingTableToCodeConnection && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center" data-canvas-modal="true">
             <div 
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
               onClick={() => {
