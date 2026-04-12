@@ -973,7 +973,7 @@ export function KiteAIChatBrain({
           { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
-        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 4000 : 3000
+        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
@@ -1000,7 +1000,13 @@ export function KiteAIChatBrain({
         return null;
       };
 
-      const rawJson = extractJsonObject(response.text);
+      // Strip markdown code fences before extraction — the AI often wraps JSON
+      // in ```json ... ``` even when told not to, which doesn't affect brace
+      // counting but the trailing ``` can be avoided by cleaning first.
+      const textForExtraction = response.text
+        .replace(/^```(?:json)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '');
+      const rawJson = extractJsonObject(textForExtraction);
       console.log('[KiteAI] JSON extraction:', {
         responseLength: response.text.length,
         rawJsonLength: rawJson?.length ?? 0,
@@ -1292,9 +1298,13 @@ export function KiteAIChatBrain({
         const jsonStart = responseText.indexOf('{');
         if (jsonStart !== -1 && responseText.includes('"nodes"')) {
           const prose = responseText.slice(0, jsonStart).trim();
-          responseText = prose
-            ? `${prose}\n\nI wasn't able to process the workflow response. Try again with a more specific request.`
-            : "I wasn't able to process the workflow response. Try again with a more specific request.";
+          const cleanedProse = prose
+            .replace(/```json\s*$/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+          responseText = cleanedProse
+            ? `${cleanedProse}\n\nI hit a response limit while generating the workflow. Your workflow may be too complex for a single request — try asking me to update a smaller piece at a time.`
+            : "I hit a response limit while generating the workflow. Your workflow may be too complex for a single request — try asking me to update a smaller piece at a time.";
         }
       }
 
