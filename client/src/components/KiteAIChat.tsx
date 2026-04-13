@@ -1051,25 +1051,22 @@ export function KiteAIChatBrain({
 
       // Determine the effective optimization session ID for this request.
       // Rules:
-      //   1. If a session exists but there is no active draft, the user is starting a new
-      //      topic — clear the stale session so a fresh credit is charged.
-      //   2. If no session exists and we are in in-project mode with existing canvas nodes,
+      //   1. If no session exists and we are in in-project mode with existing canvas nodes,
       //      generate a UUID client-side NOW (before the call). The credit middleware will
       //      register it atomically after deducting the credit, so retries on a failed first
       //      generation are free — the credit was already spent on this attempt.
+      //   2. If a session already exists (regardless of draft state), carry it forward.
+      //      This covers both refinement turns AND retries after a failed generation.
+      //      All explicit end-of-session events (accept/reject/replace/hard-cap block) already
+      //      call DELETE and set optimizationSessionId to null before control returns here,
+      //      so a non-null session at this point is always a valid continuation or retry.
       //   3. Fullscreen (home) mode never participates in optimization sessions.
       //
       // Known limitation (intentional for P0): if the user sends a new unrelated message
-      // while a draft is still pending (draft !== null), the session is forwarded and that
-      // turn is treated as a free refinement. Tightening this requires intent classification
-      // and is deferred to a follow-up task.
+      // while a draft is still pending, the session is forwarded and that turn is treated
+      // as a free refinement. Tightening this requires intent classification and is
+      // deferred to a follow-up task.
       let effectiveSessionId = optimizationSessionId;
-      if (effectiveSessionId && !currentWorkflowDraft) {
-        // Stale session from a prior completed or abandoned optimization — reset.
-        fetch(`/api/ai/optimization-session/${effectiveSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
-        setOptimizationSessionId(null);
-        effectiveSessionId = null;
-      }
       if (!effectiveSessionId && mode !== 'fullscreen' && currentNodes.length > 0) {
         effectiveSessionId = crypto.randomUUID();
         setOptimizationSessionId(effectiveSessionId);
