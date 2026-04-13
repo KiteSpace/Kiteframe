@@ -15,7 +15,6 @@ import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
 import { detectWorkflowGroups, type WorkflowGroup } from '../utils/workflowGroups';
 import { MAX_CANVAS_NODES, CANVAS_NODE_WARNING_THRESHOLD, LARGE_WORKFLOW_WARNING_THRESHOLD } from '@/lib/constants';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
@@ -721,12 +720,6 @@ export function KiteAIChatBrain({
     const hasPendingFiles = filesToProcess.length > 0;
     
     if (!messageContent.trim() && !hasPendingFiles) return;
-
-    // Empty-canvas guard: in panel/floating mode, optimization requires at least one node.
-    // This mirrors the disabled state of the send button and blocks keyboard shortcuts too.
-    if ((mode === 'panel' || mode === 'floating') && currentNodes.length === 0) {
-      return;
-    }
 
     if (isOutOfCredits) {
       toast({
@@ -2621,28 +2614,13 @@ export function KiteAIChatBrain({
                 rows={1}
                 data-testid="input-kiteai-message"
               />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex-shrink-0">
-                      <ChatSendButton
-                        onClick={() => handleSend()}
-                        disabled={
-                          ((mode === 'panel' || mode === 'floating') && currentNodes.length === 0) ||
-                          (!inputValue.trim() && pendingFiles.length === 0)
-                        }
-                        isLoading={isLoading}
-                        data-testid="button-kiteai-send"
-                      />
-                    </span>
-                  </TooltipTrigger>
-                  {(mode === 'panel' || mode === 'floating') && currentNodes.length === 0 && (
-                    <TooltipContent side="top">
-                      <p>Add nodes to your canvas before optimizing.</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+              <ChatSendButton
+                onClick={() => handleSend()}
+                disabled={!inputValue.trim() && pendingFiles.length === 0}
+                isLoading={isLoading}
+                className="flex-shrink-0"
+                data-testid="button-kiteai-send"
+              />
             </div>
             
             {pendingFiles.some(f => f.type.startsWith('image/')) && (
