@@ -694,6 +694,7 @@ export const bannedEmails = pgTable("banned_emails", {
   oauthSub: varchar("oauth_sub"),  // Stable OAuth provider sub/uid to block re-registration
   reason: text("reason"),          // Internal admin reason (never shown to user)
   accountDeleted: boolean("account_deleted").notNull().default(false), // true = ban + wipe performed
+  loginAttempts: integer("login_attempts").notNull().default(0), // # of sign-in attempts after ban
   bannedAt: timestamp("banned_at").defaultNow(),
 }, (table) => [
   index("IDX_banned_emails_user_id").on(table.userId),

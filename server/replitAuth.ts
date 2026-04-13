@@ -337,6 +337,13 @@ export async function setupAuth(app: Express) {
     verified: passport.AuthenticateCallback
   ) => {
     const claims = tokens.claims();
+    // Ban check BEFORE user creation — blocked emails never get a users row
+    const claimEmail = claims.email as string | undefined;
+    if (claimEmail && await isBannedEmail(claimEmail)) {
+      await storage.incrementBanLoginAttempts(claimEmail);
+      console.warn('[AUTH] Replit login blocked pre-creation — banned email:', claimEmail);
+      return verified(null, { _banned: true } as any);
+    }
     const dbUser = await upsertUser(claims);
     const isAdmin = isAdminEmail(dbUser.email);
     const user: any = { 
@@ -423,6 +430,12 @@ export async function setupAuth(app: Express) {
           lastName: profile.name?.familyName,
           profileImageUrl: profile.photos?.[0]?.value,
         };
+        // Ban check BEFORE user creation — blocked emails never get a users row
+        if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
+          await storage.incrementBanLoginAttempts(oauthProfile.email);
+          console.warn('[AUTH] Google login blocked pre-creation — banned email:', oauthProfile.email);
+          return done(null, { _banned: true } as any);
+        }
         const { user, isNewUser } = await findOrCreateUser(oauthProfile);
         done(null, { ...user, _isNewUser: isNewUser });
       } catch (error) {
@@ -441,9 +454,8 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
 
-        // Ban check — destroy session and redirect if email is banned
-        if (await isBannedEmail(user?.email)) {
-          console.warn('[AUTH] Google login blocked — banned email:', user?.email);
+        // Banned sentinel — set in strategy before user creation; no users row was created
+        if (user?._banned) {
           req.logout(() => {});
           return res.redirect('/?error=account_suspended');
         }
@@ -538,6 +550,12 @@ export async function setupAuth(app: Express) {
           displayName: profile.displayName || profile.username,
           profileImageUrl: profile.photos?.[0]?.value,
         };
+        // Ban check BEFORE user creation — blocked emails never get a users row
+        if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
+          await storage.incrementBanLoginAttempts(oauthProfile.email);
+          console.warn('[AUTH] GitHub login blocked pre-creation — banned email:', oauthProfile.email);
+          return done(null, { _banned: true } as any);
+        }
         const { user, isNewUser } = await findOrCreateUser(oauthProfile);
         done(null, { ...user, _isNewUser: isNewUser });
       } catch (error) {
@@ -556,9 +574,8 @@ export async function setupAuth(app: Express) {
       async (req, res) => {
         const user = req.user as any;
 
-        // Ban check — destroy session and redirect if email is banned
-        if (await isBannedEmail(user?.email)) {
-          console.warn('[AUTH] GitHub login blocked — banned email:', user?.email);
+        // Banned sentinel — set in strategy before user creation; no users row was created
+        if (user?._banned) {
           req.logout(() => {});
           return res.redirect('/?error=account_suspended');
         }
@@ -739,17 +756,14 @@ export async function setupAuth(app: Express) {
         console.error('[AUTH] Replit auth no user returned, info:', info);
         return res.redirect(`https://${originDomain}/?error=replit_auth_no_user`);
       }
+      // Banned sentinel — set in verify() before user creation; no users row was created
+      if ((user as any)?._banned) {
+        return res.redirect(`https://${originDomain}/?error=account_suspended`);
+      }
       req.logIn(user, async (loginErr) => {
         if (loginErr) {
           console.error('[AUTH] Replit logIn error:', loginErr);
           return res.redirect(`https://${originDomain}/?error=replit_login_error`);
-        }
-
-        // Ban check — destroy session and redirect if email is banned
-        if (await isBannedEmail(user?.email)) {
-          console.warn('[AUTH] Replit login blocked — banned email:', user?.email);
-          req.logout(() => {});
-          return res.redirect(`https://${originDomain}/?error=account_suspended`);
         }
         
         const isAdmin = isAdminEmail(user?.email);

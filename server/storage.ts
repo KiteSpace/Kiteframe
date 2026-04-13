@@ -26,7 +26,7 @@ import {
   bannedEmails,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -61,6 +61,7 @@ export interface IStorage {
   listBannedEmails(): Promise<BannedEmail[]>;
   createBannedEmail(data: InsertBannedEmail): Promise<BannedEmail>;
   deleteBannedEmail(id: string): Promise<void>;
+  incrementBanLoginAttempts(email: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -399,6 +400,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBannedEmail(id: string): Promise<void> {
     await db.delete(bannedEmails).where(eq(bannedEmails.id, id));
+  }
+
+  async incrementBanLoginAttempts(email: string): Promise<void> {
+    await db
+      .update(bannedEmails)
+      .set({ loginAttempts: sql`${bannedEmails.loginAttempts} + 1` })
+      .where(eq(bannedEmails.email, email.toLowerCase()));
   }
 }
 

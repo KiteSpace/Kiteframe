@@ -83,6 +83,7 @@ interface BannedEmailEntry {
   displayName: string | null;
   reason: string | null;
   accountDeleted: boolean;
+  loginAttempts: number;
   bannedAt: string | null;
 }
 
@@ -2835,6 +2836,7 @@ function BannedTab({ authHeader }: { authHeader: string }) {
                     <th className="text-left py-2 pr-4 font-medium">Name</th>
                     <th className="text-left py-2 pr-4 font-medium">Reason</th>
                     <th className="text-left py-2 pr-4 font-medium">Banned</th>
+                    <th className="text-left py-2 pr-4 font-medium">Attempts</th>
                     <th className="text-left py-2 pr-4 font-medium">Data deleted</th>
                     <th className="text-left py-2 font-medium">Actions</th>
                   </tr>
@@ -2848,6 +2850,11 @@ function BannedTab({ authHeader }: { authHeader: string }) {
                         {entry.reason ? (entry.reason.length > 40 ? entry.reason.slice(0, 40) + '…' : entry.reason) : '—'}
                       </td>
                       <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">{formatDate(entry.bannedAt)}</td>
+                      <td className="py-2 pr-4 text-muted-foreground tabular-nums">
+                        {entry.loginAttempts > 0
+                          ? <span className="font-medium text-foreground">{entry.loginAttempts}</span>
+                          : '—'}
+                      </td>
                       <td className="py-2 pr-4">
                         {entry.accountDeleted
                           ? <Badge variant="destructive" className="text-xs">Yes</Badge>
