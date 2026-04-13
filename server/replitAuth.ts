@@ -15,6 +15,16 @@ import { authRateLimiter } from "./middleware/rateLimiter";
 import { sendWaitlistConfirmationEmail } from "./emailService";
 import crypto from "crypto";
 
+// Extend Passport's Express.User to include the banned sentinel so strategy
+// callbacks can return { _banned: true } without unsafe `as any` casts.
+declare global {
+  namespace Express {
+    interface User {
+      _banned?: true;
+    }
+  }
+}
+
 const handoffTokens = new Map<string, { user: any; expiresAt: number }>();
 setInterval(() => {
   const now = Date.now();
@@ -342,7 +352,7 @@ export async function setupAuth(app: Express) {
     if (claimEmail && await isBannedEmail(claimEmail)) {
       await storage.incrementBanLoginAttempts(claimEmail);
       console.warn('[AUTH] Replit login blocked pre-creation — banned email:', claimEmail);
-      return verified(null, { _banned: true } as any);
+      return verified(null, { _banned: true });
     }
     const dbUser = await upsertUser(claims);
     const isAdmin = isAdminEmail(dbUser.email);
@@ -434,7 +444,7 @@ export async function setupAuth(app: Express) {
         if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
           await storage.incrementBanLoginAttempts(oauthProfile.email);
           console.warn('[AUTH] Google login blocked pre-creation — banned email:', oauthProfile.email);
-          return done(null, { _banned: true } as any);
+          return done(null, { _banned: true });
         }
         const { user, isNewUser } = await findOrCreateUser(oauthProfile);
         done(null, { ...user, _isNewUser: isNewUser });
@@ -554,7 +564,7 @@ export async function setupAuth(app: Express) {
         if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
           await storage.incrementBanLoginAttempts(oauthProfile.email);
           console.warn('[AUTH] GitHub login blocked pre-creation — banned email:', oauthProfile.email);
-          return done(null, { _banned: true } as any);
+          return done(null, { _banned: true });
         }
         const { user, isNewUser } = await findOrCreateUser(oauthProfile);
         done(null, { ...user, _isNewUser: isNewUser });
@@ -757,7 +767,7 @@ export async function setupAuth(app: Express) {
         return res.redirect(`https://${originDomain}/?error=replit_auth_no_user`);
       }
       // Banned sentinel — set in verify() before user creation; no users row was created
-      if ((user as any)?._banned) {
+      if (user?._banned) {
         return res.redirect(`https://${originDomain}/?error=account_suspended`);
       }
       req.logIn(user, async (loginErr) => {
