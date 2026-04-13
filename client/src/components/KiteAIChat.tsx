@@ -724,9 +724,10 @@ export function KiteAIChatBrain({
     }
 
     // Canvas cap guard — runs before any AI call or credit deduction.
-    // Hard block at MAX_CANVAS_NODES; soft warning at CANVAS_NODE_WARNING_THRESHOLD.
-    // NOTE: uses current node count only, not predicted output size. A canvas at 48 nodes
-    // could succeed with a 2-node generation but is conservatively blocked here — see constants.ts.
+    // Soft warning at CANVAS_NODE_WARNING_THRESHOLD (40+) — request continues.
+    // Hard block at MAX_CANVAS_NODES (50+) — request is aborted.
+    // NOTE: uses current node count only, not predicted output size; a 48-node canvas
+    // shows a warning but the request still proceeds — see constants.ts for thresholds.
     if (mode !== 'fullscreen') {
       if (currentNodes.length >= MAX_CANVAS_NODES) {
         if (optimizationSessionId) {
