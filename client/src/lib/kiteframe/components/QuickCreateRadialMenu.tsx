@@ -16,7 +16,6 @@ import {
   FormInput,
   Table2,
   Layers,
-  Code2,
   Image as ImageIcon
 } from 'lucide-react';
 

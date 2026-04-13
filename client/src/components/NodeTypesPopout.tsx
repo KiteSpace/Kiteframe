@@ -5,7 +5,6 @@ import {
   FileText,
   Layers,
   Table2,
-  Code2,
   Sparkles,
 } from "lucide-react";
 import { clientToWorld } from "@/lib/kiteframe/utils/geometry";
