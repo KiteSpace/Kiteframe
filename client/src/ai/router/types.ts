@@ -23,6 +23,7 @@ export interface RouterRequest {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  optimizationSessionId?: string;
 }
 
 export interface RouterResponse {

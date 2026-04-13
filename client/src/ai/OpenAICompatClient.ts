@@ -62,7 +62,8 @@ export class OpenAICompatClient implements AiClient {
         maxTokens: req.maxTokens ?? 1024,
         provider: provider,
         apiKey: apiKey,
-        taskType: req.taskType
+        taskType: req.taskType,
+        optimizationSessionId: req.optimizationSessionId,
       })
     });
     if(!res.ok) {

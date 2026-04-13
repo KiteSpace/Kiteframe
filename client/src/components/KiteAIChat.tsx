@@ -14,6 +14,7 @@ import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceSco
 import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
 import { detectWorkflowGroups, type WorkflowGroup } from '../utils/workflowGroups';
+import { MAX_CANVAS_NODES, CANVAS_NODE_WARNING_THRESHOLD } from '@/lib/constants';
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
@@ -276,6 +277,11 @@ export function KiteAIChatBrain({
   const [selectedWorkflowGroup, setSelectedWorkflowGroup] = useState<WorkflowGroup | null>(null);
   const selectedWorkflowGroupRef = useRef<WorkflowGroup | null>(null);
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+
+  // Optimization session: tracks a server-side session ID so that multi-turn refinements
+  // within one optimization conversation only consume a single credit.
+  // Cleared on accept, dismiss, or canvas cap block.
+  const [optimizationSessionId, setOptimizationSessionId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -717,6 +723,31 @@ export function KiteAIChatBrain({
       return;
     }
 
+    // Canvas cap guard — runs before any AI call or credit deduction.
+    // Hard block at MAX_CANVAS_NODES; soft warning at CANVAS_NODE_WARNING_THRESHOLD.
+    // NOTE: uses current node count only, not predicted output size. A canvas at 48 nodes
+    // could succeed with a 2-node generation but is conservatively blocked here — see constants.ts.
+    if (mode !== 'fullscreen') {
+      if (currentNodes.length >= MAX_CANVAS_NODES) {
+        if (optimizationSessionId) {
+          fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+          setOptimizationSessionId(null);
+        }
+        toast({
+          title: "Canvas is full",
+          description: "Your canvas has too many nodes to add another workflow. Clear some nodes or start a new project.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (currentNodes.length >= CANVAS_NODE_WARNING_THRESHOLD) {
+        toast({
+          title: "Canvas getting large",
+          description: `Your canvas has ${currentNodes.length} nodes — adding more may slow things down.`,
+        });
+      }
+    }
+
     // Multi-workflow selection: if canvas has 2+ disconnected groups and no group
     // is selected yet, intercept workflow-related messages and ask which to work on
     if (mode !== 'fullscreen' && !selectedWorkflowGroup && !selectedWorkflowGroupRef.current && !hasPendingFiles) {
@@ -1026,7 +1057,8 @@ export function KiteAIChatBrain({
           { role: 'user', content: messageContent }
         ],
         temperature: 0.7,
-        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000
+        maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000,
+        optimizationSessionId: optimizationSessionId || undefined,
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
@@ -1286,6 +1318,15 @@ export function KiteAIChatBrain({
                 mergeBranchDecision,
               });
 
+              // Start an optimization session on first successful in-project generation so that
+              // subsequent refinement turns in this conversation share the one credit already spent.
+              if (mode !== 'fullscreen' && !optimizationSessionId && scopedNodes.length > 0) {
+                fetch('/api/ai/optimization-session', { method: 'POST', credentials: 'include' })
+                  .then(r => r.json())
+                  .then(d => { if (d.sessionId) setOptimizationSessionId(d.sessionId); })
+                  .catch(() => {}); // Non-critical: worst case next turn deducts a credit normally
+              }
+
               // Replace raw JSON response with a readable summary
               responseText = `Workflow ready — ${parsed.nodes.length} nodes, ${parsed.edges.length} connections. Review the preview below and click Create to build it on your canvas.`;
               
@@ -1462,17 +1503,32 @@ export function KiteAIChatBrain({
     // APPLY: Use when canvas has existing nodes (append/merge)
     const isCanvasEmpty = currentNodes.length === 0;
 
-    // Non-destructive mode: when a specific workflow group is selected,
-    // always add the modified workflow as a new copy alongside the original
-    if (selectedWorkflowGroup && onApplyWorkflow) {
+    // Resolve non-destructive target:
+    // - Multi-workflow: user explicitly selected a group via chips
+    // - Single-workflow: exactly one connected group exists on a non-empty canvas.
+    //   Both paths add the modified copy alongside the original rather than overwriting it.
+    const nonDestructiveGroup = selectedWorkflowGroup ?? (
+      !isCanvasEmpty
+        ? (() => {
+            const groups = detectWorkflowGroups(currentNodes, currentEdges);
+            return groups.length === 1 ? groups[0] : null;
+          })()
+        : null
+    );
+
+    if (nonDestructiveGroup && onApplyWorkflow) {
       onApplyWorkflow({
         nodes: currentWorkflowDraft.nodes,
         edges: currentWorkflowDraft.edges,
         canvasObjects: currentWorkflowDraft.canvasObjects,
         nonDestructive: true,
-        selectedGroupLabel: selectedWorkflowGroup.label,
+        selectedGroupLabel: nonDestructiveGroup.label,
       });
 
+      if (optimizationSessionId) {
+        fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        setOptimizationSessionId(null);
+      }
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
       setPendingQuickActions([]);
@@ -1492,7 +1548,7 @@ export function KiteAIChatBrain({
 
       toast({
         title: "Modified Workflow Added",
-        description: `Added "${selectedWorkflowGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
+        description: `Added "${nonDestructiveGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
       });
       return;
     }
@@ -1503,7 +1559,11 @@ export function KiteAIChatBrain({
         edges: currentWorkflowDraft.edges,
         canvasObjects: currentWorkflowDraft.canvasObjects,
       });
-      
+
+      if (optimizationSessionId) {
+        fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        setOptimizationSessionId(null);
+      }
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
       setPendingQuickActions([]);
@@ -1537,6 +1597,10 @@ export function KiteAIChatBrain({
       aiMode,
     });
 
+    if (optimizationSessionId) {
+      fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      setOptimizationSessionId(null);
+    }
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
@@ -1569,17 +1633,31 @@ export function KiteAIChatBrain({
       return;
     }
 
-    // Non-destructive mode: when a specific workflow group is selected,
-    // add the modified workflow as a new copy (same as Accept)
-    if (selectedWorkflowGroup && onApplyWorkflow) {
+    // Resolve non-destructive target (mirrors handleAcceptWorkflow logic):
+    // multi-workflow chip selection OR single workflow on a non-empty canvas.
+    const isCanvasEmpty = currentNodes.length === 0;
+    const nonDestructiveGroup = selectedWorkflowGroup ?? (
+      !isCanvasEmpty
+        ? (() => {
+            const groups = detectWorkflowGroups(currentNodes, currentEdges);
+            return groups.length === 1 ? groups[0] : null;
+          })()
+        : null
+    );
+
+    if (nonDestructiveGroup && onApplyWorkflow) {
       onApplyWorkflow({
         nodes: currentWorkflowDraft.nodes,
         edges: currentWorkflowDraft.edges,
         canvasObjects: currentWorkflowDraft.canvasObjects,
         nonDestructive: true,
-        selectedGroupLabel: selectedWorkflowGroup.label,
+        selectedGroupLabel: nonDestructiveGroup.label,
       });
 
+      if (optimizationSessionId) {
+        fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        setOptimizationSessionId(null);
+      }
       setCurrentWorkflowDraft(null);
       setWorkflowGenState(null);
       setPendingQuickActions([]);
@@ -1599,7 +1677,7 @@ export function KiteAIChatBrain({
 
       toast({
         title: "Modified Workflow Added",
-        description: `Added "${selectedWorkflowGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
+        description: `Added "${nonDestructiveGroup.label} — Modified" (${currentWorkflowDraft.nodes.length} nodes) to your canvas. Your original workflow is unchanged. Use Ctrl+Z to undo.`
       });
       return;
     }
@@ -1613,6 +1691,10 @@ export function KiteAIChatBrain({
       canvasObjects: currentWorkflowDraft.canvasObjects,
     });
 
+    if (optimizationSessionId) {
+      fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      setOptimizationSessionId(null);
+    }
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);
@@ -1643,7 +1725,11 @@ export function KiteAIChatBrain({
       success: false,
       reason: 'user_cancel',
     });
-    
+
+    if (optimizationSessionId) {
+      fetch(`/api/ai/optimization-session/${optimizationSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+      setOptimizationSessionId(null);
+    }
     setCurrentWorkflowDraft(null);
     setWorkflowGenState(null);
     setPendingQuickActions([]);

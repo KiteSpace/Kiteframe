@@ -3,6 +3,7 @@ import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { isValidOptimizationSession } from "../optimizationSession";
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -136,6 +137,22 @@ export async function requireCredits(
       }
     }
     
+    // Check for active optimization session: authenticated refinements within the same
+    // session do not consume a credit. The session ID is generated client-side on first
+    // generation and validated here server-side against the in-memory session store.
+    // We verify both existence and user ownership — never trust a bare client-passed flag.
+    const optimizationSessionId = req.body?.optimizationSessionId;
+    if (optimizationSessionId && isValidOptimizationSession(optimizationSessionId, userIdentifier)) {
+      req.creditDeducted = {
+        userIdentifier,
+        remainingCredits: 999999,
+        creditCost: 0,
+      };
+      console.log(`[Session] Credit deduction skipped for active optimization session: ${String(optimizationSessionId).slice(0, 8)}...`);
+      next();
+      return;
+    }
+
     const isAuthenticated = creditService.isAuthenticatedUser(req);
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
     

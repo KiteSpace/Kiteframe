@@ -1,0 +1,2 @@
+export const MAX_CANVAS_NODES = 50;
+export const CANVAS_NODE_WARNING_THRESHOLD = 40;

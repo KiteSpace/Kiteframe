@@ -78,7 +78,7 @@ function resolveModel(
 
 export function createAiRouter(baseClient: AiClient) {
   async function chat(request: RouterRequest): Promise<RouterResponse> {
-    const { taskType, messages, sessionId, temperature, maxTokens, metadata } = request;
+    const { taskType, messages, sessionId, temperature, maxTokens, metadata, optimizationSessionId } = request;
     
     const containsImages = hasImageContent(messages as AiMessage[]);
     const { provider, model, usedSessionLock } = resolveModel(taskType, sessionId, containsImages);
@@ -124,6 +124,7 @@ export function createAiRouter(baseClient: AiClient) {
         temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
         maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
         taskType,
+        optimizationSessionId,
       });
       
       const duration = Math.round(performance.now() - startTime);
@@ -158,6 +159,7 @@ export function createAiRouter(baseClient: AiClient) {
             temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
             maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
             taskType,
+            optimizationSessionId,
           });
           
           const fallbackLength = fallbackResponse.text?.length ?? 0;
@@ -234,6 +236,7 @@ export function createAiRouter(baseClient: AiClient) {
             temperature: temperature ?? ROUTER_CONFIG.defaultTemperature,
             maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
             taskType,
+            optimizationSessionId,
           });
           
           const fallbackDuration = Math.round(performance.now() - startTime);

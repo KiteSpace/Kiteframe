@@ -33,6 +33,7 @@ export type AiRequest = {
   maxTokens?: number; 
   stream?: boolean;
   taskType?: string;
+  optimizationSessionId?: string;
 };
 
 export type AiResponse = { text: string };

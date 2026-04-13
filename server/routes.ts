@@ -48,6 +48,7 @@ import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
+import { createOptimizationSession, invalidateOptimizationSession } from "./optimizationSession";
 import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
 
@@ -1722,6 +1723,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       models: results,
       timestamp: new Date().toISOString()
     });
+  });
+
+  // Optimization session management — allows multi-turn refinements to share one credit.
+  // Sessions are stored in-memory server-side and validated by user identifier (not just ID).
+  app.post('/api/ai/optimization-session', async (req, res) => {
+    try {
+      const userIdentifier = creditService.getUserIdentifier(req);
+      const sessionId = createOptimizationSession(userIdentifier);
+      res.json({ sessionId });
+    } catch (error) {
+      console.error('Optimization session create error:', error);
+      res.status(500).json({ error: 'Could not create optimization session.' });
+    }
+  });
+
+  app.delete('/api/ai/optimization-session/:id', async (req, res) => {
+    try {
+      invalidateOptimizationSession(req.params.id);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error('Optimization session delete error:', error);
+      res.status(500).json({ error: 'Could not invalidate optimization session.' });
+    }
   });
 
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
