@@ -14,7 +14,8 @@ import { computeConfidence, isConfidenceInsufficient } from '../ai/confidenceSco
 import { getSystemPromptForRole } from '../ai/systemPrompts';
 import { computeWorkflowMaturity, type WorkflowMaturity } from '../ai/workflowMaturity';
 import { detectWorkflowGroups, type WorkflowGroup } from '../utils/workflowGroups';
-import { MAX_CANVAS_NODES, CANVAS_NODE_WARNING_THRESHOLD } from '@/lib/constants';
+import { MAX_CANVAS_NODES, CANVAS_NODE_WARNING_THRESHOLD, LARGE_WORKFLOW_WARNING_THRESHOLD } from '@/lib/constants';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateFollowUps, shouldAskFollowUps } from '../ai/followUpGenerator';
 import type { VisionRole } from '../ai/workflow/visionPipeline';
 import { 
@@ -287,6 +288,10 @@ export function KiteAIChatBrain({
   // Replaced with a two-step "Your current suggestion will be discarded. Confirm?" flow
   // rather than a modal, per design spec.
   const [showChangeWarning, setShowChangeWarning] = useState(false);
+
+  // Dismissible quality notice shown when the active canvas has > LARGE_WORKFLOW_WARNING_THRESHOLD nodes.
+  // Session-only — reappears on next page load. Never shown in fullscreen mode.
+  const [showLargeWorkflowBanner, setShowLargeWorkflowBanner] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -2538,6 +2543,24 @@ export function KiteAIChatBrain({
           </div>
         )}
 
+        {/* Large-workflow quality notice: dismissible, session-only, panel/floating only */}
+        {mode !== 'fullscreen' && currentNodes.length > LARGE_WORKFLOW_WARNING_THRESHOLD && showLargeWorkflowBanner && (
+          <div className="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span className="flex-1">
+              This workflow has many nodes — AI suggestions focus on the most connected paths.
+            </span>
+            <button
+              onClick={() => setShowLargeWorkflowBanner(false)}
+              className="flex-shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition-colors"
+              aria-label="Dismiss"
+              data-testid="button-dismiss-large-workflow-banner"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
         {isOutOfCredits ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">
@@ -2592,13 +2615,28 @@ export function KiteAIChatBrain({
                 rows={1}
                 data-testid="input-kiteai-message"
               />
-              <ChatSendButton
-                onClick={() => handleSend()}
-                disabled={!inputValue.trim() && pendingFiles.length === 0}
-                isLoading={isLoading}
-                className="flex-shrink-0"
-                data-testid="button-kiteai-send"
-              />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex-shrink-0">
+                      <ChatSendButton
+                        onClick={() => handleSend()}
+                        disabled={
+                          (mode !== 'fullscreen' && currentNodes.length === 0) ||
+                          (!inputValue.trim() && pendingFiles.length === 0)
+                        }
+                        isLoading={isLoading}
+                        data-testid="button-kiteai-send"
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  {mode !== 'fullscreen' && currentNodes.length === 0 && (
+                    <TooltipContent side="top">
+                      <p>Add nodes to your canvas before optimizing.</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </div>
             
             {pendingFiles.some(f => f.type.startsWith('image/')) && (
