@@ -89,10 +89,10 @@ export class StripeService {
     const result = await db.execute(
       sql`
         WITH paginated_products AS (
-          SELECT id, name, description, metadata, active
+          SELECT id, name, description, metadata, active, created
           FROM stripe.products
           WHERE active = ${active}
-          ORDER BY id
+          ORDER BY created DESC
           LIMIT ${limit} OFFSET ${offset}
         )
         SELECT 
@@ -109,7 +109,7 @@ export class StripeService {
           pr.metadata as price_metadata
         FROM paginated_products p
         LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-        ORDER BY p.id, pr.unit_amount
+        ORDER BY p.created DESC, pr.unit_amount
       `
     );
     return result.rows;

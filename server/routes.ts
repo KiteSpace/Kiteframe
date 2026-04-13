@@ -696,27 +696,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      let customerId = user.stripeCustomerId;
-      if (!customerId) {
+      const createFreshCustomer = async () => {
         const customer = await stripeService.createCustomer(
           user.email || '',
           user.id,
           `${user.firstName || ''} ${user.lastName || ''}`.trim() || undefined
         );
         await storage.updateUserSubscription(user.id, { stripeCustomerId: customer.id });
-        customerId = customer.id;
-      }
+        return customer.id;
+      };
+
+      let customerId = user.stripeCustomerId || await createFreshCustomer();
 
       // Trial duration is controlled via the Stripe Dashboard on the Price object.
       // Do not pass trial_period_days here — Stripe will apply whatever is configured
       // on the Price, which can be changed at any time without a code deploy.
-      const session = await stripeService.createCheckoutSession(
-        customerId,
-        priceId,
-        `${req.protocol}://${req.get('host')}/checkout/success`,
-        `${req.protocol}://${req.get('host')}/pricing`,
-        'subscription'
-      );
+      let session;
+      try {
+        session = await stripeService.createCheckoutSession(
+          customerId,
+          priceId,
+          `${req.protocol}://${req.get('host')}/checkout/success`,
+          `${req.protocol}://${req.get('host')}/pricing`,
+          'subscription'
+        );
+      } catch (stripeErr: any) {
+        if (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer') {
+          console.warn('Stale Stripe customer ID detected, creating fresh customer and retrying checkout');
+          customerId = await createFreshCustomer();
+          session = await stripeService.createCheckoutSession(
+            customerId,
+            priceId,
+            `${req.protocol}://${req.get('host')}/checkout/success`,
+            `${req.protocol}://${req.get('host')}/pricing`,
+            'subscription'
+          );
+        } else {
+          throw stripeErr;
+        }
+      }
 
       res.json({ url: session.url });
     } catch (error) {
@@ -735,12 +753,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'No billing account found' });
       }
 
-      const session = await stripeService.createCustomerPortalSession(
-        user.stripeCustomerId,
-        `${req.protocol}://${req.get('host')}/account`
-      );
-
-      res.json({ url: session.url });
+      try {
+        const session = await stripeService.createCustomerPortalSession(
+          user.stripeCustomerId,
+          `${req.protocol}://${req.get('host')}/account`
+        );
+        res.json({ url: session.url });
+      } catch (stripeErr: any) {
+        if (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer') {
+          console.warn('Stale Stripe customer ID on portal request, clearing for user', userId);
+          await storage.updateUserSubscription(userId, { stripeCustomerId: null });
+          return res.status(400).json({ error: 'Billing account not found. Please subscribe again to set up billing.' });
+        }
+        throw stripeErr;
+      }
     } catch (error) {
       console.error('Portal error:', error);
       res.status(500).json({ error: 'Failed to create portal session' });
