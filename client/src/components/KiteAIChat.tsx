@@ -1058,6 +1058,11 @@ export function KiteAIChatBrain({
       //      register it atomically after deducting the credit, so retries on a failed first
       //      generation are free — the credit was already spent on this attempt.
       //   3. Fullscreen (home) mode never participates in optimization sessions.
+      //
+      // Known limitation (intentional for P0): if the user sends a new unrelated message
+      // while a draft is still pending (draft !== null), the session is forwarded and that
+      // turn is treated as a free refinement. Tightening this requires intent classification
+      // and is deferred to a follow-up task.
       let effectiveSessionId = optimizationSessionId;
       if (effectiveSessionId && !currentWorkflowDraft) {
         // Stale session from a prior completed or abandoned optimization — reset.

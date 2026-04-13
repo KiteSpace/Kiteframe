@@ -1727,6 +1727,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Optimization session management — allows multi-turn refinements to share one credit.
   // Sessions are stored in-memory server-side and validated by user identifier (not just ID).
+  //
+  // NOTE: The canonical session creation flow uses client-generated UUIDs: the client calls
+  // crypto.randomUUID() before the first optimization send, includes it in the /api/ai/chat
+  // request body, and the credit middleware (requireCredits) registers it atomically after
+  // deducting the credit. This POST route exists as a fallback for any path that bypasses
+  // the credit middleware (e.g. admin/group-bypass users) and needs a registered session.
   app.post('/api/ai/optimization-session', async (req, res) => {
     try {
       const userIdentifier = creditService.getUserIdentifier(req);
