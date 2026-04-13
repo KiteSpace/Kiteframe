@@ -1563,6 +1563,7 @@ export function KiteAIChatBrain({
       setMutationApproved(false);
       setSelectedWorkflowGroup(null);
       setPendingUserMessage(null);
+      setShowChangeWarning(false);
 
       logAiInteraction({
         surface: 'project',
@@ -1596,6 +1597,7 @@ export function KiteAIChatBrain({
       setPendingQuickActions([]);
       setHasExpandedOnce(false);
       setMutationApproved(false);
+      setShowChangeWarning(false);
       
       logAiInteraction({
         surface: 'project',
@@ -1633,6 +1635,7 @@ export function KiteAIChatBrain({
     setPendingQuickActions([]);
     setHasExpandedOnce(false);
     setMutationApproved(false);
+    setShowChangeWarning(false);
     
     logAiInteraction({
       surface: 'project',
@@ -1692,6 +1695,7 @@ export function KiteAIChatBrain({
       setMutationApproved(false);
       setSelectedWorkflowGroup(null);
       setPendingUserMessage(null);
+      setShowChangeWarning(false);
 
       logAiInteraction({
         surface: 'project',
@@ -1727,6 +1731,7 @@ export function KiteAIChatBrain({
     setPendingQuickActions([]);
     setHasExpandedOnce(false);
     setMutationApproved(false);
+    setShowChangeWarning(false);
     
     logAiInteraction({
       surface: 'project',
@@ -1762,6 +1767,7 @@ export function KiteAIChatBrain({
     setPendingQuickActions([]);
     setDiscussedEdgeCases([]);
     setShowEdgeCaseSelector(false);
+    setShowChangeWarning(false);
     
     // Phase Lock: Reset expansion state when workflow is rejected
     setHasExpandedOnce(false);
@@ -2490,7 +2496,7 @@ export function KiteAIChatBrain({
             regardless of whether a draft is active. */}
         {mode !== 'fullscreen' && selectedWorkflowGroup && (
           <div className="mb-2">
-            {showChangeWarning ? (
+            {showChangeWarning && !!currentWorkflowDraft ? (
               <div className="flex items-center gap-2 text-xs">
                 <AlertCircle className="w-3 h-3 text-amber-500 flex-shrink-0" />
                 <span className="text-amber-600 dark:text-amber-400">
