@@ -141,8 +141,12 @@ export async function requireCredits(
     // session do not consume a credit. The session ID is generated client-side on first
     // generation and validated here server-side against the in-memory session store.
     // We verify both existence and user ownership — never trust a bare client-passed flag.
+    // SCOPE GUARD: only workflow_reasoning task turns may skip credit via a session.
+    // This prevents a valid session ID from bypassing credits on unrelated endpoints
+    // (e.g. wireframe generation, image analysis) that also use requireCredits middleware.
     const optimizationSessionId = req.body?.optimizationSessionId;
-    if (optimizationSessionId && isValidOptimizationSession(optimizationSessionId, userIdentifier)) {
+    const isWorkflowReasoning = req.body?.taskType === 'workflow_reasoning';
+    if (isWorkflowReasoning && optimizationSessionId && isValidOptimizationSession(optimizationSessionId, userIdentifier)) {
       req.creditDeducted = {
         userIdentifier,
         remainingCredits: 999999,
@@ -174,11 +178,12 @@ export async function requireCredits(
       creditCost,
     };
 
-    // If the client sent a session ID that isn't registered yet, register it now
+    // If the client sent a session ID for a workflow_reasoning turn, register it now
     // atomically with the credit deduction. This ensures retries after a failed first
     // generation are free — the credit was already spent on this generation attempt.
+    // Non-workflow turns do not register sessions (preserving scope guard above).
     const pendingSessionId = req.body?.optimizationSessionId;
-    if (pendingSessionId && typeof pendingSessionId === 'string') {
+    if (isWorkflowReasoning && pendingSessionId && typeof pendingSessionId === 'string') {
       registerOptimizationSession(pendingSessionId, userIdentifier);
     }
     

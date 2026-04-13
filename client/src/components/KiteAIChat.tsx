@@ -1062,12 +1062,19 @@ export function KiteAIChatBrain({
       //      so a non-null session at this point is always a valid continuation or retry.
       //   3. Fullscreen (home) mode never participates in optimization sessions.
       //
-      // Known limitation (intentional for P0): if the user sends a new unrelated message
-      // while a draft is still pending, the session is forwarded and that turn is treated
-      // as a free refinement. Tightening this requires intent classification and is
-      // deferred to a follow-up task.
+      // Known limitation (intentional for P0): if the user sends a new workflow_reasoning
+      // turn while a draft is still pending (e.g. asks to generate a different workflow
+      // entirely), that turn still reuses the active session and bypasses credit. The server
+      // scope guard ensures this only applies to workflow_reasoning turns, so general_chat
+      // turns always charge a credit even with an active session. Full intent-based
+      // classification to distinguish "refinement" from "new request" is deferred.
       let effectiveSessionId = optimizationSessionId;
-      if (!effectiveSessionId && mode !== 'fullscreen' && currentNodes.length > 0) {
+      // Only workflow_reasoning turns participate in optimization sessions.
+      // General chat turns (effectiveTaskType !== 'workflow_reasoning') carry the existing
+      // session ID through so the server can see it, but the server scope guard (taskType check)
+      // prevents credit bypass for non-optimization turns. New session IDs are never created
+      // for non-workflow turns, so a user asking an off-topic question never gains a session.
+      if (!effectiveSessionId && mode !== 'fullscreen' && currentNodes.length > 0 && effectiveTaskType === 'workflow_reasoning') {
         effectiveSessionId = crypto.randomUUID();
         setOptimizationSessionId(effectiveSessionId);
       }
