@@ -227,6 +227,14 @@ interface KiteAIChatBrainProps {
   onCreateWorkflow?: (draft: WorkflowDraft) => void;
 }
 
+const WORKFLOW_GENERATION_SIGNALS = [
+  'workflow', 'flow', 'diagram', 'create', 'build', 'make', 'generate',
+  'design', 'map out', 'map the', 'add', 'cleanup', 'clean up', 'fix',
+  'improve', 'update', 'redesign', 'rebuild', 'redo', 'expand', 'extend',
+  'full', 'complete', 'entire', 'all', 'teardown', 'tear down', 'setup',
+  'set up', 'fill in', 'fill out', 'flesh out', 'missing', 'gaps',
+];
+
 export function KiteAIChatBrain({ 
   projectId,
   nodes: currentNodes, 
@@ -999,13 +1007,6 @@ export function KiteAIChatBrain({
       // Detect explicit workflow generation intent regardless of Phase7 state.
       // Phase7 is designed for ambiguous requests — clear generation signals should
       // always bypass it and route directly to the reasoning model.
-      const WORKFLOW_GENERATION_SIGNALS = [
-        'workflow', 'flow', 'diagram', 'create', 'build', 'make', 'generate',
-        'design', 'map out', 'map the', 'add', 'cleanup', 'clean up', 'fix',
-        'improve', 'update', 'redesign', 'rebuild', 'redo', 'expand', 'extend',
-        'full', 'complete', 'entire', 'all', 'teardown', 'tear down', 'setup',
-        'set up', 'fill in', 'fill out', 'flesh out', 'missing', 'gaps',
-      ];
       const msgLowerForRouting = messageContent.toLowerCase();
       const hasWorkflowIntent = WORKFLOW_GENERATION_SIGNALS.some(sig => msgLowerForRouting.includes(sig));
 
