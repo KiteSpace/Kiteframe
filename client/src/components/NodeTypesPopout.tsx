@@ -43,7 +43,6 @@ export function NodeTypesPopout({
     { type: "table", icon: Table2, color: "text-indigo-500", label: "Table" },
     { type: "form", icon: FileText, color: "text-indigo-500", label: "Form" },
     { type: "compound", icon: Layers, color: "text-emerald-500", label: "Compound" },
-    { type: "code", icon: Code2, color: "text-orange-500", label: "Code" },
     { type: "experiment", icon: Sparkles, color: "text-purple-500", label: "Experiment" },
   ];
 

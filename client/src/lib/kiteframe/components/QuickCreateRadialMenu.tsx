@@ -57,7 +57,6 @@ const NODE_OPTIONS: { id: NodeVariantType; icon: React.ReactNode; label: string 
   { id: 'form', icon: <FormInput size={18} />, label: 'Form' },
   { id: 'table', icon: <Table2 size={18} />, label: 'Table' },
   { id: 'compound', icon: <Layers size={18} />, label: 'Compound' },
-  { id: 'code', icon: <Code2 size={18} />, label: 'Code' },
   { id: 'image', icon: <ImageIcon size={18} />, label: 'Image' },
 ];
 
