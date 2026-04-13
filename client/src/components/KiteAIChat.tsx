@@ -1049,6 +1049,27 @@ export function KiteAIChatBrain({
         enhancedPrompt += `\n\nCRITICAL OUTPUT FORMAT: Your ENTIRE response must be the raw JSON object only. Start with { and end with }. No introduction sentence. No explanation after the closing brace. No code fences. No markdown. The Kiteframe UI automatically shows a "Create Project" button when it receives your JSON — you do NOT need to instruct the user how to import, copy, paste, or create a project. Just output the JSON.`;
       }
 
+      // Determine the effective optimization session ID for this request.
+      // Rules:
+      //   1. If a session exists but there is no active draft, the user is starting a new
+      //      topic — clear the stale session so a fresh credit is charged.
+      //   2. If no session exists and we are in in-project mode with existing canvas nodes,
+      //      generate a UUID client-side NOW (before the call). The credit middleware will
+      //      register it atomically after deducting the credit, so retries on a failed first
+      //      generation are free — the credit was already spent on this attempt.
+      //   3. Fullscreen (home) mode never participates in optimization sessions.
+      let effectiveSessionId = optimizationSessionId;
+      if (effectiveSessionId && !currentWorkflowDraft) {
+        // Stale session from a prior completed or abandoned optimization — reset.
+        fetch(`/api/ai/optimization-session/${effectiveSessionId}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
+        setOptimizationSessionId(null);
+        effectiveSessionId = null;
+      }
+      if (!effectiveSessionId && mode !== 'fullscreen' && currentNodes.length > 0) {
+        effectiveSessionId = crypto.randomUUID();
+        setOptimizationSessionId(effectiveSessionId);
+      }
+
       const response = await router.chat({
         taskType: effectiveTaskType,
         messages: [
@@ -1058,7 +1079,7 @@ export function KiteAIChatBrain({
         ],
         temperature: 0.7,
         maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000,
-        optimizationSessionId: optimizationSessionId || undefined,
+        optimizationSessionId: effectiveSessionId || undefined,
       });
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
@@ -1317,15 +1338,6 @@ export function KiteAIChatBrain({
                 originPrompt: messageContent,
                 mergeBranchDecision,
               });
-
-              // Start an optimization session on first successful in-project generation so that
-              // subsequent refinement turns in this conversation share the one credit already spent.
-              if (mode !== 'fullscreen' && !optimizationSessionId && scopedNodes.length > 0) {
-                fetch('/api/ai/optimization-session', { method: 'POST', credentials: 'include' })
-                  .then(r => r.json())
-                  .then(d => { if (d.sessionId) setOptimizationSessionId(d.sessionId); })
-                  .catch(() => {}); // Non-critical: worst case next turn deducts a credit normally
-              }
 
               // Replace raw JSON response with a readable summary
               responseText = `Workflow ready — ${parsed.nodes.length} nodes, ${parsed.edges.length} connections. Review the preview below and click Create to build it on your canvas.`;

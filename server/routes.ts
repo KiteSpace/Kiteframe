@@ -48,7 +48,7 @@ import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
 import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
-import { createOptimizationSession, invalidateOptimizationSession } from "./optimizationSession";
+import { createOptimizationSession, invalidateOptimizationSession, getOptimizationSessionOwner } from "./optimizationSession";
 import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
 
@@ -1740,6 +1740,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/ai/optimization-session/:id', async (req, res) => {
     try {
+      const userIdentifier = creditService.getUserIdentifier(req);
+      const owner = getOptimizationSessionOwner(req.params.id);
+      // Only the owning user may delete a session. Unknown sessions are silently accepted
+      // (they may have already expired) to keep the client delete fire-and-forget.
+      if (owner !== null && owner !== userIdentifier) {
+        res.status(403).json({ error: 'Not authorized to delete this session.' });
+        return;
+      }
       invalidateOptimizationSession(req.params.id);
       res.json({ ok: true });
     } catch (error) {

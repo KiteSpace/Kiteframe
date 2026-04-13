@@ -43,6 +43,32 @@ export function isValidOptimizationSession(sessionId: string, userIdentifier: st
   return true;
 }
 
+// Register a client-generated UUID as a valid session, bound to the given user.
+// Called by creditCheck atomically after deducting the credit so that retries on
+// a failed first generation are free (the credit was already spent).
+export function registerOptimizationSession(sessionId: string, userIdentifier: string): void {
+  cleanExpiredSessions();
+  // Only register if not already present (idempotent for concurrent calls).
+  if (!sessions.has(sessionId)) {
+    sessions.set(sessionId, {
+      userIdentifier,
+      createdAt: Date.now(),
+      lastUsed: Date.now(),
+    });
+  }
+}
+
 export function invalidateOptimizationSession(sessionId: string): void {
   sessions.delete(sessionId);
+}
+
+// Returns the owning userIdentifier for a session, or null if not found / expired.
+export function getOptimizationSessionOwner(sessionId: string): string | null {
+  const session = sessions.get(sessionId);
+  if (!session) return null;
+  if (Date.now() - session.lastUsed > SESSION_TTL_MS) {
+    sessions.delete(sessionId);
+    return null;
+  }
+  return session.userIdentifier;
 }

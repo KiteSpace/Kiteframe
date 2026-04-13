@@ -3,7 +3,7 @@ import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { isValidOptimizationSession } from "../optimizationSession";
+import { isValidOptimizationSession, registerOptimizationSession } from "../optimizationSession";
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -173,6 +173,14 @@ export async function requireCredits(
       remainingCredits: deductResult.remainingCredits,
       creditCost,
     };
+
+    // If the client sent a session ID that isn't registered yet, register it now
+    // atomically with the credit deduction. This ensures retries after a failed first
+    // generation are free — the credit was already spent on this generation attempt.
+    const pendingSessionId = req.body?.optimizationSessionId;
+    if (pendingSessionId && typeof pendingSessionId === 'string') {
+      registerOptimizationSession(pendingSessionId, userIdentifier);
+    }
     
     console.log(`Credit deducted (cost: ${creditCost}). User: ${userIdentifier}, Remaining: ${deductResult.remainingCredits}`);
     next();
