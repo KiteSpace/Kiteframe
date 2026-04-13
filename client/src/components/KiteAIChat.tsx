@@ -721,7 +721,13 @@ export function KiteAIChatBrain({
     const hasPendingFiles = filesToProcess.length > 0;
     
     if (!messageContent.trim() && !hasPendingFiles) return;
-    
+
+    // Empty-canvas guard: in panel/floating mode, optimization requires at least one node.
+    // This mirrors the disabled state of the send button and blocks keyboard shortcuts too.
+    if ((mode === 'panel' || mode === 'floating') && currentNodes.length === 0) {
+      return;
+    }
+
     if (isOutOfCredits) {
       toast({
         title: 'Out of credits',
@@ -2544,7 +2550,7 @@ export function KiteAIChatBrain({
         )}
 
         {/* Large-workflow quality notice: dismissible, session-only, panel/floating only */}
-        {mode !== 'fullscreen' && currentNodes.length > LARGE_WORKFLOW_WARNING_THRESHOLD && showLargeWorkflowBanner && (
+        {(mode === 'panel' || mode === 'floating') && currentNodes.length > LARGE_WORKFLOW_WARNING_THRESHOLD && showLargeWorkflowBanner && (
           <div className="flex items-start gap-2 mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-700 dark:text-amber-300">
             <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
             <span className="flex-1">
@@ -2622,7 +2628,7 @@ export function KiteAIChatBrain({
                       <ChatSendButton
                         onClick={() => handleSend()}
                         disabled={
-                          (mode !== 'fullscreen' && currentNodes.length === 0) ||
+                          ((mode === 'panel' || mode === 'floating') && currentNodes.length === 0) ||
                           (!inputValue.trim() && pendingFiles.length === 0)
                         }
                         isLoading={isLoading}
@@ -2630,7 +2636,7 @@ export function KiteAIChatBrain({
                       />
                     </span>
                   </TooltipTrigger>
-                  {mode !== 'fullscreen' && currentNodes.length === 0 && (
+                  {(mode === 'panel' || mode === 'floating') && currentNodes.length === 0 && (
                     <TooltipContent side="top">
                       <p>Add nodes to your canvas before optimizing.</p>
                     </TooltipContent>

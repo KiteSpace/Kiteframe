@@ -126,13 +126,12 @@ function buildCanvasContext(project?: ProjectContext): string {
 
   const nodeLabels = project.nodes
     .map(n => n.data?.label || 'Unnamed')
-    .slice(0, LARGE_WORKFLOW_WARNING_THRESHOLD)
     .join(', ');
   
   let context = `\n\nCURRENT CANVAS:
 - ${project.nodes.length} nodes (${Object.entries(nodeTypes).map(([t, c]) => `${c} ${t}`).join(', ')})
 - ${project.edges.length} connections
-- Node labels: ${nodeLabels}${project.nodes.length > LARGE_WORKFLOW_WARNING_THRESHOLD ? '...' : ''}`;
+- Node labels: ${nodeLabels}`;
 
   if (project.nodes.length > LARGE_WORKFLOW_WARNING_THRESHOLD) {
     context += '\nThis workflow is large — focus optimization on high-connectivity nodes and main paths.';
