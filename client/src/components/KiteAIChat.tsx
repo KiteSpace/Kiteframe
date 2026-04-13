@@ -282,6 +282,11 @@ export function KiteAIChatBrain({
   // within one optimization conversation only consume a single credit.
   // Cleared on accept, dismiss, or canvas cap block.
   const [optimizationSessionId, setOptimizationSessionId] = useState<string | null>(null);
+
+  // Inline warning shown when the user clicks "Change" while a draft is pending.
+  // Replaced with a two-step "Your current suggestion will be discarded. Confirm?" flow
+  // rather than a modal, per design spec.
+  const [showChangeWarning, setShowChangeWarning] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1791,6 +1796,54 @@ export function KiteAIChatBrain({
     }
   };
 
+  // Executes the workflow-group reset without confirmation (called either directly when no
+  // draft is active, or after the user confirms the inline discard warning).
+  const doChangeWorkflow = () => {
+    // Delete the server-side optimization session if one was opened.
+    if (optimizationSessionId) {
+      fetch(`/api/ai/optimization-session/${optimizationSessionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      }).catch(() => {});
+      setOptimizationSessionId(null);
+    }
+    // Wipe draft state.
+    setCurrentWorkflowDraft(null);
+    setWorkflowGenState(null);
+    setPendingQuickActions([]);
+    setHasExpandedOnce(false);
+    setMutationApproved(false);
+    setShowChangeWarning(false);
+    // Clear the group selection.
+    setSelectedWorkflowGroup(null);
+    selectedWorkflowGroupRef.current = null;
+    setPendingUserMessage(null);
+
+    // Re-insert the workflow picker chips so the user can choose again.
+    const groups = detectWorkflowGroups(currentNodes, currentEdges);
+    if (groups.length >= 2) {
+      const chipMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: 'Which workflow would you like to work on instead?',
+        timestamp: new Date(),
+        workflowChips: groups.map(g => ({ id: g.id, label: g.label, nodeCount: g.nodeCount })),
+      };
+      setMessages(prev => [...prev, chipMsg]);
+    }
+  };
+
+  // Entry point for the "Change" button in the input bar.
+  // If a draft is currently active, shows an inline discard-warning first;
+  // otherwise resets immediately.
+  const handleChangeWorkflow = () => {
+    if (currentWorkflowDraft) {
+      setShowChangeWarning(true);
+      return;
+    }
+    doChangeWorkflow();
+  };
+
   // UPDATED: Quick actions now use currentWorkflowDraft (authoritative)
   const handleQuickAction = useCallback(async (action: QuickActionType) => {
     if (!currentWorkflowDraft) return;
@@ -2131,6 +2184,7 @@ export function KiteAIChatBrain({
     setSelectedWorkflowGroup(null);
     selectedWorkflowGroupRef.current = null;
     setPendingUserMessage(null);
+    setShowChangeWarning(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -2430,7 +2484,54 @@ export function KiteAIChatBrain({
         )}
         
         {/* AI Mode Selector removed - Phase 4: Smart selection handles Add/Replace automatically */}
-        
+
+        {/* Selected-workflow indicator: shows which group KiteAI is targeting and lets the
+            user switch groups mid-conversation. Visible whenever a group is locked in,
+            regardless of whether a draft is active. */}
+        {mode !== 'fullscreen' && selectedWorkflowGroup && (
+          <div className="mb-2">
+            {showChangeWarning ? (
+              <div className="flex items-center gap-2 text-xs">
+                <AlertCircle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                <span className="text-amber-600 dark:text-amber-400">
+                  Your current suggestion will be discarded.
+                </span>
+                <button
+                  onClick={doChangeWorkflow}
+                  className="font-medium text-amber-700 dark:text-amber-300 underline hover:no-underline"
+                  data-testid="button-change-workflow-confirm"
+                >
+                  Confirm
+                </button>
+                <span className="text-muted-foreground">·</span>
+                <button
+                  onClick={() => setShowChangeWarning(false)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="button-change-workflow-cancel"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-muted rounded-full border border-border/60">
+                  Working on:&nbsp;
+                  <span className="font-medium text-foreground">{selectedWorkflowGroup.label}</span>
+                </span>
+                <button
+                  onClick={handleChangeWorkflow}
+                  className="flex items-center gap-0.5 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                  title="Switch to a different workflow"
+                  data-testid="button-change-workflow"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  Change
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {isOutOfCredits ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">
