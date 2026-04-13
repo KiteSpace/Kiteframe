@@ -1062,12 +1062,12 @@ export function KiteAIChatBrain({
       //      so a non-null session at this point is always a valid continuation or retry.
       //   3. Fullscreen (home) mode never participates in optimization sessions.
       //
-      // Known limitation (intentional for P0): if the user sends a new workflow_reasoning
-      // turn while a draft is still pending (e.g. asks to generate a different workflow
-      // entirely), that turn still reuses the active session and bypasses credit. The server
-      // scope guard ensures this only applies to workflow_reasoning turns, so general_chat
-      // turns always charge a credit even with an active session. Full intent-based
-      // classification to distinguish "refinement" from "new request" is deferred.
+      // Bounded session window: the server limits sessions to MAX_FREE_TURNS (5) free
+      // workflow_reasoning turns. This bounds the case where the user sends a new
+      // unrelated workflow request while a draft is still pending — they get at most 5
+      // free turns before the session is exhausted and the next request charges a credit.
+      // Full intent-based classification to distinguish "refinement" from "new topic"
+      // within the same session is deferred beyond P0.
       let effectiveSessionId = optimizationSessionId;
       // Only workflow_reasoning turns participate in optimization sessions.
       // General chat turns (effectiveTaskType !== 'workflow_reasoning') carry the existing

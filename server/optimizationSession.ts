@@ -1,9 +1,19 @@
 import { randomUUID } from 'crypto';
 
+// Maximum number of free refinement turns per optimization session.
+// After this many credit-skipped turns, the session is considered exhausted and
+// the next turn is charged normally — this bounds the free-turn window and ensures
+// that a user who pivots to an unrelated workflow while a draft is pending will be
+// charged after at most MAX_FREE_TURNS free turns.
+export const MAX_FREE_TURNS = 5;
+
 interface OptimizationSession {
   userIdentifier: string;
   createdAt: number;
   lastUsed: number;
+  // How many times this session has already bypassed a credit charge.
+  // When this reaches MAX_FREE_TURNS, the session is exhausted and invalidated.
+  freeTurnsUsed: number;
 }
 
 const sessions = new Map<string, OptimizationSession>();
@@ -26,10 +36,14 @@ export function createOptimizationSession(userIdentifier: string): string {
     userIdentifier,
     createdAt: Date.now(),
     lastUsed: Date.now(),
+    freeTurnsUsed: 0,
   });
   return id;
 }
 
+// Returns true and increments the turn counter if the session is valid and has
+// free turns remaining. Returns false (and deletes the session) when the session
+// is expired, belongs to a different user, or has exhausted its free turns.
 export function isValidOptimizationSession(sessionId: string, userIdentifier: string): boolean {
   const session = sessions.get(sessionId);
   if (!session) return false;
@@ -39,7 +53,14 @@ export function isValidOptimizationSession(sessionId: string, userIdentifier: st
     sessions.delete(sessionId);
     return false;
   }
+  if (session.freeTurnsUsed >= MAX_FREE_TURNS) {
+    // Session has exhausted its free turn budget — remove it so the client generates
+    // a fresh UUID on the next send and pays the normal credit.
+    sessions.delete(sessionId);
+    return false;
+  }
   session.lastUsed = now;
+  session.freeTurnsUsed += 1;
   return true;
 }
 
@@ -54,6 +75,7 @@ export function registerOptimizationSession(sessionId: string, userIdentifier: s
       userIdentifier,
       createdAt: Date.now(),
       lastUsed: Date.now(),
+      freeTurnsUsed: 0,
     });
   }
 }
