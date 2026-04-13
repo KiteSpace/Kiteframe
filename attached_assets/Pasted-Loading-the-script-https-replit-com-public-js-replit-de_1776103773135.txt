@@ -1,0 +1,162 @@
+Loading the script 'https://replit.com/public/js/replit-dev-banner.js' violates the following Content Security Policy directive: "script-src 'self' https://js.stripe.com https://*.replit.com 'sha256-O+WhTQr0Wi4S217qJDCCjsXpTYoLh5WuHV/jsnKLSrE='". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+AuthComplete-DUuYW38M.js:1 [AuthComplete] Session confirmed, redirecting to: /app
+5Creating a worker from 'blob:<URL>' violates the following Content Security Policy directive: "script-src 'self' <URL> <URL> 'sha256-O+WhTQr0Wi4S217qJDCCjsXpTYoLh5WuHV/jsnKLSrE='". Note that 'worker-src' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+workflowIntentStore-ClYSFtRj.js:439 Worker error: Event
+handleWorkerError @ workflowIntentStore-ClYSFtRj.js:439
+workflowIntentStore-ClYSFtRj.js:439 Worker error: Event
+handleWorkerError @ workflowIntentStore-ClYSFtRj.js:439
+workflowIntentStore-ClYSFtRj.js:439 Worker error: Event
+handleWorkerError @ workflowIntentStore-ClYSFtRj.js:439
+workflowIntentStore-ClYSFtRj.js:439 Worker error: Event
+handleWorkerError @ workflowIntentStore-ClYSFtRj.js:439
+workflowIntentStore-ClYSFtRj.js:439 Worker error: Event
+handleWorkerError @ workflowIntentStore-ClYSFtRj.js:439
+5useAuth-DeN7ocMC.js:1940 🔐 useAuth: Component mounted, checking auth state...
+5useAuth-DeN7ocMC.js:1940 🔄 Auth state changed: No user
+5useAuth-DeN7ocMC.js:1940 ℹ️ No redirect result found
+workflowIntentStore-ClYSFtRj.js:202 Plugin "console-demo" is already installed, replacing...
+use @ workflowIntentStore-ClYSFtRj.js:202
+workflowIntentStore-ClYSFtRj.js:202 Plugin "test-demo" is already installed, replacing...
+use @ workflowIntentStore-ClYSFtRj.js:202
+workflowIntentStore-ClYSFtRj.js:202 Plugin "advanced-interactions-pro" is already installed, replacing...
+use @ workflowIntentStore-ClYSFtRj.js:202
+workflow-editor-B2E8dF9g.js:547 [ACTIVITY] 💾 SAVED: "Update canvas objects" Object
+2workflow-editor-B2E8dF9g.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-B2E8dF9g.js:547:44004
+    at workflow-editor-B2E8dF9g.js:547:44679
+(anonymous) @ workflow-editor-B2E8dF9g.js:547
+workflowIntentStore-ClYSFtRj.js:203 🎨 getBorderColorFromHeader called with: #4f46e5
+workflowIntentStore-ClYSFtRj.js:203 🎨 Returning border color: #4f46e5
+workflow-editor-B2E8dF9g.js:547 ❌ Failed to save workflows to local storage: QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'kiteframe_workflows_82374478-671f-4e4b-9338-7c591f2847e9' exceeded the quota.
+    at workflow-editor-B2E8dF9g.js:547:44004
+    at workflow-editor-B2E8dF9g.js:547:44679
+(anonymous) @ workflow-editor-B2E8dF9g.js:547
+useAuth-DeN7ocMC.js:1940 🔐 useAuth: Component mounted, checking auth state...
+KiteAIChat-D5lxo-h9.js:188 [Phase7] Workflow context: Object
+useAuth-DeN7ocMC.js:1940 🔄 Auth state changed: No user
+useAuth-DeN7ocMC.js:1940 ℹ️ No redirect result found
+workflowIntentStore-ClYSFtRj.js:374 Unhandled promise rejection: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at os (KiteAIChat-D5lxo-h9.js:246:1483)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+(anonymous) @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Error in promise: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at os (KiteAIChat-D5lxo-h9.js:246:1483)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+handleError @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Unhandled promise rejection: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+(anonymous) @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Error in promise: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+handleError @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Unhandled promise rejection: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+(anonymous) @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Error in promise: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+handleError @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 No recovery state available
+attemptRecovery @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Unhandled promise rejection: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+(anonymous) @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Error in promise: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+handleError @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 No recovery state available
+attemptRecovery @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Unhandled promise rejection: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+(anonymous) @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 Error in promise: ReferenceError: WORKFLOW_GENERATION_SIGNALS is not defined
+    at Tt (KiteAIChat-D5lxo-h9.js:213:5165)
+    at onClick (KiteAIChat-D5lxo-h9.js:246:9746)
+    at Object.h0 (index-CU-Z4sT8.js:38:9855)
+    at v0 (index-CU-Z4sT8.js:38:10009)
+    at y0 (index-CU-Z4sT8.js:38:10066)
+    at Hf (index-CU-Z4sT8.js:38:31439)
+    at Fh (index-CU-Z4sT8.js:38:31856)
+    at index-CU-Z4sT8.js:38:36769
+    at Pc (index-CU-Z4sT8.js:41:36868)
+    at ah (index-CU-Z4sT8.js:38:8991)
+handleError @ workflowIntentStore-ClYSFtRj.js:374
+workflowIntentStore-ClYSFtRj.js:374 No recovery state available
