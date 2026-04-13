@@ -84,5 +84,7 @@ export function detectWorkflowGroups(nodes: Node[], edges: Edge[]): WorkflowGrou
     groupIndex++;
   }
 
-  return groups;
+  // A workflow requires at least 2 connected nodes. Single isolated nodes are
+  // not workflows and should not appear as selectable chips in the UI.
+  return groups.filter(g => g.nodeCount >= 2);
 }

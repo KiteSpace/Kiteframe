@@ -71,22 +71,19 @@ export function extractEdgeTypes(workflow: AnalyzableWorkflow): Set<string> {
 
 /**
  * Check if a node is a decision node type.
+ * Only the structural node.type is checked — labels are human-readable strings
+ * that often contain words like "if" or "decision" without implying branching structure.
  */
 function isDecisionNode(node: WorkflowNode): boolean {
-  return DECISION_NODE_TYPES.some(type => 
-    node.type.toLowerCase().includes(type) ||
-    (node.label?.toLowerCase() || '').includes(type)
-  );
+  return DECISION_NODE_TYPES.some(type => node.type.toLowerCase().includes(type));
 }
 
 /**
  * Check if a node is a failure path node.
+ * Only the structural node.type is checked — same rationale as isDecisionNode.
  */
 function isFailureNode(node: WorkflowNode): boolean {
-  return FAILURE_NODE_TYPES.some(type => 
-    node.type.toLowerCase().includes(type) ||
-    (node.label?.toLowerCase() || '').includes(type)
-  );
+  return FAILURE_NODE_TYPES.some(type => node.type.toLowerCase().includes(type));
 }
 
 /**
