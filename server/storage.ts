@@ -26,7 +26,7 @@ import {
   bannedEmails,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, isNotNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -373,6 +373,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(insightHistory.id, id))
       .returning();
     return updated;
+  }
+
+  async getUsersWithMismatchedTier(): Promise<User[]> {
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          isNotNull(users.stripeSubscriptionId),
+          inArray(users.subscriptionStatus, ['active', 'trialing']),
+          eq(users.subscriptionTier, 'free'),
+        )
+      );
   }
 
   async getBannedEmail(email: string): Promise<BannedEmail | undefined> {

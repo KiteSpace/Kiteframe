@@ -115,7 +115,9 @@ async function initStripe() {
 
 // Kick off Stripe init in the background — do NOT await here so the server
 // opens port 5000 immediately even if the DB is slow or temporarily unavailable.
-initStripe().catch((err) => console.error('Background Stripe init failed:', err));
+initStripe()
+  .then(() => WebhookHandlers.fixMismatchedTiers())
+  .catch((err) => console.error('Background Stripe init failed:', err));
 
 app.post(
   '/api/stripe/webhook/:uuid',

@@ -136,6 +136,7 @@ const faqs = [
 export default function Pricing() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [pendingPriceId, setPendingPriceId] = useState<string | null>(null);
   const { isAuthenticated: isReplitAuthenticated } = useReplitAuth();
   const { isAuthenticated: isFirebaseAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -162,8 +163,10 @@ export default function Pricing() {
     },
     onSuccess: (data) => {
       if (data.url) window.location.href = data.url;
+      else setPendingPriceId(null);
     },
     onError: (error: Error) => {
+      setPendingPriceId(null);
       toast({
         title: 'Checkout Failed',
         description: error.message || 'Unable to start checkout. Please try again.',
@@ -209,6 +212,7 @@ export default function Pricing() {
       window.location.href = '/api/login';
       return;
     }
+    setPendingPriceId(priceId);
     checkoutMutation.mutate({ priceId, trial });
   };
 
@@ -263,7 +267,7 @@ export default function Pricing() {
       return {
         label,
         disabled: isCurrent || (isDowngrade ? false : !hasPrice),
-        showSpinner: !isCurrent && !isDowngrade && checkoutMutation.isPending,
+        showSpinner: !isCurrent && !isDowngrade && pendingPriceId === price?.id,
         onClick: isCurrent ? undefined : isDowngrade ? openBillingPortal : !hasPrice ? undefined : () => {
           handleSelectPlan(price!.id, true);
         },
@@ -285,8 +289,8 @@ export default function Pricing() {
     const hasPrice = !!price;
     return {
       label: isCurrent ? 'Current plan' : 'Upgrade to Pro',
-      disabled: isCurrent || checkoutMutation.isPending || !hasPrice,
-      showSpinner: !isCurrent && checkoutMutation.isPending,
+      disabled: isCurrent || pendingPriceId === price?.id || !hasPrice,
+      showSpinner: !isCurrent && pendingPriceId === price?.id,
       onClick: isCurrent || !hasPrice ? undefined : () => {
         handleSelectPlan(price!.id, false);
       },

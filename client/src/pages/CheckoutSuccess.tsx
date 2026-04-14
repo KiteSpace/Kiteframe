@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { queryClient } from '@/lib/queryClient';
 
+const PLAN_LABELS: Record<string, string> = {
+  advanced: 'Advanced',
+  pro: 'Pro',
+};
+
 const unlockSteps = [
-  { icon: '🪙', label: '50 AI credits added to your account' },
+  { icon: '🪙', label: 'AI credits added to your account' },
   { icon: '☁️', label: 'Cloud storage activated' },
   { icon: '✨', label: 'Workflow reasoning & PRD generation unlocked' },
   { icon: '📁', label: 'Project limit raised to 100' },
@@ -19,28 +24,77 @@ const CheckmarkSvg = () => (
 export default function CheckoutSuccess() {
   const [, setLocation] = useLocation();
   const [visible, setVisible] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(5);
+  const [confirmedTier, setConfirmedTier] = useState<string | null>(null);
+  const [isTrialing, setIsTrialing] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startRedirect = (delay = 4000) => {
+    let secs = Math.round(delay / 1000);
+    setSecondsLeft(secs);
+    const tick = setInterval(() => {
+      secs -= 1;
+      setSecondsLeft(secs);
+      if (secs <= 0) clearInterval(tick);
+    }, 1000);
+    redirectRef.current = setTimeout(() => {
+      clearInterval(tick);
+      setLocation('/app');
+    }, delay);
+  };
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
     queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
 
-    const timer = setTimeout(() => setLocation('/app'), 5000);
-    return () => clearTimeout(timer);
-  }, [setLocation]);
+    const pollSubscription = async () => {
+      try {
+        const res = await fetch('/api/subscription', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.tier && data.tier !== 'free') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          setConfirmedTier(data.tier);
+          setIsTrialing(data.status === 'trialing');
+          queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
+          startRedirect(4000);
+        }
+      } catch {
+        // silently retry
+      }
+    };
+
+    pollSubscription();
+    pollRef.current = setInterval(pollSubscription, 2000);
+
+    // Give up after 14s — webhook may be delayed; redirect anyway
+    timeoutRef.current = setTimeout(() => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      setConfirmedTier('activated');
+      startRedirect(3000);
+    }, 14000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (redirectRef.current) clearTimeout(redirectRef.current);
+    };
+  }, []);
 
   useEffect(() => {
-    if (visible < unlockSteps.length) {
+    if (confirmedTier && visible < unlockSteps.length) {
       const t = setTimeout(() => setVisible(v => v + 1), 320);
       return () => clearTimeout(t);
     }
-  }, [visible]);
+  }, [confirmedTier, visible]);
 
-  useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [secondsLeft]);
+  const planName = confirmedTier && confirmedTier !== 'activated'
+    ? (PLAN_LABELS[confirmedTier] ?? confirmedTier)
+    : null;
 
   return (
     <div
@@ -53,108 +107,153 @@ export default function CheckoutSuccess() {
       <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
 
         {/* Headline */}
-        <h1
-          className="font-extrabold mb-2"
-          style={{ fontSize: 28, letterSpacing: '-0.02em', color: '#0f172a', margin: '0 0 8px' }}
-        >
-          You're on Advanced! 🎉
-        </h1>
-        <p
-          className="text-sm mb-7 mx-auto"
-          style={{ color: '#64748b', lineHeight: 1.65, maxWidth: 340 }}
-        >
-          Your 7-day free trial has started. Cancel before day 7 and you won't be charged a thing.
-        </p>
+        {confirmedTier ? (
+          <>
+            <h1
+              className="font-extrabold mb-2"
+              style={{ fontSize: 28, letterSpacing: '-0.02em', color: '#0f172a', margin: '0 0 8px' }}
+            >
+              {planName ? `You're on ${planName}! 🎉` : 'You\'re all set! 🎉'}
+            </h1>
+            <p
+              className="text-sm mb-7 mx-auto"
+              style={{ color: '#64748b', lineHeight: 1.65, maxWidth: 340 }}
+            >
+              {isTrialing
+                ? 'Your 7-day free trial has started. Cancel before day 7 and you won\'t be charged a thing.'
+                : planName
+                  ? `Your ${planName} plan is now active. Enjoy the full experience.`
+                  : 'Your subscription is now active. Enjoy the full experience.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1
+              className="font-extrabold mb-2"
+              style={{ fontSize: 28, letterSpacing: '-0.02em', color: '#0f172a', margin: '0 0 8px' }}
+            >
+              Activating your plan… ⏳
+            </h1>
+            <p
+              className="text-sm mb-7 mx-auto"
+              style={{ color: '#64748b', lineHeight: 1.65, maxWidth: 340 }}
+            >
+              Hang tight — we're confirming your subscription with Stripe. This takes just a moment.
+            </p>
+          </>
+        )}
 
-        {/* Trial timeline */}
-        <div
-          className="rounded-xl px-5 py-3.5 mb-7 flex items-center gap-2"
-          style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}
-        >
-          {[
-            { label: 'Today', sub: 'Trial starts', dot: 'blue', active: true },
-            { label: 'Day 7', sub: 'Billing begins', dot: 'slate', active: false },
-            { label: 'Anytime', sub: 'Cancel free', dot: 'green', active: false },
-          ].map((item, i, arr) => (
-            <div key={i} className="flex items-center flex-1">
-              <div className="text-center flex-1">
-                <div
-                  className="rounded-full mx-auto mb-1"
-                  style={{
-                    width: 10,
-                    height: 10,
-                    background: item.dot === 'blue' ? '#3b82f6' : item.dot === 'green' ? '#22c55e' : '#94a3b8',
-                    boxShadow: item.active ? '0 0 0 3px rgba(59,130,246,0.2)' : 'none',
-                  }}
-                />
-                <div className="text-xs font-bold" style={{ color: '#0f172a' }}>{item.label}</div>
-                <div className="text-xs" style={{ color: '#64748b' }}>{item.sub}</div>
-              </div>
-              {i < arr.length - 1 && (
-                <div
-                  style={{
-                    flex: '0 0 24px',
-                    height: 1,
-                    background: '#bfdbfe',
-                    margin: '0 4px',
-                    marginTop: -14,
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* What's now unlocked */}
-        <div
-          className="rounded-2xl px-5 py-4.5 mb-7"
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            textAlign: 'left',
-            padding: '18px 20px',
-          }}
-        >
+        {/* Trial timeline — only shown when trialing */}
+        {isTrialing && (
           <div
-            className="text-xs font-bold mb-3"
-            style={{
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: '#94a3b8',
-            }}
+            className="rounded-xl px-5 py-3.5 mb-7 flex items-center gap-2"
+            style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}
           >
-            What's now unlocked
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {unlockSteps.map((step, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3"
-                style={{
-                  opacity: i < visible ? 1 : 0,
-                  transform: i < visible ? 'translateX(0)' : 'translateX(-8px)',
-                  transition: 'opacity 0.3s ease, transform 0.3s ease',
-                }}
-              >
-                <div
-                  className="flex items-center justify-center rounded-lg shrink-0 text-base"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                  }}
-                >
-                  {step.icon}
+            {[
+              { label: 'Today', sub: 'Trial starts', dot: 'blue', active: true },
+              { label: 'Day 7', sub: 'Billing begins', dot: 'slate', active: false },
+              { label: 'Anytime', sub: 'Cancel free', dot: 'green', active: false },
+            ].map((item, i, arr) => (
+              <div key={i} className="flex items-center flex-1">
+                <div className="text-center flex-1">
+                  <div
+                    className="rounded-full mx-auto mb-1"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      background: item.dot === 'blue' ? '#3b82f6' : item.dot === 'green' ? '#22c55e' : '#94a3b8',
+                      boxShadow: item.active ? '0 0 0 3px rgba(59,130,246,0.2)' : 'none',
+                    }}
+                  />
+                  <div className="text-xs font-bold" style={{ color: '#0f172a' }}>{item.label}</div>
+                  <div className="text-xs" style={{ color: '#64748b' }}>{item.sub}</div>
                 </div>
-                <span className="text-sm font-medium" style={{ color: '#334155' }}>
-                  {step.label}
-                </span>
-                <CheckmarkSvg />
+                {i < arr.length - 1 && (
+                  <div
+                    style={{
+                      flex: '0 0 24px',
+                      height: 1,
+                      background: '#bfdbfe',
+                      margin: '0 4px',
+                      marginTop: -14,
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* What's now unlocked — only after confirmation */}
+        {confirmedTier && (
+          <div
+            className="rounded-2xl px-5 py-4.5 mb-7"
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              textAlign: 'left',
+              padding: '18px 20px',
+            }}
+          >
+            <div
+              className="text-xs font-bold mb-3"
+              style={{ textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8' }}
+            >
+              What's now unlocked
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {unlockSteps.map((step, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3"
+                  style={{
+                    opacity: i < visible ? 1 : 0,
+                    transform: i < visible ? 'translateX(0)' : 'translateX(-8px)',
+                    transition: 'opacity 0.3s ease, transform 0.3s ease',
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center rounded-lg shrink-0 text-base"
+                    style={{ width: 32, height: 32, background: '#f0fdf4', border: '1px solid #bbf7d0' }}
+                  >
+                    {step.icon}
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: '#334155' }}>
+                    {step.label}
+                  </span>
+                  <CheckmarkSvg />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pulsing indicator while waiting */}
+        {!confirmedTier && (
+          <div className="flex justify-center mb-7">
+            <div className="flex gap-1.5 items-center">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#3b82f6',
+                    opacity: 0.4,
+                    animation: `pulse-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+                  }}
+                />
+              ))}
+            </div>
+            <style>{`
+              @keyframes pulse-dot {
+                0%, 80%, 100% { opacity: 0.2; transform: scale(0.85); }
+                40% { opacity: 1; transform: scale(1); }
+              }
+            `}</style>
+          </div>
+        )}
 
         {/* CTA */}
         <button
@@ -169,9 +268,11 @@ export default function CheckoutSuccess() {
         >
           Go to app →
         </button>
-        <p className="text-xs" style={{ color: '#94a3b8', margin: 0 }}>
-          Redirecting automatically in {secondsLeft}s…
-        </p>
+        {secondsLeft !== null && (
+          <p className="text-xs" style={{ color: '#94a3b8', margin: 0 }}>
+            Redirecting automatically in {secondsLeft}s…
+          </p>
+        )}
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated, getBetaSlots, invalidateBanCache } from "./replitAuth";
 import { stripeService } from "./stripeService";
+import { WebhookHandlers } from "./webhookHandlers";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
 import { csrfProtection } from "./middleware/csrf";
@@ -3524,6 +3525,50 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         error: 'Failed to redeem unlock code',
         details: error.message 
       });
+    }
+  });
+
+  // Admin: Manually trigger tier mismatch repair across all users
+  app.post('/internal/x9k7m2p4/resync-tiers', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      await WebhookHandlers.fixMismatchedTiers();
+      res.json({ ok: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin: Manually correct a single user's subscription tier from Stripe
+  app.post('/internal/x9k7m2p4/resync-user/:userId', requireHttps, requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      if (!user.stripeSubscriptionId) return res.status(400).json({ error: 'No subscription on file' });
+
+      const items = await stripeService.getSubscriptionItems(user.stripeSubscriptionId);
+      if (!items.length) return res.status(400).json({ error: 'No subscription items found' });
+
+      const priceId = items[0].price as string;
+      const price = await stripeService.getPrice(priceId);
+      let priceTier = (price?.metadata as Record<string, string> | null)?.tier;
+      if (!priceTier && price?.product) {
+        const product = await stripeService.getProduct(price.product as string);
+        priceTier = (product?.metadata as Record<string, string> | null)?.tier;
+      }
+
+      const correctTier: 'free' | 'advanced' | 'pro' =
+        priceTier === 'advanced' || priceTier === 'pro' ? priceTier : 'free';
+
+      const updated = await storage.updateUserSubscription(userId, {
+        subscriptionTier: correctTier,
+        subscriptionStatus: 'active',
+      });
+      await creditService.syncUserCreditsWithTier(userId, correctTier);
+
+      res.json({ ok: true, userId, tier: correctTier, previous: user.subscriptionTier, user: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
