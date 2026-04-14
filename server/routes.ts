@@ -3528,6 +3528,40 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
     }
   });
 
+  // Admin: Correct a single user's subscription tier (canonical path used in task spec)
+  app.post('/api/admin/resync-user-tier/:userId', requireAdminAuth, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      if (!user.stripeSubscriptionId) return res.status(400).json({ error: 'No subscription on file' });
+
+      const items = await stripeService.getSubscriptionItems(user.stripeSubscriptionId);
+      if (!items.length) return res.status(400).json({ error: 'No subscription items found' });
+
+      const priceId = items[0].price as string;
+      const price = await stripeService.getPrice(priceId);
+      let priceTier = (price?.metadata as Record<string, string> | null)?.tier;
+      if (!priceTier && price?.product) {
+        const product = await stripeService.getProduct(price.product as string);
+        priceTier = (product?.metadata as Record<string, string> | null)?.tier;
+      }
+
+      const correctTier: 'free' | 'advanced' | 'pro' =
+        priceTier === 'advanced' || priceTier === 'pro' ? priceTier : 'free';
+
+      const updated = await storage.updateUserSubscription(userId, {
+        subscriptionTier: correctTier,
+        subscriptionStatus: 'active',
+      });
+      await creditService.syncUserCreditsWithTier(userId, correctTier);
+
+      res.json({ ok: true, userId, tier: correctTier, previous: user.subscriptionTier, user: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Admin: Manually trigger tier mismatch repair across all users
   app.post('/internal/x9k7m2p4/resync-tiers', requireHttps, requireAdminAuth, async (req, res) => {
     try {

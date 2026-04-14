@@ -266,7 +266,7 @@ export default function Pricing() {
         : 'Start 7-day free trial';
       return {
         label,
-        disabled: isCurrent || (isDowngrade ? false : !hasPrice),
+        disabled: isCurrent || (isDowngrade ? false : (!!pendingPriceId || !hasPrice)),
         showSpinner: !isCurrent && !isDowngrade && pendingPriceId === price?.id,
         onClick: isCurrent ? undefined : isDowngrade ? openBillingPortal : !hasPrice ? undefined : () => {
           handleSelectPlan(price!.id, true);
@@ -289,7 +289,7 @@ export default function Pricing() {
     const hasPrice = !!price;
     return {
       label: isCurrent ? 'Current plan' : 'Upgrade to Pro',
-      disabled: isCurrent || pendingPriceId === price?.id || !hasPrice,
+      disabled: isCurrent || !!pendingPriceId || !hasPrice,
       showSpinner: !isCurrent && pendingPriceId === price?.id,
       onClick: isCurrent || !hasPrice ? undefined : () => {
         handleSelectPlan(price!.id, false);

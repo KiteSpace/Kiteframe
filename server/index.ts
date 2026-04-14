@@ -7,6 +7,8 @@ import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import { requireUSOnly } from "./middleware/regionLock";
 import { seedFeatureFlags } from "./seedFeatureFlags";
+import { storage } from "./storage";
+import { creditService } from "./creditService";
 
 const app = express();
 
@@ -113,8 +115,36 @@ async function initStripe() {
   }
 }
 
+// One-off correction list: users confirmed to have paid but whose tier was recorded as 'free'
+// due to the empty-price-metadata bug. Applied eagerly on startup (before Stripe backfill).
+const KNOWN_TIER_CORRECTIONS: { userId: string; correctTier: 'free' | 'advanced' | 'pro' }[] = [
+  { userId: '98b5c1cb-a7cc-4abe-b0c1-ea1f8e3dd2a5', correctTier: 'pro' },
+];
+
+async function applyKnownTierCorrections() {
+  for (const { userId, correctTier } of KNOWN_TIER_CORRECTIONS) {
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) continue;
+      if (user.subscriptionTier === correctTier) {
+        console.log(`[KnownFix] User ${userId} already at ${correctTier} — skipping`);
+        continue;
+      }
+      await storage.updateUserSubscription(userId, {
+        subscriptionTier: correctTier,
+        subscriptionStatus: 'active',
+      });
+      await creditService.syncUserCreditsWithTier(userId, correctTier);
+      console.log(`[KnownFix] Corrected user ${userId}: ${user.subscriptionTier} → ${correctTier}`);
+    } catch (err) {
+      console.error(`[KnownFix] Failed for user ${userId}:`, err);
+    }
+  }
+}
+
 // Kick off Stripe init in the background — do NOT await here so the server
 // opens port 5000 immediately even if the DB is slow or temporarily unavailable.
+applyKnownTierCorrections().catch((err) => console.error('[KnownFix] Startup correction failed:', err));
 initStripe()
   .then(() => WebhookHandlers.fixMismatchedTiers())
   .catch((err) => console.error('Background Stripe init failed:', err));

@@ -7,11 +7,26 @@ const PLAN_LABELS: Record<string, string> = {
   pro: 'Pro',
 };
 
-const unlockSteps = [
+const TIER_UNLOCK_STEPS: Record<string, { icon: string; label: string }[]> = {
+  advanced: [
+    { icon: '🪙', label: '50 AI credits added to your account daily' },
+    { icon: '☁️', label: 'Cloud storage activated' },
+    { icon: '✨', label: 'Workflow reasoning & PRD generation unlocked' },
+    { icon: '📁', label: 'Project limit raised to 100' },
+  ],
+  pro: [
+    { icon: '🪙', label: '200 AI credits added to your account daily' },
+    { icon: '☁️', label: 'Cloud storage activated' },
+    { icon: '✨', label: 'Workflow reasoning & PRD generation unlocked' },
+    { icon: '🚀', label: 'Priority AI routing & GPT-5 access' },
+    { icon: '♾️', label: 'Unlimited projects' },
+  ],
+};
+
+const FALLBACK_STEPS = [
   { icon: '🪙', label: 'AI credits added to your account' },
   { icon: '☁️', label: 'Cloud storage activated' },
   { icon: '✨', label: 'Workflow reasoning & PRD generation unlocked' },
-  { icon: '📁', label: 'Project limit raised to 100' },
 ];
 
 const CheckmarkSvg = () => (
@@ -20,6 +35,9 @@ const CheckmarkSvg = () => (
     <path d="M4.5 8.5l2 2 4-4" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 12000;
 
 export default function CheckoutSuccess() {
   const [, setLocation] = useLocation();
@@ -31,9 +49,14 @@ export default function CheckoutSuccess() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const startRedirect = (delay = 4000) => {
-    let secs = Math.round(delay / 1000);
-    setSecondsLeft(secs);
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  };
+
+  const startRedirect = (delaySecs: number) => {
+    setSecondsLeft(delaySecs);
+    let secs = delaySecs;
     const tick = setInterval(() => {
       secs -= 1;
       setSecondsLeft(secs);
@@ -42,51 +65,54 @@ export default function CheckoutSuccess() {
     redirectRef.current = setTimeout(() => {
       clearInterval(tick);
       setLocation('/app');
-    }, delay);
+    }, delaySecs * 1000);
+  };
+
+  const confirmTier = (tier: string, trialing: boolean) => {
+    stopPolling();
+    setConfirmedTier(tier);
+    setIsTrialing(trialing);
+    queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
+    startRedirect(4);
   };
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
     queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
 
-    const pollSubscription = async () => {
+    const poll = async () => {
       try {
         const res = await fetch('/api/subscription', { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
         if (data.tier && data.tier !== 'free') {
-          if (pollRef.current) clearInterval(pollRef.current);
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          setConfirmedTier(data.tier);
-          setIsTrialing(data.status === 'trialing');
-          queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
-          queryClient.invalidateQueries({ queryKey: ['/api/credits'] });
-          startRedirect(4000);
+          confirmTier(data.tier, data.status === 'trialing');
         }
       } catch {
-        // silently retry
+        // retry silently
       }
     };
 
-    pollSubscription();
-    pollRef.current = setInterval(pollSubscription, 2000);
+    poll();
+    pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
 
-    // Give up after 14s — webhook may be delayed; redirect anyway
     timeoutRef.current = setTimeout(() => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      stopPolling();
       setConfirmedTier('activated');
-      startRedirect(3000);
-    }, 14000);
+      startRedirect(3);
+    }, POLL_TIMEOUT_MS);
 
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      stopPolling();
       if (redirectRef.current) clearTimeout(redirectRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (confirmedTier && visible < unlockSteps.length) {
+    if (!confirmedTier) return;
+    const unlockSteps = TIER_UNLOCK_STEPS[confirmedTier] ?? FALLBACK_STEPS;
+    if (visible < unlockSteps.length) {
       const t = setTimeout(() => setVisible(v => v + 1), 320);
       return () => clearTimeout(t);
     }
@@ -95,6 +121,10 @@ export default function CheckoutSuccess() {
   const planName = confirmedTier && confirmedTier !== 'activated'
     ? (PLAN_LABELS[confirmedTier] ?? confirmedTier)
     : null;
+
+  const unlockSteps = confirmedTier
+    ? (TIER_UNLOCK_STEPS[confirmedTier] ?? FALLBACK_STEPS)
+    : FALLBACK_STEPS;
 
   return (
     <div
@@ -113,14 +143,14 @@ export default function CheckoutSuccess() {
               className="font-extrabold mb-2"
               style={{ fontSize: 28, letterSpacing: '-0.02em', color: '#0f172a', margin: '0 0 8px' }}
             >
-              {planName ? `You're on ${planName}! 🎉` : 'You\'re all set! 🎉'}
+              {planName ? `You're on ${planName}! 🎉` : "You're all set! 🎉"}
             </h1>
             <p
               className="text-sm mb-7 mx-auto"
               style={{ color: '#64748b', lineHeight: 1.65, maxWidth: 340 }}
             >
               {isTrialing
-                ? 'Your 7-day free trial has started. Cancel before day 7 and you won\'t be charged a thing.'
+                ? "Your 7-day free trial has started. Cancel before day 7 and you won't be charged a thing."
                 : planName
                   ? `Your ${planName} plan is now active. Enjoy the full experience.`
                   : 'Your subscription is now active. Enjoy the full experience.'}
@@ -138,7 +168,7 @@ export default function CheckoutSuccess() {
               className="text-sm mb-7 mx-auto"
               style={{ color: '#64748b', lineHeight: 1.65, maxWidth: 340 }}
             >
-              Hang tight — we're confirming your subscription with Stripe. This takes just a moment.
+              Hang tight — confirming your subscription with Stripe. This takes just a moment.
             </p>
           </>
         )}
@@ -169,31 +199,18 @@ export default function CheckoutSuccess() {
                   <div className="text-xs" style={{ color: '#64748b' }}>{item.sub}</div>
                 </div>
                 {i < arr.length - 1 && (
-                  <div
-                    style={{
-                      flex: '0 0 24px',
-                      height: 1,
-                      background: '#bfdbfe',
-                      margin: '0 4px',
-                      marginTop: -14,
-                    }}
-                  />
+                  <div style={{ flex: '0 0 24px', height: 1, background: '#bfdbfe', margin: '0 4px', marginTop: -14 }} />
                 )}
               </div>
             ))}
           </div>
         )}
 
-        {/* What's now unlocked — only after confirmation */}
+        {/* What's now unlocked */}
         {confirmedTier && (
           <div
-            className="rounded-2xl px-5 py-4.5 mb-7"
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              textAlign: 'left',
-              padding: '18px 20px',
-            }}
+            className="rounded-2xl mb-7"
+            style={{ background: '#ffffff', border: '1px solid #e2e8f0', textAlign: 'left', padding: '18px 20px' }}
           >
             <div
               className="text-xs font-bold mb-3"
@@ -218,9 +235,7 @@ export default function CheckoutSuccess() {
                   >
                     {step.icon}
                   </div>
-                  <span className="text-sm font-medium" style={{ color: '#334155' }}>
-                    {step.label}
-                  </span>
+                  <span className="text-sm font-medium" style={{ color: '#334155' }}>{step.label}</span>
                   <CheckmarkSvg />
                 </div>
               ))}
@@ -228,7 +243,7 @@ export default function CheckoutSuccess() {
           </div>
         )}
 
-        {/* Pulsing indicator while waiting */}
+        {/* Pulsing dots while waiting */}
         {!confirmedTier && (
           <div className="flex justify-center mb-7">
             <div className="flex gap-1.5 items-center">
@@ -236,11 +251,7 @@ export default function CheckoutSuccess() {
                 <div
                   key={i}
                   style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: '#3b82f6',
-                    opacity: 0.4,
+                    width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', opacity: 0.4,
                     animation: `pulse-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
                   }}
                 />
