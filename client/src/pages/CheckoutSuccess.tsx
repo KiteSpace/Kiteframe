@@ -48,6 +48,7 @@ export default function CheckoutSuccess() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -57,13 +58,16 @@ export default function CheckoutSuccess() {
   const startRedirect = (delaySecs: number) => {
     setSecondsLeft(delaySecs);
     let secs = delaySecs;
-    const tick = setInterval(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
       secs -= 1;
       setSecondsLeft(secs);
-      if (secs <= 0) clearInterval(tick);
+      if (secs <= 0) {
+        if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+      }
     }, 1000);
     redirectRef.current = setTimeout(() => {
-      clearInterval(tick);
+      if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
       setLocation('/app');
     }, delaySecs * 1000);
   };
@@ -106,6 +110,7 @@ export default function CheckoutSuccess() {
     return () => {
       stopPolling();
       if (redirectRef.current) clearTimeout(redirectRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
 
