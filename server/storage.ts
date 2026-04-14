@@ -56,6 +56,7 @@ export interface IStorage {
   getInsightHistory(userId: string, projectId?: string): Promise<InsightHistory[]>;
   createInsightHistory(data: InsertInsightHistory): Promise<InsightHistory>;
   updateInsightHistory(id: string, data: Partial<InsertInsightHistory>): Promise<InsightHistory | undefined>;
+  getUsersWithMismatchedTier(): Promise<User[]>;
   // Ban management
   getBannedEmail(email: string): Promise<BannedEmail | undefined>;
   listBannedEmails(): Promise<BannedEmail[]>;

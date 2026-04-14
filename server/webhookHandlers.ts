@@ -51,6 +51,11 @@ export class WebhookHandlers {
       if (priceId) {
         const price = await stripeService.getPrice(priceId);
         priceTier = (price?.metadata as Record<string, string> | null)?.tier;
+
+        if (!priceTier && price?.product) {
+          const product = await stripeService.getProduct(price.product as string);
+          priceTier = (product?.metadata as Record<string, string> | null)?.tier;
+        }
       }
     }
 
@@ -83,5 +88,48 @@ export class WebhookHandlers {
     );
 
     console.log(`[Webhook] Updated user ${user.id}: tier=${subscriptionTier}, status=${subscriptionStatus}, credits synced (event: ${event.type})`);
+  }
+
+  static async fixMismatchedTiers(): Promise<void> {
+    try {
+      const users = await storage.getUsersWithMismatchedTier();
+      if (users.length === 0) {
+        console.log('[TierSync] No mismatched tiers found');
+        return;
+      }
+      console.log(`[TierSync] Fixing ${users.length} user(s) with mismatched subscription tiers`);
+      for (const user of users) {
+        try {
+          if (!user.stripeSubscriptionId) continue;
+          const items = await stripeService.getSubscriptionItems(user.stripeSubscriptionId);
+          if (!items.length) continue;
+          const priceId = items[0].price as string;
+          if (!priceId) continue;
+
+          const price = await stripeService.getPrice(priceId);
+          let priceTier = (price?.metadata as Record<string, string> | null)?.tier;
+          if (!priceTier && price?.product) {
+            const product = await stripeService.getProduct(price.product as string);
+            priceTier = (product?.metadata as Record<string, string> | null)?.tier;
+          }
+
+          const correctTier: 'free' | 'advanced' | 'pro' =
+            priceTier === 'advanced' || priceTier === 'pro' ? priceTier : 'free';
+
+          if (correctTier !== 'free' && correctTier !== user.subscriptionTier) {
+            await storage.updateUserSubscription(user.id, {
+              subscriptionTier: correctTier,
+              subscriptionStatus: 'active',
+            });
+            await creditService.syncUserCreditsWithTier(user.id, correctTier);
+            console.log(`[TierSync] Fixed user ${user.id} (${user.email}): ${user.subscriptionTier} → ${correctTier}`);
+          }
+        } catch (userErr) {
+          console.error(`[TierSync] Error fixing user ${user.id}:`, userErr);
+        }
+      }
+    } catch (err) {
+      console.error('[TierSync] Error during mismatch fix:', err);
+    }
   }
 }

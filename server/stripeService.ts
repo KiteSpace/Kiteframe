@@ -143,6 +143,13 @@ export class StripeService {
     return result.rows[0] || null;
   }
 
+  async getSubscriptionItems(subscriptionId: string) {
+    const result = await db.execute(
+      sql`SELECT id, price, quantity FROM stripe.subscription_items WHERE subscription = ${subscriptionId}`
+    );
+    return result.rows;
+  }
+
   getTierFromPriceMetadata(metadata: any): 'free' | 'advanced' | 'pro' {
     if (!metadata) return 'free';
     return metadata.tier || 'free';
