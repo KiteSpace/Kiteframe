@@ -45,13 +45,13 @@ const tierInfo = {
     name: 'Advanced',
     icon: Zap,
     color: 'bg-blue-100 text-blue-800',
-    credits: 100,
+    credits: 50,
   },
   pro: {
     name: 'Pro',
     icon: Zap,
     color: 'bg-purple-100 text-purple-800',
-    credits: 500,
+    credits: 150,
   },
 };
 
@@ -77,7 +77,7 @@ export default function Account() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer');
+        window.location.href = data.url;
       }
     },
     onError: (error: Error) => {
