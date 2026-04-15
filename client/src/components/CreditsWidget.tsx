@@ -72,7 +72,7 @@ export function CreditsWidget() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to redeem unlock code",
+        description: error.message || "Failed to redeem promo code",
         variant: "destructive",
       });
     },
@@ -83,7 +83,7 @@ export function CreditsWidget() {
     if (!code) {
       toast({
         title: "Invalid Code",
-        description: "Please enter an unlock code",
+        description: "Please enter a promo code",
         variant: "destructive",
       });
       return;
@@ -160,7 +160,7 @@ export function CreditsWidget() {
                   {!isAuthenticated ? (
                     "You've used your daily credits. Create an account to get 25 credits per day!"
                   ) : (
-                    "You've used all your daily credits. They'll reset in 24 hours, or use an unlock code for bonus credits."
+                    "You've used all your daily credits. They'll reset in 24 hours, or use a promo code for bonus credits."
                   )}
                 </p>
                 {!isAuthenticated && (
@@ -194,13 +194,13 @@ export function CreditsWidget() {
 
             <div className="space-y-2">
               <label htmlFor="unlock-code" className="text-sm font-medium">
-                Unlock Code
+                Promo Code
               </label>
               <div className="flex gap-2">
                 <Input
                   id="unlock-code"
                   type="text"
-                  placeholder="Enter unlock code"
+                  placeholder="Enter promo code"
                   value={unlockCode}
                   onChange={(e) => setUnlockCode(e.target.value)}
                   onKeyDown={(e) => {
@@ -219,9 +219,6 @@ export function CreditsWidget() {
                   {redeemMutation.isPending ? 'Redeeming...' : 'Redeem'}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Contact <a href="mailto:info@kiteframe.space" className="underline">info@kiteframe.space</a> for unlock codes
-              </p>
             </div>
           </div>
         </DialogContent>

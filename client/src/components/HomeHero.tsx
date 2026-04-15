@@ -149,7 +149,7 @@ export function HomeHero({
 
   const placeholderText = hasAnyAttachments
     ? "Do you have any additional details to add before we get started?"
-    : "Describe your workflow, upload a photo, import from Figma, or start brainstorming with KiteAI";
+    : "Describe your workflow, upload a photo, or start brainstorming with KiteAI";
 
   return (
     <FullBleedSection className="mb-10">

@@ -9,7 +9,9 @@ import {
   Loader2,
   AlertTriangle,
   ArrowLeft,
+  Tag,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Link } from 'wouter';
 import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
 import { Button } from '@/components/ui/button';
@@ -57,6 +59,7 @@ const tierInfo = {
 
 export default function Account() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
   const { user: authUser, isLoading: authLoading } = useReplitAuth();
   const { toast } = useToast();
 
@@ -105,6 +108,32 @@ export default function Account() {
       toast({
         title: 'Error',
         description: error.message || 'Unable to delete account. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const promoMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest('POST', '/api/credits/redeem', { code });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: 'Promo code applied!', description: data.message });
+        setPromoCode('');
+      } else {
+        toast({
+          title: 'Redemption failed',
+          description: data.error || 'Invalid or already used code',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to redeem promo code',
         variant: 'destructive',
       });
     },
@@ -248,6 +277,46 @@ export default function Account() {
                 </Button>
               )}
 
+            </CardContent>
+          </Card>
+
+          {/* Promo Code Card */}
+          <Card data-testid="card-promo-code">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Promo Code
+              </CardTitle>
+              <CardDescription>
+                Enter a promo code to add bonus credits to your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2 max-w-sm">
+                <Input
+                  type="text"
+                  placeholder="Enter promo code"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !promoMutation.isPending && promoCode.trim()) {
+                      promoMutation.mutate(promoCode.trim());
+                    }
+                  }}
+                  disabled={promoMutation.isPending}
+                  data-testid="input-promo-code"
+                />
+                <Button
+                  onClick={() => promoMutation.mutate(promoCode.trim())}
+                  disabled={promoMutation.isPending || !promoCode.trim()}
+                  data-testid="button-redeem-promo"
+                >
+                  {promoMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Redeem
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

@@ -164,7 +164,7 @@ export function CreditsTierPill() {
               }}
               data-testid="button-manage-credits"
             >
-              Manage credits →
+              Usage Details →
             </button>
           </div>
 
