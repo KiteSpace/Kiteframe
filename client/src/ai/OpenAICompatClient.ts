@@ -39,7 +39,7 @@ function jobLabelFor(taskType: string | undefined): string {
 // the global store so the persistent indicator can show progress and so jobs
 // survive tab navigation.
 type JobHooks = {
-  register: (job: { jobId: string; label: string; taskType?: string; startedAt: number }) => void;
+  register: (job: { jobId: string; label: string; taskType?: string; startedAt: number; originPath?: string }) => void;
   clear: (jobId: string) => void;
 };
 
@@ -136,7 +136,10 @@ export class OpenAICompatClient implements AiClient {
     if (!jobId) throw new Error('AI error: server did not return a job id');
 
     const startedAt = Date.now();
-    jobHooks?.register({ jobId, label: jobLabelFor(req.taskType), taskType: req.taskType, startedAt });
+    // Capture the originating route so the global indicator can navigate the user
+    // back here on click, and so a remounted surface can claim the result.
+    const originPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
+    jobHooks?.register({ jobId, label: jobLabelFor(req.taskType), taskType: req.taskType, startedAt, originPath });
 
     try {
       const { text } = await pollJob(jobId);
