@@ -3,7 +3,7 @@ import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { isValidOptimizationSession, registerOptimizationSession } from "../optimizationSession";
+import { isValidOptimizationSession, registerOptimizationSession, peekOptimizationSession } from "../optimizationSession";
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -324,15 +324,33 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
     const isOptimizationSessionTurn =
       !!(isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string');
 
-    // SECURITY: We always reserve credits at admission, even when the request
-    // claims an optimization-session free turn. Skipping reservation based on
-    // owner-only or "session exists" checks is unsafe: an exhausted session
-    // could pass precheck, then the post-success deduction could fail leaving
-    // a successful AI output un-billed. By always reserving, we guarantee the
-    // user has the budget to pay if the session turns out not to absorb the
-    // turn. deductCreditsAfterSuccess releases the reservation when the
-    // session genuinely consumes the turn.
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
+
+    // Optimization-session parity with sync requireCredits middleware: if the
+    // session is owned by this user, unexpired, and has free turns remaining,
+    // admit WITHOUT reserving credits. peekOptimizationSession does NOT consume
+    // a turn, so the actual consumption happens in deductCreditsAfterSuccess
+    // via isValidOptimizationSession. This restores the documented behavior
+    // where users with valid sessions can keep iterating even if their daily
+    // balance is empty.
+    if (isOptimizationSessionTurn && peekOptimizationSession(optimizationSessionId, userIdentifier)) {
+      return {
+        ok: true,
+        userIdentifier,
+        isAuthenticated,
+        taskType,
+        creditCost,
+        isExempt: false,
+        isOptimizationSessionTurn,
+        optimizationSessionId,
+        reservedAmount: 0,
+      };
+    }
+
+    // First-turn or invalid session: reserve credits at admission so concurrent
+    // submissions can't all see the full balance and over-admit. The reservation
+    // is released by the worker either as a deduction (success) or refund
+    // (failure / stale timeout).
     const reservation = await creditService.tryReserveCredits(userIdentifier, creditCost, isAuthenticated);
     if (!reservation.ok) {
       return {

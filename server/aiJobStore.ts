@@ -117,23 +117,53 @@ export function setJobRunning(id: string): void {
   job.updatedAt = Date.now();
 }
 
-export function completeJob(id: string, result: AiJobResult): void {
+// Atomically transition a still-active job to `completed` and return its
+// remaining reservedAmount (which the caller should release/deduct). Returns
+// ok:false when the job is already terminal — e.g. cleanStale() timed it out
+// while the worker was still running. The caller MUST treat ok:false as "do
+// not deduct credits, do not record success" so timed-out jobs cannot be
+// resurrected and charged.
+export function tryFinalizeSuccess(id: string, result: AiJobResult): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
   const job = jobs.get(id);
-  if (!job) return;
-  const wasActive = job.status === 'pending' || job.status === 'running';
+  if (!job) return { ok: false, reason: 'unknown' };
+  if (job.status !== 'pending' && job.status !== 'running') {
+    return { ok: false, reason: 'already-terminal' };
+  }
+  const reservedAmount = job.reservedAmount;
+  job.reservedAmount = 0;
   job.status = 'completed';
   job.result = result;
   job.updatedAt = Date.now();
-  if (wasActive) decActive(job.userIdentifier);
+  decActive(job.userIdentifier);
+  return { ok: true, reservedAmount };
 }
 
-export function failJob(id: string, error: string, errorStatus: number = 500): void {
+// Atomically transition a still-active job to `failed` and return its
+// reservedAmount. ok:false when the job is already terminal (cleanStale beat
+// us) — caller must NOT release reservation again in that case (cleanStale
+// already did).
+export function tryFinalizeFailure(id: string, error: string, errorStatus: number = 500): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
   const job = jobs.get(id);
-  if (!job) return;
-  const wasActive = job.status === 'pending' || job.status === 'running';
+  if (!job) return { ok: false, reason: 'unknown' };
+  if (job.status !== 'pending' && job.status !== 'running') {
+    return { ok: false, reason: 'already-terminal' };
+  }
+  const reservedAmount = job.reservedAmount;
+  job.reservedAmount = 0;
   job.status = 'failed';
   job.error = error;
   job.errorStatus = errorStatus;
   job.updatedAt = Date.now();
-  if (wasActive) decActive(job.userIdentifier);
+  decActive(job.userIdentifier);
+  return { ok: true, reservedAmount };
+}
+
+// Legacy entry points retained for callers that don't care about the
+// terminal-safety guarantee. Prefer the tryFinalize* variants above.
+export function completeJob(id: string, result: AiJobResult): void {
+  tryFinalizeSuccess(id, result);
+}
+
+export function failJob(id: string, error: string, errorStatus: number = 500): void {
+  tryFinalizeFailure(id, error, errorStatus);
 }

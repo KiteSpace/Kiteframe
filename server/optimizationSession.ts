@@ -84,6 +84,21 @@ export function invalidateOptimizationSession(sessionId: string): void {
   sessions.delete(sessionId);
 }
 
+// Returns true if the session exists, belongs to this user, has not expired,
+// and has at least one free turn remaining — WITHOUT consuming a turn or
+// touching lastUsed. Used by the async precheck so we can skip the credit
+// reservation for genuinely valid free turns without double-counting them.
+export function peekOptimizationSession(sessionId: string, userIdentifier: string): boolean {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+  if (session.userIdentifier !== userIdentifier) return false;
+  if (Date.now() - session.lastUsed > SESSION_TTL_MS) {
+    sessions.delete(sessionId);
+    return false;
+  }
+  return session.freeTurnsUsed < MAX_FREE_TURNS;
+}
+
 // Returns the owning userIdentifier for a session, or null if not found / expired.
 export function getOptimizationSessionOwner(sessionId: string): string | null {
   const session = sessions.get(sessionId);

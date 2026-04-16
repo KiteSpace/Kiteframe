@@ -31,7 +31,7 @@ import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
-import { createJob, getJob, setJobRunning, completeJob, failJob, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback } from "./aiJobStore";
+import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback } from "./aiJobStore";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
@@ -1907,28 +1907,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const capturedBody = req.body;
       const reqRef = req;
 
-      // Fire-and-forget: do the AI call, then deduct credits on success or
-      // release the held reservation on failure so concurrent admission control
-      // stays accurate.
+      // Fire-and-forget worker. All terminal transitions go through
+      // tryFinalize* which atomically refuses to resurrect a job already
+      // failed by cleanStale() — so timed-out jobs never get charged, and
+      // each reservation is released exactly once (either by cleanStale or
+      // by the worker, never both).
       (async () => {
         setJobRunning(job.id);
         try {
           const result = await executeAiChat(capturedBody);
+
           if (!result.ok) {
-            releasePrecheckReservation(precheck);
-            failJob(job.id, result.error || 'AI request failed', result.status);
+            const fin = tryFinalizeFailure(job.id, result.error || 'AI request failed', result.status);
+            if (fin.ok && fin.reservedAmount > 0) {
+              creditService.releaseReservation(precheck.userIdentifier, fin.reservedAmount);
+            }
             return;
           }
+
+          // Atomically claim the win FIRST. If cleanStale already failed the
+          // job, fin.ok=false and we skip everything — no deduction, no
+          // double-release (cleanStale already released).
+          const fin = tryFinalizeSuccess(job.id, { text: result.text || '' });
+          if (!fin.ok) {
+            console.warn(`[AI job ${job.id}] Already terminal (likely stale-failed); skipping credit charge.`);
+            return;
+          }
+
+          // Release the reservation now that the job is recorded as completed.
+          // No other path can touch it (status is terminal), so this is the
+          // single release for this job's hold.
+          if (fin.reservedAmount > 0) {
+            creditService.releaseReservation(precheck.userIdentifier, fin.reservedAmount);
+          }
+
+          // Deduct credits (or skip for exempt / consumed free turn). We pass
+          // reservedAmount=0 because we already released above — preventing
+          // deductCreditsAfterSuccess from double-releasing.
           let credits: { remaining: number; cost: number } | undefined;
           try {
-            const deducted = await deductCreditsAfterSuccess(precheck);
+            const deducted = await deductCreditsAfterSuccess({ ...precheck, reservedAmount: 0 });
             credits = { remaining: deducted.remainingCredits, cost: deducted.creditCost };
+            // Patch the credits info onto the job so the polling client sees it.
+            const j = getJob(job.id);
+            if (j && j.result) j.result.credits = credits;
           } catch (e) {
             console.error('Post-success deduction error:', e);
-            // Make sure we don't leak the reservation if deduction crashed.
-            releasePrecheckReservation(precheck);
           }
-          completeJob(job.id, { text: result.text || '', credits });
+
           recordAiUsage({
             req: reqRef,
             activeProvider: result.activeProvider!,
@@ -1940,8 +1966,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }).catch(console.error);
         } catch (err: any) {
           console.error('AI job worker error:', err);
-          releasePrecheckReservation(precheck);
-          failJob(job.id, err?.message || 'Internal server error', 500);
+          const fin = tryFinalizeFailure(job.id, err?.message || 'Internal server error', 500);
+          if (fin.ok && fin.reservedAmount > 0) {
+            creditService.releaseReservation(precheck.userIdentifier, fin.reservedAmount);
+          }
         }
       })();
 
