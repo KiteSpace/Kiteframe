@@ -591,10 +591,6 @@ export default function LandingPage() {
               data-testid="waitlist-container"
             >
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground text-center mb-2">
-                  Choose how you'd like to sign in to join the waitlist
-                </p>
-
                 {providersLoading ? (
                   <div className="flex items-center justify-center py-6">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
