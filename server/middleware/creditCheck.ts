@@ -305,14 +305,14 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
 
     const userEmail = user?.email || user?.claims?.email;
     if (isAdminUser(userEmail)) {
-      return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false };
+      return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false, reservedAmount: 0 };
     }
 
     const userId = user?.id || (userEmail ? await findUserIdByEmail(userEmail) : null);
     if (userId) {
       const groupControls = await getUserGroupAccessControls(userId);
       if (groupControls.bypassCreditCheck || groupControls.unlimitedCredits) {
-        return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false };
+        return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false, reservedAmount: 0 };
       }
     }
 

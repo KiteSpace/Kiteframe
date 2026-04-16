@@ -85,7 +85,14 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save(PENDING_KEY, pendingJobs); }, [pendingJobs]);
   useEffect(() => { save(COMPLETED_KEY, completedJobs); }, [completedJobs]);
 
+  // Tracks job ids whose result was already consumed by the foreground caller
+  // (e.g. OpenAICompatClient.pollJob completed and the awaiting code path got
+  // the result inline). The dual poller in this context could otherwise race
+  // and record a duplicate "completed" entry that gets replayed on remount.
+  const consumedRef = useRef<Set<string>>(new Set());
+
   const recordCompleted = useCallback((entry: CompletedAiJob) => {
+    if (consumedRef.current.has(entry.jobId)) return;
     setCompletedJobs(prev => {
       if (prev.some(j => j.jobId === entry.jobId)) return prev;
       const now = Date.now();
@@ -95,7 +102,11 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearJob = useCallback((jobId: string) => {
+    // Mark as consumed so an in-flight watcher tick that races with this clear
+    // can't drop a duplicate completion into completedJobs.
+    consumedRef.current.add(jobId);
     setPendingJobs(prev => prev.filter(j => j.jobId !== jobId));
+    setCompletedJobs(prev => prev.filter(j => j.jobId !== jobId));
     const handle = watcherRef.current.get(jobId);
     if (handle) {
       window.clearTimeout(handle);
