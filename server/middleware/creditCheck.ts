@@ -413,15 +413,23 @@ export async function deductCreditsAfterSuccess(precheck: CreditPrecheckOk): Pro
     }
   }
 
-  // Release the reservation BEFORE deducting so the deduction sees the real
-  // balance (the reservation is just an admission control held in memory).
-  releasePrecheckReservation(precheck);
-
-  const deductResult = await creditService.deductCreditAtomic(
-    precheck.userIdentifier,
-    precheck.creditCost,
-    precheck.isAuthenticated,
-  );
+  // Atomic ordering: DEDUCT first against the persistent balance, then RELEASE
+  // the in-memory reservation. The reverse order (release → deduct) opens a
+  // race window where the freed reservation lets a concurrent request reserve
+  // against the same balance; if the original deduct then fails, the AI
+  // result has been delivered un-billed. By deducting first, concurrent
+  // prechecks during the gap see a SMALLER `available` (lower remaining,
+  // unchanged reserved) — safe under-admission rather than unsafe over-admission.
+  let deductResult: { success: boolean; remainingCredits: number };
+  try {
+    deductResult = await creditService.deductCreditAtomic(
+      precheck.userIdentifier,
+      precheck.creditCost,
+      precheck.isAuthenticated,
+    );
+  } finally {
+    releasePrecheckReservation(precheck);
+  }
 
   if (!deductResult.success) {
     // Reservation should have prevented this, but as a defence-in-depth measure

@@ -1927,32 +1927,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Atomically claim the win FIRST. If cleanStale already failed the
           // job, fin.ok=false and we skip everything — no deduction, no
-          // double-release (cleanStale already released).
+          // release (cleanStale already released).
           const fin = tryFinalizeSuccess(job.id, { text: result.text || '' });
           if (!fin.ok) {
             console.warn(`[AI job ${job.id}] Already terminal (likely stale-failed); skipping credit charge.`);
             return;
           }
 
-          // Release the reservation now that the job is recorded as completed.
-          // No other path can touch it (status is terminal), so this is the
-          // single release for this job's hold.
-          if (fin.reservedAmount > 0) {
-            creditService.releaseReservation(precheck.userIdentifier, fin.reservedAmount);
-          }
-
-          // Deduct credits (or skip for exempt / consumed free turn). We pass
-          // reservedAmount=0 because we already released above — preventing
-          // deductCreditsAfterSuccess from double-releasing.
+          // Hand off ownership of the reservation to deductCreditsAfterSuccess.
+          // It performs an atomic deduct-then-release: the deduction commits
+          // against the persistent balance BEFORE the in-memory reservation is
+          // freed. This prevents the race where releasing first would let a
+          // concurrent precheck reserve against the freed balance, allowing a
+          // failed deduct to leak an un-billed AI result.
           let credits: { remaining: number; cost: number } | undefined;
           try {
-            const deducted = await deductCreditsAfterSuccess({ ...precheck, reservedAmount: 0 });
+            const deducted = await deductCreditsAfterSuccess({
+              ...precheck,
+              reservedAmount: fin.reservedAmount,
+            });
             credits = { remaining: deducted.remainingCredits, cost: deducted.creditCost };
             // Patch the credits info onto the job so the polling client sees it.
             const j = getJob(job.id);
             if (j && j.result) j.result.credits = credits;
           } catch (e) {
             console.error('Post-success deduction error:', e);
+            // Defence-in-depth: if deductCreditsAfterSuccess threw before its
+            // finally{} could release, we release here so the hold doesn't leak.
+            if (fin.reservedAmount > 0) {
+              creditService.releaseReservation(precheck.userIdentifier, fin.reservedAmount);
+            }
           }
 
           recordAiUsage({

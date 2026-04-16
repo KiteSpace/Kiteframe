@@ -420,7 +420,15 @@ export function KiteAIChatBrain({
   // chat surface was unmounted (e.g. user navigated to another tab waiting for
   // a long PRD generation). Their results are injected as assistant messages
   // so no work is silently lost.
-  const { takeCompletedJobsForOrigin, markConsumed: markJobConsumed } = useAiJobs();
+  const { takeCompletedJobsForOrigin, markConsumed: markJobConsumedRaw } = useAiJobs();
+  // Mounted ref so we only acknowledge consumption when the surface is still
+  // alive after the await. If the user navigated away mid-request, we leave the
+  // result in completedJobs for remount handoff to pick up.
+  const isMountedRef = useRef(true);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+  const markJobConsumed = useCallback((jobId: string) => {
+    if (isMountedRef.current) markJobConsumedRaw(jobId);
+  }, [markJobConsumedRaw]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originPath = window.location.pathname;
