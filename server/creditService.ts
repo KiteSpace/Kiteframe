@@ -330,6 +330,44 @@ export class CreditService {
     return credits.credits;
   }
 
+  // === In-process credit reservation (for the async AI job flow) ===
+  // We hold a per-user "pending cost" that is subtracted from the available
+  // balance when checking whether a NEW job can be admitted. This prevents the
+  // concurrent-submission exploit where a user with N credits launches >N
+  // success-only jobs in parallel because every precheck sees the full balance
+  // before any deduction has happened.
+  //
+  // Reservations are released on success (after deduction) or on failure/timeout.
+  private reservations: Map<string, number> = new Map();
+
+  getReservedCredits(userIdentifier: string): number {
+    return this.reservations.get(userIdentifier) || 0;
+  }
+
+  // Atomically check available = remaining - reserved, then add `cost` to the
+  // reservation if the user can afford it. Returns true on success.
+  async tryReserveCredits(
+    userIdentifier: string,
+    cost: number,
+    isAuthenticated: boolean = true,
+  ): Promise<{ ok: boolean; available: number }> {
+    const remaining = await this.getRemainingCredits(userIdentifier, isAuthenticated);
+    const reserved = this.getReservedCredits(userIdentifier);
+    const available = remaining - reserved;
+    if (available < cost) {
+      return { ok: false, available };
+    }
+    this.reservations.set(userIdentifier, reserved + cost);
+    return { ok: true, available: available - cost };
+  }
+
+  releaseReservation(userIdentifier: string, cost: number): void {
+    const current = this.reservations.get(userIdentifier) || 0;
+    const next = Math.max(0, current - cost);
+    if (next === 0) this.reservations.delete(userIdentifier);
+    else this.reservations.set(userIdentifier, next);
+  }
+
   getCreditsForTier(tier: keyof typeof TIER_DAILY_CREDITS): number {
     return TIER_DAILY_CREDITS[tier] || TIER_DAILY_CREDITS.free;
   }

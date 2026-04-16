@@ -29,7 +29,7 @@ import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
-import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess } from "./middleware/creditCheck";
+import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
 import { createJob, getJob, setJobRunning, completeJob, failJob, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER } from "./aiJobStore";
 import { creditService } from "./creditService";
@@ -1897,12 +1897,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const capturedBody = req.body;
       const reqRef = req;
 
-      // Fire-and-forget: do the AI call, then deduct credits on success.
+      // Fire-and-forget: do the AI call, then deduct credits on success or
+      // release the held reservation on failure so concurrent admission control
+      // stays accurate.
       (async () => {
         setJobRunning(job.id);
         try {
           const result = await executeAiChat(capturedBody);
           if (!result.ok) {
+            releasePrecheckReservation(precheck);
             failJob(job.id, result.error || 'AI request failed', result.status);
             return;
           }
@@ -1912,6 +1915,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             credits = { remaining: deducted.remainingCredits, cost: deducted.creditCost };
           } catch (e) {
             console.error('Post-success deduction error:', e);
+            // Make sure we don't leak the reservation if deduction crashed.
+            releasePrecheckReservation(precheck);
           }
           completeJob(job.id, { text: result.text || '', credits });
           recordAiUsage({
@@ -1925,6 +1930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }).catch(console.error);
         } catch (err: any) {
           console.error('AI job worker error:', err);
+          releasePrecheckReservation(precheck);
           failJob(job.id, err?.message || 'Internal server error', 500);
         }
       })();

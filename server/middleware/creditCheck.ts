@@ -277,6 +277,10 @@ export interface CreditPrecheckOk {
   // True when an active optimization session would absorb this turn for free.
   isOptimizationSessionTurn: boolean;
   optimizationSessionId?: string;
+  // How many credits we've reserved (held against this user's available balance)
+  // until the job either succeeds (deducted) or fails (released). Zero for
+  // exempt users and verified optimization-session free turns.
+  reservedAmount: number;
 }
 
 export interface CreditPrecheckErr {
@@ -330,17 +334,34 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
     const isOptimizationSessionTurn =
       !!(isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string');
 
-    // Verify the user has credits available without deducting. Use a balance check.
+    // Verify the user has credits available WITHOUT deducting yet. We use a
+    // reservation system so concurrent submissions can't all see the full
+    // balance and over-admit. tryReserveCredits is in-process atomic and treats
+    // available = remaining - reserved.
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
-    const remaining = await creditService.getRemainingCredits(userIdentifier, isAuthenticated);
 
-    // Only skip the balance check when the session is verifiably valid for this user.
-    if (!hasValidSession && remaining < creditCost) {
+    if (hasValidSession) {
+      // Optimization-session free turn: no reservation needed.
+      return {
+        ok: true,
+        userIdentifier,
+        isAuthenticated,
+        taskType,
+        creditCost,
+        isExempt: false,
+        isOptimizationSessionTurn,
+        optimizationSessionId,
+        reservedAmount: 0,
+      };
+    }
+
+    const reservation = await creditService.tryReserveCredits(userIdentifier, creditCost, isAuthenticated);
+    if (!reservation.ok) {
       return {
         ok: false,
         status: 403,
         error: "Daily credit limit reached. Credits reset every 24 hours. Contact info@kiteframe.space for a bonus unlock code.",
-        body: { remainingCredits: 0, creditCost, resetsDaily: true },
+        body: { remainingCredits: Math.max(0, reservation.available), creditCost, resetsDaily: true },
       };
     }
 
@@ -353,10 +374,19 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
       isExempt: false,
       isOptimizationSessionTurn,
       optimizationSessionId: isOptimizationSessionTurn ? optimizationSessionId : undefined,
+      reservedAmount: creditCost,
     };
   } catch (error) {
     console.error('precheckCreditsForJob error:', error);
     return { ok: false, status: 500, error: 'Could not verify credits.' };
+  }
+}
+
+// Release a precheck's reservation without deducting. Call this when the AI job
+// fails or times out so the held credits return to the user's available balance.
+export function releasePrecheckReservation(precheck: CreditPrecheckOk): void {
+  if (precheck.reservedAmount > 0) {
+    creditService.releaseReservation(precheck.userIdentifier, precheck.reservedAmount);
   }
 }
 
@@ -369,6 +399,7 @@ export async function deductCreditsAfterSuccess(precheck: CreditPrecheckOk): Pro
   remainingCredits: number;
 }> {
   if (precheck.isExempt) {
+    // No reservation was held for exempt users.
     return { charged: false, creditCost: precheck.creditCost, remainingCredits: 999999 };
   }
 
@@ -378,11 +409,17 @@ export async function deductCreditsAfterSuccess(precheck: CreditPrecheckOk): Pro
   if (precheck.isOptimizationSessionTurn && precheck.optimizationSessionId) {
     const sessionConsumed = isValidOptimizationSession(precheck.optimizationSessionId, precheck.userIdentifier);
     if (sessionConsumed) {
+      // Release any reservation held (only first-turn precheck reserves).
+      releasePrecheckReservation(precheck);
       const remaining = await creditService.getRemainingCredits(precheck.userIdentifier, precheck.isAuthenticated);
       console.log(`[Session] Credit deduction skipped for active optimization session: ${precheck.optimizationSessionId.slice(0, 8)}...`);
       return { charged: false, creditCost: 0, remainingCredits: remaining };
     }
   }
+
+  // Release the reservation BEFORE deducting so the deduction sees the real
+  // balance (the reservation is just an admission control held in memory).
+  releasePrecheckReservation(precheck);
 
   const deductResult = await creditService.deductCreditAtomic(
     precheck.userIdentifier,
@@ -391,8 +428,9 @@ export async function deductCreditsAfterSuccess(precheck: CreditPrecheckOk): Pro
   );
 
   if (!deductResult.success) {
-    // User exhausted credits between precheck and post-success. We've already done
-    // the work, so log and return remaining=0; the caller may surface a warning.
+    // Reservation should have prevented this, but as a defence-in-depth measure
+    // we surface the failure honestly. The caller MUST treat the AI output as
+    // un-billed and may decide to discard it or warn the user.
     console.warn(`Post-success deduction failed for ${precheck.userIdentifier}: insufficient credits.`);
     return { charged: false, creditCost: precheck.creditCost, remainingCredits: 0 };
   }
