@@ -3,7 +3,7 @@ import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { isValidOptimizationSession, registerOptimizationSession, getOptimizationSessionOwner } from "../optimizationSession";
+import { isValidOptimizationSession, registerOptimizationSession } from "../optimizationSession";
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -318,43 +318,21 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
 
     const optimizationSessionId = req.body?.optimizationSessionId;
     const isWorkflowReasoning = taskType === 'workflow_reasoning';
-    // SECURITY: peek at session ownership without consuming a free turn. Only treat
-    // as a free-turn request if the session actually exists AND is owned by this
-    // user. We must never let a client bypass the credit balance check by passing
-    // an arbitrary session id — the original sync `requireCredits` middleware
-    // enforced this via `isValidOptimizationSession`, and the async precheck must
-    // match that semantic.
-    const sessionOwner =
-      isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string'
-        ? getOptimizationSessionOwner(optimizationSessionId)
-        : null;
-    const hasValidSession = sessionOwner !== null && sessionOwner === userIdentifier;
-    // We still want to pass the session id through to post-success so a *new*
-    // session (first turn) can be registered after a successful deduction.
+    // We pass the session id through so deductCreditsAfterSuccess can either
+    // consume an existing free-turn (releasing the reservation) or register a
+    // new session after a successful first-turn deduction.
     const isOptimizationSessionTurn =
       !!(isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string');
 
-    // Verify the user has credits available WITHOUT deducting yet. We use a
-    // reservation system so concurrent submissions can't all see the full
-    // balance and over-admit. tryReserveCredits is in-process atomic and treats
-    // available = remaining - reserved.
+    // SECURITY: We always reserve credits at admission, even when the request
+    // claims an optimization-session free turn. Skipping reservation based on
+    // owner-only or "session exists" checks is unsafe: an exhausted session
+    // could pass precheck, then the post-success deduction could fail leaving
+    // a successful AI output un-billed. By always reserving, we guarantee the
+    // user has the budget to pay if the session turns out not to absorb the
+    // turn. deductCreditsAfterSuccess releases the reservation when the
+    // session genuinely consumes the turn.
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
-
-    if (hasValidSession) {
-      // Optimization-session free turn: no reservation needed.
-      return {
-        ok: true,
-        userIdentifier,
-        isAuthenticated,
-        taskType,
-        creditCost,
-        isExempt: false,
-        isOptimizationSessionTurn,
-        optimizationSessionId,
-        reservedAmount: 0,
-      };
-    }
-
     const reservation = await creditService.tryReserveCredits(userIdentifier, creditCost, isAuthenticated);
     if (!reservation.ok) {
       return {

@@ -31,7 +31,7 @@ import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
-import { createJob, getJob, setJobRunning, completeJob, failJob, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER } from "./aiJobStore";
+import { createJob, getJob, setJobRunning, completeJob, failJob, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback } from "./aiJobStore";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
@@ -420,6 +420,12 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Wire the AI job store's stale-cleanup release callback to the credit
+  // service so timed-out jobs return their held reservation to the user.
+  setReservationReleaseCallback((userIdentifier, amount) => {
+    creditService.releaseReservation(userIdentifier, amount);
+  });
+
   // Setup Replit Auth
   await setupAuth(app);
   
@@ -1874,16 +1880,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // because they live in server memory keyed by jobId.
   app.post('/api/ai/job', aiRateLimiter, requireUSOnly, async (req, res) => {
     try {
-      const precheck = await precheckCreditsForJob(req);
-      if (!precheck.ok) {
-        return res.status(precheck.status).json({ error: precheck.error, ...(precheck.body || {}) });
-      }
-
-      const active = getActiveJobCount(precheck.userIdentifier);
+      // Concurrency gate FIRST so we never reserve credits for a request we'll
+      // immediately reject (otherwise a 429 would leak the reservation).
+      const userIdentifierForGate = creditService.getUserIdentifier(req);
+      const active = getActiveJobCount(userIdentifierForGate);
       if (active >= MAX_CONCURRENT_JOBS_PER_USER) {
         return res.status(429).json({
           error: `Too many concurrent AI operations (${active}/${MAX_CONCURRENT_JOBS_PER_USER}). Wait for one to finish before starting another.`,
         });
+      }
+
+      const precheck = await precheckCreditsForJob(req);
+      if (!precheck.ok) {
+        return res.status(precheck.status).json({ error: precheck.error, ...(precheck.body || {}) });
       }
 
       const job = createJob({
@@ -1891,6 +1900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taskType: precheck.taskType,
         label: typeof req.body?.jobLabel === 'string' ? req.body.jobLabel : undefined,
         creditCost: precheck.creditCost,
+        reservedAmount: precheck.reservedAmount,
       });
 
       // Capture the body now since req may be reused before the async work runs.

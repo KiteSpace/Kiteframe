@@ -74,6 +74,7 @@ import {
   type EdgeCaseParseResult
 } from '@/ai/proposalParser';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
+import { useAiJobs } from '@/contexts/AiJobsContext';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
 import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
 import { 
@@ -414,6 +415,30 @@ export function KiteAIChatBrain({
     const loaded = loadMessagesFromStorage(storageKey);
     setMessages(loaded || [getDefaultWelcomeMessage()]);
   }, [projectId, storageKey]);
+
+  // Remount handoff: claim any AI jobs that completed at this route while the
+  // chat surface was unmounted (e.g. user navigated to another tab waiting for
+  // a long PRD generation). Their results are injected as assistant messages
+  // so no work is silently lost.
+  const { takeCompletedJobsForOrigin } = useAiJobs();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const originPath = window.location.pathname;
+    const completed = takeCompletedJobsForOrigin(originPath);
+    if (completed.length === 0) return;
+    setMessages(prev => [
+      ...prev,
+      ...completed.map(job => ({
+        id: `recovered-${job.jobId}`,
+        role: 'assistant' as const,
+        content: job.status === 'completed'
+          ? (job.text || '')
+          : `(Background AI operation "${job.label}" failed: ${job.error || 'unknown error'})`,
+        timestamp: new Date(job.completedAt),
+      })),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 'welcome') {

@@ -13,6 +13,10 @@ export interface AiJob {
   taskType?: string;
   label?: string;
   creditCost: number;
+  // Credits reserved (held) for this job at admission. Released on success
+  // (atomically converted to a deduction), on failure, or on stale-timeout
+  // cleanup. Zero for exempt users / verified free-turn requests.
+  reservedAmount: number;
   status: AiJobStatus;
   result?: AiJobResult;
   error?: string;
@@ -23,6 +27,14 @@ export interface AiJob {
 
 const jobs = new Map<string, AiJob>();
 const userActiveCount = new Map<string, number>();
+
+// Callback the route layer registers so the store can release reservations
+// during stale-job cleanup without importing the credit service (avoids a
+// circular dep between aiJobStore <-> creditCheck <-> creditService).
+let releaseReservationCallback: ((userIdentifier: string, amount: number) => void) | null = null;
+export function setReservationReleaseCallback(cb: (userIdentifier: string, amount: number) => void): void {
+  releaseReservationCallback = cb;
+}
 
 const COMPLETED_TTL_MS = 10 * 60 * 1000;
 const RUNNING_TIMEOUT_MS = 5 * 60 * 1000;
@@ -46,6 +58,15 @@ function cleanStale() {
       job.errorStatus = 504;
       job.updatedAt = now;
       decActive(job.userIdentifier);
+      // Release any held reservation so a hung job doesn't permanently consume
+      // the user's available balance. Set reservedAmount=0 so the route layer
+      // doesn't double-release if its own catch path also runs later.
+      if (job.reservedAmount > 0 && releaseReservationCallback) {
+        try { releaseReservationCallback(job.userIdentifier, job.reservedAmount); } catch (e) {
+          console.error('[aiJobStore] reservation release on stale-fail threw:', e);
+        }
+        job.reservedAmount = 0;
+      }
     }
   }
 }
@@ -60,6 +81,7 @@ export function createJob(opts: {
   taskType?: string;
   label?: string;
   creditCost: number;
+  reservedAmount: number;
 }): AiJob {
   cleanStale();
   const id = randomUUID();
@@ -70,6 +92,7 @@ export function createJob(opts: {
     taskType: opts.taskType,
     label: opts.label,
     creditCost: opts.creditCost,
+    reservedAmount: opts.reservedAmount,
     status: 'pending',
     createdAt: now,
     updatedAt: now,
