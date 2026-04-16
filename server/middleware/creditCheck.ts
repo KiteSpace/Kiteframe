@@ -3,7 +3,7 @@ import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { isValidOptimizationSession, registerOptimizationSession } from "../optimizationSession";
+import { isValidOptimizationSession, registerOptimizationSession, getOptimizationSessionOwner } from "../optimizationSession";
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -257,6 +257,146 @@ export async function requireAdvancedOrPro(
     console.error('Tier check error:', error);
     res.status(500).json({ error: 'Could not verify plan tier.' });
   }
+}
+
+// === Background Job Credit Helpers ===
+// Used by the async AI job flow (POST /api/ai/job) where we want to
+// (a) verify the user is allowed to spend a credit before kicking off the job,
+// (b) only deduct the credit AFTER the AI call has succeeded, and
+// (c) preserve the same admin/group-bypass and optimization-session semantics
+// as the synchronous requireCredits middleware.
+
+export interface CreditPrecheckOk {
+  ok: true;
+  userIdentifier: string;
+  isAuthenticated: boolean;
+  taskType?: string;
+  creditCost: number;
+  // True when this request will not consume a credit at all (admin / group bypass / unlimited).
+  isExempt: boolean;
+  // True when an active optimization session would absorb this turn for free.
+  isOptimizationSessionTurn: boolean;
+  optimizationSessionId?: string;
+}
+
+export interface CreditPrecheckErr {
+  ok: false;
+  status: number;
+  error: string;
+  body?: Record<string, unknown>;
+}
+
+export type CreditPrecheckResult = CreditPrecheckOk | CreditPrecheckErr;
+
+// Verify the request is allowed to start an AI job. Does NOT deduct credits.
+// Mirrors the gating logic of `requireCredits` so behaviour is consistent across
+// the sync and async endpoints.
+export async function precheckCreditsForJob(req: Request): Promise<CreditPrecheckResult> {
+  try {
+    const userIdentifier = creditService.getUserIdentifier(req);
+    const user = (req as any).user;
+    const taskType = req.body?.taskType;
+    const creditCost = getCreditCost(taskType);
+    const isAuthenticated = creditService.isAuthenticatedUser(req);
+
+    const userEmail = user?.email || user?.claims?.email;
+    if (isAdminUser(userEmail)) {
+      return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false };
+    }
+
+    const userId = user?.id || (userEmail ? await findUserIdByEmail(userEmail) : null);
+    if (userId) {
+      const groupControls = await getUserGroupAccessControls(userId);
+      if (groupControls.bypassCreditCheck || groupControls.unlimitedCredits) {
+        return { ok: true, userIdentifier, isAuthenticated, taskType, creditCost, isExempt: true, isOptimizationSessionTurn: false };
+      }
+    }
+
+    const optimizationSessionId = req.body?.optimizationSessionId;
+    const isWorkflowReasoning = taskType === 'workflow_reasoning';
+    // For optimization sessions we cannot consume the "free turn" here (precheck
+    // must be idempotent — the job might fail). We just flag it and consume on success.
+    const isOptimizationSessionTurn =
+      !!(isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string');
+
+    // Verify the user has credits available without deducting. Use a balance check.
+    await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
+    const remaining = await creditService.getRemainingCredits(userIdentifier, isAuthenticated);
+
+    if (!isOptimizationSessionTurn && remaining < creditCost) {
+      return {
+        ok: false,
+        status: 403,
+        error: "Daily credit limit reached. Credits reset every 24 hours. Contact info@kiteframe.space for a bonus unlock code.",
+        body: { remainingCredits: 0, creditCost, resetsDaily: true },
+      };
+    }
+
+    return {
+      ok: true,
+      userIdentifier,
+      isAuthenticated,
+      taskType,
+      creditCost,
+      isExempt: false,
+      isOptimizationSessionTurn,
+      optimizationSessionId: isOptimizationSessionTurn ? optimizationSessionId : undefined,
+    };
+  } catch (error) {
+    console.error('precheckCreditsForJob error:', error);
+    return { ok: false, status: 500, error: 'Could not verify credits.' };
+  }
+}
+
+// Called AFTER a successful AI job. Performs the actual credit deduction
+// (or skips it for exempt/optimization-session turns) and returns the resulting
+// remaining-credits count for client display.
+export async function deductCreditsAfterSuccess(precheck: CreditPrecheckOk): Promise<{
+  charged: boolean;
+  creditCost: number;
+  remainingCredits: number;
+}> {
+  if (precheck.isExempt) {
+    return { charged: false, creditCost: precheck.creditCost, remainingCredits: 999999 };
+  }
+
+  // Try to consume an optimization-session free turn first. If still valid this
+  // returns true and we skip the deduction. If the session has expired or been
+  // exhausted between precheck and now, we fall through to the normal deduction.
+  if (precheck.isOptimizationSessionTurn && precheck.optimizationSessionId) {
+    const sessionConsumed = isValidOptimizationSession(precheck.optimizationSessionId, precheck.userIdentifier);
+    if (sessionConsumed) {
+      const remaining = await creditService.getRemainingCredits(precheck.userIdentifier, precheck.isAuthenticated);
+      console.log(`[Session] Credit deduction skipped for active optimization session: ${precheck.optimizationSessionId.slice(0, 8)}...`);
+      return { charged: false, creditCost: 0, remainingCredits: remaining };
+    }
+  }
+
+  const deductResult = await creditService.deductCreditAtomic(
+    precheck.userIdentifier,
+    precheck.creditCost,
+    precheck.isAuthenticated,
+  );
+
+  if (!deductResult.success) {
+    // User exhausted credits between precheck and post-success. We've already done
+    // the work, so log and return remaining=0; the caller may surface a warning.
+    console.warn(`Post-success deduction failed for ${precheck.userIdentifier}: insufficient credits.`);
+    return { charged: false, creditCost: precheck.creditCost, remainingCredits: 0 };
+  }
+
+  // Register optimization session for workflow_reasoning turns so subsequent
+  // refinements within the session are free (matches sync requireCredits behaviour).
+  if (precheck.taskType === 'workflow_reasoning' && precheck.optimizationSessionId) {
+    registerOptimizationSession(precheck.optimizationSessionId, precheck.userIdentifier);
+  }
+
+  console.log(`[Job] Credit deducted (cost: ${precheck.creditCost}). User: ${precheck.userIdentifier}, Remaining: ${deductResult.remainingCredits}`);
+  return {
+    charged: true,
+    creditCost: precheck.creditCost,
+    remainingCredits: deductResult.remainingCredits,
+  };
 }
 
 export { getUserGroupAccessControls, MergedAccessControls };

@@ -29,7 +29,9 @@ import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
-import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls } from "./middleware/creditCheck";
+import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess } from "./middleware/creditCheck";
+import { executeAiChat } from "./aiChatExecutor";
+import { createJob, getJob, setJobRunning, completeJob, failJob, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER } from "./aiJobStore";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
@@ -1789,12 +1791,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Shared post-success bookkeeping: analytics + usage logging.
+  // Used by both the sync /api/ai/chat path and the async job worker so they stay in sync.
+  async function recordAiUsage(opts: {
+    req: any;
+    activeProvider: string;
+    activeModel: string;
+    taskType?: string;
+    json: any;
+    creditCost?: number;
+    userIdentifierOverride?: string;
+  }): Promise<void> {
+    const { req, activeProvider, activeModel, taskType, json, creditCost, userIdentifierOverride } = opts;
+    const userIdentifier = userIdentifierOverride || creditService.getUserIdentifier(req);
+    let country: string | undefined;
+    try {
+      const geoResult = await geolocationService.getCountryCode(req);
+      country = geoResult.country;
+    } catch {
+      country = undefined;
+    }
+    analyticsService.trackAIRequest(userIdentifier, country, activeProvider).catch(console.error);
+    const usage = json?.usage;
+    if (usage) {
+      const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+      const TASK_TO_FEATURE: Record<string, import('./aiUsageService').UsageLogParams['feature']> = {
+        workflow_reasoning: 'workflow_reasoning',
+        workflow_experiments: 'workflow_experiments',
+        prd_generation: 'prd_generation',
+        vision_ingestion: 'vision_ingestion',
+        general_chat: 'general_chat',
+      };
+      const aiFeature = TASK_TO_FEATURE[taskType as string] || 'general_chat';
+      logAiUsage({
+        userId: userId || undefined,
+        feature: aiFeature,
+        model: activeModel || 'claude-haiku-4-5-20251001',
+        promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
+        completionTokens: usage.completion_tokens || usage.output_tokens || 0,
+        creditsCharged: creditCost,
+      }).catch(console.error);
+    }
+  }
+
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
   app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
-      const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType, sessionLocked } = req.body;
-      
-      // Task-type based model routing policy (Anthropic Claude)
+      const { taskType } = req.body;
+      const result = await executeAiChat(req.body);
+      if (!result.ok) {
+        return res.status(result.status).json({
+          error: result.error,
+          ...(result.details ? { details: result.details } : {}),
+        });
+      }
+      const creditInfo = req.creditDeducted;
+      await recordAiUsage({
+        req,
+        activeProvider: result.activeProvider!,
+        activeModel: result.activeModel!,
+        taskType,
+        json: result.json,
+        creditCost: creditInfo?.creditCost,
+      });
+      res.json({
+        text: result.text,
+        credits: creditInfo ? {
+          remaining: creditInfo.remainingCredits,
+          cost: creditInfo.creditCost,
+        } : undefined,
+      });
+    } catch (error: any) {
+      console.error('AI chat error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // === Async AI Job endpoints ===
+  // POST /api/ai/job  -> create a job, return { jobId } immediately, run AI in background.
+  // GET  /api/ai/jobs/:jobId -> poll job status; on success/failure returns the final result.
+  // Credits are charged ONLY after the AI call succeeds. Jobs survive client tab navigation
+  // because they live in server memory keyed by jobId.
+  app.post('/api/ai/job', aiRateLimiter, requireUSOnly, async (req, res) => {
+    try {
+      const precheck = await precheckCreditsForJob(req);
+      if (!precheck.ok) {
+        return res.status(precheck.status).json({ error: precheck.error, ...(precheck.body || {}) });
+      }
+
+      const active = getActiveJobCount(precheck.userIdentifier);
+      if (active >= MAX_CONCURRENT_JOBS_PER_USER) {
+        return res.status(429).json({
+          error: `Too many concurrent AI operations (${active}/${MAX_CONCURRENT_JOBS_PER_USER}). Wait for one to finish before starting another.`,
+        });
+      }
+
+      const job = createJob({
+        userIdentifier: precheck.userIdentifier,
+        taskType: precheck.taskType,
+        label: typeof req.body?.jobLabel === 'string' ? req.body.jobLabel : undefined,
+        creditCost: precheck.creditCost,
+      });
+
+      // Capture the body now since req may be reused before the async work runs.
+      const capturedBody = req.body;
+      const reqRef = req;
+
+      // Fire-and-forget: do the AI call, then deduct credits on success.
+      (async () => {
+        setJobRunning(job.id);
+        try {
+          const result = await executeAiChat(capturedBody);
+          if (!result.ok) {
+            failJob(job.id, result.error || 'AI request failed', result.status);
+            return;
+          }
+          let credits: { remaining: number; cost: number } | undefined;
+          try {
+            const deducted = await deductCreditsAfterSuccess(precheck);
+            credits = { remaining: deducted.remainingCredits, cost: deducted.creditCost };
+          } catch (e) {
+            console.error('Post-success deduction error:', e);
+          }
+          completeJob(job.id, { text: result.text || '', credits });
+          recordAiUsage({
+            req: reqRef,
+            activeProvider: result.activeProvider!,
+            activeModel: result.activeModel!,
+            taskType: precheck.taskType,
+            json: result.json,
+            creditCost: credits?.cost,
+            userIdentifierOverride: precheck.userIdentifier,
+          }).catch(console.error);
+        } catch (err: any) {
+          console.error('AI job worker error:', err);
+          failJob(job.id, err?.message || 'Internal server error', 500);
+        }
+      })();
+
+      res.status(202).json({ jobId: job.id, status: job.status });
+    } catch (error: any) {
+      console.error('Create AI job error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
+    try {
+      const job = getJob(req.params.jobId);
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found or expired' });
+      }
+      // Owner check: jobs are bound to the requester's userIdentifier so a different
+      // session/user can't poll someone else's results.
+      const userIdentifier = creditService.getUserIdentifier(req);
+      if (job.userIdentifier !== userIdentifier) {
+        return res.status(403).json({ error: 'Not authorized to view this job' });
+      }
+      if (job.status === 'completed') {
+        return res.json({
+          jobId: job.id,
+          status: 'completed',
+          text: job.result?.text ?? '',
+          credits: job.result?.credits,
+        });
+      }
+      if (job.status === 'failed') {
+        return res.json({
+          jobId: job.id,
+          status: 'failed',
+          error: job.error,
+          errorStatus: job.errorStatus,
+        });
+      }
+      res.json({ jobId: job.id, status: job.status });
+    } catch (error: any) {
+      console.error('Get AI job error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // (Old inline /api/ai/chat handler removed; logic now lives in server/aiChatExecutor.ts)
+  // The following block is intentionally left out — see executeAiChat().
+  /* ORPHAN_REMOVED_START
       const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowUserOverride: boolean }> = {
         workflow_reasoning: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
         workflow_experiments: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
@@ -2091,6 +2270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+  ORPHAN_REMOVED_END */
 
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
   app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {

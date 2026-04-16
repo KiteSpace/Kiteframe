@@ -6,6 +6,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PromptContextStoreProvider } from "@/contexts/PromptContextStore";
 import { FeatureFlagProvider } from "@/contexts/FeatureFlagContext";
+import { AiJobsProvider, useAiJobs } from "@/contexts/AiJobsContext";
+import { AiJobsIndicator } from "@/components/AiJobsIndicator";
+import { setAiJobHooks } from "@/ai/OpenAICompatClient";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import { PageViewTracker } from "@/components/PageViewTracker";
@@ -172,21 +175,37 @@ function Router() {
   );
 }
 
+// Bridges the AiJobs context into the OpenAICompatClient module so that the
+// client (which is plain JS, not a React component) can register/clear pending
+// jobs and rehydrate them after navigation via the persistent indicator.
+function AiJobHooksBridge() {
+  const { registerJob, clearJob } = useAiJobs();
+  useEffect(() => {
+    setAiJobHooks({ register: registerJob, clear: clearJob });
+    return () => setAiJobHooks(null);
+  }, [registerJob, clearJob]);
+  return null;
+}
+
 function App() {
   useCleanupQueryParams();
   
   return (
     <QueryClientProvider client={queryClient}>
       <FeatureFlagProvider>
-        <PromptContextStoreProvider>
-          <TooltipProvider>
-            <Toaster />
-            <AnnouncementBanner />
-            <WelcomeModal />
-            <Router />
-            <CookieBanner />
-          </TooltipProvider>
-        </PromptContextStoreProvider>
+        <AiJobsProvider>
+          <PromptContextStoreProvider>
+            <TooltipProvider>
+              <AiJobHooksBridge />
+              <Toaster />
+              <AnnouncementBanner />
+              <WelcomeModal />
+              <Router />
+              <CookieBanner />
+              <AiJobsIndicator />
+            </TooltipProvider>
+          </PromptContextStoreProvider>
+        </AiJobsProvider>
       </FeatureFlagProvider>
     </QueryClientProvider>
   );
