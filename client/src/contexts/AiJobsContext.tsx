@@ -26,7 +26,15 @@ export interface CompletedAiJob {
 interface AiJobsContextValue {
   pendingJobs: PendingAiJob[];
   registerJob: (job: PendingAiJob) => void;
+  // Remove a jobId from the pending list and cancel its background watcher.
+  // Does NOT touch completedJobs — completion records must survive so a
+  // remounted surface can still claim them via takeCompletedJobsForOrigin.
   clearJob: (jobId: string) => void;
+  // Called by the foreground caller (e.g. OpenAICompatClient) the moment it
+  // hands the result to its awaiting consumer. Suppresses any later remount
+  // replay for that jobId so the user doesn't see a duplicate "recovered"
+  // assistant message for a result they already saw.
+  markConsumed: (jobId: string) => void;
   // Result handoff: surfaces that initiated a job but unmounted (e.g. user
   // navigated to another tab) can read the completed result on remount via
   // these helpers. Results live for ~10 minutes or until consumed.
@@ -85,10 +93,10 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save(PENDING_KEY, pendingJobs); }, [pendingJobs]);
   useEffect(() => { save(COMPLETED_KEY, completedJobs); }, [completedJobs]);
 
-  // Tracks job ids whose result was already consumed by the foreground caller
-  // (e.g. OpenAICompatClient.pollJob completed and the awaiting code path got
-  // the result inline). The dual poller in this context could otherwise race
-  // and record a duplicate "completed" entry that gets replayed on remount.
+  // Tracks job ids whose result was already handed to the foreground caller
+  // inline. Only `markConsumed` adds to this set — `clearJob` does NOT, so a
+  // job whose initiating UI unmounted before completion still gets persisted
+  // for remount handoff.
   const consumedRef = useRef<Set<string>>(new Set());
 
   const recordCompleted = useCallback((entry: CompletedAiJob) => {
@@ -102,16 +110,23 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearJob = useCallback((jobId: string) => {
-    // Mark as consumed so an in-flight watcher tick that races with this clear
-    // can't drop a duplicate completion into completedJobs.
-    consumedRef.current.add(jobId);
+    // Only remove from pending and cancel the watcher. NEVER drop completed
+    // records here — that would break remount handoff (a watcher would record
+    // completion and then immediately wipe it).
     setPendingJobs(prev => prev.filter(j => j.jobId !== jobId));
-    setCompletedJobs(prev => prev.filter(j => j.jobId !== jobId));
     const handle = watcherRef.current.get(jobId);
     if (handle) {
       window.clearTimeout(handle);
       watcherRef.current.delete(jobId);
     }
+  }, []);
+
+  const markConsumed = useCallback((jobId: string) => {
+    consumedRef.current.add(jobId);
+    // If the watcher already persisted a completion for this job (race), drop
+    // it now so the foreground caller's inline result isn't duplicated by a
+    // remount replay.
+    setCompletedJobs(prev => prev.filter(j => j.jobId !== jobId));
   }, []);
 
   // Background watcher: poll the server until a known job finishes, then move it
@@ -211,7 +226,7 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
 
   return (
     <AiJobsContext.Provider value={{
-      pendingJobs, registerJob, clearJob,
+      pendingJobs, registerJob, clearJob, markConsumed,
       takeCompletedJob, takeCompletedJobsForOrigin, peekCompletedJobsForOrigin,
     }}>
       {children}
@@ -226,6 +241,7 @@ export function useAiJobs(): AiJobsContextValue {
       pendingJobs: [],
       registerJob: () => {},
       clearJob: () => {},
+      markConsumed: () => {},
       takeCompletedJob: () => null,
       takeCompletedJobsForOrigin: () => [],
       peekCompletedJobsForOrigin: () => [],

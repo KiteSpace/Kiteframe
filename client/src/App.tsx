@@ -179,11 +179,11 @@ function Router() {
 // client (which is plain JS, not a React component) can register/clear pending
 // jobs and rehydrate them after navigation via the persistent indicator.
 function AiJobHooksBridge() {
-  const { registerJob, clearJob } = useAiJobs();
+  const { registerJob, clearJob, markConsumed } = useAiJobs();
   useEffect(() => {
-    setAiJobHooks({ register: registerJob, clear: clearJob });
+    setAiJobHooks({ register: registerJob, clear: clearJob, markConsumed });
     return () => setAiJobHooks(null);
-  }, [registerJob, clearJob]);
+  }, [registerJob, clearJob, markConsumed]);
   return null;
 }
 

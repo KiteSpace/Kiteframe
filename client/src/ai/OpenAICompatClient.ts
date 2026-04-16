@@ -41,6 +41,7 @@ function jobLabelFor(taskType: string | undefined): string {
 type JobHooks = {
   register: (job: { jobId: string; label: string; taskType?: string; startedAt: number; originPath?: string }) => void;
   clear: (jobId: string) => void;
+  markConsumed: (jobId: string) => void;
 };
 
 let jobHooks: JobHooks | null = null;
@@ -143,6 +144,10 @@ export class OpenAICompatClient implements AiClient {
 
     try {
       const { text } = await pollJob(jobId);
+      // Result is being handed back to the awaiting consumer right now —
+      // suppress remount replay so the user doesn't see a duplicate
+      // "recovered" message for this same output.
+      jobHooks?.markConsumed(jobId);
       return { text };
     } finally {
       jobHooks?.clear(jobId);
