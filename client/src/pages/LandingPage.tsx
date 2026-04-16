@@ -579,14 +579,11 @@ export default function LandingPage() {
         {/* Waitlist Section */}
         <section id="waitlist-section" className="max-w-xl mx-auto px-8 py-20">
           <h2
-            className="text-3xl font-bold text-foreground text-center mb-4"
+            className="text-3xl font-bold text-foreground text-center mb-8"
             data-testid="heading-waitlist"
           >
-            Join the beta
+            Create an Account
           </h2>
-          <p className="text-lg text-muted-foreground text-center mb-8">
-            Sign in to request access. We'll notify you when your spot is ready.
-          </p>
 
           {!isOnWaitlist && (
             <div
