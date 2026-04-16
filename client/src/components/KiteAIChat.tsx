@@ -420,7 +420,7 @@ export function KiteAIChatBrain({
   // chat surface was unmounted (e.g. user navigated to another tab waiting for
   // a long PRD generation). Their results are injected as assistant messages
   // so no work is silently lost.
-  const { takeCompletedJobsForOrigin } = useAiJobs();
+  const { takeCompletedJobsForOrigin, markConsumed: markJobConsumed } = useAiJobs();
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originPath = window.location.pathname;
@@ -1125,6 +1125,11 @@ export function KiteAIChatBrain({
         maxTokens: effectiveTaskType === 'workflow_reasoning' ? 8000 : 3000,
         optimizationSessionId: effectiveSessionId || undefined,
       });
+
+      // Surface-level acknowledgment of background job consumption: this
+      // chat surface is mounted and is about to render the result, so any
+      // remount-handoff replay for this jobId must be suppressed.
+      if (response.jobId) markJobConsumed(response.jobId);
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
       let responseText = response.text;
@@ -1913,6 +1918,7 @@ export function KiteAIChatBrain({
             temperature: 0.5,
             maxTokens: 4000
           });
+          if (expandResponse.jobId) markJobConsumed(expandResponse.jobId);
           
           // Phase 2: Use deterministic parsing with proper error handling
           const requestId1 = `req_${Date.now()}_expand`;
@@ -2030,6 +2036,7 @@ export function KiteAIChatBrain({
             temperature: 0.5,
             maxTokens: 1500
           });
+          if (listResponse.jobId) markJobConsumed(listResponse.jobId);
           
           // Phase 2: Use deterministic parsing with proper error handling
           const requestId2 = `req_${Date.now()}_discuss`;
@@ -2112,6 +2119,7 @@ export function KiteAIChatBrain({
         temperature: 0.5,
         maxTokens: 4000
       });
+      if (selectResponse.jobId) markJobConsumed(selectResponse.jobId);
       
       // Phase 2: Use deterministic parsing with proper error handling
       const requestId3 = `req_${Date.now()}_select`;
@@ -2796,6 +2804,7 @@ ${workflowContext}`;
           ...conversationHistory
         ]
       });
+      if (response?.jobId) markJobConsumed(response.jobId);
       
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now()}-response`,

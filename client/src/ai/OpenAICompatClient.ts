@@ -144,11 +144,15 @@ export class OpenAICompatClient implements AiClient {
 
     try {
       const { text } = await pollJob(jobId);
-      // Result is being handed back to the awaiting consumer right now —
-      // suppress remount replay so the user doesn't see a duplicate
-      // "recovered" message for this same output.
-      jobHooks?.markConsumed(jobId);
-      return { text };
+      // We DON'T call markConsumed here — at this point we have no way to
+      // know whether the awaiting React surface is still mounted to actually
+      // receive the result. The background watcher in AiJobsContext will
+      // persist the completion to completedJobs; the foreground surface is
+      // responsible for calling markConsumed once it has actually rendered
+      // the result, which is what prevents a duplicate "recovered" message.
+      // We DO clear the pending entry from the indicator so the spinner
+      // disappears even if the surface is unmounted.
+      return { text, jobId };
     } finally {
       jobHooks?.clear(jobId);
     }

@@ -36,7 +36,7 @@ export type AiRequest = {
   optimizationSessionId?: string;
 };
 
-export type AiResponse = { text: string };
+export type AiResponse = { text: string; jobId?: string };
 
 export interface ModelCapabilities {
   vision: boolean;
