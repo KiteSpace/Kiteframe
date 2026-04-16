@@ -314,8 +314,19 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
 
     const optimizationSessionId = req.body?.optimizationSessionId;
     const isWorkflowReasoning = taskType === 'workflow_reasoning';
-    // For optimization sessions we cannot consume the "free turn" here (precheck
-    // must be idempotent — the job might fail). We just flag it and consume on success.
+    // SECURITY: peek at session ownership without consuming a free turn. Only treat
+    // as a free-turn request if the session actually exists AND is owned by this
+    // user. We must never let a client bypass the credit balance check by passing
+    // an arbitrary session id — the original sync `requireCredits` middleware
+    // enforced this via `isValidOptimizationSession`, and the async precheck must
+    // match that semantic.
+    const sessionOwner =
+      isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string'
+        ? getOptimizationSessionOwner(optimizationSessionId)
+        : null;
+    const hasValidSession = sessionOwner !== null && sessionOwner === userIdentifier;
+    // We still want to pass the session id through to post-success so a *new*
+    // session (first turn) can be registered after a successful deduction.
     const isOptimizationSessionTurn =
       !!(isWorkflowReasoning && optimizationSessionId && typeof optimizationSessionId === 'string');
 
@@ -323,7 +334,8 @@ export async function precheckCreditsForJob(req: Request): Promise<CreditPrechec
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
     const remaining = await creditService.getRemainingCredits(userIdentifier, isAuthenticated);
 
-    if (!isOptimizationSessionTurn && remaining < creditCost) {
+    // Only skip the balance check when the session is verifiably valid for this user.
+    if (!hasValidSession && remaining < creditCost) {
       return {
         ok: false,
         status: 403,

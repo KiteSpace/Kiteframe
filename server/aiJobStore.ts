@@ -80,6 +80,10 @@ export function createJob(opts: {
 }
 
 export function getJob(id: string): AiJob | null {
+  // Run stale cleanup on every read so a hung pending/running job is force-failed
+  // by the time the client polls it (otherwise GET-only flows would never trigger
+  // cleanup and a stuck job would appear to hang forever from the client's POV).
+  cleanStale();
   return jobs.get(id) || null;
 }
 
