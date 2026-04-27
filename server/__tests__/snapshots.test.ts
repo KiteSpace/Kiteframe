@@ -643,40 +643,51 @@ describe('Mirror to saved_projects', () => {
 // ---------------------------------------------------------------------------
 describe('routes.ts source — guardrails', () => {
   const routesSrc = readFileSync(resolve(__dirname, '../routes.ts'), 'utf8');
+  // Handlers were extracted into snapshotHandlers.ts so they can be unit-
+  // tested in isolation (see snapshotHandlers.integration.test.ts). The
+  // wiring guardrail still belongs to routes.ts; everything else now lives
+  // in the handler module.
+  const handlersSrc = readFileSync(
+    resolve(__dirname, '../snapshotHandlers.ts'),
+    'utf8',
+  );
 
   it('every snapshot endpoint references isAuthenticated', () => {
     const lines = routesSrc.split('\n');
     const endpoints = [
       "app.post('/api/snapshots'",
-      "app.get('/api/snapshots/:workflowId'",
-      "app.post('/api/snapshots/:id/restore'",
+      "app.get(",
+      "app.post(",
     ];
-    for (const ep of endpoints) {
-      const line = lines.find((l) => l.includes(ep));
-      expect(line, `missing endpoint declaration for ${ep}`).toBeDefined();
-      expect(line!).toContain('isAuthenticated');
+    // Pull the 3-line block following each registration to be tolerant of
+    // multi-line arg formatting introduced when handlers were extracted.
+    function blockFor(needle: string, after = 0): string | undefined {
+      const idx = routesSrc.indexOf(needle, after);
+      if (idx === -1) return undefined;
+      return routesSrc.slice(idx, idx + 200);
     }
+    expect(blockFor("app.post('/api/snapshots'")).toContain('isAuthenticated');
+    expect(blockFor("app.get(\n    '/api/snapshots/:workflowId'")).toContain(
+      'isAuthenticated',
+    );
+    expect(blockFor("app.post(\n    '/api/snapshots/:id/restore'")).toContain(
+      'isAuthenticated',
+    );
   });
 
-  it('GET endpoint returns 404 when result set is empty (no leak via [])', () => {
-    expect(routesSrc).toMatch(/snapshots\.length === 0[\s\S]*?status\(404\)/);
+  it('GET handler returns 404 when result set is empty (no leak via [])', () => {
+    expect(handlersSrc).toMatch(/snapshots\.length === 0[\s\S]*?status\(404\)/);
   });
 
   it('mirror logic merges with existing workflowData rather than replacing', () => {
-    expect(routesSrc).toMatch(/\.\.\.existing[\s\S]*?nodes:\s*parsedNodes/);
+    expect(handlersSrc).toMatch(/\.\.\.existing[\s\S]*?nodes:\s*parsedNodes/);
   });
 
-  it('does not bypass types via `as any` in the snapshot mirror block', () => {
-    // Extract just the snapshot endpoint block to scope the assertion. We
-    // accept `as any` elsewhere in the (huge) routes.ts file — only the
-    // mirror code introduced in Task #64 must be type-clean.
-    const start = routesSrc.indexOf("app.post('/api/snapshots'");
-    const end = routesSrc.indexOf(
-      "app.get('/api/snapshots/:workflowId'",
-      start,
-    );
-    const block = routesSrc.slice(start, end);
-    expect(block).not.toMatch(/as any/);
+  it('does not bypass types via `as any` in the snapshot handlers', () => {
+    // The handler module is dedicated to snapshot logic, so we can apply
+    // the no-`as any` rule to the whole file (vs. just the mirror block
+    // when the code lived inside the giant routes.ts).
+    expect(handlersSrc).not.toMatch(/as any/);
   });
 });
 
