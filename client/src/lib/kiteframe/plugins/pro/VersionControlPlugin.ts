@@ -64,14 +64,34 @@ export class VersionControlPlugin implements KiteFramePlugin {
     };
   })();
 
+  // Cache the auth status briefly to avoid hammering /api/auth/user on every
+  // autosave tick. If unauthenticated we skip the snapshot write entirely so
+  // we don't generate 401 noise or orphan rows.
+  private authCheckedAt = 0;
+  private isAuthed = false;
+  private async ensureAuthed(): Promise<boolean> {
+    const now = Date.now();
+    if (now - this.authCheckedAt < 30_000) return this.isAuthed;
+    try {
+      const res = await fetch('/api/auth/user', { credentials: 'include' });
+      this.isAuthed = res.ok;
+    } catch {
+      this.isAuthed = false;
+    }
+    this.authCheckedAt = now;
+    return this.isAuthed;
+  }
+
   private async createAutoSnapshot(): Promise<void> {
     try {
       const tabManager = (window as any).tabManager;
       if (!tabManager?.currentTab) return;
+      if (!(await this.ensureAuthed())) return;
 
       const currentTab = tabManager.currentTab;
       const snapshotData = {
         workflowId: currentTab.id,
+        cloudProjectId: currentTab.cloudProjectId || undefined,
         name: `Auto-save ${new Date().toLocaleString()}`,
         description: 'Automatic snapshot',
         nodes: JSON.stringify(currentTab.nodes),
@@ -84,8 +104,9 @@ export class VersionControlPlugin implements KiteFramePlugin {
         isAutoSave: true
       };
 
-      const response = await fetch('/api/snapshots', {
+      await fetch('/api/snapshots', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshotData)
       });
@@ -99,10 +120,12 @@ export class VersionControlPlugin implements KiteFramePlugin {
     try {
       const tabManager = (window as any).tabManager;
       if (!tabManager?.currentTab) return false;
+      if (!(await this.ensureAuthed())) return false;
 
       const currentTab = tabManager.currentTab;
       const snapshotData = {
         workflowId: currentTab.id,
+        cloudProjectId: currentTab.cloudProjectId || undefined,
         name,
         description: description || `Manual snapshot: ${name}`,
         nodes: JSON.stringify(currentTab.nodes),
@@ -117,6 +140,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
 
       const response = await fetch('/api/snapshots', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshotData)
       });
@@ -124,7 +148,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
       if (response.ok) {
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Snapshot creation failed:', error);
@@ -134,7 +158,9 @@ export class VersionControlPlugin implements KiteFramePlugin {
 
   async getSnapshots(workflowId: string): Promise<any[]> {
     try {
-      const response = await fetch(`/api/snapshots/${workflowId}`);
+      const response = await fetch(`/api/snapshots/${workflowId}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         return await response.json();
       }
@@ -148,7 +174,8 @@ export class VersionControlPlugin implements KiteFramePlugin {
   async restoreSnapshot(snapshotId: string): Promise<boolean> {
     try {
       const response = await fetch(`/api/snapshots/${snapshotId}/restore`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
       });
       
       if (response.ok) {

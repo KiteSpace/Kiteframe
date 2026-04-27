@@ -26,7 +26,7 @@ import {
   bannedEmails,
 } from "@shared/schema";
 import crypto from 'crypto';
-import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
@@ -2596,12 +2596,21 @@ Respond with only the corrected JSON data:`;
   // Pro Plugin API Routes
 
   // Workflow Snapshots API (Version Control Pro)
-  app.post('/api/snapshots', async (req, res) => {
+  // Per-user retention cap for autosaves to prevent unbounded growth.
+  const AUTOSAVE_RETENTION_PER_WORKFLOW = 50;
+
+  app.post('/api/snapshots', isAuthenticated, async (req: any, res) => {
     try {
-      const { workflowId, name, description, nodes, edges, metadata, isAutoSave } = req.body;
-      
-      const snapshot = await db.insert(workflowSnapshots).values({
+      const userId = getUserIdFromRequest(req.user);
+      const { workflowId, name, description, nodes, edges, metadata, isAutoSave, cloudProjectId } = req.body;
+
+      if (!workflowId || !name) {
+        return res.status(400).json({ error: 'workflowId and name are required' });
+      }
+
+      const [snapshot] = await db.insert(workflowSnapshots).values({
         workflowId,
+        userId,
         name,
         description,
         nodes,
@@ -2610,21 +2619,83 @@ Respond with only the corrected JSON data:`;
         isAutoSave: isAutoSave || false
       }).returning();
 
-      res.json(snapshot[0]);
+      // Trim autosaves beyond the per-(user, workflow) retention cap.
+      // Manual snapshots are never trimmed.
+      if (isAutoSave) {
+        try {
+          const oldAutosaves = await db
+            .select({ id: workflowSnapshots.id })
+            .from(workflowSnapshots)
+            .where(and(
+              eq(workflowSnapshots.userId, userId),
+              eq(workflowSnapshots.workflowId, workflowId),
+              eq(workflowSnapshots.isAutoSave, true),
+            ))
+            .orderBy(desc(workflowSnapshots.createdAt))
+            .offset(AUTOSAVE_RETENTION_PER_WORKFLOW);
+
+          if (oldAutosaves.length > 0) {
+            await db
+              .delete(workflowSnapshots)
+              .where(inArray(workflowSnapshots.id, oldAutosaves.map(s => s.id)));
+          }
+        } catch (trimErr) {
+          // Trim failure must never break the save itself.
+          console.warn('Snapshot retention trim failed:', trimErr);
+        }
+      }
+
+      // If the editor knows which cloud project this workflow belongs to,
+      // also mirror the latest workflow data into saved_projects so the
+      // Saved Projects drawer reflects current work without a manual save.
+      // IMPORTANT: workflowData is a full document (nodes, edges, canvasObjects,
+      // viewport, flowSettings, etc). We MUST merge with the existing record
+      // rather than replace it, otherwise any field the autosave payload
+      // doesn't carry (canvasObjects, viewport, ...) would be silently wiped
+      // on every autosave — that was the original incident's failure mode.
+      if (cloudProjectId) {
+        try {
+          const project = await storage.getSavedProject(cloudProjectId, userId);
+          if (project) {
+            const parsedNodes = typeof nodes === 'string' ? JSON.parse(nodes) : nodes;
+            const parsedEdges = typeof edges === 'string' ? JSON.parse(edges) : edges;
+            const existing =
+              project.workflowData && typeof project.workflowData === 'object'
+                ? (project.workflowData as Record<string, any>)
+                : {};
+            const mergedWorkflowData = {
+              ...existing,
+              nodes: parsedNodes,
+              edges: parsedEdges,
+            };
+            await storage.updateSavedProject(cloudProjectId, userId, {
+              workflowData: mergedWorkflowData as any,
+            });
+          }
+        } catch (mirrorErr) {
+          console.warn('saved_projects mirror update failed:', mirrorErr);
+        }
+      }
+
+      res.json(snapshot);
     } catch (error) {
       console.error('Snapshot creation error:', error);
       res.status(500).json({ error: 'Failed to create snapshot' });
     }
   });
 
-  app.get('/api/snapshots/:workflowId', async (req, res) => {
+  app.get('/api/snapshots/:workflowId', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = getUserIdFromRequest(req.user);
       const { workflowId } = req.params;
-      
+
       const snapshots = await db
         .select()
         .from(workflowSnapshots)
-        .where(eq(workflowSnapshots.workflowId, workflowId))
+        .where(and(
+          eq(workflowSnapshots.workflowId, workflowId),
+          eq(workflowSnapshots.userId, userId),
+        ))
         .orderBy(desc(workflowSnapshots.createdAt));
 
       res.json(snapshots);
@@ -2634,14 +2705,18 @@ Respond with only the corrected JSON data:`;
     }
   });
 
-  app.post('/api/snapshots/:id/restore', async (req, res) => {
+  app.post('/api/snapshots/:id/restore', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = getUserIdFromRequest(req.user);
       const { id } = req.params;
-      
+
       const snapshot = await db
         .select()
         .from(workflowSnapshots)
-        .where(eq(workflowSnapshots.id, id));
+        .where(and(
+          eq(workflowSnapshots.id, id),
+          eq(workflowSnapshots.userId, userId),
+        ));
 
       if (snapshot.length === 0) {
         return res.status(404).json({ error: 'Snapshot not found' });
