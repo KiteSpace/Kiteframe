@@ -104,15 +104,39 @@ export class VersionControlPlugin implements KiteFramePlugin {
         isAutoSave: true
       };
 
-      await fetch('/api/snapshots', {
+      const res = await fetch('/api/snapshots', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshotData)
       });
 
+      await this.patchTabFromResponse(currentTab, res);
+
     } catch (error) {
       console.error('Auto-snapshot failed:', error);
+    }
+  }
+
+  // Adopt the server-resolved cloudProjectId onto the active tab. This is
+  // critical for two cases: (1) the tab has no id yet and the server
+  // auto-created an Untitled project, and (2) the tab is pinned to a
+  // stale/foreign id and the server fell back to a different project. In
+  // case (2), failing to update the tab would loop forever — every autosave
+  // would re-send the bad id, the server would re-resolve, and the tab
+  // would never converge on the right project.
+  private async patchTabFromResponse(currentTab: any, res: Response): Promise<void> {
+    if (!res.ok) return;
+    try {
+      const body = await res.json();
+      const next = body && typeof body.cloudProjectId === 'string'
+        ? body.cloudProjectId
+        : null;
+      if (next && next !== currentTab.cloudProjectId) {
+        currentTab.cloudProjectId = next;
+      }
+    } catch {
+      // Response without JSON body — nothing to patch.
     }
   }
 
@@ -146,6 +170,9 @@ export class VersionControlPlugin implements KiteFramePlugin {
       });
 
       if (response.ok) {
+        // Manual saves also receive a server-resolved cloudProjectId; adopt
+        // it so the tab stops pinning a stale or missing id.
+        await this.patchTabFromResponse(currentTab, response);
         return true;
       }
 

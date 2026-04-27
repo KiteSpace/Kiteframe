@@ -2599,6 +2599,19 @@ Respond with only the corrected JSON data:`;
   // Per-user retention cap for autosaves to prevent unbounded growth.
   const AUTOSAVE_RETENTION_PER_WORKFLOW = 50;
 
+  // Shape of saved_projects.workflowData. The column is jsonb (typed as
+  // unknown by Drizzle), so we narrow it through this type rather than
+  // casting through `any`. Extra keys are preserved on merge.
+  type WorkflowDocument = {
+    nodes?: unknown;
+    edges?: unknown;
+    canvasObjects?: unknown;
+    viewport?: unknown;
+    flowSettings?: unknown;
+    workflowId?: string;
+    [k: string]: unknown;
+  };
+
   app.post('/api/snapshots', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);
@@ -2645,39 +2658,103 @@ Respond with only the corrected JSON data:`;
         }
       }
 
-      // If the editor knows which cloud project this workflow belongs to,
-      // also mirror the latest workflow data into saved_projects so the
-      // Saved Projects drawer reflects current work without a manual save.
-      // IMPORTANT: workflowData is a full document (nodes, edges, canvasObjects,
-      // viewport, flowSettings, etc). We MUST merge with the existing record
-      // rather than replace it, otherwise any field the autosave payload
-      // doesn't carry (canvasObjects, viewport, ...) would be silently wiped
-      // on every autosave — that was the original incident's failure mode.
-      if (cloudProjectId) {
-        try {
-          const project = await storage.getSavedProject(cloudProjectId, userId);
+      // Persistence unification: every authed snapshot also lands in
+      // saved_projects so the Saved Projects drawer reflects current work.
+      //   - If the editor sent a cloudProjectId the user owns → MERGE the
+      //     latest nodes/edges into that project's workflowData (preserving
+      //     canvasObjects, viewport, flowSettings, etc).
+      //   - Otherwise, if the workflow has actual content (nodes present),
+      //     auto-create an "Untitled — <date>" saved_projects row stamped
+      //     with workflowId so future autosaves for this workflow can find
+      //     and update it. Empty workflows do not auto-create projects to
+      //     avoid cluttering the drawer.
+      // Either way, the resolved cloudProjectId is returned in the response
+      // so the client can patch it onto the active tab.
+      let resolvedCloudProjectId: string | undefined =
+        typeof cloudProjectId === 'string' ? cloudProjectId : undefined;
+
+      try {
+        const parsedNodes = typeof nodes === 'string' ? JSON.parse(nodes) : nodes;
+        const parsedEdges = typeof edges === 'string' ? JSON.parse(edges) : edges;
+        const nodeCount = Array.isArray(parsedNodes) ? parsedNodes.length : 0;
+
+        // Phase 1: try to merge into the cloudProjectId the client supplied,
+        // if any. If that id is stale/foreign/deleted we fall through to
+        // Phase 2 below — never echo a foreign id back to the client.
+        if (resolvedCloudProjectId) {
+          const project = await storage.getSavedProject(resolvedCloudProjectId, userId);
           if (project) {
-            const parsedNodes = typeof nodes === 'string' ? JSON.parse(nodes) : nodes;
-            const parsedEdges = typeof edges === 'string' ? JSON.parse(edges) : edges;
-            const existing =
+            const existing: WorkflowDocument =
               project.workflowData && typeof project.workflowData === 'object'
-                ? (project.workflowData as Record<string, any>)
+                ? (project.workflowData as WorkflowDocument)
                 : {};
-            const mergedWorkflowData = {
+            const merged: WorkflowDocument = {
               ...existing,
+              workflowId,
               nodes: parsedNodes,
               edges: parsedEdges,
             };
-            await storage.updateSavedProject(cloudProjectId, userId, {
-              workflowData: mergedWorkflowData as any,
+            await storage.updateSavedProject(resolvedCloudProjectId, userId, {
+              workflowData: merged,
             });
+          } else {
+            resolvedCloudProjectId = undefined;
           }
-        } catch (mirrorErr) {
-          console.warn('saved_projects mirror update failed:', mirrorErr);
         }
+
+        // Phase 2: if we still don't have a resolved project AND the workflow
+        // has actual content, look up an auto-created project for this
+        // workflow_id (handles reloads where the tab lost its cloudProjectId
+        // but the project still exists), or create a new "Untitled — <date>"
+        // row stamped with workflowId. Empty workflows are skipped to avoid
+        // cluttering the drawer with empty Untitleds.
+        if (!resolvedCloudProjectId && nodeCount > 0) {
+          const userProjects = await storage.getSavedProjects(userId);
+          const existing = userProjects.find((p) => {
+            const wd = p.workflowData;
+            return (
+              wd &&
+              typeof wd === 'object' &&
+              (wd as WorkflowDocument).workflowId === workflowId
+            );
+          });
+
+          if (existing) {
+            resolvedCloudProjectId = existing.id;
+            const existingDoc: WorkflowDocument =
+              existing.workflowData && typeof existing.workflowData === 'object'
+                ? (existing.workflowData as WorkflowDocument)
+                : {};
+            await storage.updateSavedProject(existing.id, userId, {
+              workflowData: {
+                ...existingDoc,
+                workflowId,
+                nodes: parsedNodes,
+                edges: parsedEdges,
+              },
+            });
+          } else {
+            const stamp = new Date().toISOString().slice(0, 10);
+            const created = await storage.createSavedProject({
+              userId,
+              name: `Untitled — ${stamp}`,
+              description: 'Auto-created from autosave',
+              workflowData: {
+                workflowId,
+                nodes: parsedNodes,
+                edges: parsedEdges,
+              },
+            });
+            resolvedCloudProjectId = created.id;
+          }
+        }
+      } catch (mirrorErr) {
+        // Mirror failure must never break the snapshot write — the snapshot
+        // row is the durable record; the project mirror is a convenience.
+        console.warn('saved_projects mirror update failed:', mirrorErr);
       }
 
-      res.json(snapshot);
+      res.json({ ...snapshot, cloudProjectId: resolvedCloudProjectId ?? null });
     } catch (error) {
       console.error('Snapshot creation error:', error);
       res.status(500).json({ error: 'Failed to create snapshot' });
@@ -2697,6 +2774,14 @@ Respond with only the corrected JSON data:`;
           eq(workflowSnapshots.userId, userId),
         ))
         .orderBy(desc(workflowSnapshots.createdAt));
+
+      // Per task spec: cross-user reads (or unknown workflowIds) return 404
+      // rather than leaking existence via empty arrays. Since workflowId is
+      // an opaque client-generated tab id with no separate ownership entity,
+      // we treat "no snapshots accessible to caller" as "not found".
+      if (snapshots.length === 0) {
+        return res.status(404).json({ error: 'No snapshots found for this workflow' });
+      }
 
       res.json(snapshots);
     } catch (error) {
