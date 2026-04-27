@@ -783,4 +783,103 @@ describe('cleanup-orphan-snapshots.ts source — reclaim workflow', () => {
       /args\.has\('--confirm-delete'\)\s*&&\s*args\.has\('--i-understand'\)/,
     );
   });
+
+  it('refuses to auto-attribute workflow_ids with multiple distinct user candidates', () => {
+    // The reclaim phase must group by workflow_id, count distinct users,
+    // and skip any workflow_id with >1 owner. Ambiguous workflows must
+    // be reported separately and excluded from the UPDATE loop.
+    expect(cleanupSrc).toMatch(/byWorkflow/);
+    expect(cleanupSrc).toMatch(/distinctUsers/);
+    expect(cleanupSrc).toMatch(/ambiguous/);
+    // The UPDATE loop must iterate over the unambiguous-only collection,
+    // not the raw candidate set.
+    expect(cleanupSrc).toMatch(
+      /for \(const row of unambiguous\)[\s\S]*?\.update\(workflowSnapshots\)/,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Behavioral test: simulate the reclaim attribution policy with two users
+// who have stamped the same workflow_id in their saved_projects. The policy
+// must refuse to auto-reassign orphan snapshots in that case.
+// ---------------------------------------------------------------------------
+describe('Reclaim attribution policy — ambiguous workflow_id', () => {
+  type SavedProject = { user_id: string; id: string; workflow_id: string };
+  type Snapshot = { id: string; workflow_id: string; user_id: string | null };
+
+  // Pure helper mirroring the reclaim phase's attribution decision: groups
+  // candidates by workflow_id and only returns those with exactly one
+  // distinct user. Ambiguous workflows are returned separately for report.
+  function classifyAttribution(candidates: SavedProject[]) {
+    const byWorkflow = new Map<string, SavedProject[]>();
+    for (const c of candidates) {
+      const list = byWorkflow.get(c.workflow_id) ?? [];
+      list.push(c);
+      byWorkflow.set(c.workflow_id, list);
+    }
+    const unambiguous: SavedProject[] = [];
+    const ambiguous: string[] = [];
+    for (const [workflowId, rows] of byWorkflow.entries()) {
+      const distinctUsers = new Set(rows.map((r) => r.user_id));
+      if (distinctUsers.size === 1) unambiguous.push(rows[0]);
+      else ambiguous.push(workflowId);
+    }
+    return { unambiguous, ambiguous };
+  }
+
+  function applyReclaim(snapshots: Snapshot[], unambiguous: SavedProject[]) {
+    for (const candidate of unambiguous) {
+      for (const s of snapshots) {
+        if (s.workflow_id === candidate.workflow_id && s.user_id === null) {
+          s.user_id = candidate.user_id;
+        }
+      }
+    }
+  }
+
+  it('does not reassign orphan snapshots when two users claim the same workflow_id', () => {
+    const candidates: SavedProject[] = [
+      { user_id: 'alice', id: 'proj-a', workflow_id: 'shared-w1' },
+      { user_id: 'bob', id: 'proj-b', workflow_id: 'shared-w1' },
+    ];
+    const snapshots: Snapshot[] = [
+      { id: 's1', workflow_id: 'shared-w1', user_id: null },
+      { id: 's2', workflow_id: 'shared-w1', user_id: null },
+    ];
+
+    const { unambiguous, ambiguous } = classifyAttribution(candidates);
+    applyReclaim(snapshots, unambiguous);
+
+    expect(ambiguous).toEqual(['shared-w1']);
+    expect(unambiguous).toHaveLength(0);
+    // No snapshot must have been silently assigned to either user.
+    for (const s of snapshots) {
+      expect(s.user_id).toBeNull();
+    }
+  });
+
+  it('still reclaims unambiguous workflows in the same run', () => {
+    const candidates: SavedProject[] = [
+      { user_id: 'alice', id: 'proj-a', workflow_id: 'shared-w1' },
+      { user_id: 'bob', id: 'proj-b', workflow_id: 'shared-w1' },
+      { user_id: 'carol', id: 'proj-c', workflow_id: 'lone-w2' },
+    ];
+    const snapshots: Snapshot[] = [
+      { id: 's1', workflow_id: 'shared-w1', user_id: null },
+      { id: 's2', workflow_id: 'lone-w2', user_id: null },
+      { id: 's3', workflow_id: 'lone-w2', user_id: null },
+    ];
+
+    const { unambiguous, ambiguous } = classifyAttribution(candidates);
+    applyReclaim(snapshots, unambiguous);
+
+    expect(ambiguous).toEqual(['shared-w1']);
+    expect(unambiguous.map((u) => u.workflow_id)).toEqual(['lone-w2']);
+    // Ambiguous workflow's snapshot stays orphan.
+    expect(snapshots.find((s) => s.id === 's1')?.user_id).toBeNull();
+    // Unambiguous workflow's snapshots are recovered to the sole owner.
+    expect(snapshots.find((s) => s.id === 's2')?.user_id).toBe('carol');
+    expect(snapshots.find((s) => s.id === 's3')?.user_id).toBe('carol');
+  });
 });

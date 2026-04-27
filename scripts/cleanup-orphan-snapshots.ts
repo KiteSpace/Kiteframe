@@ -120,6 +120,12 @@ type AttributionRow = {
 async function reclaimPhase() {
   console.log('\n--- reclaim phase ---');
 
+  // Gather every (workflow_id → user_id, project_id) candidate. We then
+  // collapse by workflow_id and REQUIRE a single unambiguous owner before
+  // touching any rows. workflow_id is a client-generated tab id, so two
+  // different users could plausibly have stamped the same id in their own
+  // saved_projects. Auto-attributing in that case would leak one user's
+  // snapshot history into another user's account — refuse instead.
   const candidates = await db.execute(sql`
     SELECT DISTINCT sp.user_id, sp.id AS project_id, sp.name,
            ws.workflow_id, sp.updated_at AS project_updated_at
@@ -131,12 +137,14 @@ async function reclaimPhase() {
 
   if (candidates.rows.length === 0) {
     console.log('No attributable orphan snapshots found. Nothing to reclaim.');
-    return { attributedRows: 0, materializedProjects: 0 };
+    return {
+      attributedRows: 0,
+      materializedProjects: 0,
+      ambiguousWorkflows: [] as string[],
+    };
   }
 
-  let attributedRows = 0;
-  let materializedProjects = 0;
-
+  const byWorkflow = new Map<string, AttributionRow[]>();
   for (const raw of candidates.rows as Array<Record<string, unknown>>) {
     const row: AttributionRow = {
       user_id: String(raw.user_id),
@@ -144,9 +152,57 @@ async function reclaimPhase() {
       workflow_id: String(raw.workflow_id),
       project_updated_at: raw.project_updated_at as Date | string | null,
     };
+    const list = byWorkflow.get(row.workflow_id) ?? [];
+    list.push(row);
+    byWorkflow.set(row.workflow_id, list);
+  }
 
-    // 1) Re-attribute orphan snapshots to the candidate owner so history is
-    //    recovered and visible in the user's snapshot list.
+  // Pre-write decision report. Print the planned action for every
+  // workflow_id BEFORE issuing any UPDATE, so an operator can spot
+  // surprises in the log output even though we already filter ambiguous
+  // workflows automatically.
+  console.log('\nattribution decisions:');
+  const unambiguous: AttributionRow[] = [];
+  const ambiguous: Array<{ workflow_id: string; owners: AttributionRow[] }> = [];
+  for (const [workflowId, rows] of byWorkflow.entries()) {
+    const distinctUsers = new Set(rows.map((r) => r.user_id));
+    if (distinctUsers.size === 1) {
+      unambiguous.push(rows[0]);
+      console.log(
+        `  RECLAIM   workflow=${workflowId} → user=${rows[0].user_id} project=${rows[0].project_id}`,
+      );
+    } else {
+      ambiguous.push({ workflow_id: workflowId, owners: rows });
+      const owners = [...distinctUsers].join(', ');
+      console.log(
+        `  SKIP      workflow=${workflowId} ambiguous owners: ${owners}`,
+      );
+    }
+  }
+
+  if (ambiguous.length > 0) {
+    console.log(
+      `\nAmbiguous mappings (${ambiguous.length}) — these workflows are NOT reclaimed automatically.`,
+    );
+    console.log(
+      'Each one requires manual operator attention before any user_id assignment:',
+    );
+    for (const entry of ambiguous) {
+      console.log(`  workflow_id=${entry.workflow_id}`);
+      for (const o of entry.owners) {
+        console.log(`    candidate user=${o.user_id} project=${o.project_id}`);
+      }
+    }
+  }
+
+  let attributedRows = 0;
+  let materializedProjects = 0;
+
+  for (const row of unambiguous) {
+    // 1) Re-attribute orphan snapshots to the (verified single) candidate
+    //    owner so history is recovered and visible in the user's snapshot
+    //    list. The workflow_id was already filtered above to ensure no
+    //    cross-user collision exists.
     const updated = await db
       .update(workflowSnapshots)
       .set({ userId: row.user_id })
@@ -162,9 +218,9 @@ async function reclaimPhase() {
       `  attributed ${updated.length} snapshots for workflow=${row.workflow_id} → user=${row.user_id}`,
     );
 
-    // 2) Materialize the latest orphan-now-attributed snapshot's nodes/edges
-    //    into the saved_project ONLY when the snapshot is newer than the
-    //    project's last update. Preserves canvasObjects/viewport/flowSettings.
+    // 2) Materialize the latest now-attributed snapshot into the saved
+    //    project ONLY when the snapshot is newer than the project's last
+    //    update. Preserves canvasObjects/viewport/flowSettings.
     const latestSnap = await db.execute(sql`
       SELECT id, nodes, edges, created_at
       FROM workflow_snapshots
@@ -215,9 +271,13 @@ async function reclaimPhase() {
   }
 
   console.log(
-    `\nreclaim summary: attributed=${attributedRows} snapshots, materialized=${materializedProjects} projects`,
+    `\nreclaim summary: attributed=${attributedRows} snapshots, materialized=${materializedProjects} projects, ambiguous-skipped=${ambiguous.length} workflows`,
   );
-  return { attributedRows, materializedProjects };
+  return {
+    attributedRows,
+    materializedProjects,
+    ambiguousWorkflows: ambiguous.map((a) => a.workflow_id),
+  };
 }
 
 async function deletePhase() {
