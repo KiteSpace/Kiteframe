@@ -152,7 +152,12 @@ function updateUserSession(
 async function upsertUser(claims: any) {
   const replitProviderId = claims["sub"];
   const email = claims["email"];
-  
+  // OIDC `email_verified` is a boolean indicating the IdP has verified the
+  // user controls the email. We require this before linking by email; an
+  // unverified email could be controlled by anyone and would enable
+  // account takeover by linking into a pre-existing record.
+  const emailVerified = claims["email_verified"] === true;
+
   // First, check if this Replit provider ID is already linked to a user
   const existingProvider = await db.query.oauthProviders.findFirst({
     where: and(
@@ -173,11 +178,18 @@ async function upsertUser(claims: any) {
       where: eq(users.id, existingProvider.userId),
     });
   } else {
-    // Check if a user with this email already exists (e.g., CSV-imported)
-    if (email) {
+    // Look up an existing user by email ONLY if the IdP has verified that
+    // email. Otherwise we'd auto-link unverified claims to an existing
+    // account = account takeover.
+    if (email && emailVerified) {
       dbUser = await db.query.users.findFirst({
         where: eq(users.email, email),
       });
+    } else if (email && !emailVerified) {
+      console.warn(
+        '[AUTH] Replit OIDC email not verified — refusing to auto-link by email:',
+        email,
+      );
     }
 
     if (!dbUser) {
@@ -241,6 +253,12 @@ type OAuthProfile = {
   provider: 'google' | 'github' | 'replit';
   providerId: string;
   email?: string;
+  // True only when the upstream IdP has confirmed the user controls the email
+  // (Google `verified`, GitHub `verified`, OIDC `email_verified`). Used as a
+  // hard gate on linking by email — see findOrCreateUser. An unverified email
+  // could be supplied by a malicious account and silently merge into an
+  // existing record.
+  emailVerified?: boolean;
   displayName?: string;
   firstName?: string;
   lastName?: string;
@@ -291,10 +309,19 @@ async function findOrCreateUser(profile: OAuthProfile): Promise<{ user: any; isN
   }
 
   let user = null;
-  if (profile.email) {
+  // Look up an existing user by email ONLY if the IdP confirmed the user
+  // owns this email. If the email is unverified we MUST NOT auto-link
+  // into a pre-existing account — doing so would let an attacker who
+  // claims an email at a third-party IdP take over the matching account.
+  if (profile.email && profile.emailVerified) {
     user = await db.query.users.findFirst({
       where: eq(users.email, profile.email),
     });
+  } else if (profile.email && !profile.emailVerified) {
+    console.warn(
+      `[AUTH] ${profile.provider} email not verified — refusing to auto-link by email:`,
+      profile.email,
+    );
   }
 
   let isNewUser = false;
@@ -431,10 +458,17 @@ export async function setupAuth(app: Express) {
       callbackURL: '/api/auth/google/callback',
     }, async (accessToken, refreshToken, profile, done) => {
       try {
+        // passport-google-oauth20 surfaces `verified` on each email entry from
+        // the Google userinfo endpoint. Treat it as a hard gate for any
+        // cross-account linking — see linkOAuthProvider/findOrCreateUser.
+        const primaryEmail = profile.emails?.[0];
+        const emailVerified = (primaryEmail as any)?.verified === true
+          || (primaryEmail as any)?.verified === 'true';
         const oauthProfile: OAuthProfile = {
           provider: 'google',
           providerId: profile.id,
-          email: profile.emails?.[0]?.value,
+          email: primaryEmail?.value,
+          emailVerified,
           displayName: profile.displayName,
           firstName: profile.name?.givenName,
           lastName: profile.name?.familyName,
@@ -526,27 +560,40 @@ export async function setupAuth(app: Express) {
       callbackURL: '/api/auth/github/callback',
     }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
-        // Try to get email from profile first
-        let email = profile.emails?.[0]?.value;
-        
-        // If no email in profile, fetch from GitHub API
-        if (!email && accessToken) {
+        // GitHub never returns a `verified` flag in the basic profile, so we
+        // ALWAYS hit the user/emails endpoint to determine verification.
+        // Verified emails are the only ones eligible for cross-account
+        // linking. Unverified emails are dropped entirely (no fallback to
+        // "any email"), since GitHub allows users to add — but not yet
+        // verify — arbitrary addresses.
+        let email: string | undefined = undefined;
+        let emailVerified = false;
+
+        if (accessToken) {
           try {
             const emailResponse = await fetch('https://api.github.com/user/emails', {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'Kiteframe-App'
-              }
+                'User-Agent': 'Kiteframe-App',
+              },
             });
             if (emailResponse.ok) {
               const emails = await emailResponse.json();
-              // Find primary email, or first verified email, or any email
-              const primaryEmail = emails.find((e: any) => e.primary && e.verified);
-              const verifiedEmail = emails.find((e: any) => e.verified);
-              const anyEmail = emails[0];
-              email = primaryEmail?.email || verifiedEmail?.email || anyEmail?.email;
-              console.log('[AUTH] GitHub fetched email from API:', email);
+              const primaryVerified = emails.find(
+                (e: any) => e.primary && e.verified,
+              );
+              const anyVerified = emails.find((e: any) => e.verified);
+              const chosen = primaryVerified || anyVerified;
+              if (chosen) {
+                email = chosen.email;
+                emailVerified = true;
+                console.log('[AUTH] GitHub verified email selected:', email);
+              } else {
+                console.warn(
+                  '[AUTH] GitHub user has no verified email — refusing to link by email',
+                );
+              }
             }
           } catch (emailError) {
             console.error('[AUTH] Failed to fetch GitHub emails:', emailError);
@@ -557,6 +604,7 @@ export async function setupAuth(app: Express) {
           provider: 'github',
           providerId: profile.id,
           email,
+          emailVerified,
           displayName: profile.displayName || profile.username,
           profileImageUrl: profile.photos?.[0]?.value,
         };

@@ -701,4 +701,86 @@ describe('replitAuth.ts source — OAuth email linking', () => {
       /findOrCreateUser[\s\S]*?users\.email[\s\S]*?linkOAuthProvider/,
     );
   });
+
+  // ----- Verified-email gating (account-takeover prevention) -----
+  it('OAuthProfile carries an emailVerified flag', () => {
+    expect(authSrc).toMatch(/type OAuthProfile = \{[\s\S]*?emailVerified\?: boolean/);
+  });
+
+  it('upsertUser only auto-links by email when email_verified is true', () => {
+    // The Replit branch must read OIDC `email_verified` and gate the
+    // users.email lookup on it. We require both the variable read and
+    // the lookup to live inside the verified branch.
+    expect(authSrc).toMatch(/email_verified.*?===\s*true/);
+    expect(authSrc).toMatch(
+      /if \(email && emailVerified\)[\s\S]*?users\.email/,
+    );
+  });
+
+  it('findOrCreateUser only auto-links by email when emailVerified is true', () => {
+    expect(authSrc).toMatch(
+      /if \(profile\.email && profile\.emailVerified\)[\s\S]*?users\.email/,
+    );
+  });
+
+  it('Google strategy populates emailVerified from profile.emails verified flag', () => {
+    expect(authSrc).toMatch(
+      /provider: 'google'[\s\S]*?emailVerified/,
+    );
+    // Must read the verified field off the email entry, not hard-code true.
+    expect(authSrc).toMatch(/\.verified\s*===\s*true|verified:\s*true/);
+  });
+
+  it('GitHub strategy refuses to fall back to any unverified email', () => {
+    // Old code did: email = primary || verified || anyEmail. The fix must
+    // remove the unverified fallback. Assert no `anyEmail?.email` selection
+    // remains in the file.
+    expect(authSrc).not.toMatch(/anyEmail\?\.email/);
+    // And the GitHub block must explicitly set emailVerified = true only
+    // when a verified entry was chosen.
+    expect(authSrc).toMatch(
+      /provider: 'github'[\s\S]*?emailVerified/,
+    );
+    expect(authSrc).toMatch(/emailVerified\s*=\s*true/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cleanup-orphan-snapshots.ts source guardrails: confirms the script supports
+// reclaim/materialize before delete, not delete-only.
+// ---------------------------------------------------------------------------
+describe('cleanup-orphan-snapshots.ts source — reclaim workflow', () => {
+  const cleanupSrc = readFileSync(
+    resolve(__dirname, '../../scripts/cleanup-orphan-snapshots.ts'),
+    'utf8',
+  );
+
+  it('exposes a --reclaim phase distinct from --confirm-delete', () => {
+    expect(cleanupSrc).toMatch(/--reclaim/);
+    expect(cleanupSrc).toMatch(/reclaimPhase/);
+  });
+
+  it('reclaim updates orphan snapshots user_id from saved_projects attribution', () => {
+    expect(cleanupSrc).toMatch(/saved_projects/);
+    expect(cleanupSrc).toMatch(
+      /\.update\(workflowSnapshots\)[\s\S]*?\.set\(\{ userId/,
+    );
+  });
+
+  it('reclaim materializes the latest snapshot into saved_projects.workflow_data', () => {
+    // Must merge into existing workflow_data (not overwrite) — preserve
+    // canvasObjects/viewport/flowSettings.
+    expect(cleanupSrc).toMatch(
+      /\.update\(savedProjects\)[\s\S]*?workflowData:\s*merged/,
+    );
+    expect(cleanupSrc).toMatch(/\.\.\.existing/);
+  });
+
+  it('still requires both safety flags for destructive delete', () => {
+    expect(cleanupSrc).toMatch(/--confirm-delete/);
+    expect(cleanupSrc).toMatch(/--i-understand/);
+    expect(cleanupSrc).toMatch(
+      /args\.has\('--confirm-delete'\)\s*&&\s*args\.has\('--i-understand'\)/,
+    );
+  });
 });
