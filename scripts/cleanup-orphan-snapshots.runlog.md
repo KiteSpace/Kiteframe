@@ -99,30 +99,61 @@ Newest orphan: 2026-04-21 15:20:10.65167
 Attribution candidates:        none (reclaim would be a no-op)
 ```
 
-### Production destructive phase — operator action required
+### Production destructive phase — Task #67 follow-through
 
 The task-agent environment can only reach production through a read-only SQL
-replica, which rejects `DELETE` / `UPDATE` / DDL. The destructive phase must
-therefore be run by an operator from a shell that has the writable production
-`DATABASE_URL`:
+replica, which rejects `DELETE` / `UPDATE` / DDL. The writable production
+`DATABASE_URL` for this Replit-managed (Helium) Postgres is also not
+exposed in the workspace secrets nor in the user's Neon console (Replit
+provisions production Postgres internally and only injects its
+`DATABASE_URL` into the deployed app's runtime).
+
+To work around that, Task #67 added a one-shot admin endpoint to the
+deployed app that runs the same `DELETE` against its own `DATABASE_URL`
+(which IS the writable production string) under `requireHttps +
+requireAdminAuth + double-flag confirmation`:
 
 ```
-# 1. Confirm the report still matches what's recorded above
-npx tsx scripts/cleanup-orphan-snapshots.ts
-
-# 2. Reclaim is a no-op here (zero attribution candidates) but is safe to run
-npx tsx scripts/cleanup-orphan-snapshots.ts --reclaim
-
-# 3. Destructive delete (both flags required as a safety gate)
-npx tsx scripts/cleanup-orphan-snapshots.ts --confirm-delete --i-understand
-
-# 4. Re-run the dry-run to verify zero orphans remain
-npx tsx scripts/cleanup-orphan-snapshots.ts
+POST /internal/x9k7m2p4/cleanup-orphan-snapshots
+  Authorization: Basic <base64(ADMIN_USERNAME:ADMIN_PASSWORD)>
+  Content-Type: application/json
+  Body (dry-run): {}
+  Body (delete):  { "confirm": true, "iUnderstand": true }
 ```
 
-Expected post-run report on production: `Total snapshots: 0` and
-`Orphan snapshots: 0`. Append the actual output to this file once the
-operator step has been completed so we keep an end-to-end audit trail.
+Operator runbook for the production destructive phase:
+
+```
+# 1. Publish so the new endpoint reaches production.
+#    (Run from the main project, not the task-agent env.)
+
+# 2. Dry-run against the live deployment to confirm the orphan count
+#    still matches the report above.
+curl -sS -u "$ADMIN_USERNAME:$ADMIN_PASSWORD" \
+  -H 'Content-Type: application/json' \
+  https://<your-app>.replit.app/internal/x9k7m2p4/cleanup-orphan-snapshots \
+  -d '{}'
+
+# 3. Destructive delete (both flags required).
+curl -sS -u "$ADMIN_USERNAME:$ADMIN_PASSWORD" \
+  -H 'Content-Type: application/json' \
+  https://<your-app>.replit.app/internal/x9k7m2p4/cleanup-orphan-snapshots \
+  -d '{"confirm":true,"iUnderstand":true}'
+
+# 4. Re-run dry-run; expect "before.orphans": 0.
+curl -sS -u "$ADMIN_USERNAME:$ADMIN_PASSWORD" \
+  -H 'Content-Type: application/json' \
+  https://<your-app>.replit.app/internal/x9k7m2p4/cleanup-orphan-snapshots \
+  -d '{}'
+
+# 5. Independently re-verify via the read-only prod replica:
+#    SELECT COUNT(*) FROM workflow_snapshots WHERE user_id IS NULL;
+#    expected: 0.
+```
+
+After verification, the temporary endpoint should be removed in a
+follow-up task and the deployment re-published, so the destructive
+hatch is not left exposed in production.
 
 ---
 
