@@ -11,7 +11,6 @@ import {
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { db } from "./db";
 import { 
-  workflowSnapshots, 
   collaborationRooms, 
   roomParticipants, 
   chatMessages, 
@@ -3450,64 +3449,6 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
 
       res.json({ ok: true, userId, tier: correctTier, previous: user.subscriptionTier, user: updated });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Admin: One-shot orphan snapshot cleanup (Task #67).
-  // Read-only by default. To actually delete, POST with body
-  // { confirm: true, iUnderstand: true }. Removes workflow_snapshots
-  // rows with user_id IS NULL. Safe to call from outside this codebase
-  // because it uses requireAdminAuth + requires both confirmation flags.
-  app.post('/internal/x9k7m2p4/cleanup-orphan-snapshots', requireHttps, requireAdminAuth, async (req, res) => {
-    try {
-      const beforeRow = await db.execute(sql`
-        SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE user_id IS NULL)::int AS orphans,
-          COUNT(*) FILTER (WHERE user_id IS NULL AND is_auto_save = true)::int AS orphans_auto,
-          COUNT(*) FILTER (WHERE user_id IS NULL AND (is_auto_save = false OR is_auto_save IS NULL))::int AS orphans_manual,
-          COUNT(DISTINCT workflow_id) FILTER (WHERE user_id IS NULL)::int AS distinct_workflows
-        FROM workflow_snapshots
-      `);
-      const before = beforeRow.rows[0] as Record<string, number>;
-
-      const confirm = req.body?.confirm === true;
-      const iUnderstand = req.body?.iUnderstand === true;
-
-      if (!confirm || !iUnderstand) {
-        return res.json({
-          mode: 'dry-run',
-          before,
-          message: 'Send { "confirm": true, "iUnderstand": true } in the JSON body to actually delete the orphan rows.',
-        });
-      }
-
-      const deleted = await db
-        .delete(workflowSnapshots)
-        .where(isNull(workflowSnapshots.userId))
-        .returning({ id: workflowSnapshots.id });
-
-      const afterRow = await db.execute(sql`
-        SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE user_id IS NULL)::int AS orphans
-        FROM workflow_snapshots
-      `);
-      const after = afterRow.rows[0] as Record<string, number>;
-
-      console.log(
-        `[cleanup-orphan-snapshots] admin=${(req as any).adminUsername || 'admin'} deleted=${deleted.length} after_orphans=${after.orphans}`,
-      );
-
-      return res.json({
-        mode: 'destructive',
-        deletedRows: deleted.length,
-        before,
-        after,
-      });
-    } catch (err: any) {
-      console.error('[cleanup-orphan-snapshots] failed:', err);
       res.status(500).json({ error: err.message });
     }
   });

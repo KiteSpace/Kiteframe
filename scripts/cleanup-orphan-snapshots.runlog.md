@@ -155,6 +155,32 @@ After verification, the temporary endpoint should be removed in a
 follow-up task and the deployment re-published, so the destructive
 hatch is not left exposed in production.
 
+### Post-cleanup verification (Task #69)
+
+After the operator ran the destructive POST against
+`/internal/x9k7m2p4/cleanup-orphan-snapshots` in production (response showed
+`deletedRows: 14337` and `after.orphans: 0`), the read-only production
+replica was re-queried independently from the task-agent environment to
+confirm the orphan rows are gone:
+
+```
+$ executeSql({
+    sqlQuery: 'SELECT COUNT(*)::int AS orphans FROM workflow_snapshots WHERE user_id IS NULL;',
+    environment: 'production',
+  })
+
+orphans
+0
+```
+
+**Result:** production cleanup verified. 14,337 → 0 orphan rows. ✅
+
+The temporary `POST /internal/x9k7m2p4/cleanup-orphan-snapshots` route was
+removed from `server/routes.ts` in Task #69 so the destructive hatch is no
+longer exposed once the deployment is re-published. The canonical cleanup
+script (`scripts/cleanup-orphan-snapshots.ts`) is retained for any future
+reuse against a writable database.
+
 ---
 
 ## Notes
