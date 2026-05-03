@@ -53,53 +53,92 @@ export interface EdgeCaseParseResult {
  * 2. Extract JSON block from markdown code fence
  * 3. Find JSON object with nodes/edges keys
  */
+/**
+ * Walks `src` from `startIndex` (which must be a `{`) and finds the matching
+ * closing brace, treating string contents and `\\` escapes correctly. Any
+ * `{`/`}` that occurs inside a JSON string is ignored. Returns the index of
+ * the matching `}` or -1 if not found.
+ */
+function findMatchingBrace(src: string, startIndex: number): number {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = startIndex; i < src.length; i++) {
+    const ch = src[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === '\\') {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function tryParseObjectFromBraces(src: string): unknown | null {
+  const start = src.indexOf('{');
+  if (start === -1) return null;
+  const end = findMatchingBrace(src, start);
+  if (end === -1) return null;
+  const jsonStr = src.substring(start, end + 1);
+  try {
+    // Clean up common JSON issues (trailing commas before } or ]).
+    const cleaned = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
 function extractJsonFromText(text: string): unknown | null {
   const trimmed = text.trim();
-  
+
   // Strategy 1: Direct parse
   try {
     return JSON.parse(trimmed);
   } catch {
     // Continue to other strategies
   }
-  
-  // Strategy 2: Extract from markdown code fence
-  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
+
+  // Strategy 2: Try every markdown code fence (not just the first). Models
+  // sometimes emit prose + a fenced JSON block + a trailing note, and the
+  // first fence may not be the JSON one. We scan all fenced blocks and
+  // return the first that parses.
+  const fenceRe = /```(?:json)?\s*([\s\S]*?)```/g;
+  let fenceMatch: RegExpExecArray | null;
+  while ((fenceMatch = fenceRe.exec(trimmed)) !== null) {
+    const inner = fenceMatch[1].trim();
     try {
-      return JSON.parse(codeBlockMatch[1].trim());
+      return JSON.parse(inner);
     } catch {
-      // Continue to next strategy
+      // Try the brace-walk on the fence body too — handles fences that
+      // wrap prose + JSON together.
+      const fromBraces = tryParseObjectFromBraces(inner);
+      if (fromBraces !== null) return fromBraces;
     }
   }
-  
-  // Strategy 3: Find first complete JSON object
-  const jsonStartIndex = trimmed.indexOf('{');
-  if (jsonStartIndex !== -1) {
-    let braceCount = 0;
-    let jsonEndIndex = -1;
-    
-    for (let i = jsonStartIndex; i < trimmed.length; i++) {
-      if (trimmed[i] === '{') braceCount++;
-      if (trimmed[i] === '}') braceCount--;
-      if (braceCount === 0) {
-        jsonEndIndex = i;
-        break;
-      }
-    }
-    
-    if (jsonEndIndex !== -1) {
-      const jsonStr = trimmed.substring(jsonStartIndex, jsonEndIndex + 1);
-      try {
-        // Clean up common JSON issues (trailing commas)
-        const cleaned = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-        return JSON.parse(cleaned);
-      } catch {
-        // Failed to parse
-      }
-    }
-  }
-  
+
+  // Strategy 3: String-aware brace walk over the full text. This is the
+  // critical fix for workflows whose node labels/descriptions/edge labels
+  // contain `{` or `}` (e.g. `"Return {status: 'ok'}"`). The previous
+  // implementation counted every brace regardless of string context and
+  // returned null whenever content braces existed.
+  const fromBraces = tryParseObjectFromBraces(trimmed);
+  if (fromBraces !== null) return fromBraces;
+
   return null;
 }
 

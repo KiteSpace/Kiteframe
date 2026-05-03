@@ -1917,24 +1917,55 @@ export function KiteAIChatBrain({
           
           const beforeDraft = { nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges };
           const router1 = getRouter();
+          const expandUserMsg = `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow expansion'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}`;
+          const expandBaseMessages = [
+            { role: 'system' as const, content: AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT },
+            { role: 'user' as const, content: expandUserMsg },
+          ];
           const expandResponse = await router1.chat({
             taskType: 'workflow_reasoning',
-            messages: [
-              { role: 'system', content: AI_WORKFLOW_EXPAND_EDGE_CASES_PROMPT },
-              { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow expansion'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}` }
-            ],
+            messages: expandBaseMessages,
             temperature: 0.5,
-            maxTokens: 4000
+            maxTokens: 8000,
           });
           if (expandResponse.jobId) markJobConsumed(expandResponse.jobId);
-          
+
           // Phase 2: Use deterministic parsing with proper error handling
           const requestId1 = `req_${Date.now()}_expand`;
-          const parseResult: ProposalParseResult = parseWorkflowProposal(
+          let parseResult: ProposalParseResult = parseWorkflowProposal(
             expandResponse.text,
-            requestId1
+            requestId1,
           );
-          
+
+          // Silent retry once if the first parse failed. Models occasionally
+          // wrap the JSON in prose or return a delta on the first try; an
+          // explicit reminder almost always recovers without bothering the
+          // user with a destructive toast.
+          if (!parseResult.success || !parseResult.proposal) {
+            try {
+              const retryResp = await router1.chat({
+                taskType: 'workflow_reasoning',
+                messages: [
+                  ...expandBaseMessages,
+                  {
+                    role: 'system' as const,
+                    content:
+                      'Your previous response could not be parsed. Reply again with the FULL workflow as a single valid JSON object only — no prose, no markdown fences, no commentary. Include every original node and edge plus the new ones.',
+                  },
+                ],
+                temperature: 0.3,
+                maxTokens: 8000,
+              });
+              if (retryResp.jobId) markJobConsumed(retryResp.jobId);
+              parseResult = parseWorkflowProposal(
+                retryResp.text,
+                `${requestId1}_retry`,
+              );
+            } catch (retryErr) {
+              console.warn('[KiteAIChat] Edge-case expand retry threw:', retryErr);
+            }
+          }
+
           if (!parseResult.success || !parseResult.proposal) {
             console.error('[KiteAIChat] Failed to parse expanded workflow:', {
               error: parseResult.error,
@@ -2118,24 +2149,54 @@ export function KiteAIChatBrain({
       
       // Call AI to expand with selected edge cases
       const router3 = getRouter();
+      const selectUserMsg = `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}\n\nSelected edge cases to include:\n${selectedCases.map(c => `- ${c.label}`).join('\n')}`;
+      const selectBaseMessages = [
+        { role: 'system' as const, content: AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT },
+        { role: 'user' as const, content: selectUserMsg },
+      ];
       const selectResponse = await router3.chat({
         taskType: 'workflow_reasoning',
-        messages: [
-          { role: 'system', content: AI_WORKFLOW_EXPAND_SELECTED_EDGE_CASES_PROMPT },
-          { role: 'user', content: `Original prompt: ${currentWorkflowDraft.originPrompt || 'Workflow'}\n\nCurrent workflow:\n${JSON.stringify({ nodes: currentWorkflowDraft.nodes, edges: currentWorkflowDraft.edges }, null, 2)}\n\nSelected edge cases to include:\n${selectedCases.map(c => `- ${c.label}`).join('\n')}` }
-        ],
+        messages: selectBaseMessages,
         temperature: 0.5,
-        maxTokens: 4000
+        maxTokens: 8000,
       });
       if (selectResponse.jobId) markJobConsumed(selectResponse.jobId);
-      
+
       // Phase 2: Use deterministic parsing with proper error handling
       const requestId3 = `req_${Date.now()}_select`;
-      const selectParseResult: ProposalParseResult = parseWorkflowProposal(
+      let selectParseResult: ProposalParseResult = parseWorkflowProposal(
         selectResponse.text,
-        requestId3
+        requestId3,
       );
-      
+
+      // Silent retry once if the first parse failed (see INCLUDE_EDGE_CASES
+      // for the same pattern). The user only sees the destructive toast if
+      // both attempts fail.
+      if (!selectParseResult.success || !selectParseResult.proposal) {
+        try {
+          const retryResp = await router3.chat({
+            taskType: 'workflow_reasoning',
+            messages: [
+              ...selectBaseMessages,
+              {
+                role: 'system' as const,
+                content:
+                  'Your previous response could not be parsed. Reply again with the FULL workflow as a single valid JSON object only — no prose, no markdown fences, no commentary. Include every original node and edge plus the new ones for the selected edge cases.',
+              },
+            ],
+            temperature: 0.3,
+            maxTokens: 8000,
+          });
+          if (retryResp.jobId) markJobConsumed(retryResp.jobId);
+          selectParseResult = parseWorkflowProposal(
+            retryResp.text,
+            `${requestId3}_retry`,
+          );
+        } catch (retryErr) {
+          console.warn('[KiteAIChat] Selected edge-case expand retry threw:', retryErr);
+        }
+      }
+
       if (!selectParseResult.success || !selectParseResult.proposal) {
         console.error('[KiteAIChat] Failed to parse selected edge case expansion:', {
           error: selectParseResult.error,

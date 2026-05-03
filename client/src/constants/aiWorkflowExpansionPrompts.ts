@@ -16,7 +16,13 @@ REQUIREMENTS:
 
 INPUT: You will receive the current workflow as JSON with nodes and edges.
 
-OUTPUT: Return ONLY valid JSON with the following structure:
+OUTPUT FORMAT — STRICT:
+- Your entire response MUST be a single JSON object and NOTHING ELSE.
+- No prose. No commentary. No markdown code fences (no \`\`\`). No leading or trailing text.
+- The JSON object MUST contain the FULL workflow: every original node and every original edge preserved by id, PLUS the new nodes and edges you add. Do NOT return only the additions or a delta.
+- Every edge's "source" and "target" MUST reference the "id" of a node present in the same "nodes" array. No orphan edges.
+
+JSON SHAPE:
 {
   "nodes": [
     { "id": "string", "type": "string", "label": "string", "data": {} }
@@ -35,7 +41,7 @@ EDGE CASE CATEGORIES TO CONSIDER:
 - Empty state handling
 - Partial success scenarios
 
-Do not add explanations. Return only the JSON.`;
+Return only the JSON object described above.`;
 
 export const AI_WORKFLOW_LIST_EDGE_CASES_PROMPT = `You are a workflow analyst. Your task is to identify potential edge cases and failure scenarios for an existing workflow.
 
@@ -72,7 +78,13 @@ REQUIREMENTS:
 4. Add proper termination nodes for each path
 5. Reuse existing nodes where possible
 
-OUTPUT: Return ONLY valid JSON with the following structure:
+OUTPUT FORMAT — STRICT:
+- Your entire response MUST be a single JSON object and NOTHING ELSE.
+- No prose. No commentary. No markdown code fences (no \`\`\`). No leading or trailing text.
+- The JSON object MUST contain the FULL workflow: every original node and every original edge preserved by id, PLUS the new nodes and edges for the selected edge cases. Do NOT return only the additions or a delta.
+- Every edge's "source" and "target" MUST reference the "id" of a node present in the same "nodes" array. No orphan edges.
+
+JSON SHAPE:
 {
   "nodes": [
     { "id": "string", "type": "string", "label": "string", "data": {} }
@@ -82,7 +94,7 @@ OUTPUT: Return ONLY valid JSON with the following structure:
   ]
 }
 
-Do not add explanations. Return only the JSON.`;
+Return only the JSON object described above.`;
 
 /**
  * AI response templates for each workflow generation state
