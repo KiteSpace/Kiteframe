@@ -253,7 +253,18 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
   const [refinement, setRefinement] = useState<RefinementState>({ field: null, suggested: '', isRefining: false });
   const prevProjectId = useRef<string | undefined>(undefined);
   const categoryInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const aiClient = useAi();
+
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    setRefinement({ field: null, suggested: '', isRefining: false });
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, [projectId]);
   
   const { isGenerating: isGeneratingFromBus, updateKey } = usePRDGenerationState(projectId);
 
@@ -385,8 +396,11 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
   const generateProjectInfo = useCallback(async () => {
     if (!nodes || nodes.length === 0 || !aiClient || !projectId) return;
 
+    const requestProjectId = projectId;
+    const signal = abortControllerRef.current?.signal;
+
     setIsGeneratingLocal(true);
-    prdGenerationBus.startGeneration(projectId);
+    prdGenerationBus.startGeneration(requestProjectId);
     try {
       const workflowContext = buildWorkflowContext();
       
@@ -405,8 +419,14 @@ Based on the node labels, descriptions, and connections above, determine what th
           { role: 'user', content: workflowSummary }
         ],
         temperature: 0.4,
-        maxTokens: 300
+        maxTokens: 300,
+        signal,
       });
+
+      if (signal?.aborted || requestProjectId !== prevProjectId.current) {
+        console.log('[ProjectOverviewSection] Project changed during AI fill — discarding result');
+        return;
+      }
 
       const jsonStr = extractJSON(response.text);
       if (jsonStr) {
@@ -422,14 +442,18 @@ Based on the node labels, descriptions, and connections above, determine what th
         }
         if (Object.keys(patch).length > 0) {
           persistDetailsPatch(patch);
-          prdGenerationBus.notifyProjectDetailsUpdated(projectId);
+          prdGenerationBus.notifyProjectDetailsUpdated(requestProjectId);
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[ProjectOverviewSection] AI fill aborted');
+        return;
+      }
       console.error('Error generating project info:', error);
     } finally {
       setIsGeneratingLocal(false);
-      prdGenerationBus.completeGeneration(projectId);
+      prdGenerationBus.completeGeneration(requestProjectId);
     }
   }, [nodes, edges, aiClient, buildWorkflowContext, updateName, updateDescription, projectId, persistDetailsPatch]);
 
@@ -438,6 +462,9 @@ Based on the node labels, descriptions, and connections above, determine what th
     
     const currentValue = field === 'name' ? details.name : details.description;
     if (!currentValue.trim()) return;
+
+    const requestProjectId = projectId;
+    const signal = abortControllerRef.current?.signal;
 
     setRefinement({ field, suggested: '', isRefining: true });
     
@@ -466,8 +493,14 @@ Return ONLY valid JSON:
           { role: 'user', content: prompt }
         ],
         temperature: 0.4,
-        maxTokens: 300
+        maxTokens: 300,
+        signal,
       });
+
+      if (signal?.aborted || requestProjectId !== prevProjectId.current) {
+        console.log('[ProjectOverviewSection] Project changed during refine — discarding result');
+        return;
+      }
 
       const jsonStr = extractJSON(response.text);
       if (jsonStr) {
@@ -479,10 +512,15 @@ Return ONLY valid JSON:
       }
       setRefinement({ field: null, suggested: '', isRefining: false });
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[ProjectOverviewSection] Refine aborted');
+        setRefinement({ field: null, suggested: '', isRefining: false });
+        return;
+      }
       console.error('Error refining field:', error);
       setRefinement({ field: null, suggested: '', isRefining: false });
     }
-  }, [details, nodes, edges, buildWorkflowContext]);
+  }, [details, nodes, edges, buildWorkflowContext, projectId]);
 
   const acceptRefinement = useCallback(() => {
     if (!refinement.field || !refinement.suggested) return;

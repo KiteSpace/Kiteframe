@@ -45,10 +45,25 @@ export function ProjectPRDSection({
   const [isGenerating, setIsGenerating] = useState(false);
   const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
   const prevUpdateKeyRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentProjectIdRef = useRef(projectId);
   const ai = useAi();
   const { toast } = useToast();
   
   const { updateKey } = usePRDGenerationState(projectId);
+
+  useEffect(() => {
+    currentProjectIdRef.current = projectId;
+  }, [projectId]);
+
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, [projectId]);
 
   const loadFromStorage = useCallback(() => {
     if (projectId) {
@@ -77,6 +92,9 @@ export function ProjectPRDSection({
   const handleGenerate = useCallback(async () => {
     if (!projectId || !projectName) return;
 
+    const requestProjectId = projectId;
+    const signal = abortControllerRef.current?.signal;
+
     setIsGenerating(true);
 
     try {
@@ -97,7 +115,12 @@ export function ProjectPRDSection({
           flow.edges
         ));
 
-      const newPrd = await generateProjectPRD(ai, projectId, projectName, workflowModels, prd || undefined);
+      const newPrd = await generateProjectPRD(ai, projectId, projectName, workflowModels, prd || undefined, signal);
+
+      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current) {
+        console.log('[ProjectPRDSection] Project changed during generation — discarding result');
+        return;
+      }
       
       if (isFirstGeneration) {
         saveProjectPRDVersion(projectId, newPrd, 'ai-generate');
@@ -112,6 +135,10 @@ export function ProjectPRDSection({
 
       toast({ title: 'Spec generated', description: 'Project spec has been created.' });
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('[ProjectPRDSection] Generation aborted');
+        return;
+      }
       toast({
         title: 'Generation failed',
         description: error instanceof Error ? error.message : 'Unknown error',

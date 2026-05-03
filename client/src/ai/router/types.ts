@@ -24,6 +24,7 @@ export interface RouterRequest {
   maxTokens?: number;
   stream?: boolean;
   optimizationSessionId?: string;
+  signal?: AbortSignal;
 }
 
 export interface RouterResponse {

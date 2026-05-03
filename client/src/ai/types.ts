@@ -34,6 +34,7 @@ export type AiRequest = {
   stream?: boolean;
   taskType?: string;
   optimizationSessionId?: string;
+  signal?: AbortSignal;
 };
 
 export type AiResponse = { text: string; jobId?: string };

@@ -34,7 +34,7 @@ function isSimpleWorkflowPrompt(msgs: any[]): boolean {
   return wordCount <= 20 && !COMPLEXITY_KEYWORDS.test(text);
 }
 
-export async function executeAiChat(body: any): Promise<AiChatExecResult> {
+export async function executeAiChat(body: any, signal?: AbortSignal): Promise<AiChatExecResult> {
   try {
     const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType } = body;
 
@@ -165,6 +165,7 @@ export async function executeAiChat(body: any): Promise<AiChatExecResult> {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
+      signal,
     });
 
     if (!response.ok) {
@@ -208,6 +209,9 @@ export async function executeAiChat(body: any): Promise<AiChatExecResult> {
       activeModel,
     };
   } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      return { ok: false, status: 499, error: 'Cancelled by client' };
+    }
     console.error('executeAiChat error:', error);
     if (body?.provider === 'ollama' || body?.provider === 'kiteframe') {
       const serviceName = body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';

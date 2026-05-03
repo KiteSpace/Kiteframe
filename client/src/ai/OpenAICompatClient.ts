@@ -52,13 +52,16 @@ export function setAiJobHooks(hooks: JobHooks | null) {
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
-async function pollJob(jobId: string): Promise<{ text: string }> {
+async function pollJob(jobId: string, signal?: AbortSignal): Promise<{ text: string }> {
   const startedAt = Date.now();
   while (true) {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
       throw new Error('AI job timed out');
     }
-    const res = await fetch(`/api/ai/jobs/${jobId}`);
+    const res = await fetch(`/api/ai/jobs/${jobId}`, { signal });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(`AI error: ${res.status} - ${err.error || 'Unknown error'}`);
@@ -70,7 +73,27 @@ async function pollJob(jobId: string): Promise<{ text: string }> {
     if (data.status === 'failed') {
       throw new Error(`AI error: ${data.errorStatus || 500} - ${data.error || 'Unknown error'}`);
     }
-    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    if (data.status === 'cancelled') {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, POLL_INTERVAL_MS);
+      const onAbort = () => {
+        clearTimeout(t);
+        reject(new DOMException('Aborted', 'AbortError'));
+      };
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(t);
+          reject(new DOMException('Aborted', 'AbortError'));
+          return;
+        }
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+    });
   }
 }
 
@@ -78,6 +101,9 @@ export class OpenAICompatClient implements AiClient {
   constructor(private opts: { baseURL: string; apiKey?: string; headers?: Record<string,string>; defaultModel?: string }) {}
 
   async chat(req: AiRequest): Promise<AiResponse> {
+    if (req.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     const savedSettings = localStorage.getItem('ai_settings');
     let currentModel = req.model || this.opts.defaultModel || 'claude-sonnet-4-5-20250929';
     let provider = req.provider || 'anthropic';
@@ -110,8 +136,10 @@ export class OpenAICompatClient implements AiClient {
 
     // POST /api/ai/job: returns a jobId immediately. The server runs the AI call in
     // the background and only deducts credits if it succeeds. We then poll until
-    // the job completes — this means tab navigation, panel closes, etc. don't
-    // cancel an in-flight AI operation.
+    // the job completes. Background jobs survive tab navigation, but when the
+    // caller passes an AbortSignal (e.g. tied to active project lifecycle), an
+    // abort triggers DELETE /api/ai/jobs/:id below to actually cancel the
+    // upstream provider call and release the credit reservation.
     const startRes = await fetch('/api/ai/job', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -126,6 +154,7 @@ export class OpenAICompatClient implements AiClient {
         optimizationSessionId: req.optimizationSessionId,
         jobLabel: jobLabelFor(req.taskType),
       }),
+      signal: req.signal,
     });
 
     if (!startRes.ok) {
@@ -136,6 +165,16 @@ export class OpenAICompatClient implements AiClient {
     const { jobId } = await startRes.json();
     if (!jobId) throw new Error('AI error: server did not return a job id');
 
+    // Tight race: caller may have aborted between sending POST and receiving
+    // jobId. Immediately cancel the just-created server job so we don't spend
+    // tokens for a result no one will read.
+    if (req.signal?.aborted) {
+      try {
+        await fetch(`/api/ai/jobs/${jobId}`, { method: 'DELETE', keepalive: true });
+      } catch {}
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
     const startedAt = Date.now();
     // Capture the originating route so the global indicator can navigate the user
     // back here on click, and so a remounted surface can claim the result.
@@ -143,7 +182,7 @@ export class OpenAICompatClient implements AiClient {
     jobHooks?.register({ jobId, label: jobLabelFor(req.taskType), taskType: req.taskType, startedAt, originPath });
 
     try {
-      const { text } = await pollJob(jobId);
+      const { text } = await pollJob(jobId, req.signal);
       // We DON'T call markConsumed here — at this point we have no way to
       // know whether the awaiting React surface is still mounted to actually
       // receive the result. The background watcher in AiJobsContext will
@@ -153,6 +192,18 @@ export class OpenAICompatClient implements AiClient {
       // We DO clear the pending entry from the indicator so the spinner
       // disappears even if the surface is unmounted.
       return { text, jobId };
+    } catch (err: any) {
+      // On abort (project switch / unmount), best-effort cancel the server
+      // job so the upstream provider call stops mid-flight and the held
+      // credit reservation is released without charging.
+      if (err?.name === 'AbortError') {
+        try {
+          await fetch(`/api/ai/jobs/${jobId}`, { method: 'DELETE', keepalive: true });
+        } catch {
+          // best-effort; the job will be stale-cleaned eventually
+        }
+      }
+      throw err;
     } finally {
       jobHooks?.clear(jobId);
     }

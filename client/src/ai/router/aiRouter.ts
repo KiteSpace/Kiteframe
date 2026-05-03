@@ -78,7 +78,10 @@ function resolveModel(
 
 export function createAiRouter(baseClient: AiClient) {
   async function chat(request: RouterRequest): Promise<RouterResponse> {
-    const { taskType, messages, sessionId, temperature, maxTokens, metadata, optimizationSessionId } = request;
+    const { taskType, messages, sessionId, temperature, maxTokens, metadata, optimizationSessionId, signal } = request;
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     
     const containsImages = hasImageContent(messages as AiMessage[]);
     const { provider, model, usedSessionLock } = resolveModel(taskType, sessionId, containsImages);
@@ -125,6 +128,7 @@ export function createAiRouter(baseClient: AiClient) {
         maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
         taskType,
         optimizationSessionId,
+        signal,
       });
       
       const duration = Math.round(performance.now() - startTime);
@@ -160,6 +164,7 @@ export function createAiRouter(baseClient: AiClient) {
             maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
             taskType,
             optimizationSessionId,
+            signal,
           });
           
           const fallbackLength = fallbackResponse.text?.length ?? 0;
@@ -209,6 +214,9 @@ export function createAiRouter(baseClient: AiClient) {
         metadata: routerMetadata,
       };
     } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+        throw error;
+      }
       const policy = TASK_TYPE_POLICIES[taskType];
       const currentRetry = metadata?.retryCount ?? 0;
       const alreadyUsedFallback = metadata?.usedFallback ?? false;
@@ -237,6 +245,7 @@ export function createAiRouter(baseClient: AiClient) {
             maxTokens: maxTokens ?? ROUTER_CONFIG.defaultMaxTokens,
             taskType,
             optimizationSessionId,
+            signal,
           });
           
           const fallbackDuration = Math.round(performance.now() - startTime);

@@ -35,7 +35,7 @@ import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
-import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback } from "./aiJobStore";
+import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
@@ -1911,6 +1911,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const capturedBody = req.body;
       const reqRef = req;
 
+      // AbortController bound to this job so DELETE /api/ai/jobs/:id can stop
+      // the upstream provider call, releasing the reservation without charging.
+      const jobAbort = new AbortController();
+      attachJobAbortController(job.id, jobAbort);
+
+      // Race guard: if the client aborts before it receives jobId (so it can't
+      // issue DELETE), the request socket closes. We listen for that here and
+      // cancel the just-created job so token spend stops and the reservation
+      // is released. `aborted` is set by Express when the client disconnects
+      // before the response finishes; we only act in that case (a normal
+      // 202 response triggers `close` after `res.end()` too, harmlessly later).
+      req.on('close', () => {
+        if (req.aborted || !res.writableEnded) {
+          const cancelResult = cancelJob(job.id);
+          if (cancelResult.ok && cancelResult.reservedAmount > 0) {
+            try { creditService.releaseReservation(precheck.userIdentifier, cancelResult.reservedAmount); } catch {}
+          }
+        }
+      });
+
       // Fire-and-forget worker. All terminal transitions go through
       // tryFinalize* which atomically refuses to resurrect a job already
       // failed by cleanStale() — so timed-out jobs never get charged, and
@@ -1919,7 +1939,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (async () => {
         setJobRunning(job.id);
         try {
-          const result = await executeAiChat(capturedBody);
+          const result = await executeAiChat(capturedBody, jobAbort.signal);
+
+          // If the upstream call was aborted via cancelJob(), the job was
+          // already finalized as `cancelled` and reservation released; bail.
+          if (jobAbort.signal.aborted) {
+            return;
+          }
 
           if (!result.ok) {
             const fin = tryFinalizeFailure(job.id, result.error || 'AI request failed', result.status);
@@ -2008,10 +2034,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           credits: job.result?.credits,
         });
       }
-      if (job.status === 'failed') {
+      if (job.status === 'failed' || job.status === 'cancelled') {
         return res.json({
           jobId: job.id,
-          status: 'failed',
+          status: job.status,
           error: job.error,
           errorStatus: job.errorStatus,
         });
@@ -2019,6 +2045,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ jobId: job.id, status: job.status });
     } catch (error: any) {
       console.error('Get AI job error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // DELETE /api/ai/jobs/:jobId -> cancel an in-flight job. Aborts the upstream
+  // provider call (so token spend stops mid-flight) and releases the held
+  // credit reservation without charging. Owner-checked so other sessions
+  // can't cancel someone else's jobs.
+  app.delete('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
+    try {
+      const job = getJob(req.params.jobId);
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found or expired' });
+      }
+      const userIdentifier = creditService.getUserIdentifier(req);
+      if (job.userIdentifier !== userIdentifier) {
+        return res.status(403).json({ error: 'Not authorized to cancel this job' });
+      }
+      if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+        return res.json({ jobId: job.id, status: job.status });
+      }
+      const result = cancelJob(job.id);
+      if (result.ok && result.reservedAmount > 0) {
+        creditService.releaseReservation(userIdentifier, result.reservedAmount);
+      }
+      return res.json({ jobId: job.id, status: 'cancelled' });
+    } catch (error: any) {
+      console.error('Cancel AI job error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

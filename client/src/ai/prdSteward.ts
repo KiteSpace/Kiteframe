@@ -115,7 +115,8 @@ function parseReviewResponse(text: string): { summary: string; suggestions: PRDS
 export async function reviewPRD(
   aiClient: AiClient,
   model: SemanticWorkflowModel,
-  prd: WorkflowPRD
+  prd: WorkflowPRD,
+  signal?: AbortSignal
 ): Promise<PRDReviewResult> {
   const { getRouter } = await import('./router');
   const prompt = buildReviewPrompt(model, prd);
@@ -133,7 +134,8 @@ export async function reviewPRD(
     taskType: 'prd_generation',
     messages,
     temperature: 0.3,
-    maxTokens: 1500
+    maxTokens: 1500,
+    signal,
   });
   
   const { summary, suggestions } = parseReviewResponse(response.text);

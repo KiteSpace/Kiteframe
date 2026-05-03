@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 
-export type AiJobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type AiJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface AiJobResult {
   text: string;
@@ -23,6 +23,35 @@ export interface AiJob {
   errorStatus?: number;
   createdAt: number;
   updatedAt: number;
+  // AbortController used to signal upstream provider fetch to cancel when the
+  // owning client aborts the request (e.g. project switch). Not serialized.
+  abortController?: AbortController;
+}
+
+export function attachJobAbortController(id: string, controller: AbortController): void {
+  const job = jobs.get(id);
+  if (!job) return;
+  job.abortController = controller;
+}
+
+// Cancel a still-active job: signal the upstream provider call to abort and
+// transition the job to `cancelled` so the reservation is released and no
+// credits are deducted. Returns the released reservedAmount when ok.
+export function cancelJob(id: string): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
+  const job = jobs.get(id);
+  if (!job) return { ok: false, reason: 'unknown' };
+  if (job.status !== 'pending' && job.status !== 'running') {
+    return { ok: false, reason: 'already-terminal' };
+  }
+  try { job.abortController?.abort(); } catch {}
+  const reservedAmount = job.reservedAmount;
+  job.reservedAmount = 0;
+  job.status = 'cancelled';
+  job.error = 'Cancelled by client';
+  job.errorStatus = 499;
+  job.updatedAt = Date.now();
+  decActive(job.userIdentifier);
+  return { ok: true, reservedAmount };
 }
 
 const jobs = new Map<string, AiJob>();
@@ -50,7 +79,7 @@ function decActive(userIdentifier: string) {
 function cleanStale() {
   const now = Date.now();
   for (const [id, job] of jobs) {
-    if ((job.status === 'completed' || job.status === 'failed') && now - job.updatedAt > COMPLETED_TTL_MS) {
+    if ((job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') && now - job.updatedAt > COMPLETED_TTL_MS) {
       jobs.delete(id);
     } else if ((job.status === 'pending' || job.status === 'running') && now - job.updatedAt > RUNNING_TIMEOUT_MS) {
       job.status = 'failed';

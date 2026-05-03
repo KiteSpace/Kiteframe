@@ -40,7 +40,7 @@ function isRouter(client: AiClientOrRouter): client is AiRouter {
 async function callAi(
   client: AiClientOrRouter,
   messages: AiMessage[],
-  options: { temperature?: number; maxTokens?: number }
+  options: { temperature?: number; maxTokens?: number; signal?: AbortSignal }
 ): Promise<string> {
   if (isRouter(client)) {
     const response = await client.chat({
@@ -48,6 +48,7 @@ async function callAi(
       messages,
       temperature: options.temperature,
       maxTokens: options.maxTokens,
+      signal: options.signal,
     });
     return response.text;
   }
@@ -55,6 +56,7 @@ async function callAi(
     messages,
     temperature: options.temperature,
     maxTokens: options.maxTokens,
+    signal: options.signal,
   });
   return response.text;
 }
@@ -139,21 +141,23 @@ async function generateSectionText(
   client: AiClientOrRouter,
   context: string,
   sectionTitle: string,
-  hint: string
+  hint: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const messages: AiMessage[] = [
     { role: 'system', content: SECTION_SYSTEM_PROMPT },
     { role: 'user', content: `${context}\n\nWrite the "${sectionTitle}" section for this PRD.\n${hint}` },
   ];
 
-  const text = await callAi(client, messages, { temperature: 0.3, maxTokens: 500 });
+  const text = await callAi(client, messages, { temperature: 0.3, maxTokens: 500, signal });
   return text.trim();
 }
 
 export async function generateWorkflowPRD(
   aiClient: AiClientOrRouter,
   model: SemanticWorkflowModel,
-  existingPRD?: WorkflowPRD
+  existingPRD?: WorkflowPRD,
+  signal?: AbortSignal
 ): Promise<WorkflowPRD> {
   const context = buildWorkflowContext(model);
 
@@ -168,7 +172,8 @@ export async function generateWorkflowPRD(
         aiClient,
         context,
         s.title,
-        WORKFLOW_SECTION_HINTS[s.id] || ''
+        WORKFLOW_SECTION_HINTS[s.id] || '',
+        signal
       );
 
       console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
@@ -200,7 +205,8 @@ export async function generateProjectPRD(
   projectId: string,
   projectName: string,
   workflowModels: SemanticWorkflowModel[],
-  existingPRD?: ProjectPRD
+  existingPRD?: ProjectPRD,
+  signal?: AbortSignal
 ): Promise<ProjectPRD> {
   const context = buildProjectContext(projectName, workflowModels);
 
@@ -215,7 +221,8 @@ export async function generateProjectPRD(
         aiClient,
         context,
         s.title,
-        PROJECT_SECTION_HINTS[s.id] || ''
+        PROJECT_SECTION_HINTS[s.id] || '',
+        signal
       );
 
       console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
@@ -276,7 +283,8 @@ export async function generateSingleSection(
   aiClient: AiClientOrRouter,
   model: SemanticWorkflowModel,
   sectionId: string,
-  existingPRD: WorkflowPRD
+  existingPRD: WorkflowPRD,
+  signal?: AbortSignal
 ): Promise<PRDSection | null> {
   const sectionMeta = DEFAULT_WORKFLOW_SECTIONS.find(s => s.id === sectionId);
   if (!sectionMeta) return null;
@@ -293,7 +301,7 @@ export async function generateSingleSection(
     { role: 'user', content: `${context}${previousContent}\n\nRewrite the "${sectionMeta.title}" section for this PRD.\n${hint}` },
   ];
 
-  const text = await callAi(aiClient, messages, { temperature: 0.3, maxTokens: 800 });
+  const text = await callAi(aiClient, messages, { temperature: 0.3, maxTokens: 800, signal });
   const content = text.trim();
 
   if (!content) return null;
@@ -305,7 +313,8 @@ export async function elaborateSection(
   aiClient: AiClientOrRouter,
   model: SemanticWorkflowModel,
   sectionId: string,
-  currentContent: string
+  currentContent: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const sectionMeta = DEFAULT_WORKFLOW_SECTIONS.find(s => s.id === sectionId);
   const sectionTitle = sectionMeta?.title || sectionId;
@@ -323,6 +332,6 @@ export async function elaborateSection(
     },
   ];
 
-  const text = await callAi(aiClient, messages, { temperature: 0.4, maxTokens: 1500 });
+  const text = await callAi(aiClient, messages, { temperature: 0.4, maxTokens: 1500, signal });
   return text.trim();
 }
