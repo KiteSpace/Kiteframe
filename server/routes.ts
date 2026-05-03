@@ -8,6 +8,11 @@ import {
   listSnapshotsHandler,
   restoreSnapshotHandler,
 } from "./snapshotHandlers";
+import {
+  enableProjectShareHandler,
+  disableProjectShareHandler,
+  viewSharedProjectHandler,
+} from "./shareHandlers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { db } from "./db";
 import { 
@@ -1576,131 +1581,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enable sharing for a project (generates shareUuid if not exists)
-  app.post('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserIdFromRequest(req.user);
-      const { id } = req.params;
-
-      const project = await storage.getSavedProject(id, userId);
-      if (!project) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
-      // If already has a shareUuid and is enabled, just return it
-      if (project.isShareEnabled && project.shareUuid) {
-        return res.json({ 
-          shareUuid: project.shareUuid,
-          shareUrl: `/view/${project.shareUuid}`,
-          project 
-        });
-      }
-
-      // Enable sharing (generates new shareUuid if needed)
-      const updated = await storage.enableProjectSharing(id, userId);
-      if (!updated) {
-        return res.status(500).json({ error: 'Failed to enable sharing' });
-      }
-
-      res.json({ 
-        shareUuid: updated.shareUuid,
-        shareUrl: `/view/${updated.shareUuid}`,
-        project: updated 
-      });
-    } catch (error) {
-      console.error('Error enabling project sharing:', error);
-      res.status(500).json({ error: 'Failed to enable sharing' });
-    }
-  });
-
-  // Disable sharing for a project
-  app.delete('/api/projects/:id/share', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserIdFromRequest(req.user);
-      const { id } = req.params;
-
-      const updated = await storage.disableProjectSharing(id, userId);
-      if (!updated) {
-        return res.status(404).json({ error: 'Project not found' });
-      }
-
-      res.json({ success: true, project: updated });
-    } catch (error) {
-      console.error('Error disabling project sharing:', error);
-      res.status(500).json({ error: 'Failed to disable sharing' });
-    }
-  });
-
-  // View-only access via shareUuid or legacy shareId (no auth required)
-  // Handles both new saved project shares AND legacy snapshot shares
-  app.get('/api/view/:shareUuid', async (req: any, res) => {
-    try {
-      const { shareUuid } = req.params;
-      
-      // First, try to find a saved project by shareUuid
-      const project = await storage.getProjectByShareUuid(shareUuid);
-      
-      if (project) {
-        // Check if viewer is actually the owner
-        const userId = req.user?.claims?.sub;
-        if (userId && project.userId === userId) {
-          // Owner viewing their own share link - redirect to edit
-          return res.json({
-            redirect: `/project/${project.projectUuid}`,
-            projectUuid: project.projectUuid,
-            isOwner: true
-          });
-        }
-
-        // Return view-only data from saved project.
-        // Documentation fields are stored in two possible shapes depending on how the project was saved:
-        //   1. Flat (prdData / notesData / detailsData) — written by SavedProjectsDrawer when the user
-        //      explicitly saves to the cloud; these are the canonical share-link fields.
-        //   2. Nested (workflowData.documentation.projectPRD) — written when a .kiteframe v2.1.0 file
-        //      is imported and its workflowData is persisted directly (e.g. server-side import tools).
-        // We surface whichever is present so every share-link code path works.
-        const workflowData = project.workflowData as any;
-        const doc = workflowData?.documentation;
-        return res.json({
-          shareUuid: project.shareUuid,
-          projectName: project.name,
-          projectDescription: project.description,
-          nodes: workflowData?.nodes || [],
-          edges: workflowData?.edges || [],
-          canvasObjects: workflowData?.canvasObjects,
-          viewport: workflowData?.viewport,
-          flowSettings: workflowData?.flowSettings,
-          prdData: workflowData?.prdData ?? doc?.projectPRD ?? null,
-          workflowPRDs: workflowData?.workflowPRDs ?? doc?.workflowPRDs ?? null,
-          notesData: workflowData?.notesData ?? null,
-          detailsData: workflowData?.detailsData ?? null,
-          isOwner: false
-        });
-      }
-      
-      // Fallback: try legacy share links
-      const shareLink = await storage.getShareLink(shareUuid);
-      if (shareLink) {
-        const metadata = shareLink.projectMetadata as { name?: string; description?: string } | null;
-        return res.json({
-          shareUuid: shareLink.shareId,
-          projectName: metadata?.name || 'Shared Workflow',
-          projectDescription: metadata?.description,
-          nodes: shareLink.nodes || [],
-          edges: shareLink.edges || [],
-          canvasObjects: shareLink.canvasObjects,
-          viewport: shareLink.viewport,
-          flowSettings: shareLink.flowSettings,
-          isOwner: false
-        });
-      }
-      
-      return res.status(404).json({ error: 'Shared project not found or sharing is disabled' });
-    } catch (error) {
-      console.error('Error fetching view-only project:', error);
-      res.status(500).json({ error: 'Failed to fetch project' });
-    }
-  });
+  // Enable / disable sharing + view-only access live in shareHandlers.ts
+  // so they can be exercised by integration tests without the full app
+  // graph (Stripe, websockets, Firebase, etc).
+  app.post('/api/projects/:id/share', isAuthenticated, enableProjectShareHandler);
+  app.delete('/api/projects/:id/share', isAuthenticated, disableProjectShareHandler);
+  // View endpoint is intentionally unauthenticated — owner detection
+  // happens inside the handler via req.user?.claims?.sub when present.
+  app.get('/api/view/:shareUuid', viewSharedProjectHandler);
 
   // AI Health Check endpoint - test connectivity to Anthropic Claude models
   app.get('/api/ai/health', async (req, res) => {
