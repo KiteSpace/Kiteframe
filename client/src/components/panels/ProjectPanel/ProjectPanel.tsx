@@ -185,60 +185,58 @@ export function ProjectPanel({
   const activeInsightCount = insights.filter(i => i.status !== 'dismissed').length;
   const newInsightCount = insights.filter(i => i.status === 'new').length;
 
-  if (isCollapsed) {
-    return (
-      <div 
-        className="h-full w-12 border-l border-border bg-card flex flex-col flex-shrink-0"
-        data-testid="project-panel-collapsed"
-      >
-        <TooltipProvider delayDuration={100}>
-          <div className="flex flex-col items-center pt-2 gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setIsCollapsed(false)}
-                  data-testid="button-expand-panel"
-                >
-                  <ChevronLeft size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">Expand Panel</TooltipContent>
-            </Tooltip>
-          </div>
-          
-          <div className="flex flex-col items-center gap-1 mt-2 border-t border-border pt-2">
-            {tabConfig.map(({ id, icon: Icon, label }) => (
-              <Tooltip key={id}>
+  return (
+    <>
+      {isCollapsed && (
+        <div
+          className="h-full w-12 border-l border-border bg-card flex flex-col flex-shrink-0"
+          data-testid="project-panel-collapsed"
+        >
+          <TooltipProvider delayDuration={100}>
+            <div className="flex flex-col items-center pt-2 gap-1">
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={activeTab === id ? 'secondary' : 'ghost'}
+                    variant="ghost"
                     size="icon"
-                    className={`h-8 w-8 ${id === 'kite-ai' ? 'text-purple-500' : ''}`}
-                    onClick={() => {
-                      setActiveTab(id);
-                      setIsCollapsed(false);
-                    }}
-                    data-testid={`collapsed-tab-${id}`}
+                    className="h-8 w-8"
+                    onClick={() => setIsCollapsed(false)}
+                    data-testid="button-expand-panel"
                   >
-                    <Icon size={14} />
+                    <ChevronLeft size={16} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">{label}</TooltipContent>
+                <TooltipContent side="left">Expand Panel</TooltipContent>
               </Tooltip>
-            ))}
-          </div>
-        </TooltipProvider>
-      </div>
-    );
-  }
+            </div>
 
-  return (
+            <div className="flex flex-col items-center gap-1 mt-2 border-t border-border pt-2">
+              {tabConfig.map(({ id, icon: Icon, label }) => (
+                <Tooltip key={id}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={activeTab === id ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className={`h-8 w-8 ${id === 'kite-ai' ? 'text-purple-500' : ''}`}
+                      onClick={() => {
+                        setActiveTab(id);
+                        setIsCollapsed(false);
+                      }}
+                      data-testid={`collapsed-tab-${id}`}
+                    >
+                      <Icon size={14} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">{label}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
+        </div>
+      )}
     <div 
       ref={panelRef}
-      className="h-full border-l border-border bg-card flex flex-col flex-shrink-0 relative"
+      className={`h-full border-l border-border bg-card flex flex-col flex-shrink-0 relative ${isCollapsed ? 'hidden' : ''}`}
       style={{ width: `${panelWidth}px` }}
       data-testid="project-panel"
     >
@@ -330,7 +328,11 @@ export function ProjectPanel({
           />
         </TabsContent>
         
-        <TabsContent value="project" className="flex-1 m-0 overflow-hidden">
+        <TabsContent
+          value="project"
+          forceMount
+          className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden"
+        >
           <ProjectDocTab
             key={projectId || 'default'}
             projectId={projectId}
@@ -394,6 +396,7 @@ export function ProjectPanel({
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 

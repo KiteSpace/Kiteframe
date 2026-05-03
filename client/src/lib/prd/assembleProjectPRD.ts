@@ -35,6 +35,7 @@ export interface AssembledProjectPRD {
     id: string;
     name: string;
     description?: string;
+    categories?: string[];
     createdAt?: string;
     updatedAt?: string;
   };
@@ -77,6 +78,33 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
 
   const projectPRD = loadProjectPRD(projectId);
 
+  let overviewCategories: string[] | undefined;
+  let overviewCreatedAt: string | undefined;
+  let overviewUpdatedAt: string | undefined;
+  let overviewName: string | undefined;
+  let overviewDescription: string | undefined;
+  try {
+    const overviewRaw = typeof localStorage !== 'undefined'
+      ? localStorage.getItem(`kiteframe-details-${projectId}`)
+      : null;
+    if (overviewRaw) {
+      const parsed = JSON.parse(overviewRaw);
+      if (Array.isArray(parsed.categories)) {
+        overviewCategories = parsed.categories.filter((c: unknown) => typeof c === 'string');
+      }
+      if (typeof parsed.createdAt === 'number') {
+        overviewCreatedAt = new Date(parsed.createdAt).toISOString();
+      }
+      if (typeof parsed.updatedAt === 'number') {
+        overviewUpdatedAt = new Date(parsed.updatedAt).toISOString();
+      }
+      if (typeof parsed.name === 'string') overviewName = parsed.name;
+      if (typeof parsed.description === 'string') overviewDescription = parsed.description;
+    }
+  } catch (e) {
+    console.warn('[assembleProjectPRD] Failed to read project overview:', e);
+  }
+
   const workflows: WorkflowPRDEntry[] = [];
   
   for (const workflowId of selectedWorkflowIds) {
@@ -116,10 +144,11 @@ export function assembleProjectPRD(options: AssembleOptions): AssembledProjectPR
   return {
     project: {
       id: projectId,
-      name: projectName,
-      description: projectDescription,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      name: overviewName || projectName,
+      description: projectDescription || overviewDescription,
+      categories: overviewCategories,
+      createdAt: overviewCreatedAt || new Date().toISOString(),
+      updatedAt: overviewUpdatedAt || new Date().toISOString()
     },
     projectPRD: projectPRD ? {
       sections: projectPRD.sections,

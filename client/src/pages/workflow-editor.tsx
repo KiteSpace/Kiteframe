@@ -12551,7 +12551,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }
                     
                     // Save project overview details to localStorage (for ProjectOverviewSection)
-                    if (projectDescription || projectName) {
+                    const importedCategories: string[] | undefined =
+                      Array.isArray(importedData.projectData?.project?.categories)
+                        ? importedData.projectData.project.categories
+                        : Array.isArray(importedData.project?.categories)
+                          ? importedData.project.categories
+                          : undefined;
+                    if (projectDescription || projectName || importedCategories) {
                       const detailsKey = `kiteframe-details-${targetProjectId}`;
                       try {
                         const existingDetails = localStorage.getItem(detailsKey);
@@ -12560,6 +12566,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           ...details,
                           name: projectName || details.name || '',
                           description: projectDescription || details.description || '',
+                          categories: importedCategories || details.categories || [],
+                          createdAt: details.createdAt || Date.now(),
                           updatedAt: Date.now(),
                         };
                         localStorage.setItem(detailsKey, JSON.stringify(updatedDetails));

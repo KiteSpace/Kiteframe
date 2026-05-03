@@ -176,13 +176,23 @@ const WorkflowIntentSchema = z.object({
   confirmed: z.boolean()
 });
 
+// Schema for project overview details (Project Overview tab)
+const ProjectOverviewSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+  createdAt: z.number().optional(),
+  updatedAt: z.number().optional()
+});
+
 // Schema for project documentation data
 const ProjectDocumentationSchema = z.object({
   projectPRD: ProjectPRDSchema.optional(),
   workflowPRDs: z.array(WorkflowPRDSchema).optional(),
   workflowIntents: z.record(WorkflowIntentSchema).optional(),
   workflowNames: z.record(z.string()).optional(),
-  projectDescription: z.string().optional()
+  projectDescription: z.string().optional(),
+  projectOverview: ProjectOverviewSchema.optional()
 });
 
 // Main export schema
@@ -348,12 +358,32 @@ export function exportWorkflow(
       };
     }
     
+    let projectOverview: z.infer<typeof ProjectOverviewSchema> | undefined;
+    try {
+      const overviewRaw = typeof localStorage !== 'undefined'
+        ? localStorage.getItem(`kiteframe-details-${projectId}`)
+        : null;
+      if (overviewRaw) {
+        const parsed = JSON.parse(overviewRaw);
+        projectOverview = {
+          name: typeof parsed.name === 'string' ? parsed.name : undefined,
+          description: typeof parsed.description === 'string' ? parsed.description : undefined,
+          categories: Array.isArray(parsed.categories) ? parsed.categories.filter((c: unknown) => typeof c === 'string') : undefined,
+          createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : undefined,
+          updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : undefined
+        };
+      }
+    } catch (e) {
+      console.warn('[exportWorkflow] Failed to read project overview:', e);
+    }
+
     documentation = {
       projectPRD: projectPRD || undefined,
       workflowPRDs: workflowPRDs.length > 0 ? workflowPRDs : undefined,
       workflowIntents: Object.keys(workflowIntents).length > 0 ? workflowIntents : undefined,
       workflowNames: options.workflowNames,
-      projectDescription: options.projectDescription
+      projectDescription: options.projectDescription,
+      projectOverview
     };
   }
 
@@ -428,12 +458,21 @@ export interface ExportedWorkflowIntent {
 }
 
 // Documentation import result type
+export interface ImportedProjectOverview {
+  name?: string;
+  description?: string;
+  categories?: string[];
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface ImportedDocumentation {
   projectPRD?: ProjectPRD;
   workflowPRDs?: WorkflowPRD[];
   workflowIntents?: Record<string, ExportedWorkflowIntent>;
   workflowNames?: Record<string, string>;
   projectDescription?: string;
+  projectOverview?: ImportedProjectOverview;
 }
 
 /**
@@ -506,13 +545,38 @@ export function importWorkflow(
         workflowPRDs: migratedData.documentation.workflowPRDs as WorkflowPRD[] | undefined,
         workflowIntents: migratedData.documentation.workflowIntents as Record<string, ExportedWorkflowIntent> | undefined,
         workflowNames: migratedData.documentation.workflowNames,
-        projectDescription: migratedData.documentation.projectDescription
+        projectDescription: migratedData.documentation.projectDescription,
+        projectOverview: migratedData.documentation.projectOverview as ImportedProjectOverview | undefined
       };
       
       // Restore documentation to localStorage if requested
       if (options?.restoreDocumentation && options?.projectId) {
         const projectId = options.projectId;
-        
+
+        if (documentation.projectOverview) {
+          const overviewKey = `kiteframe-details-${projectId}`;
+          try {
+            const existingRaw = typeof localStorage !== 'undefined'
+              ? localStorage.getItem(overviewKey)
+              : null;
+            const existing = existingRaw ? JSON.parse(existingRaw) : {};
+            const incoming = documentation.projectOverview;
+            const merged = {
+              ...existing,
+              name: incoming.name ?? existing.name ?? '',
+              description: incoming.description ?? existing.description ?? '',
+              categories: incoming.categories ?? existing.categories ?? [],
+              createdAt: existing.createdAt ?? incoming.createdAt ?? Date.now(),
+              updatedAt: Date.now()
+            };
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem(overviewKey, JSON.stringify(merged));
+            }
+          } catch (e) {
+            console.warn('[importWorkflow] Failed to restore project overview:', e);
+          }
+        }
+
         if (documentation.projectPRD) {
           const restoredProjectPRD: ProjectPRD = {
             ...documentation.projectPRD,

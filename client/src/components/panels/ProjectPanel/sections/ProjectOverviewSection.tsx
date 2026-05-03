@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3, Sparkles, Loader2, Check, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
-import { usePRDGenerationState } from '@/stores/prdGenerationBus';
+import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { getRouter, extractJSON } from '@/ai/router';
 
@@ -370,10 +370,23 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     return `Nodes (${nodes.length}):\n${nodeDescriptions}\n\nConnections (${edges?.length || 0}):\n${edgeDescriptions}`;
   }, [nodes, edges]);
 
+  const persistDetailsPatch = useCallback((patch: Partial<ProjectDetails>) => {
+    if (!storageKey) return;
+    try {
+      const existingRaw = localStorage.getItem(storageKey);
+      const existing = existingRaw ? JSON.parse(existingRaw) : {};
+      const merged = { ...DEFAULT_DETAILS, ...existing, ...patch, updatedAt: Date.now() };
+      localStorage.setItem(storageKey, JSON.stringify(merged));
+    } catch (e) {
+      console.warn('[ProjectOverviewSection] Failed to persist details:', e);
+    }
+  }, [storageKey]);
+
   const generateProjectInfo = useCallback(async () => {
-    if (!nodes || nodes.length === 0 || !aiClient) return;
-    
+    if (!nodes || nodes.length === 0 || !aiClient || !projectId) return;
+
     setIsGeneratingLocal(true);
+    prdGenerationBus.startGeneration(projectId);
     try {
       const workflowContext = buildWorkflowContext();
       
@@ -398,19 +411,27 @@ Based on the node labels, descriptions, and connections above, determine what th
       const jsonStr = extractJSON(response.text);
       if (jsonStr) {
         const parsed = JSON.parse(jsonStr);
+        const patch: Partial<ProjectDetails> = {};
         if (parsed.name) {
+          patch.name = parsed.name;
           updateName(parsed.name);
         }
         if (parsed.description) {
+          patch.description = parsed.description;
           updateDescription(parsed.description);
+        }
+        if (Object.keys(patch).length > 0) {
+          persistDetailsPatch(patch);
+          prdGenerationBus.notifyProjectDetailsUpdated(projectId);
         }
       }
     } catch (error) {
       console.error('Error generating project info:', error);
     } finally {
       setIsGeneratingLocal(false);
+      prdGenerationBus.completeGeneration(projectId);
     }
-  }, [nodes, edges, aiClient, buildWorkflowContext, updateName, updateDescription]);
+  }, [nodes, edges, aiClient, buildWorkflowContext, updateName, updateDescription, projectId, persistDetailsPatch]);
 
   const refineField = useCallback(async (field: 'name' | 'description') => {
     if (!nodes || nodes.length === 0) return;
@@ -467,11 +488,16 @@ Return ONLY valid JSON:
     if (!refinement.field || !refinement.suggested) return;
     if (refinement.field === 'name') {
       updateName(refinement.suggested);
+      persistDetailsPatch({ name: refinement.suggested });
     } else {
       updateDescription(refinement.suggested);
+      persistDetailsPatch({ description: refinement.suggested });
+    }
+    if (projectId) {
+      prdGenerationBus.notifyProjectDetailsUpdated(projectId);
     }
     setRefinement({ field: null, suggested: '', isRefining: false });
-  }, [refinement, updateName, updateDescription]);
+  }, [refinement, updateName, updateDescription, projectId, persistDetailsPatch]);
 
   const rejectRefinement = useCallback(() => {
     setRefinement({ field: null, suggested: '', isRefining: false });
