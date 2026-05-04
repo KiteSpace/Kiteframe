@@ -60,7 +60,7 @@ export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
   const [transcripts, setTranscripts] = useState<ConversationTranscript[]>([]);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
-  useEffect(() => {
+  const loadNotesFromStorage = useCallback(() => {
     const key = getNotesStorageKey(projectId);
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -75,8 +75,26 @@ export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
         setNotes(saved);
         setSavedNotes(saved);
       }
+    } else {
+      setNotes('');
+      setSavedNotes('');
     }
+  }, [projectId]);
 
+  useEffect(() => {
+    loadNotesFromStorage();
+
+    const handlePanelRefresh = (e: Event) => {
+      const detail = (e as CustomEvent<{ projectId?: string }>).detail;
+      if (!detail?.projectId || detail.projectId === projectId) {
+        loadNotesFromStorage();
+      }
+    };
+    window.addEventListener('kiteframe:panelDataRefresh', handlePanelRefresh);
+    return () => window.removeEventListener('kiteframe:panelDataRefresh', handlePanelRefresh);
+  }, [loadNotesFromStorage]);
+
+  useEffect(() => {
     // Load all transcripts
     const loadedTranscripts: ConversationTranscript[] = [];
 

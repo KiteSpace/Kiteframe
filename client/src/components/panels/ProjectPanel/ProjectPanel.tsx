@@ -386,6 +386,7 @@ export function ProjectPanel({
             onNavigateToNode={onInsightNavigateToNode}
             onHoverInsight={onHoverInsight}
             focusedInsightId={focusedInsightId}
+            isReadOnly={isReadOnly}
             onProposeSolution={onProposeSolution}
             hasActiveProposal={hasActiveProposal}
             generatingInsightId={generatingInsightId}

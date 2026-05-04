@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { type AiMode, DEFAULT_AI_MODE, AI_MODE_LABELS } from '../ai/types';
 import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
@@ -2795,7 +2796,9 @@ function DiscussionView({
   const { toast } = useToast();
   const aiClient = useAi();
   const { user, loading: authLoading, signIn } = useAuth();
-  const isAuthenticated = !!user;
+  const { isServerAuthenticated, isLoading: subLoading } = useSubscription();
+  const isAuthenticated = !!user || isServerAuthenticated;
+  const authChecked = !authLoading && !subLoading;
   
   const hasApiKey = true;
 
@@ -2937,7 +2940,7 @@ ${workflowContext}`;
     );
   }
 
-  if (!authLoading && !isAuthenticated) {
+  if (authChecked && !isAuthenticated) {
     return (
       <div className="flex flex-col h-full" data-testid="discussion-view-auth-gate">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">

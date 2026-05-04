@@ -13,6 +13,7 @@ import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import type { ProjectPRD, WorkflowPRD } from '../ai/prdEngine';
 import { saveWorkflowPRD } from '../lib/kiteframe/utils/prdStorage';
+import { prdGenerationBus } from '../stores/prdGenerationBus';
 import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
@@ -232,6 +233,10 @@ export default function ViewOnlyViewer() {
                 } else {
                   localStorage.removeItem(`kiteframe-details-${shareId}`);
                 }
+                // Notify panel consumers to reload from localStorage
+                prdGenerationBus.notifyProjectDetailsUpdated(shareId);
+                prdGenerationBus.notifyPRDUpdated(shareId);
+                window.dispatchEvent(new CustomEvent('kiteframe:panelDataRefresh', { detail: { projectId: shareId } }));
               } catch (e) {
                 console.warn(`📡 [VIEWER WS] Panel refetch failed:`, e);
               }
