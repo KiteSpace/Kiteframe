@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, MouseEvent, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useAuth } from '@/hooks/useAuth';
-import { useSubscription } from '@/hooks/useSubscription';
+import { getQueryFn } from '@/lib/queryClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { type AiMode, DEFAULT_AI_MODE, AI_MODE_LABELS } from '../ai/types';
 import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
@@ -2796,9 +2797,15 @@ function DiscussionView({
   const { toast } = useToast();
   const aiClient = useAi();
   const { user, loading: authLoading, signIn } = useAuth();
-  const { isServerAuthenticated, isLoading: subLoading } = useSubscription();
+  const { data: authProbe, isLoading: authProbeLoading } = useQuery<object | null>({
+    queryKey: ['/api/subscription'],
+    queryFn: getQueryFn({ on401: 'returnNull' }),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const isServerAuthenticated = !authProbeLoading && authProbe !== null && authProbe !== undefined;
   const isAuthenticated = !!user || isServerAuthenticated;
-  const authChecked = !authLoading && !subLoading;
+  const authChecked = !authLoading && !authProbeLoading;
   
   const hasApiKey = true;
 
@@ -2940,7 +2947,16 @@ ${workflowContext}`;
     );
   }
 
-  if (authChecked && !isAuthenticated) {
+  if (!authChecked) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center gap-3 p-6" data-testid="discussion-view-loading">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs text-muted-foreground">Checking sign-in status...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <div className="flex flex-col h-full" data-testid="discussion-view-auth-gate">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
