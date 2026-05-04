@@ -1,0 +1,56 @@
+KiteFrameCanvas-BxqEALyi.js:439 Worker error: 
+Event
+KiteFrameCanvas-BxqEALyi.js:439 Worker error: 
+Event
+KiteFrameCanvas-BxqEALyi.js:439 Worker error: 
+Event
+KiteFrameCanvas-BxqEALyi.js:439 Worker error: 
+Event
+KiteFrameCanvas-BxqEALyi.js:439 Worker error: 
+Event
+/api/announcements:1 
+ Failed to load resource: the server responded with a status of 401 ()
+/api/feature-flags:1 
+ Failed to load resource: the server responded with a status of 401 ()
+/api/auth/user:1 
+ Failed to load resource: the server responded with a status of 401 ()
+ViewOnlyViewer-DA2pWxaJ.js:6 📡 [VIEWER WS] Connected! Subscribing to shareId: ac98bb6b-5408-405e-b409-599db635f60a
+ViewOnlyViewer-DA2pWxaJ.js:6 📡 [VIEWER WS] Received message: connection_established undefined
+ViewOnlyViewer-DA2pWxaJ.js:6 📡 [VIEWER WS] Received message: share_subscribed ac98bb6b-5408-405e-b409-599db635f60a
+ViewOnlyViewer-DA2pWxaJ.js:6 📡 [VIEWER WS] Successfully subscribed to shareId: ac98bb6b-5408-405e-b409-599db635f60a
+/api/subscription:1 
+ Failed to load resource: the server responded with a status of 401 ()
+/api/feature-flags:1 
+ Failed to load resource: the server responded with a status of 401 ()
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Request started: 
+Object
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Request completed: 
+Object
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_ATTEMPT] 
+Object
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_RESULT] 
+Object
+/api/subscription:1 
+ Failed to load resource: the server responded with a status of 401 ()
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_ATTEMPT] 
+Object
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_RESULT] 
+Object
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_ATTEMPT] 
+Object
+ProjectPanel-B1hZ-wqF.js:245 [PRD][LOAD_RESULT] 
+Object
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Using claude-haiku-4-5-20251001 for general_chat
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Request started: 
+Object
+/api/ai/job:1 
+ Failed to load resource: the server responded with a status of 403 ()
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Request failed, retrying (1/1)...
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Using claude-haiku-4-5-20251001 for general_chat
+KiteAIChat-9NZlc1RO.js:91 [AIRouter] Request started: 
+Object
+/api/ai/job:1 
+ Failed to load resource: the server responded with a status of 403 ()
+﻿
+
