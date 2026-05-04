@@ -12,7 +12,7 @@ import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import type { FlowSettingsMap } from '../lib/kiteframe/utils/FlowDetection';
 import type { ProjectPRD, WorkflowPRD } from '../ai/prdEngine';
-import { saveWorkflowPRD } from '../lib/kiteframe/utils/prdStorage';
+import { saveWorkflowPRD, listWorkflowPRDs, deleteWorkflowPRD } from '../lib/kiteframe/utils/prdStorage';
 import { prdGenerationBus } from '../stores/prdGenerationBus';
 import '../lib/kiteframe/styles/kiteframe.css';
 
@@ -218,10 +218,17 @@ export default function ViewOnlyViewer() {
                 } else {
                   localStorage.removeItem(`prd-project-${shareId}`);
                 }
-                if (fresh.workflowPRDs && fresh.workflowPRDs.length > 0) {
-                  for (const wPRD of fresh.workflowPRDs) {
-                    if (wPRD.workflowId) saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
+                // Reseed workflow PRDs — write fresh ones, clear stale keys not in the response
+                const freshWorkflowIds = new Set<string>(
+                  (fresh.workflowPRDs ?? []).map(w => w.workflowId).filter(Boolean) as string[]
+                );
+                for (const existingId of listWorkflowPRDs(shareId)) {
+                  if (!freshWorkflowIds.has(existingId)) {
+                    deleteWorkflowPRD(shareId, existingId);
                   }
+                }
+                for (const wPRD of fresh.workflowPRDs ?? []) {
+                  if (wPRD.workflowId) saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
                 }
                 if (fresh.notesData) {
                   localStorage.setItem(`kiteframe-notes-${shareId}`, fresh.notesData);
