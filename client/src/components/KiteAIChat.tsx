@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
+import { useAuth } from '@/hooks/useAuth';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { type AiMode, DEFAULT_AI_MODE, AI_MODE_LABELS } from '../ai/types';
 import { selectKiteRole, getRoleLabel, type KiteRole, type RoleContext } from '../ai/roleSelector';
@@ -2785,7 +2786,7 @@ function DiscussionView({
   const [messages, setMessages] = useState<ChatMessage[]>(() => [{
     id: 'discussion-welcome',
     role: 'assistant',
-    content: "Welcome to the discussion view. I can help you understand this workflow, identify potential edge cases, suggest improvements, or discuss missing steps.\n\nWhat would you like to discuss about this workflow?",
+    content: "Welcome to the discussion view. I can help you understand this workflow, identify potential edge cases, suggest improvements, or discuss missing steps.\n\nNote: chat responses use credits from your daily allowance.\n\nWhat would you like to discuss about this workflow?",
     timestamp: new Date()
   }]);
   
@@ -2793,6 +2794,8 @@ function DiscussionView({
   
   const { toast } = useToast();
   const aiClient = useAi();
+  const { user, loading: authLoading, signIn } = useAuth();
+  const isAuthenticated = !!user;
   
   const hasApiKey = true;
 
@@ -2884,11 +2887,23 @@ ${workflowContext}`;
       
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to get a response. Please try again.',
-        variant: 'destructive'
-      });
+      const errMsg = error instanceof Error ? error.message : '';
+      const isCreditLimit = errMsg.includes('403') && (errMsg.toLowerCase().includes('credit') || errMsg.toLowerCase().includes('limit'));
+      if (isCreditLimit) {
+        const limitMessage: ChatMessage = {
+          id: `msg-${Date.now()}-limit`,
+          role: 'assistant',
+          content: "You've reached your daily credit limit. Credits reset every 24 hours.",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, limitMessage]);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to get a response. Please try again.',
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -2917,6 +2932,30 @@ ${workflowContext}`;
             <li>Add your API key</li>
             <li>Return to this shared view</li>
           </ol>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="flex flex-col h-full" data-testid="discussion-view-auth-gate">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+          <Eye className="w-4 h-4 text-blue-500" />
+          <span className="text-sm font-medium">Discussion Mode</span>
+          <Badge variant="secondary" className="text-[10px] ml-auto">Read Only</Badge>
+        </div>
+        <div className="flex flex-col items-center justify-center flex-1 p-6 text-center gap-4">
+          <MessageCircle className="w-10 h-10 text-muted-foreground opacity-50" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Sign in to use KiteAI</p>
+            <p className="text-xs text-muted-foreground max-w-[220px]">
+              Chat with KiteAI to discuss this workflow, explore edge cases, or get suggestions.
+            </p>
+          </div>
+          <Button size="sm" onClick={signIn} data-testid="button-discussion-sign-in">
+            Sign in with Google
+          </Button>
         </div>
       </div>
     );

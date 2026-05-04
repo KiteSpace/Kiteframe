@@ -281,17 +281,19 @@ export function ProjectDocTab({
           Workflow PRD
         </button>
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExportModalOpen(true)}
-          disabled={isGenerating}
-          className="h-7 text-xs"
-          data-testid="button-open-export-modal"
-        >
-          <Download size={14} className="mr-1" />
-          Export
-        </Button>
+        {!isReadOnly && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={isGenerating}
+            className="h-7 text-xs"
+            data-testid="button-open-export-modal"
+          >
+            <Download size={14} className="mr-1" />
+            Export
+          </Button>
+        )}
       </div>
 
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
@@ -313,6 +315,7 @@ export function ProjectDocTab({
                 onProjectNameChange={onProjectNameChange}
                 nodes={nodes}
                 edges={edges}
+                isReadOnly={isReadOnly}
               />
 
               {(workflowSummaries.length > 0 || standaloneNodes.length > 0) && (

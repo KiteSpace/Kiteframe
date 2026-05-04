@@ -26,6 +26,7 @@ interface ProjectOverviewSectionProps {
   onProjectNameChange?: (name: string) => void;
   nodes?: Node[];
   edges?: Edge[];
+  isReadOnly?: boolean;
 }
 
 const DEFAULT_DETAILS: ProjectDetails = {
@@ -115,9 +116,10 @@ interface InlineEditFieldProps {
   className?: string;
   multiline?: boolean;
   testId: string;
+  isReadOnly?: boolean;
 }
 
-function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButton = false, isRefineDisabled = false, className, multiline = false, testId }: InlineEditFieldProps) {
+function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButton = false, isRefineDisabled = false, className, multiline = false, testId, isReadOnly = false }: InlineEditFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isHovered, setIsHovered] = useState(false);
@@ -158,6 +160,17 @@ function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButto
       handleSave();
     }
   }, [handleCancel, handleSave, multiline]);
+
+  if (isReadOnly) {
+    return (
+      <div
+        className={cn("rounded-md", !value && "italic text-muted-foreground", className)}
+        data-testid={testId}
+      >
+        {value || placeholder}
+      </div>
+    );
+  }
 
   if (isEditing) {
     const sharedProps = {
@@ -243,7 +256,7 @@ function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButto
   );
 }
 
-export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [] }: ProjectOverviewSectionProps) {
+export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [], isReadOnly = false }: ProjectOverviewSectionProps) {
   const [details, setDetails] = useState<ProjectDetails>(DEFAULT_DETAILS);
   const [newCategory, setNewCategory] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -566,7 +579,7 @@ Return ONLY valid JSON:
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-1">
             Project Overview
           </h2>
-          {nodes && nodes.length > 0 && (
+          {!isReadOnly && nodes && nodes.length > 0 && (
             <Button
               size="sm"
               variant="ghost"
@@ -609,10 +622,11 @@ Return ONLY valid JSON:
                   placeholder="Click to add project name..."
                   onSave={updateName}
                   onRefine={() => refineField('name')}
-                  showRefineButton={hasNodes}
+                  showRefineButton={!isReadOnly && hasNodes}
                   isRefineDisabled={refinement.isRefining}
                   className="text-lg font-semibold"
                   testId="project-name"
+                  isReadOnly={isReadOnly}
                 />
                 {refinement.field === 'name' && (
                   <RefinementPreview
@@ -633,11 +647,12 @@ Return ONLY valid JSON:
                   placeholder="Click to add a description..."
                   onSave={updateDescription}
                   onRefine={() => refineField('description')}
-                  showRefineButton={hasNodes}
+                  showRefineButton={!isReadOnly && hasNodes}
                   isRefineDisabled={refinement.isRefining}
                   className="text-sm text-muted-foreground leading-relaxed"
                   multiline
                   testId="project-description"
+                  isReadOnly={isReadOnly}
                 />
                 {refinement.field === 'description' && (
                   <RefinementPreview
@@ -654,7 +669,7 @@ Return ONLY valid JSON:
 
           <div 
             className="space-y-2"
-            onMouseEnter={() => setIsCategoriesHovered(true)}
+            onMouseEnter={() => !isReadOnly && setIsCategoriesHovered(true)}
             onMouseLeave={() => setIsCategoriesHovered(false)}
           >
             <div className="flex items-center gap-2">
@@ -662,47 +677,54 @@ Return ONLY valid JSON:
                 <Tag size={10} />
                 Categories
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-5 w-5 p-0 text-muted-foreground hover:text-foreground transition-opacity duration-150",
-                  (isCategoriesHovered || isAddingCategory) ? "opacity-100" : "opacity-0"
-                )}
-                onClick={() => setIsAddingCategory(true)}
-                data-testid="button-add-category"
-              >
-                <Plus size={10} />
-              </Button>
+              {!isReadOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-5 w-5 p-0 text-muted-foreground hover:text-foreground transition-opacity duration-150",
+                    (isCategoriesHovered || isAddingCategory) ? "opacity-100" : "opacity-0"
+                  )}
+                  onClick={() => setIsAddingCategory(true)}
+                  data-testid="button-add-category"
+                >
+                  <Plus size={10} />
+                </Button>
+              )}
             </div>
             
             <div className="flex flex-wrap gap-1.5">
               {details.categories.length === 0 && !isAddingCategory && (
                 <span 
-                  className="text-xs text-muted-foreground italic cursor-pointer hover:bg-accent/30 px-1 rounded"
-                  onClick={() => setIsAddingCategory(true)}
+                  className={cn(
+                    "text-xs text-muted-foreground italic px-1 rounded",
+                    !isReadOnly && "cursor-pointer hover:bg-accent/30"
+                  )}
+                  onClick={() => !isReadOnly && setIsAddingCategory(true)}
                 >
-                  Click to add categories...
+                  {isReadOnly ? 'No categories' : 'Click to add categories...'}
                 </span>
               )}
               {details.categories.map(category => (
                 <Badge 
                   key={category} 
                   variant="secondary"
-                  className="text-xs pr-1 gap-1"
+                  className={cn("text-xs gap-1", !isReadOnly && "pr-1")}
                   data-testid={`category-${category}`}
                 >
                   {category}
-                  <button
-                    onClick={() => removeCategory(category)}
-                    className="ml-1 hover:text-destructive"
-                    data-testid={`remove-category-${category}`}
-                  >
-                    <X size={10} />
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => removeCategory(category)}
+                      className="ml-1 hover:text-destructive"
+                      data-testid={`remove-category-${category}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
                 </Badge>
               ))}
-              {isAddingCategory && (
+              {!isReadOnly && isAddingCategory && (
                 <Input
                   ref={categoryInputRef}
                   value={newCategory}

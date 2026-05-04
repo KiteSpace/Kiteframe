@@ -6,6 +6,7 @@ import { Loader2, AlertCircle, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
 import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
+import { SharedViewHeader } from '@/components/SharedViewHeader';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
@@ -55,6 +56,8 @@ export default function ViewOnlyViewer() {
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const liveUpdatesRef = useRef(liveUpdates);
+  const panelRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPanelRefetchRef = useRef<number>(0);
   
   const createAiClient = useCallback(() => {
     const savedSettings = localStorage.getItem('ai_settings');
@@ -192,6 +195,47 @@ export default function ViewOnlyViewer() {
           } else {
             console.log(`📡 [VIEWER WS] Live updates OFF - marking pending updates`);
             setHasPendingUpdates(true);
+          }
+
+          // Debounced panel data refetch — at most once per 30 seconds regardless of live mode.
+          // This ensures PRD/notes/details update without a full page reload.
+          const now = Date.now();
+          const MIN_REFETCH_INTERVAL_MS = 30_000;
+          if (now - lastPanelRefetchRef.current >= MIN_REFETCH_INTERVAL_MS) {
+            if (panelRefetchTimerRef.current) clearTimeout(panelRefetchTimerRef.current);
+            panelRefetchTimerRef.current = setTimeout(async () => {
+              lastPanelRefetchRef.current = Date.now();
+              console.log(`📡 [VIEWER WS] Refetching panel data for shareId: ${shareId}`);
+              try {
+                const res = await fetch(`/api/view/${shareId}`);
+                if (!res.ok) return;
+                const fresh = await res.json() as SharedProjectData;
+                if (!fresh || fresh.shareUuid !== shareId) return;
+                // Re-seed localStorage so panel tabs pick up fresh PRD/notes/details
+                if (fresh.prdData) {
+                  localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(fresh.prdData));
+                } else {
+                  localStorage.removeItem(`prd-project-${shareId}`);
+                }
+                if (fresh.workflowPRDs && fresh.workflowPRDs.length > 0) {
+                  for (const wPRD of fresh.workflowPRDs) {
+                    if (wPRD.workflowId) saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
+                  }
+                }
+                if (fresh.notesData) {
+                  localStorage.setItem(`kiteframe-notes-${shareId}`, fresh.notesData);
+                } else {
+                  localStorage.removeItem(`kiteframe-notes-${shareId}`);
+                }
+                if (fresh.detailsData) {
+                  localStorage.setItem(`kiteframe-details-${shareId}`, fresh.detailsData);
+                } else {
+                  localStorage.removeItem(`kiteframe-details-${shareId}`);
+                }
+              } catch (e) {
+                console.warn(`📡 [VIEWER WS] Panel refetch failed:`, e);
+              }
+            }, 2_000);
           }
         } else if (message.type === 'share_subscribed') {
           console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${message.shareId}`);
@@ -350,8 +394,9 @@ export default function ViewOnlyViewer() {
   return (
     <AiProvider client={aiClient}>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="view-only-viewer">
+        <SharedViewHeader projectName={projectName} />
         {/* Main Content - flex row with canvas and docked panel */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Canvas Container */}
           <div 
             ref={canvasContainerRef}
