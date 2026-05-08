@@ -63,4 +63,4 @@ VITE_PROPOSE_SOLUTION_PREVIEW = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 180000
