@@ -1195,11 +1195,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`📡 [BROADCAST BY ID] Sharing enabled, broadcasting to shareUuid: ${project.shareUuid}`);
         const broadcastFn = (req.app as any).broadcastShareUpdate;
         if (broadcastFn && sanitizedWorkflowData) {
-          const { nodes, edges, canvasObjects, viewport, flowSettings } = sanitizedWorkflowData as any;
+          const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
           const nodeCount = nodes?.length || 0;
           const edgeCount = edges?.length || 0;
           console.log(`📡 [BROADCAST BY ID] Broadcasting ${nodeCount} nodes, ${edgeCount} edges to viewers`);
-          broadcastFn(project.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings });
+          broadcastFn(project.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
         } else {
           console.log(`📡 [BROADCAST BY ID] No broadcast function or workflowData - broadcastFn: ${!!broadcastFn}, workflowData: ${!!sanitizedWorkflowData}`);
         }
@@ -1562,11 +1562,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`📡 [BROADCAST] Sharing enabled, broadcasting to shareUuid: ${updated.shareUuid}`);
         const broadcastFn = (req.app as any).broadcastShareUpdate;
         if (broadcastFn && sanitizedWorkflowData) {
-          const { nodes, edges, canvasObjects, viewport, flowSettings } = sanitizedWorkflowData as any;
+          const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
           const nodeCount = nodes?.length || 0;
           const edgeCount = edges?.length || 0;
           console.log(`📡 [BROADCAST] Broadcasting ${nodeCount} nodes, ${edgeCount} edges to viewers`);
-          broadcastFn(updated.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings });
+          broadcastFn(updated.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
         } else {
           console.log(`📡 [BROADCAST] No broadcast function or no workflowData - broadcastFn: ${!!broadcastFn}, workflowData: ${!!sanitizedWorkflowData}`);
         }
@@ -6375,6 +6375,10 @@ jane@example.com,Jane,Smith,pro,GroupC
     canvasObjects?: any[];
     viewport?: { x: number; y: number; zoom: number };
     flowSettings?: Record<string, any>;
+    prdData?: any;
+    workflowPRDs?: any[];
+    notesData?: string | null;
+    detailsData?: string | null;
   }) => {
     const subscribers = shareSubscriptions.get(shareId);
     console.log(`📡 [WS BROADCAST] shareId: ${shareId}, subscribers: ${subscribers?.size || 0}`);

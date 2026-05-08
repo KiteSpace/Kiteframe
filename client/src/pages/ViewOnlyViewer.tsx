@@ -34,6 +34,27 @@ interface SharedProjectData {
   detailsData?: string | null;
 }
 
+interface ShareUpdateMessage {
+  type: 'share_update';
+  shareId: string;
+  nodes?: Node[];
+  edges?: Edge[];
+  canvasObjects?: CanvasObject[];
+  viewport?: { x: number; y: number; zoom: number };
+  flowSettings?: FlowSettingsMap;
+  prdData?: ProjectPRD | null;
+  workflowPRDs?: WorkflowPRD[] | null;
+  notesData?: string | null;
+  detailsData?: string | null;
+}
+
+interface ShareSubscribedMessage {
+  type: 'share_subscribed';
+  shareId: string;
+}
+
+type WsMessage = ShareUpdateMessage | ShareSubscribedMessage | { type: string };
+
 export default function ViewOnlyViewer() {
   const { shareId } = useParams<{ shareId: string }>();
   const [, setLocation] = useLocation();
@@ -57,8 +78,6 @@ export default function ViewOnlyViewer() {
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const liveUpdatesRef = useRef(liveUpdates);
-  const panelRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPanelRefetchRef = useRef<number>(0);
   
   const createAiClient = useCallback(() => {
     const savedSettings = localStorage.getItem('ai_settings');
@@ -180,77 +199,67 @@ export default function ViewOnlyViewer() {
     
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
-        console.log(`📡 [VIEWER WS] Received message:`, message.type, message.shareId);
-        if (message.type === 'share_update' && message.shareId === shareId) {
-          const nodeCount = message.nodes?.length || 0;
-          const edgeCount = message.edges?.length || 0;
+        const message = JSON.parse(event.data) as WsMessage;
+        console.log(`📡 [VIEWER WS] Received message:`, message.type, (message as ShareUpdateMessage).shareId);
+        if (message.type === 'share_update' && (message as ShareUpdateMessage).shareId === shareId) {
+          const msg = message as ShareUpdateMessage;
+          const nodeCount = msg.nodes?.length || 0;
+          const edgeCount = msg.edges?.length || 0;
           
           if (liveUpdatesRef.current) {
             console.log(`📡 [VIEWER WS] Applying update - ${nodeCount} nodes, ${edgeCount} edges`);
-            if (message.nodes) setNodes(message.nodes);
-            if (message.edges) setEdges(message.edges);
-            if (message.canvasObjects) setCanvasObjects(message.canvasObjects);
-            if (message.viewport) setViewport(message.viewport);
-            if (message.flowSettings) setFlowSettings(message.flowSettings);
+            if (msg.nodes) setNodes(msg.nodes);
+            if (msg.edges) setEdges(msg.edges);
+            if (msg.canvasObjects) setCanvasObjects(msg.canvasObjects);
+            if (msg.viewport) setViewport(msg.viewport);
+            if (msg.flowSettings) setFlowSettings(msg.flowSettings);
           } else {
             console.log(`📡 [VIEWER WS] Live updates OFF - marking pending updates`);
             setHasPendingUpdates(true);
           }
 
-          // Debounced panel data refetch — at most once per 30 seconds regardless of live mode.
-          // This ensures PRD/notes/details update without a full page reload.
-          const now = Date.now();
-          const MIN_REFETCH_INTERVAL_MS = 30_000;
-          if (now - lastPanelRefetchRef.current >= MIN_REFETCH_INTERVAL_MS) {
-            if (panelRefetchTimerRef.current) clearTimeout(panelRefetchTimerRef.current);
-            panelRefetchTimerRef.current = setTimeout(async () => {
-              lastPanelRefetchRef.current = Date.now();
-              console.log(`📡 [VIEWER WS] Refetching panel data for shareId: ${shareId}`);
-              try {
-                const res = await fetch(`/api/view/${shareId}`);
-                if (!res.ok) return;
-                const fresh = await res.json() as SharedProjectData;
-                if (!fresh || fresh.shareUuid !== shareId) return;
-                // Re-seed localStorage so panel tabs pick up fresh PRD/notes/details
-                if (fresh.prdData) {
-                  localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(fresh.prdData));
-                } else {
-                  localStorage.removeItem(`prd-project-${shareId}`);
-                }
-                // Reseed workflow PRDs — write fresh ones, clear stale keys not in the response
+          // Re-seed localStorage from panel data fields sent directly in the WS message.
+          // No HTTP round-trip needed — viewers see changes the moment the author saves.
+          if (shareId && ('prdData' in msg || 'workflowPRDs' in msg || 'notesData' in msg || 'detailsData' in msg)) {
+            try {
+              if (msg.prdData) {
+                localStorage.setItem(`prd-project-${shareId}`, JSON.stringify(msg.prdData));
+              } else if ('prdData' in msg) {
+                localStorage.removeItem(`prd-project-${shareId}`);
+              }
+              // Only clean up stale workflow PRD keys when the server explicitly sent the field.
+              if ('workflowPRDs' in msg) {
                 const freshWorkflowIds = new Set<string>(
-                  (fresh.workflowPRDs ?? []).map(w => w.workflowId).filter(Boolean) as string[]
+                  (msg.workflowPRDs ?? []).map((w: WorkflowPRD) => w.workflowId).filter(Boolean) as string[]
                 );
                 for (const existingId of listWorkflowPRDs(shareId)) {
                   if (!freshWorkflowIds.has(existingId)) {
                     deleteWorkflowPRD(shareId, existingId);
                   }
                 }
-                for (const wPRD of fresh.workflowPRDs ?? []) {
+                for (const wPRD of msg.workflowPRDs ?? []) {
                   if (wPRD.workflowId) saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
                 }
-                if (fresh.notesData) {
-                  localStorage.setItem(`kiteframe-notes-${shareId}`, fresh.notesData);
-                } else {
-                  localStorage.removeItem(`kiteframe-notes-${shareId}`);
-                }
-                if (fresh.detailsData) {
-                  localStorage.setItem(`kiteframe-details-${shareId}`, fresh.detailsData);
-                } else {
-                  localStorage.removeItem(`kiteframe-details-${shareId}`);
-                }
-                // Notify panel consumers to reload from localStorage
-                prdGenerationBus.notifyProjectDetailsUpdated(shareId);
-                prdGenerationBus.notifyPRDUpdated(shareId);
-                window.dispatchEvent(new CustomEvent('kiteframe:panelDataRefresh', { detail: { projectId: shareId } }));
-              } catch (e) {
-                console.warn(`📡 [VIEWER WS] Panel refetch failed:`, e);
               }
-            }, 2_000);
+              if (msg.notesData) {
+                localStorage.setItem(`kiteframe-notes-${shareId}`, msg.notesData);
+              } else if ('notesData' in msg) {
+                localStorage.removeItem(`kiteframe-notes-${shareId}`);
+              }
+              if (msg.detailsData) {
+                localStorage.setItem(`kiteframe-details-${shareId}`, msg.detailsData);
+              } else if ('detailsData' in msg) {
+                localStorage.removeItem(`kiteframe-details-${shareId}`);
+              }
+              prdGenerationBus.notifyProjectDetailsUpdated(shareId);
+              prdGenerationBus.notifyPRDUpdated(shareId);
+              window.dispatchEvent(new CustomEvent('kiteframe:panelDataRefresh', { detail: { projectId: shareId } }));
+            } catch (e) {
+              console.warn(`📡 [VIEWER WS] Panel localStorage seed failed:`, e);
+            }
           }
         } else if (message.type === 'share_subscribed') {
-          console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${message.shareId}`);
+          console.log(`📡 [VIEWER WS] Successfully subscribed to shareId: ${(message as ShareSubscribedMessage).shareId}`);
         }
       } catch (e) {
         console.error('WebSocket message parse error:', e);
