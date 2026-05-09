@@ -41,6 +41,8 @@ import {
   Trash2,
   AlertCircle,
   Copy,
+  ChevronUp,
+  Link,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -53,6 +55,8 @@ interface RecentProject {
   thumbnail?: string;
   status: "published" | "private" | "draft";
   isLocal?: boolean;
+  shareUuid?: string;
+  isShareEnabled?: boolean;
 }
 
 interface WorkflowTemplate {
@@ -73,7 +77,8 @@ interface HomeScreenProps {
   onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
   onImportFigma?: () => void;
-  onShareProject?: (projectId: string) => void;
+  onShareProject?: (projectId: string, onCopied: () => void) => void;
+  onRevokeProjectShare?: (projectId: string) => void;
   onDownloadProject?: (projectId: string) => void;
   onDuplicateProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
@@ -164,6 +169,7 @@ export function HomeScreen({
   onUploadImage,
   onImportFigma,
   onShareProject,
+  onRevokeProjectShare,
   onDownloadProject,
   onDuplicateProject,
   onDeleteProject,
@@ -173,6 +179,7 @@ export function HomeScreen({
   const [, navigate] = useLocation();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [copiedTooltip, setCopiedTooltip] = useState<{ projectId: string; x: number; y: number } | null>(null);
 
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
 
@@ -279,7 +286,7 @@ export function HomeScreen({
                 <MoreVertical size={14} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
@@ -293,12 +300,26 @@ export function HomeScreen({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  onShareProject?.(project.id);
+                  const x = e.clientX;
+                  const y = e.clientY;
+                  onShareProject?.(project.id, () => {
+                    setCopiedTooltip({ projectId: project.id, x, y });
+                    setTimeout(() => setCopiedTooltip(null), 1800);
+                  });
                 }}
                 data-testid={`menu-share-${project.id}`}
               >
-                <Share2 size={14} className="mr-2" />
-                Share
+                {project.isShareEnabled ? (
+                  <>
+                    <Link size={14} className="mr-2" />
+                    Copy link
+                  </>
+                ) : (
+                  <>
+                    <Share2 size={14} className="mr-2" />
+                    Share
+                  </>
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
@@ -343,24 +364,55 @@ export function HomeScreen({
             <Clock size={12} className="mr-1" />
             {formatTimeAgo(project.lastModified)}
           </span>
-          <Badge
-            variant={project.status === "published" ? "default" : "secondary"}
-            className="text-xs"
-          >
-            {project.status === "published"
-              ? "Published"
-              : project.status === "private"
-                ? "Private"
-                : "Draft"}
-          </Badge>
+          {project.isShareEnabled ? (
+            <Badge
+              variant="secondary"
+              className="text-xs cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRevokeProjectShare?.(project.id);
+              }}
+              title="Click to stop sharing"
+              data-testid={`badge-shared-${project.id}`}
+            >
+              Shared
+              <ChevronUp size={10} />
+            </Badge>
+          ) : (
+            <Badge
+              variant={project.status === "published" ? "default" : "secondary"}
+              className="text-xs"
+            >
+              {project.status === "published"
+                ? "Published"
+                : project.status === "private"
+                  ? "Private"
+                  : "Draft"}
+            </Badge>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 
+  const CursorTooltip = copiedTooltip ? (
+    <div
+      className="fixed z-[9999] pointer-events-none"
+      style={{ left: copiedTooltip.x + 12, top: copiedTooltip.y - 20 }}
+      data-testid="link-copied-tooltip"
+    >
+      <div className="bg-black/85 text-white text-xs font-medium px-2.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+        <Link size={10} />
+        Link copied
+      </div>
+    </div>
+  ) : null;
+
   // All Projects View
   if (showAllProjects) {
     return (
+      <>
+      {CursorTooltip}
       <div className="flex-1 overflow-auto bg-background">
         <div className="max-w-5xl mx-auto px-6 py-8">
           {/* Header with back button */}
@@ -452,11 +504,14 @@ export function HomeScreen({
           </AlertDialogContent>
         </AlertDialog>
       </div>
+      </>
     );
   }
 
   // Main Home View
   return (
+    <>
+    {CursorTooltip}
     <div className="flex-1 overflow-auto bg-background relative">
       <Suspense fallback={null}>
         <FloatingShapes />
@@ -655,5 +710,6 @@ export function HomeScreen({
       </div>
       <SiteFooter />
     </div>
+    </>
   );
 }

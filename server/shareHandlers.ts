@@ -100,6 +100,19 @@ export async function disableProjectShareHandler(
  * shareId). No auth required; if the caller IS the owner we return a
  * redirect payload so the editor opens instead of the read-only viewer.
  *
+ * ISOLATION GUARANTEE:
+ *   Project data is resolved exclusively by `shareUuid` via
+ *   `storage.getProjectByShareUuid(shareUuid)`, which queries the
+ *   database with `WHERE shareUuid = ? AND isShareEnabled = true`.
+ *   The response is therefore completely independent of:
+ *     - Which project the author currently has open in their editor tab
+ *     - Whether the author is logged in or has an active session
+ *     - Any other server-side session state
+ *   The only session-aware check is `req.user?.claims?.sub` used to
+ *   detect if the *caller* is the owner (to redirect them to the editor
+ *   instead of the read-only view). Non-owner viewers always receive
+ *   the shared project's last-saved snapshot regardless of auth state.
+ *
  * Documentation fields are stored in two possible shapes depending on
  * how the project was saved:
  *   1. Flat (prdData / notesData / detailsData) — written by

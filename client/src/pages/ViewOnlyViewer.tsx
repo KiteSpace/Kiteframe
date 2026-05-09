@@ -105,6 +105,8 @@ export default function ViewOnlyViewer() {
   const { data, isLoading, error, refetch } = useQuery<SharedProjectData>({
     queryKey: ['/api/view', shareId],
     enabled: !!shareId,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {

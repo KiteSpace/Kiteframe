@@ -6742,6 +6742,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       : ("private" as const),
                     thumbnail: project.thumbnail || undefined,
                     isLocal: false,
+                    shareUuid: project.shareUuid || undefined,
+                    isShareEnabled: project.isShareEnabled || false,
                   }))
                 : []),
             ].sort(
@@ -6900,12 +6902,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setFigmaImportMode("new-project");
               setShowFigmaModal(true);
             }}
-            onShareProject={(projectId) => {
-              const tab = tabs.find((t) => t.id === projectId);
-              if (tab) {
+            onShareProject={async (projectId, onCopied) => {
+              // Only cloud projects can be shared via a link
+              const project = cloudProjects.find((p) => p.id === projectId);
+              if (!project) {
                 toast({
-                  title: "Share",
-                  description: `Sharing "${tab.name}" - This feature is coming soon!`,
+                  title: "Save to cloud first",
+                  description: "Save this project to the cloud before sharing it.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              try {
+                let shareUuid = project.shareUuid;
+
+                if (!project.isShareEnabled || !shareUuid) {
+                  // Enable sharing via API and get the shareUuid
+                  const result = await apiRequest("POST", `/api/projects/${project.id}/share`);
+                  const data = await result.json();
+                  shareUuid = data.shareUuid;
+                  // Refresh the cloud project list so the badge updates
+                  queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                }
+
+                if (shareUuid) {
+                  const shareUrl = `${window.location.origin}/view/${shareUuid}`;
+                  await navigator.clipboard.writeText(shareUrl);
+                  onCopied();
+                }
+              } catch (err) {
+                console.error("[Share] Failed to share project:", err);
+                toast({
+                  title: "Share failed",
+                  description: "Could not generate share link. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            onRevokeProjectShare={async (projectId) => {
+              const project = cloudProjects.find((p) => p.id === projectId);
+              if (!project) return;
+              try {
+                await apiRequest("DELETE", `/api/projects/${project.id}/share`);
+                queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+                toast({
+                  title: "Sharing disabled",
+                  description: `"${project.name}" is now private.`,
+                });
+              } catch (err) {
+                console.error("[Share] Failed to revoke share:", err);
+                toast({
+                  title: "Error",
+                  description: "Could not revoke share link. Please try again.",
+                  variant: "destructive",
                 });
               }
             }}
