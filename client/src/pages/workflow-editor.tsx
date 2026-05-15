@@ -278,6 +278,7 @@ interface WorkflowTab {
   flowSettings?: FlowSettingsMap;
   cloudProjectId?: string;
   projectUuid?: string;
+  shareUuid?: string | null;
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
 }
 
@@ -5522,6 +5523,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         data.project.projectUuid ||
                         `cloud-${data.project.id}`,
                       cloudProjectId: data.project.id,
+                      shareUuid: data.project.shareUuid || null,
                     }
                   : tab,
               ),
@@ -6801,6 +6803,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     flowSettings: workflowData.flowSettings || {},
                     cloudProjectId: project.id,
                     projectUuid: project.projectUuid || `cloud-${project.id}`,
+                    shareUuid: project.shareUuid || null,
                     isOpen: true,
                   };
                   setTabs((prev) => [...prev, newTab]);
@@ -12158,7 +12161,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 isReadOnly={isReadOnly}
                 shareUuid={activeShareId || undefined}
                 cloudProjectId={activeTab?.cloudProjectId ? (typeof activeTab.cloudProjectId === 'number' ? activeTab.cloudProjectId : parseInt(activeTab.cloudProjectId, 10) || null) : null}
-                onShareCreated={setActiveShareId}
+                onShareCreated={(shareId) => {
+                  setActiveShareId(shareId);
+                  updateActiveTab({ shareUuid: shareId });
+                }}
                 insights={insights.insights}
                 insightsLoading={insights.isRunning}
                 insightsLastRunAt={insights.lastRunAt}
@@ -12761,7 +12767,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           canvasObjects={canvasObjects}
           viewport={viewport}
           projectMetadata={activeTab?.metadata}
-          onShareCreated={(shareId) => setActiveShareId(shareId)}
+          onShareCreated={(shareId) => {
+            setActiveShareId(shareId);
+            updateActiveTab({ shareUuid: shareId });
+          }}
           projectId={currentProjectId}
           existingShareUuid={activeShareId}
           isAuthenticated={isAuthenticated}

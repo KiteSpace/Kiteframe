@@ -30,7 +30,7 @@ import { exportAgentSystemPrompt, exportConstraintsAndNonGoals, exportExpectedOu
 import { exportWorkflowDiagram } from '@/lib/prd/exporters/exportWorkflowDiagram';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import JSZip from 'jszip';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface WorkflowData {
   id: string;
@@ -211,6 +211,7 @@ export function ExportProjectModal({
           const data = await response.json();
           effectiveShareUuid = data.shareUuid;
           onShareCreated?.(data.shareUuid);
+          queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
         } catch (error) {
           console.warn('Failed to auto-create share link for export:', error);
         }

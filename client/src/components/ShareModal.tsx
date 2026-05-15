@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, Loader2, Link, AlertCircle, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -58,6 +58,7 @@ export function ShareModal({
         const url = `${window.location.origin}/view/${data.shareUuid}`;
         setShareUrl(url);
         onShareCreated?.(data.shareUuid);
+        queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
       } else {
         const response = await apiRequest('POST', '/api/share-project', {
           nodes,
