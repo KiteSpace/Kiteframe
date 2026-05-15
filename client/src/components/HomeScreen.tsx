@@ -297,30 +297,42 @@ export function HomeScreen({
                 <FolderOpen size={14} className="mr-2" />
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const x = e.clientX;
-                  const y = e.clientY;
-                  onShareProject?.(project.id, () => {
-                    setCopiedTooltip({ projectId: project.id, x, y });
-                    setTimeout(() => setCopiedTooltip(null), 1800);
-                  });
-                }}
-                data-testid={`menu-share-${project.id}`}
-              >
-                {project.isShareEnabled ? (
-                  <>
-                    <Link size={14} className="mr-2" />
-                    Copy link
-                  </>
-                ) : (
-                  <>
-                    <Share2 size={14} className="mr-2" />
-                    Share
-                  </>
-                )}
-              </DropdownMenuItem>
+              {project.isLocal ? (
+                <DropdownMenuItem
+                  disabled
+                  title="Save to cloud to enable sharing"
+                  data-testid={`menu-share-${project.id}`}
+                >
+                  <Share2 size={14} className="mr-2" />
+                  Share
+                  <span className="ml-auto text-[10px] text-muted-foreground/60">cloud only</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const x = e.clientX;
+                    const y = e.clientY;
+                    onShareProject?.(project.id, () => {
+                      setCopiedTooltip({ projectId: project.id, x, y });
+                      setTimeout(() => setCopiedTooltip(null), 1800);
+                    });
+                  }}
+                  data-testid={`menu-share-${project.id}`}
+                >
+                  {project.isShareEnabled ? (
+                    <>
+                      <Link size={14} className="mr-2" />
+                      Copy link
+                    </>
+                  ) : (
+                    <>
+                      <Share2 size={14} className="mr-2" />
+                      Share
+                    </>
+                  )}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
