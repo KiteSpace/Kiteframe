@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, Loader2, Link, AlertCircle } from 'lucide-react';
+import { Copy, Check, Loader2, Link, AlertCircle, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -15,6 +15,7 @@ interface ShareModalProps {
   viewport?: { x: number; y: number; zoom: number };
   projectMetadata?: { name?: string; description?: string };
   onShareCreated?: (shareId: string) => void;
+  onShareRevoked?: () => void;
   projectId?: number | null;
   existingShareUuid?: string | null;
   isAuthenticated?: boolean;
@@ -29,18 +30,22 @@ export function ShareModal({
   viewport, 
   projectMetadata, 
   onShareCreated,
+  onShareRevoked,
   projectId,
   existingShareUuid,
   isAuthenticated = false
 }: ShareModalProps) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && existingShareUuid) {
       setShareUrl(`${window.location.origin}/view/${existingShareUuid}`);
+    } else if (isOpen && !existingShareUuid) {
+      setShareUrl(null);
     }
   }, [isOpen, existingShareUuid]);
 
@@ -73,6 +78,21 @@ export function ShareModal({
     }
   };
 
+  const revokeShareLink = async () => {
+    if (!projectId) return;
+    setIsRevoking(true);
+    try {
+      await apiRequest('DELETE', `/api/projects/${projectId}/share`);
+      setShareUrl(null);
+      onShareRevoked?.();
+      toast({ title: 'Sharing disabled', description: 'This project is now private. Existing links will no longer work.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Could not disable sharing. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
   const copyToClipboard = async () => {
     if (shareUrl) {
       await navigator.clipboard.writeText(shareUrl);
@@ -83,14 +103,12 @@ export function ShareModal({
   };
 
   const handleClose = () => {
-    if (!existingShareUuid) {
-      setShareUrl(null);
-    }
     setCopied(false);
     onClose();
   };
 
   const showSaveProjectMessage = !projectId && isAuthenticated;
+  const canRevoke = !!(projectId && isAuthenticated && shareUrl);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -118,11 +136,26 @@ export function ShareModal({
               {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</> : 'Generate Share Link'}
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
-              <Input value={shareUrl} readOnly className="flex-1" data-testid="input-share-url" />
-              <Button onClick={copyToClipboard} variant="outline" size="icon" data-testid="button-copy-share-link">
-                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-              </Button>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Input value={shareUrl} readOnly className="flex-1" data-testid="input-share-url" />
+                <Button onClick={copyToClipboard} variant="outline" size="icon" data-testid="button-copy-share-link">
+                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                </Button>
+              </div>
+              {canRevoke && (
+                <Button
+                  onClick={revokeShareLink}
+                  disabled={isRevoking}
+                  variant="outline"
+                  className="w-full text-muted-foreground hover:text-destructive hover:border-destructive"
+                  data-testid="button-revoke-share-link"
+                >
+                  {isRevoking
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Disabling...</>
+                    : <><EyeOff className="w-4 h-4 mr-2" />Stop sharing</>}
+                </Button>
+              )}
             </div>
           )}
           <p className="text-sm text-muted-foreground">

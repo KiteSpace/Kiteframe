@@ -12765,6 +12765,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           projectId={currentProjectId}
           existingShareUuid={activeShareId}
           isAuthenticated={isAuthenticated}
+          onShareRevoked={() => {
+            setActiveShareId(null);
+            queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+          }}
         />
       )}
 
