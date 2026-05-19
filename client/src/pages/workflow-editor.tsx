@@ -4362,6 +4362,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       // Allow Escape to work even in input fields
       if (e.key === "Escape") {
+        // Sketch mode: clear selection first, then exit on second press
+        if (isSketchMode) {
+          if (sketchTool === 'cursor' && sketchCanvasRef.current?.hasSelection()) {
+            sketchCanvasRef.current.clearSelection();
+            setSketchSelection(null);
+          } else {
+            setIsSketchMode(false);
+            sketchCanvasRef.current?.clearSelection();
+            setSketchSelection(null);
+          }
+          return;
+        }
         // Deselect all nodes and edges
         setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
         setEdges((prev) => prev.map((edge) => ({ ...edge, selected: false })));
@@ -4470,19 +4482,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           sketchCanvasRef.current?.redo();
         } else {
           handleRedo();
-        }
-        return;
-      }
-
-      // Escape - Clear sketch selection first; then exit sketch mode
-      if (e.key === "Escape" && isSketchMode) {
-        if (sketchTool === 'cursor' && sketchCanvasRef.current?.hasSelection()) {
-          sketchCanvasRef.current.clearSelection();
-          setSketchSelection(null);
-        } else {
-          setIsSketchMode(false);
-          sketchCanvasRef.current?.clearSelection();
-          setSketchSelection(null);
         }
         return;
       }
@@ -11767,6 +11766,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 i === idx ? { ...s, color: e.target.value } : s
                               );
                               setSketchStrokes(updated);
+                              setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
                             }}
                           />
                         </label>
@@ -11789,6 +11789,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               i === idx ? { ...s, size: Number(e.target.value) } : s
                             );
                             setSketchStrokes(updated);
+                            setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
                           }}
                         />
                         <span className="text-[10px] text-muted-foreground w-4">{sketchSelection.stroke.size}</span>
@@ -11807,6 +11808,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                                 i === idx ? { ...s, lineStyle: ls } : s
                               );
                               setSketchStrokes(updated);
+                              setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
                             }}
                             className={`h-5 px-1.5 rounded-full text-[10px] font-medium transition-colors ${
                               sketchSelection.stroke.lineStyle === ls

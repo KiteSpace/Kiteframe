@@ -417,10 +417,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       isDrawing.current = false;
 
       if (currentStrokePoints.current.length >= 2) {
-        const epsilon = 1.5 / viewportRef.current.zoom;
-        const simplified = rdp(currentStrokePoints.current, epsilon);
         const newStroke: SketchStroke = {
-          points: simplified.length >= 2 ? simplified : currentStrokePoints.current,
+          points: currentStrokePoints.current,
           color: colorRef.current,
           size: sizeRef.current,
           opacity: opacityRef.current,
