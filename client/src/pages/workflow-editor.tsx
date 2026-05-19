@@ -282,7 +282,7 @@ interface WorkflowTab {
   projectUuid?: string;
   shareUuid?: string | null;
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
-  sketchStrokes?: any[]; // World-space drawing annotations (SketchStroke[])
+  sketchStrokes?: import('@/components/SketchCanvas').SketchStroke[]; // World-space drawing annotations
 }
 
 // Helper to get node position and dimensions (handles different node structures)

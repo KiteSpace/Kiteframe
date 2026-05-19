@@ -94,7 +94,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           ctx.strokeStyle = stroke.color;
           ctx.globalAlpha = stroke.opacity / 100;
           if (stroke.lineStyle === 'dashed') {
-            ctx.setLineDash([stroke.dashLen, stroke.dashGap]);
+            ctx.setLineDash([stroke.dashLen / vp.zoom, stroke.dashGap / vp.zoom]);
           } else {
             ctx.setLineDash([]);
           }
@@ -128,7 +128,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           ctx.strokeStyle = colorRef.current;
           ctx.globalAlpha = opacityRef.current / 100;
           if (lineStyleRef.current === 'dashed') {
-            ctx.setLineDash([dashLenRef.current, dashGapRef.current]);
+            ctx.setLineDash([dashLenRef.current / vp.zoom, dashGapRef.current / vp.zoom]);
           } else {
             ctx.setLineDash([]);
           }
