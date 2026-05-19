@@ -4322,6 +4322,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // State for keyboard shortcuts help modal
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
+  // Sketch / drawing mode
+  const [isSketchMode, setIsSketchMode] = useState(false);
+  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser'>('pen');
+  const [sketchColor, setSketchColor] = useState('#ff6b6b');
+  const [sketchSize, setSketchSize] = useState(4);
+  const [sketchOpacity, setSketchOpacity] = useState(80);
+  const [sketchCanUndo, setSketchCanUndo] = useState(false);
+  const [sketchCanRedo, setSketchCanRedo] = useState(false);
+  const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
+
   // Comprehensive keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -5453,16 +5463,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Canvas container ref for toolbar positioning
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-
-  // Sketch / drawing mode
-  const [isSketchMode, setIsSketchMode] = useState(false);
-  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser'>('pen');
-  const [sketchColor, setSketchColor] = useState('#ff6b6b');
-  const [sketchSize, setSketchSize] = useState(4);
-  const [sketchOpacity, setSketchOpacity] = useState(80);
-  const [sketchCanUndo, setSketchCanUndo] = useState(false);
-  const [sketchCanRedo, setSketchCanRedo] = useState(false);
-  const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
 
   // Keep refs in sync with current state
   useEffect(() => {
