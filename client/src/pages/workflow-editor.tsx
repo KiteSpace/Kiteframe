@@ -11664,8 +11664,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     highlightedNodeIds={hoveredInsightNodeIds}
                   />
 
-                  {/* Sketch overlay */}
+                  {/* Sketch overlay — keyed by active tab so it remounts (and resets undo history) on tab switch */}
                   <SketchCanvas
+                    key={activeTabId}
                     ref={sketchCanvasRef}
                     isActive={isSketchMode}
                     tool={sketchTool}
