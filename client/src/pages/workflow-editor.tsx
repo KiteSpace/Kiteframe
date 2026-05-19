@@ -38,6 +38,8 @@ import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
+import { SketchCanvas, type SketchCanvasHandle } from "@/components/SketchCanvas";
+import { SketchFloatingBar } from "@/components/SketchFloatingBar";
 import { BugReportModal } from "@/components/BugReportModal";
 import { FeatureUpsellDialog } from "@/components/FeatureUpsellDialog";
 import { ContextMenu } from "@/components/ContextMenu";
@@ -4419,20 +4421,34 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      // Ctrl/Cmd + Z - Undo
+      // Ctrl/Cmd + Z - Undo (sketch mode intercept)
       if (isCtrlOrCmd && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
-        handleUndo();
+        if (isSketchMode) {
+          sketchCanvasRef.current?.undo();
+        } else {
+          handleUndo();
+        }
         return;
       }
 
-      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y - Redo
+      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y - Redo (sketch mode intercept)
       if (
         (isCtrlOrCmd && e.key === "z" && e.shiftKey) ||
         (isCtrlOrCmd && e.key === "y")
       ) {
         e.preventDefault();
-        handleRedo();
+        if (isSketchMode) {
+          sketchCanvasRef.current?.redo();
+        } else {
+          handleRedo();
+        }
+        return;
+      }
+
+      // Escape - Exit sketch mode
+      if (e.key === "Escape" && isSketchMode) {
+        setIsSketchMode(false);
         return;
       }
 
@@ -4913,6 +4929,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     toast,
     canvasObjects,
     updateActiveTab,
+    isSketchMode,
   ]);
 
   // Track mouse position for quick create menu
@@ -5436,6 +5453,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Canvas container ref for toolbar positioning
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sketch / drawing mode
+  const [isSketchMode, setIsSketchMode] = useState(false);
+  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser'>('pen');
+  const [sketchColor, setSketchColor] = useState('#ff6b6b');
+  const [sketchSize, setSketchSize] = useState(4);
+  const [sketchOpacity, setSketchOpacity] = useState(80);
+  const [sketchCanUndo, setSketchCanUndo] = useState(false);
+  const [sketchCanRedo, setSketchCanRedo] = useState(false);
+  const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
 
   // Keep refs in sync with current state
   useEffect(() => {
@@ -11614,9 +11641,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     highlightedNodeIds={hoveredInsightNodeIds}
+                    onEnterSketchMode={() => setIsSketchMode(true)}
                   />
-                  
-                  
+
+                  {/* Sketch overlay */}
+                  <SketchCanvas
+                    ref={sketchCanvasRef}
+                    isActive={isSketchMode}
+                    tool={sketchTool}
+                    color={sketchColor}
+                    size={sketchSize}
+                    opacity={sketchOpacity}
+                    onHistoryChange={(canUndo, canRedo) => {
+                      setSketchCanUndo(canUndo);
+                      setSketchCanRedo(canRedo);
+                    }}
+                  />
+
+                  {/* Sketch floating bar */}
+                  {isSketchMode && (
+                    <SketchFloatingBar
+                      tool={sketchTool}
+                      color={sketchColor}
+                      size={sketchSize}
+                      opacity={sketchOpacity}
+                      canUndo={sketchCanUndo}
+                      canRedo={sketchCanRedo}
+                      onToolChange={setSketchTool}
+                      onColorChange={setSketchColor}
+                      onSizeChange={setSketchSize}
+                      onOpacityChange={setSketchOpacity}
+                      onUndo={() => sketchCanvasRef.current?.undo()}
+                      onRedo={() => sketchCanvasRef.current?.redo()}
+                      onClear={() => sketchCanvasRef.current?.clear()}
+                      onExit={() => setIsSketchMode(false)}
+                    />
+                  )}
+
                   {/* Workflow Tools (floating experiment UIs) */}
                   {workflowTools.map(tool => {
                     const anchorNode = nodes.find(n => n.id === tool.anchorNodeId);

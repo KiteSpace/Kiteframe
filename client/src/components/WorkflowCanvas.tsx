@@ -77,6 +77,7 @@ interface WorkflowCanvasProps {
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
+  onEnterSketchMode?: () => void;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
@@ -157,6 +158,7 @@ export function WorkflowCanvas({
   onLayoutWorkflow,
   onRefreshFigma,
   isFigmaAuthenticated,
+  onEnterSketchMode,
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,
   onExperimentDiscardBranch,
@@ -636,6 +638,7 @@ export function WorkflowCanvas({
         canRedo={canRedo}
         hiddenWorkflowCount={hiddenWorkflowCount}
         onUnhideAll={unhideAllWorkflows}
+        onEnterSketchMode={onEnterSketchMode}
       />
 
       {/* Minimap removed to improve performance */}
