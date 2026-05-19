@@ -46,18 +46,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     const strokesRef = useRef<SketchStroke[]>(initialStrokes ?? []);
     const undoStack = useRef<SketchStroke[][]>([]);
     const redoStack = useRef<SketchStroke[][]>([]);
-    // Safety reset: when initialStrokes identity changes (e.g. tab switch without full remount),
-    // clear undo/redo stacks so history from a previous tab cannot bleed through.
-    const prevInitialStrokesRef = useRef(initialStrokes);
-    useEffect(() => {
-      if (prevInitialStrokesRef.current !== initialStrokes) {
-        prevInitialStrokesRef.current = initialStrokes;
-        strokesRef.current = initialStrokes ?? [];
-        undoStack.current = [];
-        redoStack.current = [];
-        onHistoryChange?.(false, false);
-      }
-    }, [initialStrokes, onHistoryChange]);
+    // Per-tab history isolation is handled by key={activeTabId} at the render site,
+    // which remounts this component on tab switch, giving each tab a clean slate.
 
     const viewportRef = useRef(viewport);
     viewportRef.current = viewport;
