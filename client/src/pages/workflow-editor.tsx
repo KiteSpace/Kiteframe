@@ -282,6 +282,7 @@ interface WorkflowTab {
   projectUuid?: string;
   shareUuid?: string | null;
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
+  sketchStrokes?: any[]; // World-space drawing annotations (SketchStroke[])
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -1503,6 +1504,7 @@ function WorkflowEditorContent({
         categories: [],
       },
       flowSettings: {},
+      sketchStrokes: [],
       projectUuid, // Unique identifier for layers state scoping
       isOpen: true, // Show in tab bar by default
     };
@@ -1538,6 +1540,7 @@ function WorkflowEditorContent({
         categories: [],
       },
       flowSettings: {},
+      sketchStrokes: [],
       projectUuid, // Unique identifier for layers state scoping
       isOpen: true, // Show in tab bar by default
     };
@@ -4331,7 +4334,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [sketchLineStyle, setSketchLineStyle] = useState<'solid' | 'dashed'>('solid');
   const [sketchDashLen, setSketchDashLen] = useState(12);
   const [sketchDashGap, setSketchDashGap] = useState(6);
-  const [sketchStrokes, setSketchStrokes] = useState<import('@/components/SketchCanvas').SketchStroke[]>([]);
+  // Per-tab sketch strokes derived from the active tab's data
+  const sketchStrokes = useMemo(
+    () => (activeTab?.sketchStrokes ?? []) as import('@/components/SketchCanvas').SketchStroke[],
+    [activeTab?.sketchStrokes]
+  );
+  const setSketchStrokes = useCallback(
+    (strokes: import('@/components/SketchCanvas').SketchStroke[]) => updateActiveTab({ sketchStrokes: strokes }),
+    [updateActiveTab]
+  );
   const [sketchCanUndo, setSketchCanUndo] = useState(false);
   const [sketchCanRedo, setSketchCanRedo] = useState(false);
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
@@ -6832,6 +6843,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       categories: [],
                     },
                     flowSettings: workflowData.flowSettings || {},
+                    sketchStrokes: workflowData.sketchStrokes ?? [],
                     cloudProjectId: project.id,
                     projectUuid: project.projectUuid || `cloud-${project.id}`,
                     shareUuid: project.shareUuid || null,
@@ -6916,6 +6928,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   categories: [],
                 },
                 projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                sketchStrokes: [],
               };
 
               setTabs((prev) => [...prev, newTab]);
@@ -7091,6 +7104,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     name: copyName,
                   },
                   flowSettings: structuredClone(sourceTab.flowSettings || {}),
+                  sketchStrokes: structuredClone(sourceTab.sketchStrokes ?? []),
                   isOpen: true,
                 };
                 setTabs((prev) => [...prev, newTab]);
@@ -7146,6 +7160,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     categories: [],
                   },
                   flowSettings: workflowData.flowSettings || {},
+                  sketchStrokes: workflowData.sketchStrokes ?? [],
                   cloudProjectId: project.id,
                   projectUuid: project.projectUuid || `cloud-${project.id}`,
                   isOpen: true,
@@ -7493,7 +7508,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onExport={() => {
                       try {
                         const exportData = exportWorkflow(
-                          { nodes, edges, canvasObjects, viewport },
+                          { nodes, edges, canvasObjects, viewport, sketchStrokes },
                           {
                             name: activeTab?.name || "My Workflow",
                             description:
@@ -8757,7 +8772,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onExport={() => {
                     try {
                       const exportData = exportWorkflow(
-                        { nodes, edges, canvasObjects, viewport },
+                        { nodes, edges, canvasObjects, viewport, sketchStrokes },
                         {
                           name: activeTab?.name || "My Workflow",
                           description:
@@ -12422,6 +12437,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       linksFormat: activeTab.metadata.linksFormat || "text",
                       categories: activeTab.metadata.categories || [],
                     },
+                    sketchStrokes: data.sketchStrokes ?? [],
                   });
                 }
 
@@ -15175,7 +15191,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }}
         onLoadProject={(workflowData) => {
           saveToHistory("Load project");
-          setSketchStrokes((workflowData as any).sketchStrokes ?? []);
           const newTab: WorkflowTab = {
             id: `tab-${Date.now()}`,
             name: workflowData.metadata?.name || "Loaded Project",
@@ -15202,6 +15217,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               linksFormat: "text",
               categories: [],
             },
+            sketchStrokes: (workflowData as any).sketchStrokes ?? [],
             projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           };
           setTabs((prev) => [...prev, newTab]);

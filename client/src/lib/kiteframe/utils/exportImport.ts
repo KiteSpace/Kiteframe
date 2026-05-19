@@ -195,6 +195,21 @@ const ProjectDocumentationSchema = z.object({
   projectOverview: ProjectOverviewSchema.optional()
 });
 
+// Schema for a single sketch stroke point
+const SketchPointSchema = z.object({ x: z.number(), y: z.number() });
+
+// Schema for a sketch stroke (world-space drawing annotation)
+const SketchStrokeSchema = z.object({
+  points: z.array(SketchPointSchema),
+  color: z.string(),
+  size: z.number(),
+  opacity: z.number(),
+  tool: z.enum(['pen', 'eraser']),
+  lineStyle: z.enum(['solid', 'dashed']),
+  dashLen: z.number(),
+  dashGap: z.number()
+});
+
 // Main export schema
 const ExportSchema = z.object({
   version: z.string(),
@@ -205,7 +220,8 @@ const ExportSchema = z.object({
     nodes: z.array(NodeSchema),
     edges: z.array(EdgeSchema),
     canvasObjects: z.array(CanvasObjectSchema).optional(),
-    viewport: ViewportSchema.optional()
+    viewport: ViewportSchema.optional(),
+    sketchStrokes: z.array(SketchStrokeSchema).optional()
   }),
   documentation: ProjectDocumentationSchema.optional(),
   plugins: z.array(z.object({
@@ -315,6 +331,7 @@ export function exportWorkflow(
     edges: Edge[];
     canvasObjects?: CanvasObject[];
     viewport?: { x: number; y: number; zoom: number };
+    sketchStrokes?: any[];
   },
   metadata: Partial<z.infer<typeof WorkflowMetadataSchema>> = {},
   options?: {
@@ -406,7 +423,8 @@ export function exportWorkflow(
       nodes: sanitizedData.nodes as any[], // Type assertion needed due to complex nested types
       edges: sanitizedData.edges as any[],
       canvasObjects: sanitizedData.canvasObjects as any[],
-      viewport: sanitizedData.viewport
+      viewport: sanitizedData.viewport,
+      sketchStrokes: data.sketchStrokes && data.sketchStrokes.length > 0 ? data.sketchStrokes : undefined
     },
     documentation,
     plugins: [],
@@ -493,6 +511,7 @@ export function importWorkflow(
     edges: Edge[];
     canvasObjects?: CanvasObject[];
     viewport?: { x: number; y: number; zoom: number };
+    sketchStrokes?: any[];
     metadata: z.infer<typeof WorkflowMetadataSchema>;
     documentation?: ImportedDocumentation;
   };
@@ -657,6 +676,7 @@ export function importWorkflow(
       success: true,
       data: {
         ...sanitizedData,
+        sketchStrokes: (migratedData.workflow as any).sketchStrokes ?? undefined,
         metadata: migratedData.metadata,
         documentation
       },
