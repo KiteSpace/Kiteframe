@@ -4499,6 +4499,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges: activeTab.edges,
                 canvasObjects: activeTab.canvasObjects,
                 viewport: activeTab.viewport,
+                sketchStrokes: activeTab.sketchStrokes,
               },
               {
                 name: activeTab.name,
@@ -7020,6 +7021,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       edges: tab.edges,
                       canvasObjects: tab.canvasObjects,
                       viewport: tab.viewport,
+                      sketchStrokes: tab.sketchStrokes,
                     },
                     {
                       name: tab.name,
@@ -8037,6 +8039,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   selectedEdge={edges.find((e) => e.id === selectedEdgeId)}
                   nodes={nodes}
                   onToggleSidebar={toggleSidebar}
+                  onEnterSketchMode={() => setIsSketchMode(true)}
                   onCreateNode={(type: string) => {
                     // Create a new tab if none are open (Sidebar handler)
                     if (openTabs.length === 0) {
