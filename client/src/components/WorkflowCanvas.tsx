@@ -77,7 +77,6 @@ interface WorkflowCanvasProps {
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
-  onEnterSketchMode?: () => void;
   isSketchMode?: boolean;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
@@ -159,7 +158,6 @@ export function WorkflowCanvas({
   onLayoutWorkflow,
   onRefreshFigma,
   isFigmaAuthenticated,
-  onEnterSketchMode,
   isSketchMode,
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,

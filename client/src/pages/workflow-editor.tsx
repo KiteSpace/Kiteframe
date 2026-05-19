@@ -9197,7 +9197,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (!template) return;
                     handleGenerateFromTemplate(tableId, template);
                   }}
-                  onEnterSketchMode={() => setIsSketchMode(true)}
                 />
               )}
             </div>
@@ -15218,7 +15217,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               linksFormat: "text",
               categories: [],
             },
-            sketchStrokes: (workflowData as any).sketchStrokes ?? [],
+            sketchStrokes: workflowData.sketchStrokes ?? [],
             projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           };
           setTabs((prev) => [...prev, newTab]);
