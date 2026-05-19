@@ -9200,6 +9200,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     edges={edges}
                     canvasObjects={canvasObjects}
                     viewport={viewport}
+                    isSketchMode={isSketchMode}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
                       updateActiveTab({ canvasObjects: newCanvasObjects });
@@ -15174,9 +15175,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }}
         onLoadProject={(workflowData) => {
           saveToHistory("Load project");
-          if ((workflowData as any).sketchStrokes) {
-            setSketchStrokes((workflowData as any).sketchStrokes);
-          }
+          setSketchStrokes((workflowData as any).sketchStrokes ?? []);
           const newTab: WorkflowTab = {
             id: `tab-${Date.now()}`,
             name: workflowData.metadata?.name || "Loaded Project",
