@@ -679,7 +679,7 @@ export function importWorkflow(
       success: true,
       data: {
         ...sanitizedData,
-        sketchStrokes: (migratedData.workflow as any).sketchStrokes ?? undefined,
+        sketchStrokes: migratedData.workflow.sketchStrokes ?? undefined,
         metadata: migratedData.metadata,
         documentation
       },
