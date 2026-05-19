@@ -135,6 +135,7 @@ import {
   Download,
   Upload,
   Menu,
+  Pencil,
   ChevronLeft,
   ChevronRight,
   Home,
@@ -6164,6 +6165,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       download: Download,
       upload: Upload,
       delete: Trash2,
+      pencil: Pencil,
     }),
     [],
   );
@@ -7620,6 +7622,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setIsToolbarExpanded((prev) => !prev)
                     }
                     onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+                    onEnterSketchMode={() => setIsSketchMode(true)}
                   />
 
                   {/* Node Types Popout */}

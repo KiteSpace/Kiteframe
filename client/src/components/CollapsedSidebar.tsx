@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LucideIcon, Menu, Share2, Upload, Figma } from 'lucide-react';
+import { LucideIcon, Menu, Share2, Upload, Figma, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { clientToWorld } from '@/lib/kiteframe/utils/geometry';
 import { workflowThemes, type WorkflowTheme } from '@/lib/themes';
@@ -27,6 +27,7 @@ interface CollapsedSidebarProps {
   onToggleExpanded?: () => void;
   readOnly?: boolean;
   onShowKeyboardShortcuts?: () => void;
+  onEnterSketchMode?: () => void;
 }
 
 export function CollapsedSidebar({
@@ -52,6 +53,7 @@ export function CollapsedSidebar({
   onToggleExpanded,
   readOnly = false,
   onShowKeyboardShortcuts,
+  onEnterSketchMode,
 }: CollapsedSidebarProps) {
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -138,6 +140,9 @@ export function CollapsedSidebar({
         break;
       case 'delete':
         onClearCanvas();
+        break;
+      case 'pencil':
+        onEnterSketchMode?.();
         break;
       default:
         console.log('🚫 UNKNOWN ICON KEY:', iconKey);
@@ -363,7 +368,7 @@ export function CollapsedSidebar({
   // Split icons into main, template/theme, and action groups
   // Note: 'brain' removed - AI assistant is now the floating KiteAI button
   // Note: 'table' and 'form' removed - they exist inside node-types menu
-  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note'];
+  const mainIcons = ['workflow', 'type', 'shapes', 'sticky-note', 'pencil'];
   const templateThemeIcons = ['route', 'palette'];
   const actionIcons = readOnly ? ['clear', 'export', 'import'] : ['rocket', 'share', 'download', 'upload', 'delete'];
 
