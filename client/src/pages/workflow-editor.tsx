@@ -38,7 +38,7 @@ import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
-import { SketchCanvas, type SketchCanvasHandle } from "@/components/SketchCanvas";
+import { SketchCanvas, type SketchCanvasHandle, type SketchSelection } from "@/components/SketchCanvas";
 import { SketchFloatingBar } from "@/components/SketchFloatingBar";
 import { BugReportModal } from "@/components/BugReportModal";
 import { FeatureUpsellDialog } from "@/components/FeatureUpsellDialog";
@@ -4328,13 +4328,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Sketch / drawing mode
   const [isSketchMode, setIsSketchMode] = useState(false);
-  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser'>('pen');
+  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser' | 'cursor'>('pen');
   const [sketchColor, setSketchColor] = useState('#ff6b6b');
   const [sketchSize, setSketchSize] = useState(4);
   const [sketchOpacity, setSketchOpacity] = useState(80);
   const [sketchLineStyle, setSketchLineStyle] = useState<'solid' | 'dashed'>('solid');
   const [sketchDashLen, setSketchDashLen] = useState(12);
   const [sketchDashGap, setSketchDashGap] = useState(6);
+  const [sketchSmoothing, setSketchSmoothing] = useState(false);
+  const [sketchSelection, setSketchSelection] = useState<SketchSelection | null>(null);
   // Per-tab sketch strokes derived from the active tab's data
   const sketchStrokes = useMemo(
     () => (activeTab?.sketchStrokes ?? []) as import('@/components/SketchCanvas').SketchStroke[],
@@ -4472,9 +4474,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      // Escape - Exit sketch mode
+      // Escape - Clear sketch selection first; then exit sketch mode
       if (e.key === "Escape" && isSketchMode) {
-        setIsSketchMode(false);
+        if (sketchTool === 'cursor' && sketchCanvasRef.current?.hasSelection()) {
+          sketchCanvasRef.current.clearSelection();
+          setSketchSelection(null);
+        } else {
+          setIsSketchMode(false);
+          sketchCanvasRef.current?.clearSelection();
+          setSketchSelection(null);
+        }
         return;
       }
 
@@ -7196,7 +7205,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               className={`${isSidebarCollapsed ? "w-0" : "w-64"} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? "overflow-visible" : "overflow-hidden"}`}
             >
               {isSidebarCollapsed ? (
-                <>
+                <div className={`transition-all duration-300 ${isSketchMode ? '-translate-x-20 opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}><>
                   <CollapsedSidebar
                     toggleSidebar={toggleSidebar}
                     onCreateNode={(type: string) => {
@@ -8035,6 +8044,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                   />
                 </>
+                </div>
               ) : (
                 <Sidebar
                   selectedNode={nodes.find((n) => n.id === selectedNodeId)}
@@ -11682,12 +11692,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     lineStyle={sketchLineStyle}
                     dashLen={sketchDashLen}
                     dashGap={sketchDashGap}
+                    smoothing={sketchSmoothing}
                     strokes={sketchStrokes}
                     onStrokesChange={setSketchStrokes}
                     onHistoryChange={(canUndo, canRedo) => {
                       setSketchCanUndo(canUndo);
                       setSketchCanRedo(canRedo);
                     }}
+                    onSelectionChange={setSketchSelection}
                   />
 
                   {/* Sketch floating bar */}
@@ -11700,20 +11712,131 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       lineStyle={sketchLineStyle}
                       dashLen={sketchDashLen}
                       dashGap={sketchDashGap}
+                      smoothing={sketchSmoothing}
                       canUndo={sketchCanUndo}
                       canRedo={sketchCanRedo}
-                      onToolChange={setSketchTool}
+                      onToolChange={(t) => {
+                        if (t !== 'cursor') {
+                          sketchCanvasRef.current?.clearSelection();
+                          setSketchSelection(null);
+                        }
+                        setSketchTool(t);
+                      }}
                       onColorChange={setSketchColor}
                       onSizeChange={setSketchSize}
                       onOpacityChange={setSketchOpacity}
                       onLineStyleChange={setSketchLineStyle}
                       onDashLenChange={setSketchDashLen}
                       onDashGapChange={setSketchDashGap}
+                      onSmoothingChange={setSketchSmoothing}
                       onUndo={() => sketchCanvasRef.current?.undo()}
                       onRedo={() => sketchCanvasRef.current?.redo()}
                       onClear={() => sketchCanvasRef.current?.clear()}
-                      onExit={() => setIsSketchMode(false)}
+                      onExit={() => {
+                        setIsSketchMode(false);
+                        sketchCanvasRef.current?.clearSelection();
+                        setSketchSelection(null);
+                      }}
                     />
+                  )}
+
+                  {/* Sketch selection popover */}
+                  {isSketchMode && sketchSelection && (
+                    <div
+                      className="absolute z-[65] pointer-events-auto bg-background border border-border rounded-xl shadow-2xl px-3 py-2 flex items-center gap-2"
+                      style={{
+                        left: sketchSelection.screenX,
+                        top: Math.max(8, sketchSelection.screenY - 60),
+                        transform: 'translateX(-50%)',
+                      }}
+                    >
+                      {/* Color */}
+                      <div className="relative flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">Color</span>
+                        <label className="w-6 h-6 rounded-full border-2 border-border cursor-pointer hover:scale-110 transition-transform shadow-inner block"
+                          style={{ background: sketchSelection.stroke.color }}
+                          title="Change stroke color"
+                        >
+                          <input
+                            type="color"
+                            value={sketchSelection.stroke.color}
+                            className="opacity-0 w-0 h-0 absolute pointer-events-none"
+                            onChange={(e) => {
+                              const idx = sketchSelection.strokeIndex;
+                              const updated = sketchStrokes.map((s, i) =>
+                                i === idx ? { ...s, color: e.target.value } : s
+                              );
+                              setSketchStrokes(updated);
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="w-px h-4 bg-border" />
+
+                      {/* Size */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">Size</span>
+                        <input
+                          type="range"
+                          min={1}
+                          max={40}
+                          value={sketchSelection.stroke.size}
+                          className="w-16 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
+                          onChange={(e) => {
+                            const idx = sketchSelection.strokeIndex;
+                            const updated = sketchStrokes.map((s, i) =>
+                              i === idx ? { ...s, size: Number(e.target.value) } : s
+                            );
+                            setSketchStrokes(updated);
+                          }}
+                        />
+                        <span className="text-[10px] text-muted-foreground w-4">{sketchSelection.stroke.size}</span>
+                      </div>
+
+                      <div className="w-px h-4 bg-border" />
+
+                      {/* Line style */}
+                      <div className="flex items-center gap-0.5 bg-muted rounded-full p-0.5">
+                        {(['solid', 'dashed'] as const).map((ls) => (
+                          <button
+                            key={ls}
+                            onClick={() => {
+                              const idx = sketchSelection.strokeIndex;
+                              const updated = sketchStrokes.map((s, i) =>
+                                i === idx ? { ...s, lineStyle: ls } : s
+                              );
+                              setSketchStrokes(updated);
+                            }}
+                            className={`h-5 px-1.5 rounded-full text-[10px] font-medium transition-colors ${
+                              sketchSelection.stroke.lineStyle === ls
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {ls === 'solid' ? '—' : '- -'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="w-px h-4 bg-border" />
+
+                      {/* Delete */}
+                      <button
+                        title="Delete stroke"
+                        className="w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+                        onClick={() => {
+                          const idx = sketchSelection.strokeIndex;
+                          setSketchStrokes(sketchStrokes.filter((_, i) => i !== idx));
+                          sketchCanvasRef.current?.clearSelection();
+                          setSketchSelection(null);
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                      </button>
+                    </div>
                   )}
 
                   {/* Workflow Tools (floating experiment UIs) */}

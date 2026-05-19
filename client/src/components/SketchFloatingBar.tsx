@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pen, Eraser, Undo2, Redo2, X, Trash2, Minus } from 'lucide-react';
+import { Pen, Eraser, MousePointer2, Undo2, Redo2, X, Trash2, Minus, Activity } from 'lucide-react';
 
 const PRESET_COLORS = [
   '#ff6b6b', '#ff9f43', '#ffd32a', '#0be881', '#48dbfb',
@@ -7,22 +7,24 @@ const PRESET_COLORS = [
 ];
 
 interface SketchFloatingBarProps {
-  tool: 'pen' | 'eraser';
+  tool: 'pen' | 'eraser' | 'cursor';
   color: string;
   size: number;
   opacity: number;
   lineStyle: 'solid' | 'dashed';
   dashLen: number;
   dashGap: number;
+  smoothing: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  onToolChange: (tool: 'pen' | 'eraser') => void;
+  onToolChange: (tool: 'pen' | 'eraser' | 'cursor') => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
   onOpacityChange: (opacity: number) => void;
   onLineStyleChange: (style: 'solid' | 'dashed') => void;
   onDashLenChange: (len: number) => void;
   onDashGapChange: (gap: number) => void;
+  onSmoothingChange: (v: boolean) => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -37,6 +39,7 @@ export function SketchFloatingBar({
   lineStyle,
   dashLen,
   dashGap,
+  smoothing,
   canUndo,
   canRedo,
   onToolChange,
@@ -46,6 +49,7 @@ export function SketchFloatingBar({
   onLineStyleChange,
   onDashLenChange,
   onDashGapChange,
+  onSmoothingChange,
   onUndo,
   onRedo,
   onClear,
@@ -53,17 +57,29 @@ export function SketchFloatingBar({
 }: SketchFloatingBarProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const isCursor = tool === 'cursor';
 
   return (
     <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none select-none">
       {/* Sketch mode badge */}
       <div className="absolute -top-7 left-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-semibold shadow pointer-events-none">
-        <Pen size={10} />
-        <span>Sketch</span>
+        {isCursor ? <MousePointer2 size={10} /> : <Pen size={10} />}
+        <span>{isCursor ? 'Select' : 'Sketch'}</span>
       </div>
 
       {/* Main pill */}
       <div className="pointer-events-auto flex items-center gap-1 px-3 py-2 rounded-full shadow-2xl border border-border bg-background/95 backdrop-blur-md text-foreground">
+
+        {/* Tool toggle — Cursor/Select */}
+        <button
+          title="Select & edit strokes"
+          onClick={() => onToolChange('cursor')}
+          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+            tool === 'cursor' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+          }`}
+        >
+          <MousePointer2 size={15} />
+        </button>
 
         {/* Tool toggle — Pen */}
         <button
@@ -89,147 +105,167 @@ export function SketchFloatingBar({
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Color swatch */}
-        <div className="relative">
-          <button
-            title="Pick color"
-            onClick={() => setShowColorPicker((v) => !v)}
-            className="w-7 h-7 rounded-full border-2 border-border shadow-inner transition-transform hover:scale-110 active:scale-95"
-            style={{ background: color }}
-          />
+        {/* Smooth toggle */}
+        <button
+          title={smoothing ? 'Smoothing on — click to disable' : 'Smoothing off — click to enable'}
+          onClick={() => onSmoothingChange(!smoothing)}
+          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+            smoothing ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+          }`}
+        >
+          <Activity size={15} />
+        </button>
 
-          {showColorPicker && (
-            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-background border border-border rounded-xl p-3 shadow-2xl min-w-[160px]">
-              {/* Preset swatches */}
-              <div className="grid grid-cols-5 gap-1.5 mb-2">
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                      color === c ? 'border-foreground scale-110' : 'border-transparent'
-                    }`}
-                    style={{ background: c }}
-                    onClick={() => { onColorChange(c); setShowColorPicker(false); }}
-                  />
-                ))}
-              </div>
-              {/* Custom color */}
-              <button
-                className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-1 hover:bg-accent rounded-lg transition-colors"
-                onClick={() => colorInputRef.current?.click()}
-              >
-                Custom…
-              </button>
-              <input
-                ref={colorInputRef}
-                type="color"
-                value={color}
-                onChange={(e) => onColorChange(e.target.value)}
-                className="absolute opacity-0 w-0 h-0 pointer-events-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {showColorPicker && (
-          <div
-            className="fixed inset-0 z-[59]"
-            onClick={() => setShowColorPicker(false)}
-          />
-        )}
-
-        <div className="w-px h-5 bg-border mx-1" />
-
-        {/* Line style toggle */}
-        <div className="flex items-center gap-0.5 bg-muted rounded-full p-0.5">
-          <button
-            title="Solid line"
-            onClick={() => onLineStyleChange('solid')}
-            className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors flex items-center gap-1 ${
-              lineStyle === 'solid'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Minus size={11} />
-            <span>Solid</span>
-          </button>
-          <button
-            title="Dashed line"
-            onClick={() => onLineStyleChange('dashed')}
-            className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors flex items-center gap-1 ${
-              lineStyle === 'dashed'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <span className="text-[10px] tracking-[3px] leading-none">---</span>
-            <span>Dash</span>
-          </button>
-        </div>
-
-        {/* Dash controls — only when dashed */}
-        {lineStyle === 'dashed' && (
+        {/* Drawing controls — hidden in cursor mode */}
+        {!isCursor && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-muted-foreground">Dash</span>
-              <input
-                type="number"
-                min={2}
-                max={80}
-                value={dashLen}
-                onChange={(e) => onDashLenChange(Math.max(2, Math.min(80, Number(e.target.value))))}
-                className="w-10 h-5 text-[10px] text-center border border-border rounded bg-background text-foreground"
+
+            {/* Color swatch */}
+            <div className="relative">
+              <button
+                title="Pick color"
+                onClick={() => setShowColorPicker((v) => !v)}
+                className="w-7 h-7 rounded-full border-2 border-border shadow-inner transition-transform hover:scale-110 active:scale-95"
+                style={{ background: color }}
               />
-              <span className="text-[10px] text-muted-foreground">Gap</span>
-              <input
-                type="number"
-                min={1}
-                max={80}
-                value={dashGap}
-                onChange={(e) => onDashGapChange(Math.max(1, Math.min(80, Number(e.target.value))))}
-                className="w-10 h-5 text-[10px] text-center border border-border rounded bg-background text-foreground"
-              />
+
+              {showColorPicker && (
+                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-background border border-border rounded-xl p-3 shadow-2xl min-w-[160px]">
+                  <div className="grid grid-cols-5 gap-1.5 mb-2">
+                    {PRESET_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                          color === c ? 'border-foreground scale-110' : 'border-transparent'
+                        }`}
+                        style={{ background: c }}
+                        onClick={() => { onColorChange(c); setShowColorPicker(false); }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-1 hover:bg-accent rounded-lg transition-colors"
+                    onClick={() => colorInputRef.current?.click()}
+                  >
+                    Custom…
+                  </button>
+                  <input
+                    ref={colorInputRef}
+                    type="color"
+                    value={color}
+                    onChange={(e) => onColorChange(e.target.value)}
+                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                  />
+                </div>
+              )}
             </div>
+
+            {showColorPicker && (
+              <div className="fixed inset-0 z-[59]" onClick={() => setShowColorPicker(false)} />
+            )}
+
+            <div className="w-px h-5 bg-border mx-1" />
+
+            {/* Line style toggle */}
+            <div className="flex items-center gap-0.5 bg-muted rounded-full p-0.5">
+              <button
+                title="Solid line"
+                onClick={() => onLineStyleChange('solid')}
+                className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                  lineStyle === 'solid'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Minus size={11} />
+                <span>Solid</span>
+              </button>
+              <button
+                title="Dashed line"
+                onClick={() => onLineStyleChange('dashed')}
+                className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors flex items-center gap-1 ${
+                  lineStyle === 'dashed'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="text-[10px] tracking-[3px] leading-none">---</span>
+                <span>Dash</span>
+              </button>
+            </div>
+
+            {/* Dash controls — only when dashed */}
+            {lineStyle === 'dashed' && (
+              <>
+                <div className="w-px h-5 bg-border mx-1" />
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">Dash</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={80}
+                    value={dashLen}
+                    onChange={(e) => onDashLenChange(Math.max(2, Math.min(80, Number(e.target.value))))}
+                    className="w-10 h-5 text-[10px] text-center border border-border rounded bg-background text-foreground"
+                  />
+                  <span className="text-[10px] text-muted-foreground">Gap</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={80}
+                    value={dashGap}
+                    onChange={(e) => onDashGapChange(Math.max(1, Math.min(80, Number(e.target.value))))}
+                    className="w-10 h-5 text-[10px] text-center border border-border rounded bg-background text-foreground"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="w-px h-5 bg-border mx-1" />
+
+            {/* Size */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground w-7 text-right">Size</span>
+              <input
+                type="range"
+                min={1}
+                max={40}
+                value={size}
+                onChange={(e) => onSizeChange(Number(e.target.value))}
+                className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
+              />
+              <span className="text-[11px] text-muted-foreground w-5">{size}</span>
+            </div>
+
+            {/* Opacity */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground w-10 text-right">Opacity</span>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                value={opacity}
+                onChange={(e) => onOpacityChange(Number(e.target.value))}
+                className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
+              />
+              <span className="text-[11px] text-muted-foreground w-7">{opacity}%</span>
+            </div>
+          </>
+        )}
+
+        {isCursor && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            <span className="text-[10px] text-muted-foreground px-1">Click stroke to select · drag to move · drag handle to edit</span>
           </>
         )}
 
         <div className="w-px h-5 bg-border mx-1" />
 
-        {/* Size */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground w-7 text-right">Size</span>
-          <input
-            type="range"
-            min={1}
-            max={40}
-            value={size}
-            onChange={(e) => onSizeChange(Number(e.target.value))}
-            className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
-          />
-          <span className="text-[11px] text-muted-foreground w-5">{size}</span>
-        </div>
-
-        {/* Opacity */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground w-10 text-right">Opacity</span>
-          <input
-            type="range"
-            min={10}
-            max={100}
-            value={opacity}
-            onChange={(e) => onOpacityChange(Number(e.target.value))}
-            className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
-          />
-          <span className="text-[11px] text-muted-foreground w-7">{opacity}%</span>
-        </div>
-
-        <div className="w-px h-5 bg-border mx-1" />
-
         {/* Undo */}
         <button
-          title="Undo stroke (Ctrl+Z)"
+          title="Undo (Ctrl+Z)"
           onClick={onUndo}
           disabled={!canUndo}
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
@@ -241,7 +277,7 @@ export function SketchFloatingBar({
 
         {/* Redo */}
         <button
-          title="Redo stroke (Ctrl+Shift+Z)"
+          title="Redo (Ctrl+Shift+Z)"
           onClick={onRedo}
           disabled={!canRedo}
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
