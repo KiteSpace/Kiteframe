@@ -10,6 +10,7 @@ interface WorkflowData {
   canvasObjects?: any[];
   viewport?: { x: number; y: number; zoom: number };
   flowSettings?: Record<string, any>;
+  sketchStrokes?: any[];
 }
 
 interface CreateProjectParams {

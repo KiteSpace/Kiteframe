@@ -1,11 +1,23 @@
 import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 
+export interface SketchStroke {
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  size: number;
+  opacity: number;
+  tool: 'pen' | 'eraser';
+  lineStyle: 'solid' | 'dashed';
+  dashLen: number;
+  dashGap: number;
+}
+
 export interface SketchCanvasHandle {
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
   clear: () => void;
+  getStrokes: () => SketchStroke[];
 }
 
 interface SketchCanvasProps {
@@ -14,16 +26,44 @@ interface SketchCanvasProps {
   color: string;
   size: number;
   opacity: number;
+  lineStyle: 'solid' | 'dashed';
+  dashLen: number;
+  dashGap: number;
+  viewport: { x: number; y: number; zoom: number };
+  strokes?: SketchStroke[];
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
+  onStrokesChange?: (strokes: SketchStroke[]) => void;
 }
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
-  function SketchCanvas({ isActive, tool, color, size, opacity, onHistoryChange }, ref) {
+  function SketchCanvas(
+    { isActive, tool, color, size, opacity, lineStyle, dashLen, dashGap, viewport, strokes: initialStrokes, onHistoryChange, onStrokesChange },
+    ref
+  ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawing = useRef(false);
-    const lastPoint = useRef<{ x: number; y: number } | null>(null);
-    const undoStack = useRef<ImageData[]>([]);
-    const redoStack = useRef<ImageData[]>([]);
+    const currentStrokePoints = useRef<Array<{ x: number; y: number }>>([]);
+    const strokesRef = useRef<SketchStroke[]>(initialStrokes ?? []);
+    const undoStack = useRef<SketchStroke[][]>([]);
+    const redoStack = useRef<SketchStroke[][]>([]);
+
+    const viewportRef = useRef(viewport);
+    viewportRef.current = viewport;
+
+    const toolRef = useRef(tool);
+    toolRef.current = tool;
+    const colorRef = useRef(color);
+    colorRef.current = color;
+    const sizeRef = useRef(size);
+    sizeRef.current = size;
+    const opacityRef = useRef(opacity);
+    opacityRef.current = opacity;
+    const lineStyleRef = useRef(lineStyle);
+    lineStyleRef.current = lineStyle;
+    const dashLenRef = useRef(dashLen);
+    dashLenRef.current = dashLen;
+    const dashGapRef = useRef(dashGap);
+    dashGapRef.current = dashGap;
 
     const getCtx = () => canvasRef.current?.getContext('2d') ?? null;
 
@@ -31,45 +71,196 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       onHistoryChange?.(undoStack.current.length > 0, redoStack.current.length > 0);
     }, [onHistoryChange]);
 
-    const saveSnapshot = useCallback(() => {
+    const redrawAll = useCallback((ctx: CanvasRenderingContext2D, vp: { x: number; y: number; zoom: number }, strokes: SketchStroke[], currentPoints?: Array<{ x: number; y: number }>) => {
+      const canvas = ctx.canvas;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      ctx.save();
+      ctx.setTransform(vp.zoom, 0, 0, vp.zoom, vp.x, vp.y);
+
+      for (const stroke of strokes) {
+        if (stroke.points.length < 2) continue;
+
+        if (stroke.tool === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.globalAlpha = 1;
+          ctx.setLineDash([]);
+        } else {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = stroke.color;
+          ctx.globalAlpha = stroke.opacity / 100;
+          if (stroke.lineStyle === 'dashed') {
+            ctx.setLineDash([stroke.dashLen, stroke.dashGap]);
+          } else {
+            ctx.setLineDash([]);
+          }
+        }
+
+        ctx.lineWidth = stroke.size / vp.zoom;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length - 1; i++) {
+          const midX = (stroke.points[i].x + stroke.points[i + 1].x) / 2;
+          const midY = (stroke.points[i].y + stroke.points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(stroke.points[i].x, stroke.points[i].y, midX, midY);
+        }
+        const last = stroke.points[stroke.points.length - 1];
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+      }
+
+      if (currentPoints && currentPoints.length >= 2) {
+        const curTool = toolRef.current;
+        if (curTool === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+          ctx.globalAlpha = 1;
+          ctx.setLineDash([]);
+        } else {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = colorRef.current;
+          ctx.globalAlpha = opacityRef.current / 100;
+          if (lineStyleRef.current === 'dashed') {
+            ctx.setLineDash([dashLenRef.current, dashGapRef.current]);
+          } else {
+            ctx.setLineDash([]);
+          }
+        }
+
+        ctx.lineWidth = sizeRef.current / vp.zoom;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(currentPoints[0].x, currentPoints[0].y);
+        for (let i = 1; i < currentPoints.length - 1; i++) {
+          const midX = (currentPoints[i].x + currentPoints[i + 1].x) / 2;
+          const midY = (currentPoints[i].y + currentPoints[i + 1].y) / 2;
+          ctx.quadraticCurveTo(currentPoints[i].x, currentPoints[i].y, midX, midY);
+        }
+        const last = currentPoints[currentPoints.length - 1];
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }, []);
+
+    const screenToWorld = (screenX: number, screenY: number) => {
+      const vp = viewportRef.current;
+      return {
+        x: (screenX - vp.x) / vp.zoom,
+        y: (screenY - vp.y) / vp.zoom,
+      };
+    };
+
+    const getPos = (e: MouseEvent | TouchEvent): { x: number; y: number } | null => {
       const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (!canvas || !ctx) return;
-      undoStack.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      let screenX: number, screenY: number;
+      if (e instanceof TouchEvent) {
+        const touch = e.touches[0];
+        if (!touch) return null;
+        screenX = touch.clientX - rect.left;
+        screenY = touch.clientY - rect.top;
+      } else {
+        screenX = (e as MouseEvent).clientX - rect.left;
+        screenY = (e as MouseEvent).clientY - rect.top;
+      }
+      return screenToWorld(screenX, screenY);
+    };
+
+    const startStroke = useCallback((e: MouseEvent | TouchEvent) => {
+      if (!isActive) return;
+      e.preventDefault();
+      isDrawing.current = true;
+      const pos = getPos(e);
+      if (!pos) return;
+
+      undoStack.current.push([...strokesRef.current]);
       redoStack.current = [];
       notifyHistory();
-    }, [notifyHistory]);
+
+      currentStrokePoints.current = [pos];
+
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, currentStrokePoints.current);
+    }, [isActive, notifyHistory, redrawAll]);
+
+    const drawStroke = useCallback((e: MouseEvent | TouchEvent) => {
+      if (!isActive || !isDrawing.current) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      if (!pos) return;
+
+      currentStrokePoints.current.push(pos);
+
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, currentStrokePoints.current);
+    }, [isActive, redrawAll]);
+
+    const endStroke = useCallback(() => {
+      if (!isDrawing.current) return;
+      isDrawing.current = false;
+
+      if (currentStrokePoints.current.length >= 2) {
+        const newStroke: SketchStroke = {
+          points: [...currentStrokePoints.current],
+          color: colorRef.current,
+          size: sizeRef.current,
+          opacity: opacityRef.current,
+          tool: toolRef.current,
+          lineStyle: lineStyleRef.current,
+          dashLen: dashLenRef.current,
+          dashGap: dashGapRef.current,
+        };
+        strokesRef.current = [...strokesRef.current, newStroke];
+        onStrokesChange?.(strokesRef.current);
+      }
+
+      currentStrokePoints.current = [];
+
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+    }, [onStrokesChange, redrawAll]);
 
     const undo = useCallback(() => {
-      const canvas = canvasRef.current;
+      if (undoStack.current.length === 0) return;
+      redoStack.current.push([...strokesRef.current]);
+      strokesRef.current = undoStack.current.pop()!;
+      onStrokesChange?.(strokesRef.current);
       const ctx = getCtx();
-      if (!canvas || !ctx || undoStack.current.length === 0) return;
-      const current = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      redoStack.current.push(current);
-      const snapshot = undoStack.current.pop()!;
-      ctx.putImageData(snapshot, 0, 0);
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
       notifyHistory();
-    }, [notifyHistory]);
+    }, [notifyHistory, onStrokesChange, redrawAll]);
 
     const redo = useCallback(() => {
-      const canvas = canvasRef.current;
+      if (redoStack.current.length === 0) return;
+      undoStack.current.push([...strokesRef.current]);
+      strokesRef.current = redoStack.current.pop()!;
+      onStrokesChange?.(strokesRef.current);
       const ctx = getCtx();
-      if (!canvas || !ctx || redoStack.current.length === 0) return;
-      const current = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      undoStack.current.push(current);
-      const snapshot = redoStack.current.pop()!;
-      ctx.putImageData(snapshot, 0, 0);
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
       notifyHistory();
-    }, [notifyHistory]);
+    }, [notifyHistory, onStrokesChange, redrawAll]);
 
     const clear = useCallback(() => {
-      const canvas = canvasRef.current;
+      undoStack.current.push([...strokesRef.current]);
+      redoStack.current = [];
+      strokesRef.current = [];
+      onStrokesChange?.([]);
       const ctx = getCtx();
-      if (!canvas || !ctx) return;
-      saveSnapshot();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (ctx) redrawAll(ctx, viewportRef.current, [], []);
       notifyHistory();
-    }, [saveSnapshot, notifyHistory]);
+    }, [notifyHistory, onStrokesChange, redrawAll]);
 
     useImperativeHandle(ref, () => ({
       undo,
@@ -77,9 +268,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       canUndo: () => undoStack.current.length > 0,
       canRedo: () => redoStack.current.length > 0,
       clear,
+      getStrokes: () => strokesRef.current,
     }), [undo, redo, clear]);
 
-    // Resize canvas to match container
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -87,97 +278,23 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       if (!container) return;
 
       const observer = new ResizeObserver(() => {
-        const ctx = getCtx();
-        if (!ctx || !canvas) return;
-        const prevData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        if (!canvas) return;
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
-        ctx.putImageData(prevData, 0, 0);
+        const ctx = getCtx();
+        if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, currentStrokePoints.current);
       });
 
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
       observer.observe(container);
       return () => observer.disconnect();
-    }, []);
+    }, [redrawAll]);
 
-    const getPos = (e: MouseEvent | TouchEvent): { x: number; y: number } | null => {
-      const canvas = canvasRef.current;
-      if (!canvas) return null;
-      const rect = canvas.getBoundingClientRect();
-      if (e instanceof TouchEvent) {
-        const touch = e.touches[0];
-        if (!touch) return null;
-        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
-      }
-      return { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top };
-    };
-
-    const startStroke = useCallback((e: MouseEvent | TouchEvent) => {
-      if (!isActive) return;
-      e.preventDefault();
-      saveSnapshot();
-      isDrawing.current = true;
-      const pos = getPos(e);
-      lastPoint.current = pos;
-
+    useEffect(() => {
       const ctx = getCtx();
-      if (!ctx || !pos) return;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, size / 2, 0, Math.PI * 2);
-      if (tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = color;
-        ctx.globalAlpha = opacity / 100;
-      }
-      ctx.fill();
-    }, [isActive, tool, color, size, opacity, saveSnapshot]);
-
-    const drawStroke = useCallback((e: MouseEvent | TouchEvent) => {
-      if (!isActive || !isDrawing.current) return;
-      e.preventDefault();
-      const ctx = getCtx();
-      const pos = getPos(e);
-      if (!ctx || !pos || !lastPoint.current) return;
-
-      ctx.lineWidth = size;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      if (tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.globalAlpha = 1;
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = opacity / 100;
-      }
-
-      const midX = (lastPoint.current.x + pos.x) / 2;
-      const midY = (lastPoint.current.y + pos.y) / 2;
-
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-      ctx.quadraticCurveTo(lastPoint.current.x, lastPoint.current.y, midX, midY);
-      ctx.stroke();
-
-      lastPoint.current = pos;
-    }, [isActive, tool, color, size, opacity]);
-
-    const endStroke = useCallback(() => {
-      if (!isDrawing.current) return;
-      isDrawing.current = false;
-      lastPoint.current = null;
-      const ctx = getCtx();
-      if (ctx) {
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
-      }
-    }, []);
+      if (ctx) redrawAll(ctx, viewport, strokesRef.current, currentStrokePoints.current);
+    }, [viewport, redrawAll]);
 
     useEffect(() => {
       const canvas = canvasRef.current;
@@ -202,12 +319,20 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       };
     }, [startStroke, drawStroke, endStroke]);
 
+    useEffect(() => {
+      if (initialStrokes) {
+        strokesRef.current = initialStrokes;
+        const ctx = getCtx();
+        if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+      }
+    }, [initialStrokes, redrawAll]);
+
     return (
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
         style={{
-          zIndex: 50,
+          zIndex: 20,
           pointerEvents: isActive ? 'auto' : 'none',
           cursor: isActive
             ? tool === 'eraser'

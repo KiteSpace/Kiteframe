@@ -78,6 +78,7 @@ interface WorkflowCanvasProps {
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
   onEnterSketchMode?: () => void;
+  isSketchMode?: boolean;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
@@ -159,6 +160,7 @@ export function WorkflowCanvas({
   onRefreshFigma,
   isFigmaAuthenticated,
   onEnterSketchMode,
+  isSketchMode,
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,
   onExperimentDiscardBranch,
@@ -628,18 +630,19 @@ export function WorkflowCanvas({
         data-testid="workflow-canvas"
       />
 
-      {/* Floating Toolbar */}
-      <FloatingToolbar
-        onUndo={onUndo}
-        onRedo={onRedo}
-        onFitView={onFitView}
-        onAutoLayout={onAutoLayout}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        hiddenWorkflowCount={hiddenWorkflowCount}
-        onUnhideAll={unhideAllWorkflows}
-        onEnterSketchMode={onEnterSketchMode}
-      />
+      {/* Floating Toolbar — hidden during sketch mode */}
+      {!isSketchMode && (
+        <FloatingToolbar
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onFitView={onFitView}
+          onAutoLayout={onAutoLayout}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          hiddenWorkflowCount={hiddenWorkflowCount}
+          onUnhideAll={unhideAllWorkflows}
+        />
+      )}
 
       {/* Minimap removed to improve performance */}
     </div>

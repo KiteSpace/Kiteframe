@@ -3,7 +3,7 @@ import {
   Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween, EyeOff, Pencil
+  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween, EyeOff
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -15,7 +15,6 @@ interface FloatingToolbarProps {
   canRedo: boolean;
   hiddenWorkflowCount?: number;
   onUnhideAll?: () => void;
-  onEnterSketchMode?: () => void;
 }
 
 export function FloatingToolbar({
@@ -27,7 +26,6 @@ export function FloatingToolbar({
   canRedo,
   hiddenWorkflowCount = 0,
   onUnhideAll,
-  onEnterSketchMode,
 }: FloatingToolbarProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -334,20 +332,6 @@ export function FloatingToolbar({
           </>
         )}
 
-        {/* Sketch Mode */}
-        {onEnterSketchMode && (
-          <>
-            <div className="w-px h-6 bg-border mx-1" />
-            <button
-              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-              onClick={onEnterSketchMode}
-              title="Sketch mode — draw on canvas"
-              data-testid="button-sketch-mode"
-            >
-              <Pencil size={16} />
-            </button>
-          </>
-        )}
 
       </div>
 

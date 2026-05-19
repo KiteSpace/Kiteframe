@@ -138,6 +138,7 @@ interface SidebarProps {
   onDeleteSavedTemplate?: (templateId: string) => void;
   onRenameSavedTemplate?: (templateId: string, newName: string) => void;
   onLinkTemplateToTable?: (templateId: string, tableId: string) => void;
+  onEnterSketchMode?: () => void;
 }
 
 export function Sidebar({
@@ -183,6 +184,7 @@ export function Sidebar({
   onDeleteSavedTemplate,
   onRenameSavedTemplate,
   onLinkTemplateToTable,
+  onEnterSketchMode,
 }: SidebarProps) {
   const [showUrlInput, setShowUrlInput] = useState<string | null>(null);
   const [urlInputValue, setUrlInputValue] = useState("");
@@ -2233,6 +2235,22 @@ export function Sidebar({
                   AI Generate Workflow
                 </button>
               </div>
+
+              {/* Canvas Tools */}
+              {onEnterSketchMode && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Canvas Tools</h3>
+                  <button
+                    className="w-full px-3 py-2.5 text-sm border border-border rounded-md hover:bg-accent transition-colors flex items-center gap-2 text-foreground"
+                    onClick={onEnterSketchMode}
+                    data-testid="button-sketch-mode"
+                    title="Enter sketch mode to draw on the canvas"
+                  >
+                    <Pencil size={16} className="text-orange-500" />
+                    Draw / Sketch
+                  </button>
+                </div>
+              )}
 
               <div>
                 <h3 className="text-sm font-semibold mb-3">Node Types</h3>

@@ -4328,6 +4328,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [sketchColor, setSketchColor] = useState('#ff6b6b');
   const [sketchSize, setSketchSize] = useState(4);
   const [sketchOpacity, setSketchOpacity] = useState(80);
+  const [sketchLineStyle, setSketchLineStyle] = useState<'solid' | 'dashed'>('solid');
+  const [sketchDashLen, setSketchDashLen] = useState(12);
+  const [sketchDashGap, setSketchDashGap] = useState(6);
+  const [sketchStrokes, setSketchStrokes] = useState<import('@/components/SketchCanvas').SketchStroke[]>([]);
   const [sketchCanUndo, setSketchCanUndo] = useState(false);
   const [sketchCanRedo, setSketchCanRedo] = useState(false);
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
@@ -9178,6 +9182,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     if (!template) return;
                     handleGenerateFromTemplate(tableId, template);
                   }}
+                  onEnterSketchMode={() => setIsSketchMode(true)}
                 />
               )}
             </div>
@@ -11641,7 +11646,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     highlightedNodeIds={hoveredInsightNodeIds}
-                    onEnterSketchMode={() => setIsSketchMode(true)}
                   />
 
                   {/* Sketch overlay */}
@@ -11652,6 +11656,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     color={sketchColor}
                     size={sketchSize}
                     opacity={sketchOpacity}
+                    viewport={viewport}
+                    lineStyle={sketchLineStyle}
+                    dashLen={sketchDashLen}
+                    dashGap={sketchDashGap}
+                    strokes={sketchStrokes}
+                    onStrokesChange={setSketchStrokes}
                     onHistoryChange={(canUndo, canRedo) => {
                       setSketchCanUndo(canUndo);
                       setSketchCanRedo(canRedo);
@@ -11665,12 +11675,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       color={sketchColor}
                       size={sketchSize}
                       opacity={sketchOpacity}
+                      lineStyle={sketchLineStyle}
+                      dashLen={sketchDashLen}
+                      dashGap={sketchDashGap}
                       canUndo={sketchCanUndo}
                       canRedo={sketchCanRedo}
                       onToolChange={setSketchTool}
                       onColorChange={setSketchColor}
                       onSizeChange={setSketchSize}
                       onOpacityChange={setSketchOpacity}
+                      onLineStyleChange={setSketchLineStyle}
+                      onDashLenChange={setSketchDashLen}
+                      onDashGapChange={setSketchDashGap}
                       onUndo={() => sketchCanvasRef.current?.undo()}
                       onRedo={() => sketchCanvasRef.current?.redo()}
                       onClear={() => sketchCanvasRef.current?.clear()}
@@ -15143,6 +15159,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           edges,
           canvasObjects,
           viewport,
+          sketchStrokes: sketchStrokes.length > 0 ? sketchStrokes : undefined,
           metadata: activeTab?.metadata,
           prdData: loadProjectPRD(projectIdentifier),
           workflowPRDs: (() => {
@@ -15157,6 +15174,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }}
         onLoadProject={(workflowData) => {
           saveToHistory("Load project");
+          if ((workflowData as any).sketchStrokes) {
+            setSketchStrokes((workflowData as any).sketchStrokes);
+          }
           const newTab: WorkflowTab = {
             id: `tab-${Date.now()}`,
             name: workflowData.metadata?.name || "Loaded Project",

@@ -61,6 +61,7 @@ interface WorkflowData {
   workflowPRDs?: any[] | null;
   notesData?: string | null;
   detailsData?: string | null;
+  sketchStrokes?: any[];
 }
 
 interface SavedProjectsDrawerProps {
