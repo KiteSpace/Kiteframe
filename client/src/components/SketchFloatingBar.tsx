@@ -57,7 +57,7 @@ export function SketchFloatingBar({
   return (
     <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none select-none">
       {/* Sketch mode badge */}
-      <div className="absolute -top-7 left-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-500/90 text-white text-xs font-semibold shadow pointer-events-none">
+      <div className="absolute -top-7 left-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-semibold shadow pointer-events-none">
         <Pen size={10} />
         <span>Sketch</span>
       </div>
@@ -70,7 +70,7 @@ export function SketchFloatingBar({
           title="Pen"
           onClick={() => onToolChange('pen')}
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-            tool === 'pen' ? 'bg-orange-500 text-white' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            tool === 'pen' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           }`}
         >
           <Pen size={15} />
@@ -81,7 +81,7 @@ export function SketchFloatingBar({
           title="Eraser"
           onClick={() => onToolChange('eraser')}
           className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-            tool === 'eraser' ? 'bg-orange-500 text-white' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            tool === 'eraser' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           }`}
         >
           <Eraser size={15} />
@@ -206,7 +206,7 @@ export function SketchFloatingBar({
             max={40}
             value={size}
             onChange={(e) => onSizeChange(Number(e.target.value))}
-            className="w-20 h-1 accent-orange-400 cursor-pointer"
+            className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
           />
           <span className="text-[11px] text-muted-foreground w-5">{size}</span>
         </div>
@@ -220,7 +220,7 @@ export function SketchFloatingBar({
             max={100}
             value={opacity}
             onChange={(e) => onOpacityChange(Number(e.target.value))}
-            className="w-20 h-1 accent-orange-400 cursor-pointer"
+            className="w-20 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
           />
           <span className="text-[11px] text-muted-foreground w-7">{opacity}%</span>
         </div>
@@ -255,7 +255,7 @@ export function SketchFloatingBar({
         <button
           title="Clear all sketches"
           onClick={onClear}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-500 hover:bg-accent transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
         >
           <Trash2 size={15} />
         </button>

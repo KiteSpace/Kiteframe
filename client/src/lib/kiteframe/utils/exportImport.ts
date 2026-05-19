@@ -210,6 +210,9 @@ const SketchStrokeSchema = z.object({
   dashGap: z.number()
 });
 
+// Concrete type derived from the Zod schema for use in function signatures
+type SketchStrokeData = z.infer<typeof SketchStrokeSchema>;
+
 // Main export schema
 const ExportSchema = z.object({
   version: z.string(),
@@ -331,7 +334,7 @@ export function exportWorkflow(
     edges: Edge[];
     canvasObjects?: CanvasObject[];
     viewport?: { x: number; y: number; zoom: number };
-    sketchStrokes?: any[];
+    sketchStrokes?: SketchStrokeData[];
   },
   metadata: Partial<z.infer<typeof WorkflowMetadataSchema>> = {},
   options?: {
@@ -511,7 +514,7 @@ export function importWorkflow(
     edges: Edge[];
     canvasObjects?: CanvasObject[];
     viewport?: { x: number; y: number; zoom: number };
-    sketchStrokes?: any[];
+    sketchStrokes?: SketchStrokeData[];
     metadata: z.infer<typeof WorkflowMetadataSchema>;
     documentation?: ImportedDocumentation;
   };
