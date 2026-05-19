@@ -7204,7 +7204,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               className={`${isSidebarCollapsed ? "w-0" : "w-64"} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? "overflow-visible" : "overflow-hidden"}`}
             >
               {isSidebarCollapsed ? (
-                <div className={`transition-all duration-300 ${isSketchMode ? '-translate-x-20 opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}><>
+                <div className={`transition-all duration-300${isSketchMode ? ' -translate-x-20 opacity-0 pointer-events-none' : ''}`}><>
                   <CollapsedSidebar
                     toggleSidebar={toggleSidebar}
                     onCreateNode={(type: string) => {
