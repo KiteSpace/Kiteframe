@@ -2,8 +2,8 @@ import { useRef, useState } from 'react';
 import { Pen, Eraser, MousePointer2, Undo2, Redo2, X, Trash2, Minus, Activity } from 'lucide-react';
 
 const PRESET_COLORS = [
-  '#ff6b6b', '#ff9f43', '#ffd32a', '#0be881', '#48dbfb',
-  '#54a0ff', '#a29bfe', '#fd79a8', '#ffffff', '#636e72',
+  '#000000', '#636e72', '#ff6b6b', '#ff9f43', '#ffd32a',
+  '#0be881', '#48dbfb', '#54a0ff', '#a29bfe', '#ffffff',
 ];
 
 interface SketchFloatingBarProps {

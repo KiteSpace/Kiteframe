@@ -557,8 +557,9 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       if (!isActive) return 'default';
       if (tool === 'cursor') return 'default';
       if (tool === 'eraser') {
-        const s = size + 4;
-        return `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}' viewBox='0 0 ${s} ${s}'><circle cx='${s / 2}' cy='${s / 2}' r='${size / 2}' fill='none' stroke='white' stroke-width='1.5'/></svg>") ${s / 2} ${s / 2}, crosshair`;
+        const w = 22, h = 16;
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'><rect x='1' y='1' width='${w - 2}' height='${h - 2}' rx='2' fill='%23fda4af' stroke='%23374151' stroke-width='1.5'/><rect x='1' y='${h - 5}' width='${w - 2}' height='3' fill='%23fff' opacity='0.55'/><line x1='1' y1='${h - 5}' x2='${w - 1}' y2='${h - 5}' stroke='%23374151' stroke-width='0.75'/></svg>`;
+        return `url("data:image/svg+xml,${svg}") ${Math.floor(w / 2)} ${h - 1}, cell`;
       }
       return 'crosshair';
     })();

@@ -4329,7 +4329,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Sketch / drawing mode
   const [isSketchMode, setIsSketchMode] = useState(false);
   const [sketchTool, setSketchTool] = useState<'pen' | 'eraser' | 'cursor'>('pen');
-  const [sketchColor, setSketchColor] = useState('#ff6b6b');
+  const [sketchColor, setSketchColor] = useState('#000000');
   const [sketchSize, setSketchSize] = useState(4);
   const [sketchOpacity, setSketchOpacity] = useState(80);
   const [sketchLineStyle, setSketchLineStyle] = useState<'solid' | 'dashed'>('solid');
@@ -7630,7 +7630,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setIsToolbarExpanded((prev) => !prev)
                     }
                     onShowKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
-                    onEnterSketchMode={() => setIsSketchMode(true)}
+                    onEnterSketchMode={() => { setIsSketchMode(true); setSketchColor('#000000'); setSketchTool('pen'); }}
                   />
 
                   {/* Node Types Popout */}
@@ -8051,7 +8051,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   selectedEdge={edges.find((e) => e.id === selectedEdgeId)}
                   nodes={nodes}
                   onToggleSidebar={toggleSidebar}
-                  onEnterSketchMode={() => setIsSketchMode(true)}
+                  onEnterSketchMode={() => { setIsSketchMode(true); setSketchColor('#000000'); setSketchTool('pen'); }}
                   onCreateNode={(type: string) => {
                     // Create a new tab if none are open (Sidebar handler)
                     if (openTabs.length === 0) {
