@@ -20,6 +20,9 @@ export interface SketchCanvasHandle {
   getStrokes: () => SketchStroke[];
   clearSelection: () => void;
   hasSelection: () => boolean;
+  copySelection: () => boolean;
+  paste: () => boolean;
+  canPaste: () => boolean;
 }
 
 export interface SketchSelection {
@@ -190,6 +193,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     onSelectionChangeRef.current = onSelectionChange;
 
     const selectedStrokeIndicesRef = useRef<Set<number>>(new Set());
+    const clipboardRef = useRef<SketchStroke[] | null>(null);
     const cursorDragMode = useRef<null | 'vertex' | 'stroke'>(null);
     const cursorDragVertexIdx = useRef(-1);
     const cursorDragLastPos = useRef<{ x: number; y: number } | null>(null);
@@ -614,6 +618,41 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
     }, [redrawAll]);
 
+    const copySelection = useCallback((): boolean => {
+      const indices = [...selectedStrokeIndicesRef.current];
+      if (indices.length === 0) return false;
+      const strokes = strokesRef.current;
+      const valid = indices.filter(i => i >= 0 && i < strokes.length);
+      if (valid.length === 0) return false;
+      clipboardRef.current = valid.map(i => ({
+        ...strokes[i],
+        points: strokes[i].points.map(p => ({ ...p })),
+      }));
+      return true;
+    }, []);
+
+    const paste = useCallback((): boolean => {
+      const clipboard = clipboardRef.current;
+      if (!clipboard || clipboard.length === 0) return false;
+      const OFFSET = 20;
+      const pasted = clipboard.map(s => ({
+        ...s,
+        points: s.points.map(p => ({ x: p.x + OFFSET, y: p.y + OFFSET })),
+      }));
+      undoStack.current.push([...strokesRef.current]);
+      redoStack.current = [];
+      const startIdx = strokesRef.current.length;
+      strokesRef.current = [...strokesRef.current, ...pasted];
+      onStrokesChange?.(strokesRef.current);
+      const newIndices = new Set<number>();
+      for (let i = 0; i < pasted.length; i++) newIndices.add(startIdx + i);
+      notifySelectionMulti(newIndices);
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+      notifyHistory();
+      return true;
+    }, [onStrokesChange, notifySelectionMulti, redrawAll, notifyHistory]);
+
     useImperativeHandle(ref, () => ({
       undo, redo,
       canUndo: () => undoStack.current.length > 0,
@@ -622,7 +661,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       getStrokes: () => strokesRef.current,
       clearSelection,
       hasSelection: () => selectedStrokeIndicesRef.current.size > 0,
-    }), [undo, redo, clear, clearSelection]);
+      copySelection,
+      paste,
+      canPaste: () => (clipboardRef.current?.length ?? 0) > 0,
+    }), [undo, redo, clear, clearSelection, copySelection, paste]);
 
     useEffect(() => {
       const canvas = canvasRef.current;

@@ -4486,6 +4486,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
+      // Ctrl/Cmd + C - Copy (sketch mode: copy selected strokes)
+      if (isCtrlOrCmd && e.key === "c") {
+        if (isSketchMode) {
+          e.preventDefault();
+          sketchCanvasRef.current?.copySelection();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + V - Paste (sketch mode: paste copied strokes)
+      if (isCtrlOrCmd && e.key === "v") {
+        if (isSketchMode) {
+          e.preventDefault();
+          sketchCanvasRef.current?.paste();
+        }
+        return;
+      }
+
       // Ctrl/Cmd + A - Select all nodes
       if (isCtrlOrCmd && e.key === "a") {
         e.preventDefault();
