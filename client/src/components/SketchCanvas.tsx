@@ -130,17 +130,29 @@ function drawStrokePath(
   pts: Array<{ x: number; y: number }>,
   smooth: boolean
 ) {
-  const renderPts = smooth ? chaikin(pts) : pts;
-  if (renderPts.length < 2) return;
-  ctx.beginPath();
-  ctx.moveTo(renderPts[0].x, renderPts[0].y);
-  for (let i = 1; i < renderPts.length - 1; i++) {
-    const midX = (renderPts[i].x + renderPts[i + 1].x) / 2;
-    const midY = (renderPts[i].y + renderPts[i + 1].y) / 2;
-    ctx.quadraticCurveTo(renderPts[i].x, renderPts[i].y, midX, midY);
+  if (pts.length < 2) return;
+  if (smooth) {
+    // Simplify with RDP first (removes noisy intermediate points → fewer vertices),
+    // then draw through the key points with quadratic bezier curves → smooth appearance.
+    const simplified = rdp(pts, 1.5);
+    const sp = simplified.length >= 2 ? simplified : pts;
+    ctx.beginPath();
+    ctx.moveTo(sp[0].x, sp[0].y);
+    for (let i = 1; i < sp.length - 1; i++) {
+      const midX = (sp[i].x + sp[i + 1].x) / 2;
+      const midY = (sp[i].y + sp[i + 1].y) / 2;
+      ctx.quadraticCurveTo(sp[i].x, sp[i].y, midX, midY);
+    }
+    ctx.lineTo(sp[sp.length - 1].x, sp[sp.length - 1].y);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
   }
-  ctx.lineTo(renderPts[renderPts.length - 1].x, renderPts[renderPts.length - 1].y);
-  ctx.stroke();
 }
 
 export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
