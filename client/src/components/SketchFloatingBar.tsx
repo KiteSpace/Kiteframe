@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pen, Eraser, MousePointer2, Undo2, Redo2, X, Trash2, Minus, Activity } from 'lucide-react';
+import { Pen, Eraser, MousePointer2, Undo2, Redo2, X, Trash2, Minus, Activity, BoxSelect } from 'lucide-react';
 
 const PRESET_COLORS = [
   '#000000', '#636e72', '#ff6b6b', '#ff9f43', '#ffd32a',
@@ -7,7 +7,7 @@ const PRESET_COLORS = [
 ];
 
 interface SketchFloatingBarProps {
-  tool: 'pen' | 'eraser' | 'cursor';
+  tool: 'pen' | 'eraser' | 'cursor' | 'lasso';
   color: string;
   size: number;
   opacity: number;
@@ -17,7 +17,7 @@ interface SketchFloatingBarProps {
   smoothing: boolean;
   canUndo: boolean;
   canRedo: boolean;
-  onToolChange: (tool: 'pen' | 'eraser' | 'cursor') => void;
+  onToolChange: (tool: 'pen' | 'eraser' | 'cursor' | 'lasso') => void;
   onColorChange: (color: string) => void;
   onSizeChange: (size: number) => void;
   onOpacityChange: (opacity: number) => void;
@@ -57,14 +57,17 @@ export function SketchFloatingBar({
 }: SketchFloatingBarProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorInputRef = useRef<HTMLInputElement>(null);
-  const isCursor = tool === 'cursor';
+  const isSelectLike = tool === 'cursor' || tool === 'lasso';
+
+  const badgeLabel = tool === 'cursor' ? 'Select' : tool === 'lasso' ? 'Lasso' : 'Sketch';
+  const BadgeIcon = tool === 'cursor' ? MousePointer2 : tool === 'lasso' ? BoxSelect : Pen;
 
   return (
     <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none select-none">
       {/* Sketch mode badge */}
       <div className="absolute -top-7 left-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-xs font-semibold shadow pointer-events-none">
-        {isCursor ? <MousePointer2 size={10} /> : <Pen size={10} />}
-        <span>{isCursor ? 'Select' : 'Sketch'}</span>
+        <BadgeIcon size={10} />
+        <span>{badgeLabel}</span>
       </div>
 
       {/* Main pill */}
@@ -79,6 +82,17 @@ export function SketchFloatingBar({
           }`}
         >
           <MousePointer2 size={15} />
+        </button>
+
+        {/* Tool toggle — Lasso */}
+        <button
+          title="Lasso select (drag to select multiple strokes)"
+          onClick={() => onToolChange('lasso')}
+          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+            tool === 'lasso' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+          }`}
+        >
+          <BoxSelect size={15} />
         </button>
 
         {/* Tool toggle — Pen */}
@@ -116,8 +130,8 @@ export function SketchFloatingBar({
           <Activity size={15} />
         </button>
 
-        {/* Drawing controls — hidden in cursor mode */}
-        {!isCursor && (
+        {/* Drawing controls — hidden in cursor/lasso mode */}
+        {!isSelectLike && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
 
@@ -254,10 +268,17 @@ export function SketchFloatingBar({
           </>
         )}
 
-        {isCursor && (
+        {tool === 'cursor' && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
-            <span className="text-[10px] text-muted-foreground px-1">Click stroke to select · drag to move · drag handle to edit</span>
+            <span className="text-[10px] text-muted-foreground px-1">Click stroke to select · Shift+click to add · drag to move</span>
+          </>
+        )}
+
+        {tool === 'lasso' && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            <span className="text-[10px] text-muted-foreground px-1">Drag to select multiple strokes</span>
           </>
         )}
 

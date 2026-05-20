@@ -23,7 +23,7 @@ export interface SketchCanvasHandle {
 }
 
 export interface SketchSelection {
-  strokeIndex: number;
+  strokeIndices: number[];
   screenX: number;
   screenY: number;
   stroke: SketchStroke;
@@ -31,7 +31,7 @@ export interface SketchSelection {
 
 interface SketchCanvasProps {
   isActive: boolean;
-  tool: 'pen' | 'eraser' | 'cursor';
+  tool: 'pen' | 'eraser' | 'cursor' | 'lasso';
   color: string;
   size: number;
   opacity: number;
@@ -44,22 +44,6 @@ interface SketchCanvasProps {
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   onStrokesChange?: (strokes: SketchStroke[]) => void;
   onSelectionChange?: (selection: SketchSelection | null) => void;
-}
-
-function chaikin(pts: Array<{ x: number; y: number }>, passes = 2): Array<{ x: number; y: number }> {
-  if (pts.length < 3) return pts;
-  let result = pts;
-  for (let p = 0; p < passes; p++) {
-    const next: Array<{ x: number; y: number }> = [result[0]];
-    for (let i = 0; i < result.length - 1; i++) {
-      const a = result[i], b = result[i + 1];
-      next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
-      next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
-    }
-    next.push(result[result.length - 1]);
-    result = next;
-  }
-  return result;
 }
 
 function ptSegDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
@@ -113,16 +97,31 @@ function rdp(pts: Array<{ x: number; y: number }>, epsilon: number): Array<{ x: 
   return [start, end];
 }
 
-function strokeBBoxCenter(stroke: SketchStroke, vp: { x: number; y: number; zoom: number }) {
+function strokesSelectionCenter(
+  indices: number[],
+  strokes: SketchStroke[],
+  vp: { x: number; y: number; zoom: number }
+) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const pt of stroke.points) {
-    minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y);
-    maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y);
+  for (const idx of indices) {
+    for (const pt of strokes[idx].points) {
+      minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y);
+      maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y);
+    }
   }
   return {
     screenX: ((minX + maxX) / 2) * vp.zoom + vp.x,
     screenY: minY * vp.zoom + vp.y,
   };
+}
+
+function strokeIntersectsWorldRect(
+  stroke: SketchStroke,
+  wx: number, wy: number, ww: number, wh: number
+): boolean {
+  return stroke.points.some(
+    p => p.x >= wx && p.x <= wx + ww && p.y >= wy && p.y <= wy + wh
+  );
 }
 
 function drawStrokePath(
@@ -132,8 +131,6 @@ function drawStrokePath(
 ) {
   if (pts.length < 2) return;
   if (smooth) {
-    // Simplify with RDP first (removes noisy intermediate points → fewer vertices),
-    // then draw through the key points with quadratic bezier curves → smooth appearance.
     const simplified = rdp(pts, 1.5);
     const sp = simplified.length >= 2 ? simplified : pts;
     ctx.beginPath();
@@ -192,10 +189,14 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     const onSelectionChangeRef = useRef(onSelectionChange);
     onSelectionChangeRef.current = onSelectionChange;
 
-    const selectedStrokeIdxRef = useRef(-1);
+    const selectedStrokeIndicesRef = useRef<Set<number>>(new Set());
     const cursorDragMode = useRef<null | 'vertex' | 'stroke'>(null);
     const cursorDragVertexIdx = useRef(-1);
     const cursorDragLastPos = useRef<{ x: number; y: number } | null>(null);
+    const lassoRectRef = useRef<{
+      startScreen: { x: number; y: number };
+      currentScreen: { x: number; y: number };
+    } | null>(null);
 
     const getCtx = () => canvasRef.current?.getContext('2d') ?? null;
 
@@ -203,16 +204,21 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       onHistoryChange?.(undoStack.current.length > 0, redoStack.current.length > 0);
     }, [onHistoryChange]);
 
-    const notifySelection = useCallback((idx: number) => {
+    const notifySelectionMulti = useCallback((indices: Set<number>) => {
       const strokes = strokesRef.current;
-      if (idx < 0 || idx >= strokes.length) {
-        selectedStrokeIdxRef.current = -1;
+      const valid = [...indices].filter(i => i >= 0 && i < strokes.length);
+      if (valid.length === 0) {
+        selectedStrokeIndicesRef.current = new Set();
         onSelectionChangeRef.current?.(null);
         return;
       }
-      selectedStrokeIdxRef.current = idx;
-      const pos = strokeBBoxCenter(strokes[idx], viewportRef.current);
-      onSelectionChangeRef.current?.({ strokeIndex: idx, ...pos, stroke: strokes[idx] });
+      selectedStrokeIndicesRef.current = new Set(valid);
+      const pos = strokesSelectionCenter(valid, strokes, viewportRef.current);
+      onSelectionChangeRef.current?.({
+        strokeIndices: valid,
+        ...pos,
+        stroke: strokes[valid[0]],
+      });
     }, []);
 
     const redrawAll = useCallback((
@@ -278,33 +284,59 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         drawStrokePath(ctx, currentPoints, smooth);
       }
 
-      const selIdx = selectedStrokeIdxRef.current;
-      if (selIdx >= 0 && selIdx < strokes.length) {
-        const stroke = strokes[selIdx];
-        if (stroke.points.length >= 2) {
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = 0.45;
-          ctx.strokeStyle = '#60a5fa';
-          ctx.lineWidth = (stroke.size + 6) / vp.zoom;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.setLineDash([]);
-          drawStrokePath(ctx, stroke.points, smooth);
-        }
+      const selIndices = selectedStrokeIndicesRef.current;
+      const isMulti = selIndices.size > 1;
 
-        ctx.globalAlpha = 1;
-        const hw = 5 / vp.zoom;
-        for (const pt of stroke.points) {
-          ctx.fillStyle = '#60a5fa';
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5 / vp.zoom;
-          ctx.setLineDash([]);
-          ctx.fillRect(pt.x - hw, pt.y - hw, hw * 2, hw * 2);
-          ctx.strokeRect(pt.x - hw, pt.y - hw, hw * 2, hw * 2);
+      for (const selIdx of selIndices) {
+        if (selIdx < 0 || selIdx >= strokes.length) continue;
+        const stroke = strokes[selIdx];
+        if (stroke.points.length < 2) continue;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.45;
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = (stroke.size + 6) / vp.zoom;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([]);
+        drawStrokePath(ctx, stroke.points, smooth);
+      }
+
+      if (!isMulti && selIndices.size === 1) {
+        const [selIdx] = selIndices;
+        if (selIdx >= 0 && selIdx < strokes.length) {
+          const stroke = strokes[selIdx];
+          ctx.globalAlpha = 1;
+          const hw = 5 / vp.zoom;
+          for (const pt of stroke.points) {
+            ctx.fillStyle = '#60a5fa';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5 / vp.zoom;
+            ctx.setLineDash([]);
+            ctx.fillRect(pt.x - hw, pt.y - hw, hw * 2, hw * 2);
+            ctx.strokeRect(pt.x - hw, pt.y - hw, hw * 2, hw * 2);
+          }
         }
       }
 
       ctx.restore();
+
+      const lr = lassoRectRef.current;
+      if (lr) {
+        const x = Math.min(lr.startScreen.x, lr.currentScreen.x);
+        const y = Math.min(lr.startScreen.y, lr.currentScreen.y);
+        const w = Math.abs(lr.currentScreen.x - lr.startScreen.x);
+        const h = Math.abs(lr.currentScreen.y - lr.startScreen.y);
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = 'rgba(96, 165, 250, 0.12)';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.globalAlpha = 0.85;
+        ctx.strokeRect(x, y, w, h);
+        ctx.restore();
+      }
     }, []);
 
     const screenToWorld = (screenX: number, screenY: number) => {
@@ -329,34 +361,77 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       return screenToWorld(screenX, screenY);
     };
 
+    const getScreenPos = (e: MouseEvent | TouchEvent): { x: number; y: number } | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (e instanceof TouchEvent) {
+        const touch = e.touches[0] ?? e.changedTouches[0];
+        if (!touch) return null;
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+      }
+      return { x: (e as MouseEvent).clientX - rect.left, y: (e as MouseEvent).clientY - rect.top };
+    };
+
     const startStroke = useCallback((e: MouseEvent | TouchEvent) => {
       if (!isActive) return;
       e.preventDefault();
-      const pos = getPos(e);
-      if (!pos) return;
       const zoom = viewportRef.current.zoom;
 
-      if (toolRef.current === 'cursor') {
-        const selIdx = selectedStrokeIdxRef.current;
+      if (toolRef.current === 'lasso') {
+        const sp = getScreenPos(e);
+        if (!sp) return;
+        lassoRectRef.current = { startScreen: sp, currentScreen: sp };
+        const ctx = getCtx();
+        if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+        return;
+      }
 
-        if (selIdx >= 0 && selIdx < strokesRef.current.length) {
-          const vIdx = findNearestVertex(pos.x, pos.y, strokesRef.current[selIdx], zoom);
-          if (vIdx >= 0) {
-            cursorDragMode.current = 'vertex';
-            cursorDragVertexIdx.current = vIdx;
-            cursorDragLastPos.current = pos;
-            return;
+      const pos = getPos(e);
+      if (!pos) return;
+
+      if (toolRef.current === 'cursor') {
+        const isShift = (e instanceof MouseEvent) ? e.shiftKey : false;
+        const hitIdx = findNearestStroke(pos.x, pos.y, strokesRef.current, zoom);
+
+        if (isShift) {
+          if (hitIdx >= 0) {
+            const next = new Set(selectedStrokeIndicesRef.current);
+            if (next.has(hitIdx)) {
+              next.delete(hitIdx);
+            } else {
+              next.add(hitIdx);
+            }
+            notifySelectionMulti(next);
+            cursorDragMode.current = null;
+            cursorDragLastPos.current = null;
+          }
+          const ctx = getCtx();
+          if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+          return;
+        }
+
+        const selIndices = selectedStrokeIndicesRef.current;
+        if (selIndices.size === 1) {
+          const [selIdx] = selIndices;
+          if (selIdx >= 0 && selIdx < strokesRef.current.length) {
+            const vIdx = findNearestVertex(pos.x, pos.y, strokesRef.current[selIdx], zoom);
+            if (vIdx >= 0) {
+              cursorDragMode.current = 'vertex';
+              cursorDragVertexIdx.current = vIdx;
+              cursorDragLastPos.current = pos;
+              return;
+            }
           }
         }
 
-        const hitIdx = findNearestStroke(pos.x, pos.y, strokesRef.current, zoom);
         if (hitIdx >= 0) {
           cursorDragMode.current = 'stroke';
           cursorDragLastPos.current = pos;
-          notifySelection(hitIdx);
+          notifySelectionMulti(new Set([hitIdx]));
         } else {
           cursorDragMode.current = null;
-          notifySelection(-1);
+          notifySelectionMulti(new Set());
         }
         const ctx = getCtx();
         if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
@@ -370,11 +445,22 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       currentStrokePoints.current = [pos];
       const ctx = getCtx();
       if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, currentStrokePoints.current);
-    }, [isActive, notifyHistory, notifySelection, redrawAll]);
+    }, [isActive, notifyHistory, notifySelectionMulti, redrawAll]);
 
     const drawStroke = useCallback((e: MouseEvent | TouchEvent) => {
       if (!isActive) return;
       e.preventDefault();
+
+      if (toolRef.current === 'lasso') {
+        if (!lassoRectRef.current) return;
+        const sp = getScreenPos(e);
+        if (!sp) return;
+        lassoRectRef.current = { ...lassoRectRef.current, currentScreen: sp };
+        const ctx = getCtx();
+        if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+        return;
+      }
+
       const pos = getPos(e);
       if (!pos) return;
 
@@ -383,19 +469,23 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         const dx = pos.x - cursorDragLastPos.current.x;
         const dy = pos.y - cursorDragLastPos.current.y;
         cursorDragLastPos.current = pos;
-        const selIdx = selectedStrokeIdxRef.current;
-        if (selIdx < 0 || selIdx >= strokesRef.current.length) return;
+        const selIndices = selectedStrokeIndicesRef.current;
+        if (selIndices.size === 0) return;
 
-        const strokes = strokesRef.current.map((s, i) => {
-          if (i !== selIdx) return s;
-          if (cursorDragMode.current === 'vertex') {
-            const vIdx = cursorDragVertexIdx.current;
+        let strokes: SketchStroke[];
+        if (cursorDragMode.current === 'vertex' && selIndices.size === 1) {
+          const [selIdx] = selIndices;
+          const vIdx = cursorDragVertexIdx.current;
+          strokes = strokesRef.current.map((s, i) => {
+            if (i !== selIdx) return s;
             const newPts = s.points.map((p, j) => j === vIdx ? { x: p.x + dx, y: p.y + dy } : p);
             return { ...s, points: newPts };
-          } else {
-            return { ...s, points: s.points.map(p => ({ x: p.x + dx, y: p.y + dy })) };
-          }
-        });
+          });
+        } else {
+          strokes = strokesRef.current.map((s, i) =>
+            selIndices.has(i) ? { ...s, points: s.points.map(p => ({ x: p.x + dx, y: p.y + dy })) } : s
+          );
+        }
         strokesRef.current = strokes;
         const ctx = getCtx();
         if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
@@ -409,15 +499,52 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     }, [isActive, redrawAll]);
 
     const endStroke = useCallback(() => {
+      if (toolRef.current === 'lasso') {
+        const lr = lassoRectRef.current;
+        if (!lr) return;
+        const vp = viewportRef.current;
+        const dx = lr.currentScreen.x - lr.startScreen.x;
+        const dy = lr.currentScreen.y - lr.startScreen.y;
+        const hasArea = Math.abs(dx) > 4 || Math.abs(dy) > 4;
+        if (hasArea) {
+          const sx = Math.min(lr.startScreen.x, lr.currentScreen.x);
+          const sy = Math.min(lr.startScreen.y, lr.currentScreen.y);
+          const sw = Math.abs(dx);
+          const sh = Math.abs(dy);
+          const wx = (sx - vp.x) / vp.zoom;
+          const wy = (sy - vp.y) / vp.zoom;
+          const ww = sw / vp.zoom;
+          const wh = sh / vp.zoom;
+          const found = new Set<number>();
+          strokesRef.current.forEach((s, i) => {
+            if (s.tool !== 'eraser' && strokeIntersectsWorldRect(s, wx, wy, ww, wh)) {
+              found.add(i);
+            }
+          });
+          notifySelectionMulti(found);
+        } else {
+          notifySelectionMulti(new Set());
+        }
+        lassoRectRef.current = null;
+        const ctx = getCtx();
+        if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+        return;
+      }
+
       if (toolRef.current === 'cursor') {
         if (cursorDragMode.current && cursorDragLastPos.current) {
           onStrokesChange?.(strokesRef.current);
-          const selIdx = selectedStrokeIdxRef.current;
-          if (selIdx >= 0 && selIdx < strokesRef.current.length) {
-            const pos = strokeBBoxCenter(strokesRef.current[selIdx], viewportRef.current);
-            onSelectionChangeRef.current?.({
-              strokeIndex: selIdx, ...pos, stroke: strokesRef.current[selIdx]
-            });
+          const selIndices = selectedStrokeIndicesRef.current;
+          if (selIndices.size > 0) {
+            const valid = [...selIndices].filter(i => i >= 0 && i < strokesRef.current.length);
+            if (valid.length > 0) {
+              const pos = strokesSelectionCenter(valid, strokesRef.current, viewportRef.current);
+              onSelectionChangeRef.current?.({
+                strokeIndices: valid,
+                ...pos,
+                stroke: strokesRef.current[valid[0]],
+              });
+            }
           }
         }
         cursorDragMode.current = null;
@@ -446,7 +573,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       currentStrokePoints.current = [];
       const ctx = getCtx();
       if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
-    }, [onStrokesChange, redrawAll]);
+    }, [onStrokesChange, redrawAll, notifySelectionMulti]);
 
     const undo = useCallback(() => {
       if (undoStack.current.length === 0) return;
@@ -473,7 +600,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       redoStack.current = [];
       strokesRef.current = [];
       onStrokesChange?.([]);
-      selectedStrokeIdxRef.current = -1;
+      selectedStrokeIndicesRef.current = new Set();
       onSelectionChangeRef.current?.(null);
       const ctx = getCtx();
       if (ctx) redrawAll(ctx, viewportRef.current, [], []);
@@ -481,7 +608,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     }, [notifyHistory, onStrokesChange, redrawAll]);
 
     const clearSelection = useCallback(() => {
-      selectedStrokeIdxRef.current = -1;
+      selectedStrokeIndicesRef.current = new Set();
       onSelectionChangeRef.current?.(null);
       const ctx = getCtx();
       if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
@@ -494,7 +621,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       clear,
       getStrokes: () => strokesRef.current,
       clearSelection,
-      hasSelection: () => selectedStrokeIdxRef.current >= 0,
+      hasSelection: () => selectedStrokeIndicesRef.current.size > 0,
     }), [undo, redo, clear, clearSelection]);
 
     useEffect(() => {
@@ -518,12 +645,17 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     useEffect(() => {
       const ctx = getCtx();
       if (ctx) redrawAll(ctx, viewport, strokesRef.current, currentStrokePoints.current);
-      if (selectedStrokeIdxRef.current >= 0 && selectedStrokeIdxRef.current < strokesRef.current.length) {
-        const pos = strokeBBoxCenter(strokesRef.current[selectedStrokeIdxRef.current], viewport);
-        onSelectionChangeRef.current?.({
-          strokeIndex: selectedStrokeIdxRef.current, ...pos,
-          stroke: strokesRef.current[selectedStrokeIdxRef.current],
-        });
+      const selIndices = selectedStrokeIndicesRef.current;
+      if (selIndices.size > 0) {
+        const valid = [...selIndices].filter(i => i >= 0 && i < strokesRef.current.length);
+        if (valid.length > 0) {
+          const pos = strokesSelectionCenter(valid, strokesRef.current, viewport);
+          onSelectionChangeRef.current?.({
+            strokeIndices: valid,
+            ...pos,
+            stroke: strokesRef.current[valid[0]],
+          });
+        }
       }
     }, [viewport, redrawAll]);
 
@@ -556,10 +688,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     useEffect(() => {
       if (initialStrokes) {
         strokesRef.current = initialStrokes;
-        if (selectedStrokeIdxRef.current >= initialStrokes.length) {
-          selectedStrokeIdxRef.current = -1;
-          onSelectionChangeRef.current?.(null);
-        }
+        const maxIdx = initialStrokes.length - 1;
+        const next = new Set([...selectedStrokeIndicesRef.current].filter(i => i <= maxIdx));
+        selectedStrokeIndicesRef.current = next;
+        if (next.size === 0) onSelectionChangeRef.current?.(null);
         const ctx = getCtx();
         if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
       }
@@ -568,6 +700,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     const cursorStyle = (() => {
       if (!isActive) return 'default';
       if (tool === 'cursor') return 'default';
+      if (tool === 'lasso') return 'crosshair';
       if (tool === 'eraser') {
         const w = 22, h = 16;
         const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'><rect x='1' y='1' width='${w - 2}' height='${h - 2}' rx='2' fill='%23fda4af' stroke='%23374151' stroke-width='1.5'/><rect x='1' y='${h - 5}' width='${w - 2}' height='3' fill='%23fff' opacity='0.55'/><line x1='1' y1='${h - 5}' x2='${w - 1}' y2='${h - 5}' stroke='%23374151' stroke-width='0.75'/></svg>`;

@@ -4328,7 +4328,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Sketch / drawing mode
   const [isSketchMode, setIsSketchMode] = useState(false);
-  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser' | 'cursor'>('pen');
+  const [sketchTool, setSketchTool] = useState<'pen' | 'eraser' | 'cursor' | 'lasso'>('pen');
   const [sketchColor, setSketchColor] = useState('#000000');
   const [sketchSize, setSketchSize] = useState(4);
   const [sketchOpacity, setSketchOpacity] = useState(80);
@@ -4364,7 +4364,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if (e.key === "Escape") {
         // Sketch mode: clear selection first, then exit on second press
         if (isSketchMode) {
-          if (sketchTool === 'cursor' && sketchCanvasRef.current?.hasSelection()) {
+          if ((sketchTool === 'cursor' || sketchTool === 'lasso') && sketchCanvasRef.current?.hasSelection()) {
             sketchCanvasRef.current.clearSelection();
             setSketchSelection(null);
           } else {
@@ -11715,7 +11715,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       canUndo={sketchCanUndo}
                       canRedo={sketchCanRedo}
                       onToolChange={(t) => {
-                        if (t !== 'cursor') {
+                        if (t === 'pen' || t === 'eraser') {
                           sketchCanvasRef.current?.clearSelection();
                           setSketchSelection(null);
                         }
@@ -11749,6 +11749,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         transform: 'translateX(-50%)',
                       }}
                     >
+                      {/* Multi-stroke label */}
+                      {sketchSelection.strokeIndices.length > 1 && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground font-medium px-1">
+                            {sketchSelection.strokeIndices.length} strokes
+                          </span>
+                          <div className="w-px h-4 bg-border" />
+                        </>
+                      )}
+
                       {/* Color */}
                       <div className="relative flex items-center gap-1">
                         <span className="text-[10px] text-muted-foreground">Color</span>
@@ -11761,12 +11771,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             value={sketchSelection.stroke.color}
                             className="opacity-0 w-0 h-0 absolute pointer-events-none"
                             onChange={(e) => {
-                              const idx = sketchSelection.strokeIndex;
+                              const indices = sketchSelection.strokeIndices;
                               const updated = sketchStrokes.map((s, i) =>
-                                i === idx ? { ...s, color: e.target.value } : s
+                                indices.includes(i) ? { ...s, color: e.target.value } : s
                               );
                               setSketchStrokes(updated);
-                              setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
+                              setSketchSelection({ ...sketchSelection, stroke: { ...sketchSelection.stroke, color: e.target.value } });
                             }}
                           />
                         </label>
@@ -11784,12 +11794,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           value={sketchSelection.stroke.size}
                           className="w-16 h-1 cursor-pointer [accent-color:hsl(var(--primary))]"
                           onChange={(e) => {
-                            const idx = sketchSelection.strokeIndex;
+                            const indices = sketchSelection.strokeIndices;
+                            const val = Number(e.target.value);
                             const updated = sketchStrokes.map((s, i) =>
-                              i === idx ? { ...s, size: Number(e.target.value) } : s
+                              indices.includes(i) ? { ...s, size: val } : s
                             );
                             setSketchStrokes(updated);
-                            setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
+                            setSketchSelection({ ...sketchSelection, stroke: { ...sketchSelection.stroke, size: val } });
                           }}
                         />
                         <span className="text-[10px] text-muted-foreground w-4">{sketchSelection.stroke.size}</span>
@@ -11803,12 +11814,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           <button
                             key={ls}
                             onClick={() => {
-                              const idx = sketchSelection.strokeIndex;
+                              const indices = sketchSelection.strokeIndices;
                               const updated = sketchStrokes.map((s, i) =>
-                                i === idx ? { ...s, lineStyle: ls } : s
+                                indices.includes(i) ? { ...s, lineStyle: ls } : s
                               );
                               setSketchStrokes(updated);
-                              setSketchSelection({ ...sketchSelection, stroke: updated[idx] });
+                              setSketchSelection({ ...sketchSelection, stroke: { ...sketchSelection.stroke, lineStyle: ls } });
                             }}
                             className={`h-5 px-1.5 rounded-full text-[10px] font-medium transition-colors ${
                               sketchSelection.stroke.lineStyle === ls
@@ -11825,11 +11836,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                       {/* Delete */}
                       <button
-                        title="Delete stroke"
+                        title={sketchSelection.strokeIndices.length > 1 ? `Delete ${sketchSelection.strokeIndices.length} strokes` : 'Delete stroke'}
                         className="w-6 h-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
                         onClick={() => {
-                          const idx = sketchSelection.strokeIndex;
-                          setSketchStrokes(sketchStrokes.filter((_, i) => i !== idx));
+                          const indices = new Set(sketchSelection.strokeIndices);
+                          setSketchStrokes(sketchStrokes.filter((_, i) => !indices.has(i)));
                           sketchCanvasRef.current?.clearSelection();
                           setSketchSelection(null);
                         }}
