@@ -634,7 +634,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     const paste = useCallback((): boolean => {
       const clipboard = clipboardRef.current;
       if (!clipboard || clipboard.length === 0) return false;
-      const OFFSET = 20;
+      const OFFSET = 20 / viewportRef.current.zoom;
       const pasted = clipboard.map(s => ({
         ...s,
         points: s.points.map(p => ({ x: p.x + OFFSET, y: p.y + OFFSET })),
