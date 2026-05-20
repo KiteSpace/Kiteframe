@@ -25,6 +25,13 @@ export interface SketchCanvasHandle {
   canPaste: () => boolean;
 }
 
+interface SketchClipboard {
+  strokes: SketchStroke[];
+  anchorScreen: { x: number; y: number };
+  originalCenterWorld: { x: number; y: number };
+  pasteCount: number;
+}
+
 export interface SketchSelection {
   strokeIndices: number[];
   screenX: number;
@@ -193,7 +200,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     onSelectionChangeRef.current = onSelectionChange;
 
     const selectedStrokeIndicesRef = useRef<Set<number>>(new Set());
-    const clipboardRef = useRef<SketchStroke[] | null>(null);
+    const clipboardRef = useRef<SketchClipboard | null>(null);
     const cursorDragMode = useRef<null | 'vertex' | 'stroke'>(null);
     const cursorDragVertexIdx = useRef(-1);
     const cursorDragLastPos = useRef<{ x: number; y: number } | null>(null);
@@ -624,21 +631,46 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       const strokes = strokesRef.current;
       const valid = indices.filter(i => i >= 0 && i < strokes.length);
       if (valid.length === 0) return false;
-      clipboardRef.current = valid.map(i => ({
-        ...strokes[i],
-        points: strokes[i].points.map(p => ({ ...p })),
-      }));
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const idx of valid) {
+        for (const pt of strokes[idx].points) {
+          minX = Math.min(minX, pt.x); minY = Math.min(minY, pt.y);
+          maxX = Math.max(maxX, pt.x); maxY = Math.max(maxY, pt.y);
+        }
+      }
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+      const vp = viewportRef.current;
+      clipboardRef.current = {
+        strokes: valid.map(i => ({
+          ...strokes[i],
+          points: strokes[i].points.map(p => ({ ...p })),
+        })),
+        anchorScreen: { x: cx * vp.zoom + vp.x, y: cy * vp.zoom + vp.y },
+        originalCenterWorld: { x: cx, y: cy },
+        pasteCount: 0,
+      };
       return true;
     }, []);
 
     const paste = useCallback((): boolean => {
       const clipboard = clipboardRef.current;
-      if (!clipboard || clipboard.length === 0) return false;
-      const OFFSET = 20 / viewportRef.current.zoom;
-      const pasted = clipboard.map(s => ({
+      if (!clipboard || clipboard.strokes.length === 0) return false;
+      const vp = viewportRef.current;
+      const newCenterWorld = {
+        x: (clipboard.anchorScreen.x - vp.x) / vp.zoom,
+        y: (clipboard.anchorScreen.y - vp.y) / vp.zoom,
+      };
+      const worldDx = newCenterWorld.x - clipboard.originalCenterWorld.x;
+      const worldDy = newCenterWorld.y - clipboard.originalCenterWorld.y;
+      const nudge = (clipboard.pasteCount + 1) * 20 / vp.zoom;
+      const pasted = clipboard.strokes.map(s => ({
         ...s,
-        points: s.points.map(p => ({ x: p.x + OFFSET, y: p.y + OFFSET })),
+        points: s.points.map(p => ({
+          x: p.x + worldDx + nudge,
+          y: p.y + worldDy + nudge,
+        })),
       }));
+      clipboardRef.current = { ...clipboard, pasteCount: clipboard.pasteCount + 1 };
       undoStack.current.push([...strokesRef.current]);
       redoStack.current = [];
       const startIdx = strokesRef.current.length;
@@ -663,7 +695,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       hasSelection: () => selectedStrokeIndicesRef.current.size > 0,
       copySelection,
       paste,
-      canPaste: () => (clipboardRef.current?.length ?? 0) > 0,
+      canPaste: () => (clipboardRef.current?.strokes.length ?? 0) > 0,
     }), [undo, redo, clear, clearSelection, copySelection, paste]);
 
     useEffect(() => {
