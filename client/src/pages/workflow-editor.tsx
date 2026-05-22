@@ -10871,9 +10871,49 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         return { layers, sortedDepths };
                       };
 
+                      // Barycentric crossing minimisation: sort nodes within each
+                      // layer by the average index of their parents in the
+                      // previous layer.  Two forward sweeps handle most cases.
+                      const minimizeCrossings = (
+                        layers: Map<number, typeof workflowNodeData>,
+                        sortedDepths: number[],
+                      ) => {
+                        for (let pass = 0; pass < 2; pass++) {
+                          sortedDepths.forEach((depth, layerIdx) => {
+                            if (layerIdx === 0) return;
+                            const prevLayer = layers.get(
+                              sortedDepths[layerIdx - 1],
+                            )!;
+                            const prevPos: Map<string, number> = new Map();
+                            prevLayer.forEach((n, i) => prevPos.set(n.id, i));
+
+                            const layer = layers.get(depth)!;
+                            const curPos: Map<string, number> = new Map();
+                            layer.forEach((n, i) => curPos.set(n.id, i));
+
+                            layer.sort((a, b) => {
+                              const bary = (nodeId: string): number => {
+                                const pp = workflowEdges
+                                  .filter(
+                                    (e) =>
+                                      e.target === nodeId &&
+                                      prevPos.has(e.source),
+                                  )
+                                  .map((e) => prevPos.get(e.source)!);
+                                return pp.length > 0
+                                  ? pp.reduce((s, v) => s + v, 0) / pp.length
+                                  : curPos.get(nodeId)!;
+                              };
+                              return bary(a.id) - bary(b.id);
+                            });
+                          });
+                        }
+                      };
+
                       // Left-to-right tree: depth = column (X), nodes in column spread vertically
                       const applyHorizontalTree = () => {
                         const { layers, sortedDepths } = computeDepthLayers();
+                        minimizeCrossings(layers, sortedDepths);
                         let maxLayerHeight = 0;
                         layers.forEach((layer) => {
                           const lh =
@@ -10900,6 +10940,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       // Top-to-bottom tree: depth = row (Y), nodes in row spread horizontally
                       const applyVerticalTree = () => {
                         const { layers, sortedDepths } = computeDepthLayers();
+                        minimizeCrossings(layers, sortedDepths);
                         let maxLayerWidth = 0;
                         layers.forEach((layer) => {
                           const lw =
