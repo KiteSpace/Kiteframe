@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';
+import { WorkflowThumbnail } from './WorkflowThumbnail';
 
 /**
  * Sanitize assistant message content by removing leading scaffolding tokens
@@ -222,13 +223,10 @@ export function ChatBubble({
       </div>
       
       {message.workflowProposal && (
-        <div className="mt-3 p-3 rounded-lg border border-border bg-muted/20 max-w-[65ch]">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
-              Generated: {message.workflowProposal.nodes.length} nodes, {message.workflowProposal.edges.length} edges
-            </Badge>
-          </div>
-        </div>
+        <WorkflowThumbnail
+          nodes={message.workflowProposal.nodes}
+          edges={message.workflowProposal.edges}
+        />
       )}
       
       {isLastInGroup && (
