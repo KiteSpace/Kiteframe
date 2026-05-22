@@ -57,11 +57,11 @@ function generatePath(
   const sx = r(s.x), sy = r(s.y);
   const tx = r(t.x), ty = r(t.y);
 
-  // If the user has dragged a control-point handle, override all edge types with a
-  // quadratic Bézier.  The stored value is the point ON the curve at t=0.5, so we
-  // back-calculate the true Q control point so the handle sits exactly on the path:
-  //   point_on_curve(0.5) = (sx + 2*cpx + tx) / 4  =>  cpx = 2*stored - (sx+tx)/2
-  if (controlPoint) {
+  // For non-step/orthogonal types: a user-dragged control point overrides the
+  // entire path with a quadratic Bézier.  The stored value is the point ON the
+  // curve at t=0.5, so we back-calculate the true Q control point so the handle
+  // sits exactly on the path: cp = 2·stored − (S+T)/2
+  if (controlPoint && type !== 'step' && type !== 'orthogonal') {
     const cpx = r(2 * controlPoint.x - (sx + tx) / 2);
     const cpy = r(2 * controlPoint.y - (sy + ty) / 2);
     return `M ${sx} ${sy} Q ${cpx} ${cpy} ${tx} ${ty}`;
@@ -96,37 +96,42 @@ function generatePath(
       const isTargetHorizontal = t.direction === 'left' || t.direction === 'right';
       
       if (isSourceHorizontal && isTargetHorizontal) {
-        // Both horizontal: go horizontal first, then vertical
-        const mx = r(sx + (tx - sx) / 2);
+        // Both horizontal: control point X sets the elbow column position
+        const mx = controlPoint ? r(controlPoint.x) : r(sx + (tx - sx) / 2);
         if (cornerRadius > 0) {
           const rad = Math.min(cornerRadius, Math.abs(tx - mx) / 2, Math.abs(ty - sy) / 2);
-          const dx = tx > mx ? 1 : -1;
-          const dy = ty > sy ? 1 : -1;
-          return `M ${sx} ${sy} L ${r(mx - rad * dx)} ${sy} Q ${mx} ${sy} ${mx} ${r(sy + rad * dy)} L ${mx} ${r(ty - rad * dy)} Q ${mx} ${ty} ${r(mx + rad * dx)} ${ty} L ${tx} ${ty}`;
+          const ddx = tx > mx ? 1 : -1;
+          const ddy = ty > sy ? 1 : -1;
+          return `M ${sx} ${sy} L ${r(mx - rad * ddx)} ${sy} Q ${mx} ${sy} ${mx} ${r(sy + rad * ddy)} L ${mx} ${r(ty - rad * ddy)} Q ${mx} ${ty} ${r(mx + rad * ddx)} ${ty} L ${tx} ${ty}`;
         }
         return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
       } else if (!isSourceHorizontal && !isTargetHorizontal) {
-        // Both vertical: go vertical first, then horizontal
-        const my = r(sy + (ty - sy) / 2);
+        // Both vertical: control point Y sets the elbow row position
+        const my = controlPoint ? r(controlPoint.y) : r(sy + (ty - sy) / 2);
         if (cornerRadius > 0) {
           const rad = Math.min(cornerRadius, Math.abs(ty - my) / 2, Math.abs(tx - sx) / 2);
-          const dx = tx > sx ? 1 : -1;
-          const dy = ty > my ? 1 : -1;
-          return `M ${sx} ${sy} L ${sx} ${r(my - rad * dy)} Q ${sx} ${my} ${r(sx + rad * dx)} ${my} L ${r(tx - rad * dx)} ${my} Q ${tx} ${my} ${tx} ${r(my + rad * dy)} L ${tx} ${ty}`;
+          const ddx = tx > sx ? 1 : -1;
+          const ddy = ty > my ? 1 : -1;
+          return `M ${sx} ${sy} L ${sx} ${r(my - rad * ddy)} Q ${sx} ${my} ${r(sx + rad * ddx)} ${my} L ${r(tx - rad * ddx)} ${my} Q ${tx} ${my} ${tx} ${r(my + rad * ddy)} L ${tx} ${ty}`;
         }
         return `M ${sx} ${sy} L ${sx} ${my} L ${tx} ${my} L ${tx} ${ty}`;
       } else {
-        // Mixed: go in source direction first
+        // Mixed: single-corner path — if user has set a control point use Q bezier
+        if (controlPoint) {
+          const cpx = r(2 * controlPoint.x - (sx + tx) / 2);
+          const cpy = r(2 * controlPoint.y - (sy + ty) / 2);
+          return `M ${sx} ${sy} Q ${cpx} ${cpy} ${tx} ${ty}`;
+        }
         if (cornerRadius > 0) {
           const rad = Math.min(cornerRadius, Math.abs(tx - sx) / 2, Math.abs(ty - sy) / 2);
           if (isSourceHorizontal) {
-            const dx = tx > sx ? 1 : -1;
-            const dy = ty > sy ? 1 : -1;
-            return `M ${sx} ${sy} L ${r(tx - rad * dx)} ${sy} Q ${tx} ${sy} ${tx} ${r(sy + rad * dy)} L ${tx} ${ty}`;
+            const ddx = tx > sx ? 1 : -1;
+            const ddy = ty > sy ? 1 : -1;
+            return `M ${sx} ${sy} L ${r(tx - rad * ddx)} ${sy} Q ${tx} ${sy} ${tx} ${r(sy + rad * ddy)} L ${tx} ${ty}`;
           } else {
-            const dx = tx > sx ? 1 : -1;
-            const dy = ty > sy ? 1 : -1;
-            return `M ${sx} ${sy} L ${sx} ${r(ty - rad * dy)} Q ${sx} ${ty} ${r(sx + rad * dx)} ${ty} L ${tx} ${ty}`;
+            const ddx = tx > sx ? 1 : -1;
+            const ddy = ty > sy ? 1 : -1;
+            return `M ${sx} ${sy} L ${sx} ${r(ty - rad * ddy)} Q ${sx} ${ty} ${r(sx + rad * ddx)} ${ty} L ${tx} ${ty}`;
           }
         }
         if (isSourceHorizontal) {
@@ -168,18 +173,28 @@ function generatePath(
       const isTargetHorizontal = t.direction === 'left' || t.direction === 'right';
       
       if (isSourceHorizontal && isTargetHorizontal) {
-        // Both horizontal: go horizontal, then vertical, then horizontal
-        const mx = r((sx + tx) / 2);
+        // Both horizontal: control point X sets the elbow column
+        const mx = controlPoint ? r(controlPoint.x) : r((sx + tx) / 2);
         return `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
       } else if (!isSourceHorizontal && !isTargetHorizontal) {
-        // Both vertical: go vertical, then horizontal, then vertical
-        const my = r((sy + ty) / 2);
+        // Both vertical: control point Y sets the elbow row
+        const my = controlPoint ? r(controlPoint.y) : r((sy + ty) / 2);
         return `M ${sx} ${sy} L ${sx} ${my} L ${tx} ${my} L ${tx} ${ty}`;
       } else if (isSourceHorizontal && !isTargetHorizontal) {
-        // Source horizontal, target vertical: horizontal then vertical
+        // Single-corner: if user has set a control point use Q bezier
+        if (controlPoint) {
+          const cpx = r(2 * controlPoint.x - (sx + tx) / 2);
+          const cpy = r(2 * controlPoint.y - (sy + ty) / 2);
+          return `M ${sx} ${sy} Q ${cpx} ${cpy} ${tx} ${ty}`;
+        }
         return `M ${sx} ${sy} L ${tx} ${sy} L ${tx} ${ty}`;
       } else {
-        // Source vertical, target horizontal: vertical then horizontal
+        // Single-corner: if user has set a control point use Q bezier
+        if (controlPoint) {
+          const cpx = r(2 * controlPoint.x - (sx + tx) / 2);
+          const cpy = r(2 * controlPoint.y - (sy + ty) / 2);
+          return `M ${sx} ${sy} Q ${cpx} ${cpy} ${tx} ${ty}`;
+        }
         return `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`;
       }
     }
@@ -395,8 +410,9 @@ export const ConnectionEdge: React.FC<{
   // Hover state — used to show handle even when edge is not selected
   const [isHovered, setIsHovered] = useState(false);
 
-  // Drag state refs (no re-render needed during drag)
+  // Drag state refs (avoid re-renders during drag)
   const isDraggingRef = useRef(false);
+  const hasSavedHistoryRef = useRef(false); // single-shot guard: save once per drag
   const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartCPRef = useRef<{ x: number; y: number } | null>(null);
   
@@ -433,18 +449,32 @@ export const ConnectionEdge: React.FC<{
   const markerStartConfig = getMarkerConfig(edge.markerStart) || (hasMarkerStart ? edge.markers : undefined);
   const markerEndConfig = getMarkerConfig(edge.markerEnd) || (hasMarkerEnd ? edge.markers : undefined);
   
-  // Generate path based on edge type — passes the stored controlPoint so the curve bends
+  // Generate path — passes the stored controlPoint so the curve bends
   const pathData = generatePath(type, s, t, {
     curvature: edge.curvature,
     cornerRadius: edge.cornerRadius,
     controlPoint: edge.controlPoint,
   });
-  
-  // The visible handle position: stored point on the curve, or the geometric midpoint
-  const handlePos = edge.controlPoint ?? {
-    x: (s.x + t.x) / 2,
-    y: (s.y + t.y) / 2,
-  };
+
+  // Compute the visible handle position (the circle the user drags).
+  // For step/orthogonal with two-segment paths the elbow is the meaningful
+  // drag target; for all other types the handle sits on the curve at t=0.5.
+  const handlePos = (() => {
+    if (!edge.controlPoint) return { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
+    const cp = edge.controlPoint;
+    const isSourceH = s.direction === 'left' || s.direction === 'right';
+    const isTargetH = t.direction === 'left' || t.direction === 'right';
+    if ((type === 'step' || type === 'orthogonal') && isSourceH && isTargetH) {
+      // elbow column is controlPoint.x; y is at midpoint of source/target
+      return { x: cp.x, y: (s.y + t.y) / 2 };
+    }
+    if ((type === 'step' || type === 'orthogonal') && !isSourceH && !isTargetH) {
+      // elbow row is controlPoint.y; x is at midpoint of source/target
+      return { x: (s.x + t.x) / 2, y: cp.y };
+    }
+    // For all other cases, handle is the stored on-curve point
+    return cp;
+  })();
 
   // Drag handler — attached to handle circle mousedown
   const handleHandleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -452,18 +482,22 @@ export const ConnectionEdge: React.FC<{
     e.preventDefault();
     e.stopPropagation();
 
-    // Save history before we start mutating edge state
-    onControlPointDragStart?.(edge.id);
-
     isDraggingRef.current = true;
+    hasSavedHistoryRef.current = false; // reset guard for new drag
     dragStartScreenRef.current = { x: e.clientX, y: e.clientY };
-    // Starting canvas position of handle
-    dragStartCPRef.current = edge.controlPoint
-      ? { ...edge.controlPoint }
-      : { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
+    // Use the computed handlePos as the drag origin so step/orthogonal
+    // edges start from the correct elbow position, not the raw stored value
+    dragStartCPRef.current = { ...handlePos };
 
     const onMove = (ev: MouseEvent) => {
       if (!isDraggingRef.current || !dragStartScreenRef.current || !dragStartCPRef.current) return;
+
+      // Save history on the first actual movement (single-shot guard)
+      if (!hasSavedHistoryRef.current) {
+        hasSavedHistoryRef.current = true;
+        onControlPointDragStart?.(edge.id);
+      }
+
       const sc = canvasScale || 1;
       const dx = (ev.clientX - dragStartScreenRef.current.x) / sc;
       const dy = (ev.clientY - dragStartScreenRef.current.y) / sc;
@@ -475,13 +509,14 @@ export const ConnectionEdge: React.FC<{
 
     const onUp = () => {
       isDraggingRef.current = false;
+      hasSavedHistoryRef.current = false;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [edge.id, edge.controlPoint, s.x, s.y, t.x, t.y, canvasScale, onControlPointChange, onControlPointDragStart]);
+  }, [edge.id, handlePos.x, handlePos.y, canvasScale, onControlPointChange, onControlPointDragStart]);
   
   // Create unique IDs for gradients and markers
   const edgeId = edge.id;
