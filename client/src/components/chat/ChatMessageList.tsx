@@ -135,7 +135,7 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden">
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className={`flex flex-col p-4 ${mode === 'fullscreen' ? 'pb-24' : ''}`}>
+        <div className={`flex flex-col p-4 ${mode === 'fullscreen' ? 'pb-96' : ''}`}>
           {messages.map((message) => {
             const groupInfo = messageGroupInfo.get(message.id);
             const marginClass = groupInfo?.isRoleChange ? 'mt-4 first:mt-0' : 'mt-1.5';

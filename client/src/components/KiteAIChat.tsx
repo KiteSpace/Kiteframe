@@ -2396,6 +2396,11 @@ export function KiteAIChatBrain({
         onWorkflowChipSelect={handleWorkflowChipSelect}
       />
 
+      {/* Bottom-anchored panel: draft actions + input bar.
+          In fullscreen mode both are fixed together so actions are never
+          hidden behind the input bar. In panel mode they stay in normal flow. */}
+      <div className={mode === 'fullscreen' ? 'fixed bottom-0 left-0 right-0 z-50 max-w-4xl mx-auto bg-background' : ''}>
+
       {/* AUTHORITATIVE WORKFLOW DRAFT ACTIONS - Always visible when draft exists */}
       {currentWorkflowDraft && (
         <div className="p-3 border-t border-border bg-muted/30 space-y-3">
@@ -2563,13 +2568,9 @@ export function KiteAIChatBrain({
         </div>
       )}
 
-      {/* Input Area - fixed at bottom in fullscreen mode (ChatGPT-style) */}
+      {/* Input Area */}
       <div 
-        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''} ${
-          mode === 'fullscreen' 
-            ? 'fixed bottom-0 left-0 right-0 bg-background z-50 max-w-4xl mx-auto' 
-            : ''
-        }`}
+        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -2766,6 +2767,7 @@ export function KiteAIChatBrain({
           </>
         )}
       </div>
+      </div>{/* end fullscreen bottom-anchored panel wrapper */}
     </div>
   );
 }
