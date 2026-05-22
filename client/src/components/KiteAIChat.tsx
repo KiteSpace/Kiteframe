@@ -2062,7 +2062,12 @@ export function KiteAIChatBrain({
             id: `system-${Date.now()}`,
             role: 'assistant',
             content: AI_RESPONSE_TEMPLATES.EXPANDED_WITH_EDGE_CASES,
-            timestamp: new Date()
+            timestamp: new Date(),
+            workflowProposal: {
+              nodes: expandedNodes as Node[],
+              edges: expandedEdges as Edge[],
+              status: 'pending',
+            },
           }]);
           break;
         }
@@ -2299,7 +2304,12 @@ export function KiteAIChatBrain({
         id: `system-${Date.now()}`,
         role: 'assistant',
         content: AI_RESPONSE_TEMPLATES.SELECTED_EDGE_CASES_APPLIED,
-        timestamp: new Date()
+        timestamp: new Date(),
+        workflowProposal: {
+          nodes: selectedNodes as Node[],
+          edges: selectedEdges as Edge[],
+          status: 'pending',
+        },
       }]);
     } catch (error) {
       console.error('Edge case selection error:', error);
