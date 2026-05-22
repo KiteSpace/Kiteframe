@@ -115,6 +115,8 @@ export type MessageType =
   | 'workflow_generated'   // First baseline workflow created
   | 'workflow_expanded'    // Workflow modified via quick action
   | 'discussion'           // Clarifying questions or edge case listing
+  | 'edge_case_selector'   // Inline edge case picker card
+  | 'edge_case_selected'   // Confirmed selection summary card
   | 'system';              // Informational system messages
 
 export interface ChatMessage {
@@ -140,6 +142,9 @@ export interface ChatMessage {
     kiteRole?: KiteRole;
     confidence?: number;
     maturity?: WorkflowMaturity;
+    edgeCases?: EdgeCase[];
+    selectedEdgeCases?: EdgeCase[];
+    preSelectedIds?: string[];
   };
   followUps?: string[];
   workflowChips?: { id: string; label: string; nodeCount: number }[];
@@ -267,7 +272,6 @@ export function KiteAIChatBrain({
   const [workflowGenState, setWorkflowGenState] = useState<WorkflowGenState>(null);
   const [pendingQuickActions, setPendingQuickActions] = useState<QuickActionType[]>([]);
   const [discussedEdgeCases, setDiscussedEdgeCases] = useState<EdgeCase[]>([]);
-  const [showEdgeCaseSelector, setShowEdgeCaseSelector] = useState(false);
   
   // Phase Lock: Prevent multiple mutating expansions per proposal lifecycle
   // After first expansion, user must explicitly confirm to mutate again
@@ -2121,7 +2125,14 @@ export function KiteAIChatBrain({
         }
           
         case 'SELECT_EDGE_CASES':
-          setShowEdgeCaseSelector(true);
+          setMessages(prev => [...prev, {
+            id: `edge-case-selector-${Date.now()}`,
+            role: 'system' as const,
+            type: 'edge_case_selector' as const,
+            content: '',
+            timestamp: new Date(),
+            meta: { edgeCases: discussedEdgeCases },
+          }]);
           break;
       }
     } catch (error) {
@@ -2137,14 +2148,32 @@ export function KiteAIChatBrain({
   }, [currentWorkflowDraft, aiClient, toast]);
 
   // UPDATED: Edge case selection uses currentWorkflowDraft (authoritative)
-  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[]) => {
+  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], selectorMessageId: string) => {
     if (!currentWorkflowDraft) return;
     
-    setShowEdgeCaseSelector(false);
     setIsLoading(true);
     
     try {
       const selectedCases = discussedEdgeCases.filter(ec => selectedIds.includes(ec.id));
+
+      // Swap the selector card with a summary card immediately
+      setMessages(prev => {
+        const idx = prev.findIndex(m => m.id === selectorMessageId);
+        if (idx === -1) return prev;
+        const old = prev[idx];
+        const summaryMsg: ChatMessage = {
+          id: `edge-case-selected-${Date.now()}`,
+          role: 'system',
+          type: 'edge_case_selected',
+          content: '',
+          timestamp: new Date(),
+          meta: {
+            edgeCases: old.meta?.edgeCases ?? discussedEdgeCases,
+            selectedEdgeCases: selectedCases,
+          },
+        };
+        return [...prev.slice(0, idx), summaryMsg, ...prev.slice(idx + 1)];
+      });
       toast({ 
         title: 'Applying edge cases', 
         description: `Adding ${selectedCases.length} edge case${selectedCases.length > 1 ? 's' : ''} to workflow...` 
@@ -2270,6 +2299,29 @@ export function KiteAIChatBrain({
     }
   }, [currentWorkflowDraft, discussedEdgeCases, aiClient, toast]);
 
+  const handleModifyEdgeCaseSelection = useCallback((messageId: string) => {
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === messageId);
+      if (idx === -1) return prev;
+      const old = prev[idx];
+      const preSelectedIds = old.meta?.selectedEdgeCases?.map(ec => ec.id) ?? [];
+      const edgeCases = old.meta?.edgeCases ?? discussedEdgeCases;
+      const selectorMsg: ChatMessage = {
+        id: `edge-case-selector-${Date.now()}`,
+        role: 'system',
+        type: 'edge_case_selector',
+        content: '',
+        timestamp: new Date(),
+        meta: { edgeCases, preSelectedIds },
+      };
+      return [...prev.slice(0, idx), selectorMsg, ...prev.slice(idx + 1)];
+    });
+  }, [discussedEdgeCases]);
+
+  const handleCancelEdgeCaseSelector = useCallback((messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+  }, []);
+
   // UPDATED: Preview uses currentWorkflowDraft (authoritative)
   const handlePreviewWorkflow = () => {
     if (!currentWorkflowDraft) return;
@@ -2394,6 +2446,9 @@ export function KiteAIChatBrain({
         mode={mode}
         onFollowUpClick={setInputValue}
         onWorkflowChipSelect={handleWorkflowChipSelect}
+        onEdgeCaseSubmit={(messageId, selectedIds) => handleEdgeCaseSelection(selectedIds, messageId)}
+        onModifyEdgeCaseSelection={handleModifyEdgeCaseSelection}
+        onCancelEdgeCaseSelector={handleCancelEdgeCaseSelector}
       />
 
       {/* Bottom-anchored panel: draft actions + input bar.
@@ -2551,17 +2606,7 @@ export function KiteAIChatBrain({
             <DiscussionQuickActions
               onStickWithHappyPath={() => handleQuickAction('HAPPY_PATH_ONLY')}
               onMapAllEdgeCases={() => handleQuickAction('INCLUDE_EDGE_CASES')}
-              onSelectEdgeCases={() => setShowEdgeCaseSelector(true)}
-              disabled={isLoading}
-            />
-          )}
-          
-          {/* Edge case selector */}
-          {showEdgeCaseSelector && discussedEdgeCases.length > 0 && (
-            <EdgeCaseSelector
-              edgeCases={discussedEdgeCases}
-              onSubmit={handleEdgeCaseSelection}
-              onCancel={() => setShowEdgeCaseSelector(false)}
+              onSelectEdgeCases={() => handleQuickAction('SELECT_EDGE_CASES')}
               disabled={isLoading}
             />
           )}

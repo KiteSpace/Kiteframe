@@ -17,6 +17,7 @@ export interface EdgeCase {
 
 export interface EdgeCaseSelectorProps {
   edgeCases: EdgeCase[];
+  initialSelectedIds?: string[];
   onSubmit: (selectedIds: string[]) => void;
   onCancel: () => void;
   disabled?: boolean;
@@ -24,11 +25,14 @@ export interface EdgeCaseSelectorProps {
 
 export function EdgeCaseSelector({
   edgeCases,
+  initialSelectedIds,
   onSubmit,
   onCancel,
   disabled = false,
 }: EdgeCaseSelectorProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(initialSelectedIds ?? [])
+  );
 
   const handleToggle = (id: string) => {
     setSelectedIds(prev => {

@@ -11,6 +11,9 @@ export interface ChatMessageListProps {
   mode: 'panel' | 'floating' | 'fullscreen' | 'discussion';
   onFollowUpClick?: (question: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
+  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[]) => void;
+  onModifyEdgeCaseSelection?: (messageId: string) => void;
+  onCancelEdgeCaseSelector?: (messageId: string) => void;
 }
 
 export interface ChatMessageListRef {
@@ -30,7 +33,10 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   isLoading = false,
   mode,
   onFollowUpClick,
-  onWorkflowChipSelect
+  onWorkflowChipSelect,
+  onEdgeCaseSubmit,
+  onModifyEdgeCaseSelection,
+  onCancelEdgeCaseSelector,
 }, ref) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -146,6 +152,10 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
                 message={message}
                 onFollowUpClick={onFollowUpClick}
                 onWorkflowChipSelect={onWorkflowChipSelect}
+                onEdgeCaseSubmit={onEdgeCaseSubmit}
+                onModifyEdgeCaseSelection={onModifyEdgeCaseSelection}
+                onCancelEdgeCaseSelector={onCancelEdgeCaseSelector}
+                isLoading={isLoading}
                 isFirstInGroup={groupInfo?.isFirstInGroup}
                 isLastInGroup={groupInfo?.isLastInGroup}
                 className={marginClass}

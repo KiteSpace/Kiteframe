@@ -1,7 +1,9 @@
-import { FileText } from 'lucide-react';
+import { FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
+import { EdgeCaseSelector } from '../EdgeCaseSelector';
 
 /**
  * Sanitize assistant message content by removing leading scaffolding tokens
@@ -24,6 +26,10 @@ interface ChatBubbleProps {
   message: ChatMessage;
   onFollowUpClick?: (question: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
+  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[]) => void;
+  onModifyEdgeCaseSelection?: (messageId: string) => void;
+  onCancelEdgeCaseSelector?: (messageId: string) => void;
+  isLoading?: boolean;
   showAvatar?: boolean;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
@@ -44,6 +50,10 @@ export function ChatBubble({
   message,
   onFollowUpClick,
   onWorkflowChipSelect,
+  onEdgeCaseSubmit,
+  onModifyEdgeCaseSelection,
+  onCancelEdgeCaseSelector,
+  isLoading = false,
   isFirstInGroup = true,
   isLastInGroup = true,
   className = '',
@@ -53,6 +63,54 @@ export function ChatBubble({
   const isSystem = message.role === 'system';
   
   if (isSystem) {
+    if (message.type === 'edge_case_selector') {
+      const edgeCases = message.meta?.edgeCases ?? [];
+      const preSelectedIds = message.meta?.preSelectedIds;
+      return (
+        <div className={`my-2 ${className}`} data-testid={testId || `message-edge-case-selector-${message.id}`}>
+          <p className="text-xs text-muted-foreground mb-2">Select which edge cases to include:</p>
+          <EdgeCaseSelector
+            edgeCases={edgeCases}
+            initialSelectedIds={preSelectedIds}
+            onSubmit={(selectedIds) => onEdgeCaseSubmit?.(message.id, selectedIds)}
+            onCancel={() => onCancelEdgeCaseSelector?.(message.id)}
+            disabled={isLoading}
+          />
+        </div>
+      );
+    }
+
+    if (message.type === 'edge_case_selected') {
+      const selected = message.meta?.selectedEdgeCases ?? [];
+      return (
+        <div
+          className={`my-2 rounded-lg bg-muted/40 border border-border/40 px-4 py-3 ${className}`}
+          data-testid={testId || `message-edge-case-selected-${message.id}`}
+        >
+          <p className="text-xs font-medium text-muted-foreground mb-2">Edge cases included:</p>
+          <ul className="space-y-1 mb-3">
+            {selected.map(ec => (
+              <li key={ec.id} className="flex items-start gap-1.5 text-xs">
+                <span className="mt-0.5 text-green-500">✓</span>
+                <span>{ec.label}</span>
+              </li>
+            ))}
+          </ul>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onModifyEdgeCaseSelection?.(message.id)}
+            disabled={isLoading}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            data-testid={`button-modify-edge-case-selection-${message.id}`}
+          >
+            <Pencil className="w-3 h-3 mr-1" />
+            Modify selection
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div 
         className={`text-center py-2 ${className}`}
