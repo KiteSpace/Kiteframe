@@ -1,6 +1,5 @@
 import { FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';

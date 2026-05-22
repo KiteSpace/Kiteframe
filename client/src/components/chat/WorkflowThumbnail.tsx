@@ -1,10 +1,60 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 const DEFAULT_W = 160;
 const DEFAULT_H = 60;
 const PADDING = 24;
+
+const STYLE_ID = 'workflow-thumbnail-css-vars';
+const CSS_VARS = `
+:root {
+  --wf-edge: #94a3b8;
+  --wf-arrow: #94a3b8;
+  --wf-proc-fill: #dbeafe;  --wf-proc-stroke: #2563eb;  --wf-proc-text: #1d4ed8;
+  --wf-cond-fill: #fef3c7;  --wf-cond-stroke: #d97706;  --wf-cond-text: #92400e;
+  --wf-in-fill:   #dcfce7;  --wf-in-stroke:   #16a34a;  --wf-in-text:   #15803d;
+  --wf-out-fill:  #f1f5f9;  --wf-out-stroke:  #475569;  --wf-out-text:  #334155;
+  --wf-ai-fill:   #f3e8ff;  --wf-ai-stroke:   #9333ea;  --wf-ai-text:   #7e22ce;
+  --wf-exp-fill:  #ffedd5;  --wf-exp-stroke:  #ea580c;  --wf-exp-text:  #9a3412;
+  --wf-img-fill:  #fce7f3;  --wf-img-stroke:  #db2777;  --wf-img-text:  #9d174d;
+  --wf-def-fill:  #f4f4f5;  --wf-def-stroke:  #71717a;  --wf-def-text:  #3f3f46;
+}
+.dark {
+  --wf-edge: #475569;
+  --wf-arrow: #475569;
+  --wf-proc-fill: #1e3a5f;  --wf-proc-stroke: #60a5fa;  --wf-proc-text: #93c5fd;
+  --wf-cond-fill: #451a03;  --wf-cond-stroke: #f59e0b;  --wf-cond-text: #fcd34d;
+  --wf-in-fill:   #052e16;  --wf-in-stroke:   #4ade80;  --wf-in-text:   #86efac;
+  --wf-out-fill:  #1e293b;  --wf-out-stroke:  #94a3b8;  --wf-out-text:  #cbd5e1;
+  --wf-ai-fill:   #2e1065;  --wf-ai-stroke:   #c084fc;  --wf-ai-text:   #e9d5ff;
+  --wf-exp-fill:  #431407;  --wf-exp-stroke:  #fb923c;  --wf-exp-text:  #fdba74;
+  --wf-img-fill:  #500724;  --wf-img-stroke:  #f472b6;  --wf-img-text:  #fbcfe8;
+  --wf-def-fill:  #18181b;  --wf-def-stroke:  #a1a1aa;  --wf-def-text:  #d4d4d8;
+}
+`;
+
+function injectStyles() {
+  if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
+  const el = document.createElement('style');
+  el.id = STYLE_ID;
+  el.textContent = CSS_VARS;
+  document.head.appendChild(el);
+}
+
+const TYPE_PREFIX: Record<string, string> = {
+  process: 'proc', condition: 'cond', input: 'in', output: 'out',
+  ai: 'ai', experiment: 'exp', image: 'img',
+};
+
+function nodeVars(type?: string): { fill: string; stroke: string; text: string } {
+  const p = TYPE_PREFIX[type ?? ''] ?? 'def';
+  return {
+    fill:   `var(--wf-${p}-fill)`,
+    stroke: `var(--wf-${p}-stroke)`,
+    text:   `var(--wf-${p}-text)`,
+  };
+}
 
 function getNodeLabel(node: Node): string {
   const d = node.data as { label?: string; title?: string };
@@ -15,23 +65,10 @@ function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max - 1) + '…' : str;
 }
 
-function getNodeColor(type?: string): { fill: string; stroke: string; text: string } {
-  switch (type) {
-    case 'input':      return { fill: '#dcfce7', stroke: '#16a34a', text: '#15803d' };
-    case 'output':     return { fill: '#f1f5f9', stroke: '#475569', text: '#334155' };
-    case 'process':    return { fill: '#dbeafe', stroke: '#2563eb', text: '#1d4ed8' };
-    case 'condition':  return { fill: '#fef3c7', stroke: '#d97706', text: '#92400e' };
-    case 'ai':         return { fill: '#f3e8ff', stroke: '#9333ea', text: '#7e22ce' };
-    case 'experiment': return { fill: '#ffedd5', stroke: '#ea580c', text: '#9a3412' };
-    case 'image':      return { fill: '#fce7f3', stroke: '#db2777', text: '#9d174d' };
-    default:           return { fill: '#f4f4f5', stroke: '#71717a', text: '#3f3f46' };
-  }
-}
-
 function rectBorderPoint(
   sx: number, sy: number,
   tx: number, ty: number,
-  tw: number, th: number
+  tw: number, th: number,
 ): { x: number; y: number } {
   const dx = sx - tx;
   const dy = sy - ty;
@@ -81,7 +118,10 @@ function WorkflowSVG({ nodes, edges, height }: { nodes: Node[]; edges: Edge[]; h
     >
       <defs>
         <marker id="wf-arrow" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
-          <polygon points="0 0, 7 2.5, 0 5" fill="#94a3b8" />
+          <polygon
+            points="0 0, 7 2.5, 0 5"
+            style={{ fill: 'var(--wf-arrow)' }}
+          />
         </marker>
       </defs>
 
@@ -95,7 +135,7 @@ function WorkflowSVG({ nodes, edges, height }: { nodes: Node[]; edges: Edge[]; h
             key={edge.id}
             x1={s.cx} y1={s.cy}
             x2={end.x} y2={end.y}
-            stroke="#94a3b8"
+            style={{ stroke: 'var(--wf-edge)' }}
             strokeWidth="1.5"
             markerEnd="url(#wf-arrow)"
           />
@@ -106,9 +146,9 @@ function WorkflowSVG({ nodes, edges, height }: { nodes: Node[]; edges: Edge[]; h
         const pos = nodeMap.get(node.id);
         if (!pos) return null;
         const { cx, cy, w, h } = pos;
-        const color = getNodeColor(node.type);
-        const label = truncate(getNodeLabel(node), 22);
-        const maxCharsPerLine = Math.floor(w / 7);
+        const vars = nodeVars(node.type);
+        const maxChars = Math.max(4, Math.floor(w / 7));
+        const label = truncate(getNodeLabel(node), maxChars);
         return (
           <g key={node.id}>
             <rect
@@ -117,8 +157,7 @@ function WorkflowSVG({ nodes, edges, height }: { nodes: Node[]; edges: Edge[]; h
               width={w}
               height={h}
               rx={6}
-              fill={color.fill}
-              stroke={color.stroke}
+              style={{ fill: vars.fill, stroke: vars.stroke }}
               strokeWidth={1.5}
             />
             <text
@@ -127,10 +166,10 @@ function WorkflowSVG({ nodes, edges, height }: { nodes: Node[]; edges: Edge[]; h
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize={11}
-              fill={color.text}
+              style={{ fill: vars.text }}
               fontFamily="system-ui, -apple-system, sans-serif"
             >
-              {truncate(label, maxCharsPerLine > 4 ? maxCharsPerLine : 22)}
+              {label}
             </text>
           </g>
         );
@@ -146,6 +185,9 @@ interface WorkflowThumbnailProps {
 
 export function WorkflowThumbnail({ nodes, edges }: WorkflowThumbnailProps) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => { injectStyles(); }, []);
+
   const nodeCount = nodes.length;
   const edgeCount = edges.length;
   const countLabel = `${nodeCount} node${nodeCount !== 1 ? 's' : ''} · ${edgeCount} edge${edgeCount !== 1 ? 's' : ''}`;
