@@ -10823,167 +10823,135 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const horizontalSpacing = 280;
                       const verticalSpacing = 180;
 
-                      // Helper: topological sort for consistent ordering
-                      const topoSort = (): typeof workflowNodeData => {
-                        const inDegree: Map<string, number> = new Map();
-                        const adjacency: Map<string, string[]> = new Map();
-
-                        workflowNodeData.forEach((n) => {
-                          inDegree.set(n.id, 0);
-                          adjacency.set(n.id, []);
-                        });
-
-                        workflowEdges.forEach((e) => {
-                          const current = inDegree.get(e.target) ?? 0;
-                          inDegree.set(e.target, current + 1);
-                          adjacency.get(e.source)?.push(e.target);
-                        });
-
-                        // Start with nodes that have no incoming edges
-                        const queue = workflowNodeData.filter(
-                          (n) => (inDegree.get(n.id) ?? 0) === 0,
+                      // Helper: BFS depth layering shared by all three tree layouts
+                      const computeDepthLayers = () => {
+                        const targetIds = new Set(
+                          workflowEdges.map((e) => e.target),
                         );
-                        const sorted: typeof workflowNodeData = [];
-
-                        while (queue.length > 0) {
-                          const node = queue.shift()!;
-                          sorted.push(node);
-
-                          const children = adjacency.get(node.id) ?? [];
-                          children.forEach((childId) => {
-                            const degree = (inDegree.get(childId) ?? 1) - 1;
-                            inDegree.set(childId, degree);
-                            if (degree === 0) {
-                              const childNode = workflowNodeData.find(
-                                (n) => n.id === childId,
-                              );
-                              if (childNode) queue.push(childNode);
-                            }
-                          });
+                        const rootIds = workflowNodeData
+                          .filter((n) => !targetIds.has(n.id))
+                          .map((n) => n.id);
+                        if (rootIds.length === 0 && workflowNodeData.length > 0) {
+                          rootIds.push(workflowNodeData[0].id);
                         }
 
-                        // Add any remaining nodes (cycles) in original x/y order
-                        const remaining = workflowNodeData.filter(
-                          (n) => !sorted.find((s) => s.id === n.id),
+                        const depthMap: Map<string, number> = new Map();
+                        const bfsQ: string[] = [...rootIds];
+                        rootIds.forEach((id) => depthMap.set(id, 0));
+                        const maxIter =
+                          workflowNodeData.length * workflowNodeData.length;
+                        let iter = 0;
+                        while (bfsQ.length > 0 && iter < maxIter) {
+                          iter++;
+                          const cur = bfsQ.shift()!;
+                          const d = depthMap.get(cur) ?? 0;
+                          workflowEdges
+                            .filter((e) => e.source === cur)
+                            .forEach((e) => {
+                              if (depthMap.get(e.target) === undefined) {
+                                depthMap.set(e.target, d + 1);
+                                bfsQ.push(e.target);
+                              }
+                            });
+                        }
+                        workflowNodeData.forEach((n) => {
+                          if (!depthMap.has(n.id)) depthMap.set(n.id, 0);
+                        });
+
+                        const layers: Map<number, typeof workflowNodeData> =
+                          new Map();
+                        workflowNodeData.forEach((n) => {
+                          const d = depthMap.get(n.id) ?? 0;
+                          if (!layers.has(d)) layers.set(d, []);
+                          layers.get(d)!.push(n);
+                        });
+                        const sortedDepths = Array.from(layers.keys()).sort(
+                          (a, b) => a - b,
                         );
-                        remaining.sort((a, b) => a.x - b.x || a.y - b.y);
-                        return [...sorted, ...remaining];
+                        return { layers, sortedDepths };
+                      };
+
+                      // Left-to-right tree: depth = column (X), nodes in column spread vertically
+                      const applyHorizontalTree = () => {
+                        const { layers, sortedDepths } = computeDepthLayers();
+                        let maxLayerHeight = 0;
+                        layers.forEach((layer) => {
+                          const lh =
+                            layer.reduce((s, n) => s + n.height, 0) +
+                            (layer.length - 1) * 60;
+                          maxLayerHeight = Math.max(maxLayerHeight, lh);
+                        });
+                        sortedDepths.forEach((depth, colIdx) => {
+                          const layer = layers.get(depth)!;
+                          const lh =
+                            layer.reduce((s, n) => s + n.height, 0) +
+                            (layer.length - 1) * 60;
+                          let yOff = minY + (maxLayerHeight - lh) / 2;
+                          layer.forEach((node) => {
+                            newPositions.set(node.id, {
+                              x: minX + colIdx * horizontalSpacing,
+                              y: yOff,
+                            });
+                            yOff += node.height + 60;
+                          });
+                        });
+                      };
+
+                      // Top-to-bottom tree: depth = row (Y), nodes in row spread horizontally
+                      const applyVerticalTree = () => {
+                        const { layers, sortedDepths } = computeDepthLayers();
+                        let maxLayerWidth = 0;
+                        layers.forEach((layer) => {
+                          const lw =
+                            layer.reduce((s, n) => s + n.width, 0) +
+                            (layer.length - 1) * 80;
+                          maxLayerWidth = Math.max(maxLayerWidth, lw);
+                        });
+                        sortedDepths.forEach((depth, rowIdx) => {
+                          const layer = layers.get(depth)!;
+                          const lw =
+                            layer.reduce((s, n) => s + n.width, 0) +
+                            (layer.length - 1) * 80;
+                          let xOff = minX + (maxLayerWidth - lw) / 2;
+                          layer.forEach((node) => {
+                            newPositions.set(node.id, {
+                              x: xOff,
+                              y: minY + rowIdx * verticalSpacing,
+                            });
+                            xOff += node.width + 80;
+                          });
+                        });
                       };
 
                       switch (layoutType) {
                         case "horizontal":
-                          const hSorted = topoSort();
-                          let currentX = minX;
-                          hSorted.forEach((node) => {
-                            newPositions.set(node.id, { x: currentX, y: minY });
-                            currentX += node.width + 80; // Gap between nodes
-                          });
+                          // Left-to-right layered tree (depth = column, spread vertically)
+                          applyHorizontalTree();
                           break;
 
                         case "vertical":
-                          const vSorted = topoSort();
-                          let currentY = minY;
-                          vSorted.forEach((node) => {
-                            newPositions.set(node.id, { x: minX, y: currentY });
-                            currentY += node.height + 50; // Gap between nodes
-                          });
+                          // Top-to-bottom layered tree (depth = row, spread horizontally)
+                          applyVerticalTree();
                           break;
 
                         case "hierarchical":
-                        default:
-                          // BFS to assign depth levels
-                          const targetNodeIds = new Set(
-                            workflowEdges.map((e) => e.target),
+                        default: {
+                          // Direction-aware Tidy: detect flow direction from bounding box
+                          const maxX_bb = Math.max(
+                            ...workflowNodeData.map((n) => n.x + n.width),
                           );
-                          const rootNodeIds = workflowNodeData
-                            .filter((n) => !targetNodeIds.has(n.id))
-                            .map((n) => n.id);
-
-                          // If no roots found (cycle), use first node as root
-                          if (
-                            rootNodeIds.length === 0 &&
-                            workflowNodeData.length > 0
-                          ) {
-                            rootNodeIds.push(workflowNodeData[0].id);
-                          }
-
-                          // BFS to compute depth for each node
-                          const nodeDepth: Map<string, number> = new Map();
-                          const queue: string[] = [...rootNodeIds];
-                          rootNodeIds.forEach((id) => nodeDepth.set(id, 0));
-
-                          // Guard against infinite loops (cycles) with max iterations
-                          const maxIterations = workflowNodeData.length * workflowNodeData.length;
-                          let iterations = 0;
-
-                          while (queue.length > 0 && iterations < maxIterations) {
-                            iterations++;
-                            const currentId = queue.shift()!;
-                            const currentDepth = nodeDepth.get(currentId) ?? 0;
-
-                            // Find children (targets of outgoing edges)
-                            const outEdges = workflowEdges.filter(
-                              (e) => e.source === currentId,
-                            );
-                            outEdges.forEach((edge) => {
-                              const existingDepth = nodeDepth.get(edge.target);
-                              // Only update if not visited (don't re-add for cycles)
-                              if (existingDepth === undefined) {
-                                nodeDepth.set(edge.target, currentDepth + 1);
-                                queue.push(edge.target);
-                              }
-                            });
-                          }
-
-                          // Handle any disconnected nodes
-                          workflowNodeData.forEach((n) => {
-                            if (!nodeDepth.has(n.id)) {
-                              nodeDepth.set(n.id, 0);
-                            }
-                          });
-
-                          // Group nodes by depth
-                          const layers: Map<number, typeof workflowNodeData> =
-                            new Map();
-                          workflowNodeData.forEach((node) => {
-                            const depth = nodeDepth.get(node.id) ?? 0;
-                            if (!layers.has(depth)) {
-                              layers.set(depth, []);
-                            }
-                            layers.get(depth)!.push(node);
-                          });
-
-                          // Calculate max layer width for centering
-                          let maxLayerWidth = 0;
-                          layers.forEach((layer) => {
-                            const layerWidth =
-                              layer.reduce((sum, n) => sum + n.width, 0) +
-                              (layer.length - 1) * 80;
-                            maxLayerWidth = Math.max(maxLayerWidth, layerWidth);
-                          });
-
-                          // Position nodes by layer with centering
-                          const sortedDepths = Array.from(layers.keys()).sort(
-                            (a, b) => a - b,
+                          const maxY_bb = Math.max(
+                            ...workflowNodeData.map((n) => n.y + n.height),
                           );
-                          sortedDepths.forEach((depth, layerIndex) => {
-                            const layer = layers.get(depth)!;
-                            const layerWidth =
-                              layer.reduce((sum, n) => sum + n.width, 0) +
-                              (layer.length - 1) * 80;
-                            const startX =
-                              minX + (maxLayerWidth - layerWidth) / 2;
-
-                            let xOffset = startX;
-                            layer.forEach((node) => {
-                              newPositions.set(node.id, {
-                                x: xOffset,
-                                y: minY + layerIndex * verticalSpacing,
-                              });
-                              xOffset += node.width + 80;
-                            });
-                          });
+                          const bbWidth = maxX_bb - minX;
+                          const bbHeight = maxY_bb - minY;
+                          if (bbWidth >= bbHeight) {
+                            applyHorizontalTree();
+                          } else {
+                            applyVerticalTree();
+                          }
                           break;
+                        }
                       }
 
                       // Apply new positions immutably through setNodes
