@@ -2114,12 +2114,23 @@ export function KiteAIChatBrain({
           setDiscussedEdgeCases(edgeCaseResult.edgeCases);
           setWorkflowGenState('DISCUSSING_EDGE_CASES');
           setPendingQuickActions([]);
-          setMessages(prev => [...prev, {
-            id: `system-${Date.now()}`,
-            role: 'assistant',
-            content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
-            timestamp: new Date()
-          }]);
+          setMessages(prev => [
+            ...prev,
+            {
+              id: `system-${Date.now()}`,
+              role: 'assistant' as const,
+              content: AI_RESPONSE_TEMPLATES.DISCUSSING_EDGE_CASES,
+              timestamp: new Date(),
+            },
+            {
+              id: `edge-case-selector-${Date.now()}`,
+              role: 'system' as const,
+              type: 'edge_case_selector' as const,
+              content: '',
+              timestamp: new Date(),
+              meta: { edgeCases: edgeCaseResult.edgeCases },
+            },
+          ]);
           break;
         }
           
