@@ -1321,6 +1321,10 @@ type Props = {
   onExperimentRefreshOptions?: (nodeId: string) => void;
   onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('../types').ExperimentMode) => void;
   onExperimentRegenerate?: (nodeId: string, mode: import('../types').ExperimentMode) => void;
+
+  // Edge control-point handle callbacks
+  onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
+  onEdgeControlPointDragStart?: (edgeId: string) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3535,6 +3539,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     isEditing={isEditingThisEdge}
                     onLabelSave={(edgeId, newLabel) => props.onEdgeLabelSave?.(edgeId, newLabel)}
                     onLabelCancel={() => props.onInlineEditingCancel?.()}
+                    canvasScale={viewport.zoom}
+                    onControlPointChange={props.onEdgeControlPointChange}
+                    onControlPointDragStart={props.onEdgeControlPointDragStart}
                   />
                 );
               });

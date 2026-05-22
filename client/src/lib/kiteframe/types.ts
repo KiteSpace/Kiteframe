@@ -157,6 +157,7 @@ export type Edge = {
   interactable?: boolean;
   reconnectable?: boolean; // Pro feature: enable endpoint reconnection
   zIndex?: number; // Z-index for edge layering
+  controlPoint?: { x: number; y: number }; // User-dragged midpoint handle (point on curve at t=0.5)
   data?: any; // Keep for backward compatibility
   meta?: EdgeMeta; // Metadata for speculative edges, AI generation, etc.
 };

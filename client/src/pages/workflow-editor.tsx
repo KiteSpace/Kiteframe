@@ -9260,6 +9260,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     workflowMetadata={metadata}
                     onWorkflowMetadataChange={setProjectMetadata}
                     onEdgeReconnect={handleEdgeReconnect}
+                    onEdgeControlPointDragStart={() => {
+                      saveToHistory("Reshape edge");
+                    }}
+                    onEdgeControlPointChange={(edgeId, cp) => {
+                      setEdges((prev) =>
+                        prev.map((e) =>
+                          e.id === edgeId
+                            ? { ...e, controlPoint: cp ?? undefined }
+                            : e,
+                        ),
+                      );
+                    }}
                     connectionAnimationConfig={connectionAnimationConfig}
                     connectionPreview={connectionPreview}
                     onNodesChange={(changes) => {

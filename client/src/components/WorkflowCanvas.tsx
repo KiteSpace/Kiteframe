@@ -90,6 +90,10 @@ interface WorkflowCanvasProps {
   onExperimentGenerateOptionsForMode?: (nodeId: string, mode: import('@/lib/kiteframe/types').ExperimentMode) => void;
   onExperimentRegenerate?: (nodeId: string, mode: import('@/lib/kiteframe/types').ExperimentMode) => void;
   highlightedNodeIds?: string[];
+
+  // Edge control-point handle callbacks
+  onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
+  onEdgeControlPointDragStart?: (edgeId: string) => void;
 }
 
 export function WorkflowCanvas({
@@ -167,6 +171,8 @@ export function WorkflowCanvas({
   onExperimentGenerateOptionsForMode,
   onExperimentRegenerate,
   highlightedNodeIds,
+  onEdgeControlPointChange,
+  onEdgeControlPointDragStart,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -624,6 +630,8 @@ export function WorkflowCanvas({
         onExperimentGenerateOptionsForMode={onExperimentGenerateOptionsForMode}
         onExperimentRegenerate={onExperimentRegenerate}
         highlightedNodeIds={highlightedNodeIds}
+        onEdgeControlPointChange={onEdgeControlPointChange}
+        onEdgeControlPointDragStart={onEdgeControlPointDragStart}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

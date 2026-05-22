@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Edge, Node, EdgeStyle, EdgeMarker } from '../types';
 import { NEEDS_LABEL_SENTINEL, isNeedsLabelSentinel } from '@/ai/repair/decisionRepair';
 
@@ -51,11 +51,21 @@ function generatePath(
   t: AnchorResult, 
   options: any = {}
 ) {
-  const { curvature = 0.5, cornerRadius = 10 } = options;
+  const { curvature = 0.5, cornerRadius = 10, controlPoint } = options;
   
   // Round source and target coordinates for pixel-perfect rendering
   const sx = r(s.x), sy = r(s.y);
   const tx = r(t.x), ty = r(t.y);
+
+  // If the user has dragged a control-point handle, override all edge types with a
+  // quadratic Bézier.  The stored value is the point ON the curve at t=0.5, so we
+  // back-calculate the true Q control point so the handle sits exactly on the path:
+  //   point_on_curve(0.5) = (sx + 2*cpx + tx) / 4  =>  cpx = 2*stored - (sx+tx)/2
+  if (controlPoint) {
+    const cpx = r(2 * controlPoint.x - (sx + tx) / 2);
+    const cpy = r(2 * controlPoint.y - (sy + ty) / 2);
+    return `M ${sx} ${sy} Q ${cpx} ${cpy} ${tx} ${ty}`;
+  }
   
   // Calculate control point offset based on distance, clamped for reasonable curves
   const distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
@@ -363,9 +373,32 @@ export const ConnectionEdge: React.FC<{
   isEditing?: boolean;
   onLabelSave?: (edgeId: string, newLabel: string) => void;
   onLabelCancel?: () => void;
-}> = ({ edge, sourceNode, targetNode, onEdgeClick, onEdgeDoubleClick, isEditing, onLabelSave, onLabelCancel }) => {
+  canvasScale?: number;
+  onControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
+  onControlPointDragStart?: (edgeId: string) => void;
+}> = ({
+  edge,
+  sourceNode,
+  targetNode,
+  onEdgeClick,
+  onEdgeDoubleClick,
+  isEditing,
+  onLabelSave,
+  onLabelCancel,
+  canvasScale = 1,
+  onControlPointChange,
+  onControlPointDragStart,
+}) => {
   const s = anchor(sourceNode, targetNode);
   const t = anchor(targetNode, sourceNode);
+
+  // Hover state — used to show handle even when edge is not selected
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Drag state refs (no re-render needed during drag)
+  const isDraggingRef = useRef(false);
+  const dragStartScreenRef = useRef<{ x: number; y: number } | null>(null);
+  const dragStartCPRef = useRef<{ x: number; y: number } | null>(null);
   
   // Check if target is an experiment node - apply special styling
   const isExperimentTarget = targetNode.type === 'experiment';
@@ -400,11 +433,55 @@ export const ConnectionEdge: React.FC<{
   const markerStartConfig = getMarkerConfig(edge.markerStart) || (hasMarkerStart ? edge.markers : undefined);
   const markerEndConfig = getMarkerConfig(edge.markerEnd) || (hasMarkerEnd ? edge.markers : undefined);
   
-  // Generate path based on edge type
+  // Generate path based on edge type — passes the stored controlPoint so the curve bends
   const pathData = generatePath(type, s, t, {
     curvature: edge.curvature,
-    cornerRadius: edge.cornerRadius
+    cornerRadius: edge.cornerRadius,
+    controlPoint: edge.controlPoint,
   });
+  
+  // The visible handle position: stored point on the curve, or the geometric midpoint
+  const handlePos = edge.controlPoint ?? {
+    x: (s.x + t.x) / 2,
+    y: (s.y + t.y) / 2,
+  };
+
+  // Drag handler — attached to handle circle mousedown
+  const handleHandleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!onControlPointChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Save history before we start mutating edge state
+    onControlPointDragStart?.(edge.id);
+
+    isDraggingRef.current = true;
+    dragStartScreenRef.current = { x: e.clientX, y: e.clientY };
+    // Starting canvas position of handle
+    dragStartCPRef.current = edge.controlPoint
+      ? { ...edge.controlPoint }
+      : { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !dragStartScreenRef.current || !dragStartCPRef.current) return;
+      const sc = canvasScale || 1;
+      const dx = (ev.clientX - dragStartScreenRef.current.x) / sc;
+      const dy = (ev.clientY - dragStartScreenRef.current.y) / sc;
+      onControlPointChange(edge.id, {
+        x: dragStartCPRef.current.x + dx,
+        y: dragStartCPRef.current.y + dy,
+      });
+    };
+
+    const onUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [edge.id, edge.controlPoint, s.x, s.y, t.x, t.y, canvasScale, onControlPointChange, onControlPointDragStart]);
   
   // Create unique IDs for gradients and markers
   const edgeId = edge.id;
@@ -422,6 +499,9 @@ export const ConnectionEdge: React.FC<{
   
   // Apply selection styling - no line highlight, only endpoint dots
   const isSelected = edge.selected;
+
+  // Show handle when edge is selected or hovered, and control-point callback is wired up
+  const showHandle = (isSelected || isHovered) && !isExperimentTarget && !!onControlPointChange;
   
   return (
     <g 
@@ -474,7 +554,7 @@ export const ConnectionEdge: React.FC<{
         {hasMarkerStart && markerStartConfig && createMarker(markerStartId, markerStartConfig, strokeColor)}
       </defs>
       
-      {/* Invisible wider path for easier clicking */}
+      {/* Invisible wider path for easier clicking + hover detection */}
       <path 
         d={pathData} 
         fill="none" 
@@ -484,6 +564,8 @@ export const ConnectionEdge: React.FC<{
           cursor: edge.interactable !== false ? 'pointer' : 'default',
           pointerEvents: 'auto' // Only this path captures events
         }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onClick={(e) => {
           e.stopPropagation();
           onEdgeClick?.(edge);
@@ -536,6 +618,25 @@ export const ConnectionEdge: React.FC<{
             style={{ pointerEvents: 'none' }}
           />
         </>
+      )}
+
+      {/* Control-point handle — drag to reshape, double-click to reset */}
+      {showHandle && (
+        <circle
+          cx={handlePos.x}
+          cy={handlePos.y}
+          r={5}
+          fill={edge.controlPoint ? '#3b82f6' : 'rgba(59,130,246,0.45)'}
+          stroke="#ffffff"
+          strokeWidth={2}
+          style={{ cursor: 'grab', pointerEvents: 'all' }}
+          onMouseDown={handleHandleMouseDown}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            // Reset edge to automatic shape
+            onControlPointChange!(edge.id, null);
+          }}
+        />
       )}
       
       {/* Edge label with enhanced styling - Phase 4: Hide {needs-label} sentinel */}
