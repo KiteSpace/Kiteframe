@@ -26,7 +26,7 @@ interface ChatBubbleProps {
   message: ChatMessage;
   onFollowUpClick?: (question: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
-  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[]) => void;
+  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[], edgeCases: import('../EdgeCaseSelector').EdgeCase[]) => void;
   onModifyEdgeCaseSelection?: (messageId: string) => void;
   onCancelEdgeCaseSelector?: (messageId: string) => void;
   isLoading?: boolean;
@@ -72,7 +72,7 @@ export function ChatBubble({
           <EdgeCaseSelector
             edgeCases={edgeCases}
             initialSelectedIds={preSelectedIds}
-            onSubmit={(selectedIds) => onEdgeCaseSubmit?.(message.id, selectedIds)}
+            onSubmit={(selectedIds) => onEdgeCaseSubmit?.(message.id, selectedIds, edgeCases)}
             onCancel={() => onCancelEdgeCaseSelector?.(message.id)}
             disabled={isLoading}
           />

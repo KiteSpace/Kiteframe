@@ -1815,7 +1815,6 @@ export function KiteAIChatBrain({
     setWorkflowGenState(null);
     setPendingQuickActions([]);
     setDiscussedEdgeCases([]);
-    setShowEdgeCaseSelector(false);
     setShowChangeWarning(false);
     
     // Phase Lock: Reset expansion state when workflow is rejected
@@ -2151,19 +2150,20 @@ export function KiteAIChatBrain({
   }, [currentWorkflowDraft, discussedEdgeCases, aiClient, toast]);
 
   // UPDATED: Edge case selection uses currentWorkflowDraft (authoritative)
-  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], selectorMessageId: string) => {
+  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], selectorMessageId: string, selectorEdgeCases: EdgeCase[]) => {
     if (!currentWorkflowDraft) return;
     
     setIsLoading(true);
     
     try {
-      const selectedCases = discussedEdgeCases.filter(ec => selectedIds.includes(ec.id));
+      // Derive selected cases from the message-specific edge cases so they survive
+      // discussedEdgeCases being cleared after the initial DISCUSSING_EDGE_CASES state
+      const selectedCases = selectorEdgeCases.filter(ec => selectedIds.includes(ec.id));
 
       // Swap the selector card with a summary card immediately
       setMessages(prev => {
         const idx = prev.findIndex(m => m.id === selectorMessageId);
         if (idx === -1) return prev;
-        const old = prev[idx];
         const summaryMsg: ChatMessage = {
           id: `edge-case-selected-${Date.now()}`,
           role: 'system',
@@ -2171,7 +2171,7 @@ export function KiteAIChatBrain({
           content: '',
           timestamp: new Date(),
           meta: {
-            edgeCases: old.meta?.edgeCases ?? discussedEdgeCases,
+            edgeCases: selectorEdgeCases,
             selectedEdgeCases: selectedCases,
           },
         };
@@ -2449,7 +2449,7 @@ export function KiteAIChatBrain({
         mode={mode}
         onFollowUpClick={setInputValue}
         onWorkflowChipSelect={handleWorkflowChipSelect}
-        onEdgeCaseSubmit={(messageId, selectedIds) => handleEdgeCaseSelection(selectedIds, messageId)}
+        onEdgeCaseSubmit={(messageId, selectedIds, edgeCases) => handleEdgeCaseSelection(selectedIds, messageId, edgeCases)}
         onModifyEdgeCaseSelection={handleModifyEdgeCaseSelection}
         onCancelEdgeCaseSelector={handleCancelEdgeCaseSelector}
       />

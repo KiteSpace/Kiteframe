@@ -11,7 +11,7 @@ export interface ChatMessageListProps {
   mode: 'panel' | 'floating' | 'fullscreen' | 'discussion';
   onFollowUpClick?: (question: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
-  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[]) => void;
+  onEdgeCaseSubmit?: (messageId: string, selectedIds: string[], edgeCases: import('../EdgeCaseSelector').EdgeCase[]) => void;
   onModifyEdgeCaseSelection?: (messageId: string) => void;
   onCancelEdgeCaseSelector?: (messageId: string) => void;
 }
