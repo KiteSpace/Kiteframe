@@ -2125,14 +2125,17 @@ export function KiteAIChatBrain({
         }
           
         case 'SELECT_EDGE_CASES':
-          setMessages(prev => [...prev, {
-            id: `edge-case-selector-${Date.now()}`,
-            role: 'system' as const,
-            type: 'edge_case_selector' as const,
-            content: '',
-            timestamp: new Date(),
-            meta: { edgeCases: discussedEdgeCases },
-          }]);
+          setMessages(prev => {
+            if (prev.some(m => m.type === 'edge_case_selector')) return prev;
+            return [...prev, {
+              id: `edge-case-selector-${Date.now()}`,
+              role: 'system' as const,
+              type: 'edge_case_selector' as const,
+              content: '',
+              timestamp: new Date(),
+              meta: { edgeCases: discussedEdgeCases },
+            }];
+          });
           break;
       }
     } catch (error) {
@@ -2145,7 +2148,7 @@ export function KiteAIChatBrain({
     } finally {
       setIsLoading(false);
     }
-  }, [currentWorkflowDraft, aiClient, toast]);
+  }, [currentWorkflowDraft, discussedEdgeCases, aiClient, toast]);
 
   // UPDATED: Edge case selection uses currentWorkflowDraft (authoritative)
   const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], selectorMessageId: string) => {
