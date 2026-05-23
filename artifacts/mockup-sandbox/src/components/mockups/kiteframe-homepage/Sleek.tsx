@@ -217,65 +217,92 @@ function GradientBackground() {
   return (
     <>
       <style>{`
-        @keyframes orb1 {
-          0%   { transform: translate(0%, 0%) scale(1); }
-          33%  { transform: translate(6%, -8%) scale(1.12); }
-          66%  { transform: translate(-4%, 5%) scale(0.92); }
-          100% { transform: translate(0%, 0%) scale(1); }
+        @keyframes kf-orb1 {
+          0%   { transform: translate(0%,    0%)   scale(1);    }
+          20%  { transform: translate(12%,  -14%)  scale(1.22); }
+          45%  { transform: translate(-8%,   10%)  scale(0.88); }
+          70%  { transform: translate(16%,   6%)   scale(1.18); }
+          100% { transform: translate(0%,    0%)   scale(1);    }
         }
-        @keyframes orb2 {
-          0%   { transform: translate(0%, 0%) scale(1); }
-          40%  { transform: translate(-8%, 10%) scale(1.08); }
-          75%  { transform: translate(5%, -6%) scale(0.95); }
-          100% { transform: translate(0%, 0%) scale(1); }
+        @keyframes kf-orb2 {
+          0%   { transform: translate(0%,    0%)   scale(1);    }
+          25%  { transform: translate(-14%,  12%)  scale(1.16); }
+          55%  { transform: translate(10%,  -10%)  scale(0.84); }
+          80%  { transform: translate(-6%,   16%)  scale(1.20); }
+          100% { transform: translate(0%,    0%)   scale(1);    }
         }
-        @keyframes orb3 {
-          0%   { transform: translate(0%, 0%) scale(1); }
-          50%  { transform: translate(4%, 6%) scale(1.1); }
-          100% { transform: translate(0%, 0%) scale(1); }
+        @keyframes kf-orb3 {
+          0%   { transform: translate(0%,    0%)   scale(1);    }
+          30%  { transform: translate(-10%,  -8%)  scale(1.28); }
+          60%  { transform: translate(14%,   12%)  scale(0.80); }
+          100% { transform: translate(0%,    0%)   scale(1);    }
+        }
+        @keyframes kf-orb4 {
+          0%   { transform: translate(0%,    0%)   scale(1);    }
+          35%  { transform: translate(18%,  -6%)   scale(1.14); }
+          65%  { transform: translate(-12%,  8%)   scale(0.90); }
+          100% { transform: translate(0%,    0%)   scale(1);    }
+        }
+        @keyframes kf-orb5 {
+          0%   { transform: translate(0%,    0%)   scale(1);    }
+          40%  { transform: translate(-6%,  -16%)  scale(1.24); }
+          75%  { transform: translate(8%,    10%)  scale(0.86); }
+          100% { transform: translate(0%,    0%)   scale(1);    }
         }
       `}</style>
-      {/* Orb 1: deep violet, top-left */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: "-10%",
-          left: "-5%",
-          width: "55%",
-          paddingTop: "55%",
-          background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, rgba(167,139,250,0.06) 55%, transparent 75%)",
-          borderRadius: "50%",
-          animation: "orb1 18s ease-in-out infinite",
-          filter: "blur(1px)",
-        }}
-      />
-      {/* Orb 2: lighter violet, bottom-right */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: "-15%",
-          right: "-5%",
-          width: "60%",
-          paddingTop: "60%",
-          background: "radial-gradient(circle, rgba(167,139,250,0.14) 0%, rgba(196,181,253,0.05) 55%, transparent 72%)",
-          borderRadius: "50%",
-          animation: "orb2 24s ease-in-out infinite",
-          filter: "blur(2px)",
-        }}
-      />
-      {/* Orb 3: tiny pink accent, center-right */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: "30%",
-          right: "10%",
-          width: "28%",
-          paddingTop: "28%",
-          background: "radial-gradient(circle, rgba(192,132,252,0.10) 0%, transparent 65%)",
-          borderRadius: "50%",
-          animation: "orb3 30s ease-in-out infinite",
-        }}
-      />
+
+      {/* Orb 1 — large deep violet, anchored top-left, sweeps right */}
+      <div className="absolute pointer-events-none" style={{
+        top: "-20%", left: "-15%",
+        width: "85%", paddingTop: "85%",
+        background: "radial-gradient(circle at 50% 50%, rgba(124,58,237,0.22) 0%, rgba(139,92,246,0.10) 40%, transparent 68%)",
+        borderRadius: "50%",
+        animation: "kf-orb1 14s ease-in-out infinite",
+        filter: "blur(8px)",
+      }} />
+
+      {/* Orb 2 — large lavender, anchored bottom-right, counter-sweeps */}
+      <div className="absolute pointer-events-none" style={{
+        bottom: "-25%", right: "-10%",
+        width: "90%", paddingTop: "90%",
+        background: "radial-gradient(circle at 50% 50%, rgba(167,139,250,0.18) 0%, rgba(196,181,253,0.07) 42%, transparent 66%)",
+        borderRadius: "50%",
+        animation: "kf-orb2 18s ease-in-out infinite",
+        filter: "blur(10px)",
+      }} />
+
+      {/* Orb 3 — mid violet, center, pulses large */}
+      <div className="absolute pointer-events-none" style={{
+        top: "5%", left: "25%",
+        width: "70%", paddingTop: "70%",
+        background: "radial-gradient(circle at 50% 50%, rgba(139,92,246,0.13) 0%, rgba(167,139,250,0.05) 50%, transparent 70%)",
+        borderRadius: "50%",
+        animation: "kf-orb3 11s ease-in-out infinite",
+        animationDelay: "-4s",
+        filter: "blur(12px)",
+      }} />
+
+      {/* Orb 4 — bright violet accent, top-right, fast */}
+      <div className="absolute pointer-events-none" style={{
+        top: "-5%", right: "-5%",
+        width: "55%", paddingTop: "55%",
+        background: "radial-gradient(circle at 50% 50%, rgba(192,132,252,0.16) 0%, rgba(216,180,254,0.06) 48%, transparent 68%)",
+        borderRadius: "50%",
+        animation: "kf-orb4 9s ease-in-out infinite",
+        animationDelay: "-2s",
+        filter: "blur(6px)",
+      }} />
+
+      {/* Orb 5 — wide diffuse wash, bottom-left, very slow */}
+      <div className="absolute pointer-events-none" style={{
+        bottom: "-10%", left: "5%",
+        width: "75%", paddingTop: "75%",
+        background: "radial-gradient(circle at 50% 50%, rgba(167,139,250,0.10) 0%, rgba(139,92,246,0.04) 55%, transparent 72%)",
+        borderRadius: "50%",
+        animation: "kf-orb5 22s ease-in-out infinite",
+        animationDelay: "-8s",
+        filter: "blur(16px)",
+      }} />
     </>
   );
 }
