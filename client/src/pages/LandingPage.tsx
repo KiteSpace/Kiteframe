@@ -17,6 +17,12 @@ import {
   Terminal,
   Play,
   MessageSquare,
+  StickyNote,
+  Shapes,
+  Type,
+  Link2,
+  Image as ImageIcon,
+  Figma,
 } from "lucide-react";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
@@ -416,11 +422,24 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <LazyCanvasLoader
-            variant="features"
-            className="h-[300px] rounded-xl overflow-hidden border border-gray-200 shadow-lg"
+          {/* Features canvas in window chrome */}
+          <div
+            className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg"
             data-testid="img-workflow-example"
-          />
+          >
+            <div className="bg-[#f1f2f4] px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+                <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+              </div>
+              <span className="text-xs text-gray-400 ml-2">Input Validation · Kiteframe</span>
+            </div>
+            <LazyCanvasLoader
+              variant="features"
+              className="h-[280px] w-full bg-white"
+            />
+          </div>
         </div>
       </section>
 
@@ -448,10 +467,78 @@ export default function LandingPage() {
       <section className="bg-gray-50/50 border-b border-gray-100 py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <LazyCanvasLoader
-              variant="objects"
-              className="order-2 lg:order-1 h-[400px] rounded-xl overflow-hidden border border-gray-200 shadow-lg"
-            />
+
+            {/* Static objects showcase */}
+            <div className="order-2 lg:order-1 grid grid-cols-2 gap-3">
+              {[
+                {
+                  icon: StickyNote,
+                  iconColor: "#d97706",
+                  bg: "#fffbeb",
+                  border: "#fde68a",
+                  title: "Sticky Notes",
+                  sub: "Pin quick thoughts, decisions, or open questions directly onto the canvas.",
+                },
+                {
+                  icon: Shapes,
+                  iconColor: "#7c3aed",
+                  bg: "#f5f3ff",
+                  border: "#ddd6fe",
+                  title: "Shapes",
+                  sub: "Use boxes, circles, and arrows to group or visually separate areas of your workflow.",
+                },
+                {
+                  icon: Type,
+                  iconColor: "#475569",
+                  bg: "#f8fafc",
+                  border: "#e2e8f0",
+                  title: "Text Blocks",
+                  sub: "Add headings, labels, and inline commentary anywhere on the canvas.",
+                },
+                {
+                  icon: Link2,
+                  iconColor: "#4f46e5",
+                  bg: "#eef2ff",
+                  border: "#c7d2fe",
+                  title: "Link Previews",
+                  sub: "Paste any URL to embed a live preview card with title, description, and favicon.",
+                },
+                {
+                  icon: ImageIcon,
+                  iconColor: "#0891b2",
+                  bg: "#ecfeff",
+                  border: "#a5f3fc",
+                  title: "Images",
+                  sub: "Drop screenshots, mockups, or diagrams directly onto the canvas for context.",
+                },
+                {
+                  icon: Figma,
+                  iconColor: "#e95d46",
+                  bg: "#fff5f2",
+                  border: "#fed7cc",
+                  title: "Figma Import",
+                  sub: "Import Figma frames as image nodes or convert designs into full workflow graphs.",
+                },
+              ].map(({ icon: Icon, iconColor, bg, border, title, sub }) => (
+                <div
+                  key={title}
+                  className="p-4 rounded-xl border flex flex-col gap-3"
+                  style={{ backgroundColor: bg, borderColor: border }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: "white", border: `1.5px solid ${border}` }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: iconColor }} />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm mb-1">{title}</div>
+                    <div className="text-xs text-gray-500 leading-relaxed">{sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="order-1 lg:order-2">
               <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Context</p>
               <h2
@@ -460,26 +547,28 @@ export default function LandingPage() {
               >
                 More than just nodes
               </h2>
-              <p className="text-lg text-gray-500 mb-8 leading-relaxed">
+              <p className="text-lg text-gray-500 mb-6 leading-relaxed">
                 Add context to your workflows with sticky notes, shapes, text
-                annotations, and link previews. Everything you need to
-                communicate ideas clearly.
+                blocks, link previews, images, and Figma imports. Everything
+                you need to communicate ideas clearly in one place.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <ul className="space-y-3.5">
                 {[
-                  { bg: "#fffbeb", border: "#fde68a", dot: "bg-yellow-300", title: "Sticky Notes", sub: "Quick annotations" },
-                  { bg: "#f5f3ff", border: "#ddd6fe", dot: "bg-violet-400", title: "Shapes", sub: "Visual grouping" },
-                  { bg: "#f8fafc", border: "#e2e8f0", dot: "bg-slate-300", title: "Text", sub: "Labels & headers" },
-                  { bg: "#eef2ff", border: "#c7d2fe", dot: "bg-indigo-400", title: "Link Previews", sub: "External resources" },
-                ].map(({ bg, border, dot, title, sub }) => (
-                  <div key={title} className="p-4 rounded-xl border" style={{ backgroundColor: bg, borderColor: border }}>
-                    <div className={`w-6 h-6 rounded-full ${dot} mb-2.5 opacity-80`} />
-                    <div className="font-medium text-gray-900 text-sm">{title}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{sub}</div>
-                  </div>
+                  "Annotate decisions directly on the canvas",
+                  "Embed live link previews from any URL",
+                  "Import Figma frames as workflow nodes",
+                  "Mix diagrams, images, and text freely",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-gray-600 text-sm">
+                    <span className="w-5 h-5 rounded-full bg-violet-50 border border-violet-200 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3 text-violet-600" />
+                    </span>
+                    {item}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
+
           </div>
         </div>
       </section>
