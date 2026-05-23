@@ -2,7 +2,7 @@ import { Edge, Node } from '@/lib/kiteframe/types';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Palette } from 'lucide-react';
+import { Palette, RotateCcw } from 'lucide-react';
 
 interface EdgePropertiesProps {
   selectedEdge: Edge;
@@ -37,6 +37,25 @@ export function EdgeProperties({ selectedEdge, onEdgeUpdate, nodes = [], compact
           <option value="smoothstep">Smooth Step</option>
         </select>
       </div>
+
+      {/* Reset curve — only shown when the edge has a user-dragged control point */}
+      {selectedEdge.controlPoint && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Curve</Label>
+            <button
+              onClick={() => onEdgeUpdate(selectedEdge.id, { controlPoint: undefined })}
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-accent transition-colors"
+              data-testid="button-reset-curve"
+              title="Remove the manual bend and restore the automatic shape"
+            >
+              <RotateCcw size={12} />
+              Reset curve
+            </button>
+          </div>
+        </>
+      )}
 
       <Separator />
 
