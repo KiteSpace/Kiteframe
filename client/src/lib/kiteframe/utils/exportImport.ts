@@ -90,7 +90,8 @@ const EdgeSchema = z.object({
   style: z.record(z.any()).optional(),
   animated: z.boolean().optional(),
   selected: z.boolean().optional(),
-  hidden: z.boolean().optional()
+  hidden: z.boolean().optional(),
+  controlPoint: z.object({ x: z.number(), y: z.number() }).optional()
 });
 
 // Schema for canvas object
