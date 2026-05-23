@@ -1,108 +1,288 @@
-import { Check, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Github, Chrome, Terminal, MessageSquare } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Check, ArrowRight, Zap, Shield, Download, Users, Palette, Code, Rocket, Github, Chrome, Terminal } from "lucide-react";
 
-// Inline SVG workflow diagram for hero visual
-function WorkflowDiagram() {
+/* ─────────────────────────────────────────────
+   Authentic Kiteframe node rendered in SVG
+   Mirrors: bg-white border-2 border-gray-200 rounded-lg shadow-md
+   with blue connection handles and type/label/description layout
+───────────────────────────────────────────── */
+interface KFNodeProps {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  type: string;
+  label: string;
+  desc?: string;
+  typeColor?: string;
+  selected?: boolean;
+  handles?: ("top"|"bottom"|"left"|"right")[];
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  input:     "#8b5cf6",
+  process:   "#3b82f6",
+  condition: "#f59e0b",
+  output:    "#10b981",
+  ai:        "#7c3aed",
+};
+
+function KFNode({ x, y, w = 190, h = 72, type, label, desc, selected, handles = ["right","bottom"] }: KFNodeProps) {
+  const r = 8;
+  const tc = TYPE_COLORS[type] ?? "#6b7280";
+  const selColor = "#ef4444"; // ring-red-500 matching actual code
+
   return (
-    <svg viewBox="0 0 520 380" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    <g>
+      {/* Drop shadow */}
+      <rect x={x+2} y={y+4} width={w} height={h} rx={r} fill="rgba(0,0,0,0.07)" />
+      {/* Selection ring */}
+      {selected && <rect x={x-2} y={y-2} width={w+4} height={h+4} rx={r+2} fill="none" stroke={selColor} strokeWidth="2.5" />}
+      {/* Card body */}
+      <rect x={x} y={y} width={w} height={h} rx={r} fill="white" stroke="#e5e7eb" strokeWidth="1.5" />
+      {/* Type badge strip */}
+      <rect x={x+10} y={y+10} width={50} height={13} rx={4} fill={tc + "18"} />
+      <text x={x+14} y={y+20} fontSize="8.5" fontWeight="600" fill={tc} fontFamily="system-ui" letterSpacing="0.04em">
+        {type.toUpperCase()}
+      </text>
+      {/* Label */}
+      <text x={x+10} y={y+40} fontSize="12.5" fontWeight="600" fill="#111827" fontFamily="system-ui">{label}</text>
+      {/* Description */}
+      {desc && <text x={x+10} y={y+56} fontSize="10" fill="#9ca3af" fontFamily="system-ui">{desc}</text>}
+      {/* Connection handles — blue circles, matching stroke="#3b82f6" */}
+      {handles.includes("right")  && <circle cx={x+w} cy={y+h/2} r={5} fill="white" stroke="#3b82f6" strokeWidth="1.8" />}
+      {handles.includes("bottom") && <circle cx={x+w/2} cy={y+h} r={5} fill="white" stroke="#3b82f6" strokeWidth="1.8" />}
+      {handles.includes("left")   && <circle cx={x} cy={y+h/2} r={5} fill="white" stroke="#3b82f6" strokeWidth="1.8" />}
+      {handles.includes("top")    && <circle cx={x+w/2} cy={y} r={5} fill="white" stroke="#3b82f6" strokeWidth="1.8" />}
+    </g>
+  );
+}
+
+/* Cubic bezier edge between two points */
+function KFEdge({ x1, y1, x2, y2, color = "#d1d5db", dashed = false }: {
+  x1: number; y1: number; x2: number; y2: number; color?: string; dashed?: boolean;
+}) {
+  const mx = (x1 + x2) / 2;
+  const d = `M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+  return (
+    <path d={d} stroke={color} strokeWidth="1.8" fill="none"
+      strokeDasharray={dashed ? "5 4" : undefined}
+      markerEnd="url(#arrowhead)" />
+  );
+}
+
+/* Main hero workflow diagram — authentic Kiteframe look */
+function HeroWorkflow() {
+  return (
+    <svg viewBox="0 0 540 340" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
       <defs>
-        <filter id="shadow1" x="-10%" y="-10%" width="120%" height="130%">
-          <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#0000001a" />
-        </filter>
-        <filter id="shadow2" x="-10%" y="-10%" width="120%" height="130%">
-          <feDropShadow dx="0" dy="2" stdDeviation="5" floodColor="#0000001a" />
-        </filter>
+        <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L6,3 z" fill="#d1d5db" />
+        </marker>
+        <marker id="arrowhead-purple" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L6,3 z" fill="#8b5cf6" />
+        </marker>
       </defs>
 
-      {/* Background canvas hint */}
-      <rect width="520" height="380" rx="16" fill="#f8f9fb" />
+      {/* Subtle canvas background */}
+      <rect width="540" height="340" rx="0" fill="#fafbfc" />
 
-      {/* Grid dots */}
-      {Array.from({ length: 8 }).map((_, row) =>
-        Array.from({ length: 11 }).map((_, col) => (
-          <circle key={`${row}-${col}`} cx={col * 52 + 8} cy={row * 50 + 8} r="1.5" fill="#d1d5db" />
-        ))
-      )}
+      {/* Kiteframe toolbar strip at top */}
+      <rect x="0" y="0" width="540" height="36" fill="white" />
+      <rect x="0" y="36" width="540" height="1" fill="#e5e7eb" />
+      {/* Toolbar icons */}
+      <rect x="10" y="10" width="16" height="16" rx="3" fill="#f3f4f6" />
+      <rect x="32" y="10" width="16" height="16" rx="3" fill="#f3f4f6" />
+      <rect x="54" y="10" width="16" height="16" rx="3" fill="#f3f4f6" />
+      <rect x="78" y="10" width="1" height="16" fill="#e5e7eb" />
+      <rect x="86" y="10" width="16" height="16" rx="3" fill="#7c3aed" />
+      <rect x="108" y="10" width="16" height="16" rx="3" fill="#f3f4f6" />
+      {/* Zoom controls right side */}
+      <rect x="440" y="10" width="90" height="16" rx="8" fill="#f3f4f6" />
+      <text x="452" y="22" fontSize="9" fill="#9ca3af" fontFamily="system-ui">⌘  100%  +  −</text>
 
-      {/* Edge: Start → Process */}
-      <path d="M 145 80 C 185 80 195 120 235 120" stroke="#c4b5fd" strokeWidth="2" strokeDasharray="none" fill="none" />
-      <polygon points="233,115 240,120 233,125" fill="#c4b5fd" />
+      {/* Canvas content: nodes + edges */}
+      {/* Edges first (behind nodes) */}
+      <KFEdge x1={195} y1={109} x2={230} y2={152} color="#c4b5fd" />
+      <KFEdge x1={420} y1={126} x2={300} y2={172} color="#c4b5fd" />
+      <KFEdge x1={300+95} y1={208} x2={410} y2={260} color="#8b5cf6" />
+      <KFEdge x1={195} y1={109} x2={80} y2={195} color="#e5e7eb" dashed />
 
-      {/* Edge: Process → AI Node */}
-      <path d="M 335 120 C 375 120 375 195 350 210" stroke="#c4b5fd" strokeWidth="2" fill="none" />
-      <polygon points="347,207 354,213 348,218" fill="#c4b5fd" />
-
-      {/* Edge: AI Node → Output */}
-      <path d="M 350 250 C 350 270 380 280 400 290" stroke="#7c3aed" strokeWidth="2" fill="none" />
-      <polygon points="398,286 404,292 397,295" fill="#7c3aed" />
-
-      {/* Edge: Start → Condition */}
-      <path d="M 80 100 C 80 185 110 210 120 230" stroke="#c4b5fd" strokeWidth="2" strokeDasharray="5,3" fill="none" />
-
-      {/* Node: Start */}
-      <rect x="20" y="54" width="125" height="52" rx="12" fill="white" filter="url(#shadow2)" />
-      <rect x="20" y="54" width="125" height="52" rx="12" stroke="#e5e7eb" strokeWidth="1.5" />
-      <rect x="20" y="54" width="4" height="52" rx="2" fill="#7c3aed" />
-      <text x="38" y="74" fontSize="10" fill="#6b7280" fontFamily="system-ui">INPUT</text>
-      <text x="38" y="90" fontSize="12" fontWeight="600" fill="#111827" fontFamily="system-ui">User Request</text>
-      <circle cx="131" cy="80" r="4" fill="white" stroke="#d1d5db" strokeWidth="1.5" />
-
-      {/* Node: Process */}
-      <rect x="235" y="94" width="100" height="52" rx="12" fill="white" filter="url(#shadow2)" />
-      <rect x="235" y="94" width="100" height="52" rx="12" stroke="#e5e7eb" strokeWidth="1.5" />
-      <rect x="235" y="94" width="4" height="52" rx="2" fill="#3b82f6" />
-      <text x="253" y="114" fontSize="10" fill="#6b7280" fontFamily="system-ui">PROCESS</text>
-      <text x="253" y="130" fontSize="12" fontWeight="600" fill="#111827" fontFamily="system-ui">Validate</text>
-
-      {/* Node: AI (highlighted) */}
-      <rect x="295" y="204" width="115" height="58" rx="12" fill="white" filter="url(#shadow1)" />
-      <rect x="295" y="204" width="115" height="58" rx="12" stroke="#7c3aed" strokeWidth="2" />
-      <rect x="295" y="204" width="4" height="58" rx="2" fill="#7c3aed" />
-      <text x="313" y="224" fontSize="10" fill="#7c3aed" fontFamily="system-ui" fontWeight="600">AI</text>
-      <text x="313" y="242" fontSize="12" fontWeight="600" fill="#111827" fontFamily="system-ui">Generate PRD</text>
-      <text x="313" y="256" fontSize="9" fill="#9ca3af" fontFamily="system-ui">Claude Sonnet</text>
-
-      {/* Node: Output */}
-      <rect x="380" y="272" width="120" height="52" rx="12" fill="#faf5ff" filter="url(#shadow2)" />
-      <rect x="380" y="272" width="120" height="52" rx="12" stroke="#ddd6fe" strokeWidth="1.5" />
-      <rect x="380" y="272" width="4" height="52" rx="2" fill="#10b981" />
-      <text x="398" y="292" fontSize="10" fill="#6b7280" fontFamily="system-ui">OUTPUT</text>
-      <text x="398" y="308" fontSize="12" fontWeight="600" fill="#111827" fontFamily="system-ui">PRD Ready</text>
-
-      {/* Node: Condition */}
-      <rect x="40" y="218" width="110" height="52" rx="12" fill="white" filter="url(#shadow2)" />
-      <rect x="40" y="218" width="110" height="52" rx="12" stroke="#e5e7eb" strokeWidth="1.5" />
-      <rect x="40" y="218" width="4" height="52" rx="2" fill="#f59e0b" />
-      <text x="58" y="238" fontSize="10" fill="#6b7280" fontFamily="system-ui">CONDITION</text>
-      <text x="58" y="254" fontSize="12" fontWeight="600" fill="#111827" fontFamily="system-ui">Review?</text>
-
-      {/* Connecting note */}
-      <rect x="160" y="290" width="118" height="48" rx="8" fill="#fffbeb" />
-      <rect x="160" y="290" width="118" height="48" rx="8" stroke="#fde68a" strokeWidth="1.5" />
-      <text x="172" y="308" fontSize="10" fill="#92400e" fontFamily="system-ui">💡 Auto-layout</text>
-      <text x="172" y="323" fontSize="10" fill="#92400e" fontFamily="system-ui">available</text>
-
-      {/* Mini toolbar hint */}
-      <rect x="190" y="20" width="148" height="28" rx="14" fill="white" filter="url(#shadow2)" />
-      <rect x="190" y="20" width="148" height="28" rx="14" stroke="#e5e7eb" strokeWidth="1" />
-      <circle cx="210" cy="34" r="7" fill="#f3f4f6" />
-      <circle cx="228" cy="34" r="7" fill="#f3f4f6" />
-      <circle cx="246" cy="34" r="7" fill="#7c3aed" />
-      <circle cx="264" cy="34" r="7" fill="#f3f4f6" />
-      <circle cx="282" cy="34" r="7" fill="#f3f4f6" />
-      <text x="298" y="38" fontSize="9" fill="#9ca3af" fontFamily="system-ui">zoom 100%</text>
+      {/* Nodes */}
+      <KFNode x={5}   y={73}  type="input"     label="User Request"  desc="form submission"  handles={["right","bottom"]} />
+      <KFNode x={230} y={116} type="process"   label="Validate"      desc="schema check"     handles={["right","left","bottom"]} />
+      <KFNode x={230} y={195} type="ai"        label="Generate PRD"  desc="claude-sonnet-4"  selected handles={["right","left"]}  w={180}/>
+      <KFNode x={410} y={225} type="output"    label="PRD Ready"     desc="1,240 words"      handles={["top","left"]}  w={120} h={60}/>
+      <KFNode x={5}   y={195} type="condition" label="Review?"       handles={["right","top"]} w={160}/>
+      {/* Second row — process chain */}
+      <KFNode x={280} y={73}  type="process"   label="Notify Team"   desc="email + slack"    handles={["left","bottom"]} w={150}/>
     </svg>
   );
 }
 
-// Dot-grid hero background
-const dotGridStyle: React.CSSProperties = {
-  backgroundImage: "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
-  backgroundSize: "28px 28px",
-};
+/* ── Section feature mockup: 4 nodes in a grid showing different states ── */
+function CanvasMockup() {
+  return (
+    <svg viewBox="0 0 480 280" className="w-full h-full">
+      <rect width="480" height="280" fill="#fafbfc" />
+
+      {/* Toolbar */}
+      <rect width="480" height="32" fill="white" />
+      <rect y="32" width="480" height="1" fill="#e5e7eb" />
+      <rect x="8" y="8" width="14" height="14" rx="3" fill="#f3f4f6" />
+      <rect x="28" y="8" width="14" height="14" rx="3" fill="#f3f4f6" />
+      <rect x="48" y="8" width="14" height="14" rx="3" fill="#7c3aed" />
+      {/* auto-layout buttons */}
+      {["Horiz", "Vert", "Grid", "Circ"].map((t, i) => (
+        <g key={t}>
+          <rect x={280 + i * 50} y={8} width={44} height={16} rx={4} fill={i === 0 ? "#f5f3ff" : "#f3f4f6"} />
+          <text x={286 + i * 50} y={20} fontSize="8" fill={i === 0 ? "#7c3aed" : "#6b7280"} fontFamily="system-ui">{t}</text>
+        </g>
+      ))}
+
+      {/* Edges */}
+      <path d="M 196 118 C 216 118 220 158 236 158" stroke="#d1d5db" strokeWidth="1.5" fill="none" markerEnd="url(#arrowhead2)" />
+      <path d="M 196 198 C 216 198 220 238 236 238" stroke="#c4b5fd" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
+
+      <defs>
+        <marker id="arrowhead2" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+          <path d="M0,0 L0,5 L5,2.5 z" fill="#d1d5db" />
+        </marker>
+      </defs>
+
+      {/* 4 nodes */}
+      <KFNode x={8}   y={48}  w={180} h={68} type="input"     label="Start" handles={["right","bottom"]} />
+      <KFNode x={236} y={128} w={180} h={68} type="process"   label="Process" handles={["left","right","bottom"]} />
+      <KFNode x={8}   y={168} w={180} h={68} type="condition" label="Decision?" handles={["right","bottom"]} />
+      <KFNode x={236} y={208} w={180} h={68} type="output"    label="Output" handles={["top","left"]} />
+
+      {/* Selection indicator */}
+      <rect x="8" y="248" width="140" height="22" rx="11" fill="white" stroke="#e5e7eb" strokeWidth="1" />
+      <circle cx="24" cy="259" r="4" fill="#22c55e" />
+      <text x="34" y="263" fontSize="9" fill="#6b7280" fontFamily="system-ui">4 nodes  ·  ⌘A to select all</text>
+    </svg>
+  );
+}
+
+/* ── AI section mockup ── */
+function AIMockup() {
+  return (
+    <div className="space-y-3">
+      {/* Chat input */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-green-400" />
+          <span className="text-xs text-gray-500 font-medium">KiteAI</span>
+          <span className="ml-auto text-[10px] text-gray-400 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-200">claude-sonnet-4</span>
+        </div>
+        <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 font-mono mb-3">
+          Generate a user onboarding workflow with email verification
+        </div>
+        <div className="flex items-center gap-2 text-xs text-violet-600 font-medium">
+          <Zap className="w-3 h-3" />
+          Generating 6 nodes…
+        </div>
+      </div>
+
+      {/* Generated mini-nodes */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { type: "input",   label: "Welcome",      color: TYPE_COLORS.input },
+          { type: "process", label: "Send email",   color: TYPE_COLORS.process },
+          { type: "output",  label: "Onboarding",   color: TYPE_COLORS.output },
+        ].map(({ type, label, color }) => (
+          <div key={label} className="bg-white rounded-xl border-2 border-gray-200 px-3 py-2.5 shadow-sm">
+            <div className="text-[9px] font-semibold uppercase mb-1.5 px-1.5 py-0.5 rounded inline-block"
+              style={{ color, backgroundColor: color + "18" }}>
+              {type}
+            </div>
+            <div className="text-xs font-semibold text-gray-900 truncate">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* PRD pill */}
+      <div className="bg-violet-50 rounded-xl border border-violet-100 px-4 py-3 flex items-center gap-3">
+        <Check className="w-4 h-4 text-violet-600 shrink-0" />
+        <span className="text-xs text-violet-700 font-medium">PRD auto-generated — 1,180 words</span>
+      </div>
+    </div>
+  );
+}
+
+const TYPE_COLORS_EXPORT: Record<string, string> = TYPE_COLORS;
+
+/* ── Animated gradient orb background ── */
+function GradientBackground() {
+  return (
+    <>
+      <style>{`
+        @keyframes orb1 {
+          0%   { transform: translate(0%, 0%) scale(1); }
+          33%  { transform: translate(6%, -8%) scale(1.12); }
+          66%  { transform: translate(-4%, 5%) scale(0.92); }
+          100% { transform: translate(0%, 0%) scale(1); }
+        }
+        @keyframes orb2 {
+          0%   { transform: translate(0%, 0%) scale(1); }
+          40%  { transform: translate(-8%, 10%) scale(1.08); }
+          75%  { transform: translate(5%, -6%) scale(0.95); }
+          100% { transform: translate(0%, 0%) scale(1); }
+        }
+        @keyframes orb3 {
+          0%   { transform: translate(0%, 0%) scale(1); }
+          50%  { transform: translate(4%, 6%) scale(1.1); }
+          100% { transform: translate(0%, 0%) scale(1); }
+        }
+      `}</style>
+      {/* Orb 1: deep violet, top-left */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: "-10%",
+          left: "-5%",
+          width: "55%",
+          paddingTop: "55%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, rgba(167,139,250,0.06) 55%, transparent 75%)",
+          borderRadius: "50%",
+          animation: "orb1 18s ease-in-out infinite",
+          filter: "blur(1px)",
+        }}
+      />
+      {/* Orb 2: lighter violet, bottom-right */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          bottom: "-15%",
+          right: "-5%",
+          width: "60%",
+          paddingTop: "60%",
+          background: "radial-gradient(circle, rgba(167,139,250,0.14) 0%, rgba(196,181,253,0.05) 55%, transparent 72%)",
+          borderRadius: "50%",
+          animation: "orb2 24s ease-in-out infinite",
+          filter: "blur(2px)",
+        }}
+      />
+      {/* Orb 3: tiny pink accent, center-right */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: "30%",
+          right: "10%",
+          width: "28%",
+          paddingTop: "28%",
+          background: "radial-gradient(circle, rgba(192,132,252,0.10) 0%, transparent 65%)",
+          borderRadius: "50%",
+          animation: "orb3 30s ease-in-out infinite",
+        }}
+      />
+    </>
+  );
+}
 
 export function Sleek() {
   return (
-    <div className="min-h-screen bg-white font-sans" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
       {/* ── NAV ── */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
@@ -123,14 +303,11 @@ export function Sleek() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="relative overflow-hidden pt-20 pb-16">
-        {/* Dot-grid background */}
-        <div className="absolute inset-0 opacity-60" style={dotGridStyle} />
-        {/* Gradient fade */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/0 to-white" />
+      <section className="relative overflow-hidden pt-20 pb-20">
+        <GradientBackground />
 
         <div className="relative max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-[1fr_1.1fr] gap-12 items-center">
+          <div className="grid lg:grid-cols-[1fr_1.15fr] gap-12 items-center">
 
             {/* Left: Copy */}
             <div>
@@ -169,27 +346,29 @@ export function Sleek() {
               </p>
             </div>
 
-            {/* Right: Workflow diagram */}
+            {/* Right: Kiteframe canvas window */}
             <div className="relative">
               <div
-                className="rounded-2xl overflow-hidden border border-gray-100 shadow-2xl"
-                style={{ boxShadow: "0 32px 64px -12px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.05)" }}
+                className="rounded-2xl overflow-hidden border border-gray-200"
+                style={{ boxShadow: "0 32px 64px -12px rgba(124,58,237,0.12), 0 8px 24px -4px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)" }}
               >
+                {/* Window chrome */}
                 <div className="bg-[#f1f2f4] px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
                     <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                     <div className="w-3 h-3 rounded-full bg-[#28c840]" />
                   </div>
-                  <span className="text-xs text-gray-400 ml-1">Untitled Workflow</span>
+                  <span className="text-xs text-gray-400 ml-2">Untitled Workflow · Kiteframe</span>
                 </div>
-                <div className="bg-white p-2" style={{ height: 340 }}>
-                  <WorkflowDiagram />
+                <div style={{ height: 310 }}>
+                  <HeroWorkflow />
                 </div>
               </div>
 
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl px-4 py-3 shadow-lg border border-gray-100 flex items-center gap-3">
+              {/* Floating PRD badge */}
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05)" }}>
                 <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-violet-600" />
                 </div>
@@ -207,27 +386,19 @@ export function Sleek() {
       <section className="border-y border-gray-100 bg-gray-50/50 py-6">
         <div className="max-w-4xl mx-auto px-6">
           <div className="grid grid-cols-3 divide-x divide-gray-200">
-            <div className="flex items-center gap-4 px-8 justify-center">
-              <Shield className="w-5 h-5 text-violet-500 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Early Access</div>
-                <div className="text-xs text-gray-500">Exclusive early access</div>
+            {[
+              { Icon: Shield,   title: "Early Access",    sub: "Exclusive early access" },
+              { Icon: Zap,      title: "AI-Powered",      sub: "Intelligent generation" },
+              { Icon: Download, title: "Export Everything", sub: "No lock-in, ever" },
+            ].map(({ Icon, title, sub }) => (
+              <div key={title} className="flex items-center gap-4 px-8 justify-center">
+                <Icon className="w-5 h-5 text-violet-500 shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">{title}</div>
+                  <div className="text-xs text-gray-500">{sub}</div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4 px-8 justify-center">
-              <Zap className="w-5 h-5 text-violet-500 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-gray-900">AI-Powered</div>
-                <div className="text-xs text-gray-500">Intelligent generation</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 px-8 justify-center">
-              <Download className="w-5 h-5 text-violet-500 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Export Everything</div>
-                <div className="text-xs text-gray-500">No lock-in, ever</div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -261,54 +432,19 @@ export function Sleek() {
             </ul>
           </div>
 
-          {/* Visual: mini canvas mockup */}
-          <div className="rounded-2xl bg-[#f8f9fb] border border-gray-200 overflow-hidden" style={{ height: 320 }}>
-            <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-              </div>
-              <div className="flex gap-1 ml-auto">
-                {["Grid", "Flow", "Circular"].map(l => (
-                  <span key={l} className="px-2 py-0.5 text-[10px] bg-white border border-gray-200 rounded text-gray-500">{l}</span>
-                ))}
-              </div>
-            </div>
-            <div className="p-6 flex flex-wrap gap-4 items-start">
-              {[
-                { label: "Start", color: "#7c3aed", type: "INPUT" },
-                { label: "Process", color: "#3b82f6", type: "PROCESS" },
-                { label: "Decision", color: "#f59e0b", type: "CONDITION" },
-                { label: "Output", color: "#10b981", type: "OUTPUT" },
-              ].map(({ label, color, type }, i) => (
-                <div key={label} className="bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3 min-w-[130px]"
-                  style={{ outline: i === 1 ? `2px solid ${color}` : "none", outlineOffset: 2 }}>
-                  <div className="w-1 h-10 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <div>
-                    <div className="text-[9px] text-gray-400 font-medium uppercase">{type}</div>
-                    <div className="text-sm font-semibold text-gray-900">{label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="px-6 pt-0">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" /> 4 nodes selected
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg">
-                  ⌘ + A to select all
-                </span>
-              </div>
-            </div>
+          {/* Visual: authentic Kiteframe canvas */}
+          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg" style={{ height: 300 }}>
+            <CanvasMockup />
           </div>
         </div>
       </section>
 
       {/* ── CALLOUT: Not just diagramming ── */}
-      <section className="bg-gray-50 border-y border-gray-100 py-20">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+      <section className="relative overflow-hidden bg-gray-50 border-y border-gray-100 py-20">
+        {/* subtle gradient hint */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px]"
+          style={{ background: "radial-gradient(ellipse at center, rgba(139,92,246,0.07) 0%, transparent 70%)" }} />
+        <div className="relative max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-bold text-gray-900 tracking-tight mb-3 leading-tight">
             Not just the basic diagramming nodes
           </h2>
@@ -324,20 +460,30 @@ export function Sleek() {
       {/* ── SECTION B: More than just nodes ── */}
       <section className="max-w-7xl mx-auto px-6 py-24">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Visual */}
+          {/* Visual: node type showcase */}
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { emoji: "🟡", title: "Sticky Notes", sub: "Quick annotations", bg: "#fffbeb", border: "#fde68a" },
-              { emoji: "🔵", title: "Shapes", sub: "Visual grouping", bg: "#f5f3ff", border: "#ddd6fe" },
-              { emoji: "📝", title: "Text", sub: "Labels & headers", bg: "#f8fafc", border: "#e2e8f0" },
-              { emoji: "🔗", title: "Link Previews", sub: "External resources", bg: "#eef2ff", border: "#c7d2fe" },
-            ].map(({ emoji, title, sub, bg, border }) => (
-              <div key={title} className="p-5 rounded-2xl border" style={{ backgroundColor: bg, borderColor: border }}>
-                <div className="text-2xl mb-3">{emoji}</div>
-                <div className="font-semibold text-gray-900 text-sm">{title}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{sub}</div>
-              </div>
-            ))}
+            {/* Each card looks like an actual Kiteframe node, larger */}
+            {([
+              { type: "ai",        label: "Generate PRD",   desc: "claude-sonnet-4" },
+              { type: "condition", label: "Review?",        desc: "branch logic" },
+              { type: "input",     label: "User Request",   desc: "form submission" },
+              { type: "output",    label: "PRD Ready",      desc: "1,240 words" },
+            ] as const).map(({ type, label, desc }) => {
+              const color = TYPE_COLORS_EXPORT[type] ?? "#6b7280";
+              return (
+                <div key={label} className="bg-white rounded-xl border-2 border-gray-200 shadow-md p-4 relative">
+                  {/* Connection handles at corners */}
+                  <div className="absolute -right-[5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-blue-400" />
+                  <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-blue-400" />
+                  <span className="inline-block text-[10px] font-semibold uppercase px-2 py-0.5 rounded mb-2"
+                    style={{ color, backgroundColor: color + "18" }}>
+                    {type}
+                  </span>
+                  <div className="font-semibold text-gray-900 text-sm">{label}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{desc}</div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Text */}
@@ -356,8 +502,10 @@ export function Sleek() {
       </section>
 
       {/* ── SECTION C: AI-assisted ── */}
-      <section className="bg-gray-50 border-y border-gray-100 py-24">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="relative overflow-hidden bg-gray-50 border-y border-gray-100 py-24">
+        <div className="absolute bottom-0 right-0 w-[500px] h-[400px]"
+          style={{ background: "radial-gradient(ellipse at bottom right, rgba(139,92,246,0.08) 0%, transparent 65%)" }} />
+        <div className="relative max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Intelligence</p>
@@ -386,39 +534,7 @@ export function Sleek() {
                 ))}
               </ul>
             </div>
-
-            {/* AI prompt mockup */}
-            <div className="space-y-3">
-              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                  <span className="text-xs text-gray-500 font-medium">KiteAI</span>
-                </div>
-                <div className="text-sm text-gray-400 mb-2 font-mono">
-                  &gt; Generate a user onboarding workflow with email verification and welcome screen
-                </div>
-                <div className="flex items-center gap-2 text-xs text-violet-600 font-medium">
-                  <Zap className="w-3 h-3" />
-                  Generating 6 nodes...
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "Welcome", color: "#7c3aed" },
-                  { label: "Email verify", color: "#3b82f6" },
-                  { label: "Onboarding", color: "#10b981" },
-                ].map(({ label, color }) => (
-                  <div key={label} className="bg-white rounded-xl border border-gray-200 px-3 py-2.5 shadow-sm">
-                    <div className="w-full h-1 rounded-full mb-2" style={{ backgroundColor: color }} />
-                    <div className="text-xs font-medium text-gray-900">{label}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="bg-violet-50 rounded-xl border border-violet-100 px-4 py-3 flex items-center gap-3">
-                <span className="text-violet-600 font-medium text-xs">✓</span>
-                <span className="text-xs text-violet-700 font-medium">PRD auto-generated — 1,180 words</span>
-              </div>
-            </div>
+            <AIMockup />
           </div>
         </div>
       </section>
@@ -431,13 +547,14 @@ export function Sleek() {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[
-            { icon: Users, color: "#3b82f6", bg: "#eff6ff", border: "#dbeafe", title: "Product Managers", sub: "From concept to PRD in one tool" },
-            { icon: Palette, color: "#ec4899", bg: "#fdf2f8", border: "#fce7f3", title: "Designers", sub: "Connect Figma to execution" },
-            { icon: Code, color: "#10b981", bg: "#f0fdf4", border: "#d1fae5", title: "Engineers", sub: "Clear requirements, no ambiguity" },
-            { icon: Rocket, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", title: "Founders", sub: "Move fast without losing context" },
+            { icon: Users,   color: "#3b82f6", bg: "#eff6ff", border: "#dbeafe", title: "Product Managers", sub: "From concept to PRD in one tool" },
+            { icon: Palette, color: "#ec4899", bg: "#fdf2f8", border: "#fce7f3", title: "Designers",        sub: "Connect Figma to execution" },
+            { icon: Code,    color: "#10b981", bg: "#f0fdf4", border: "#d1fae5", title: "Engineers",        sub: "Clear requirements, no ambiguity" },
+            { icon: Rocket,  color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", title: "Founders",         sub: "Move fast without losing context" },
           ].map(({ icon: Icon, color, bg, border, title, sub }) => (
             <div key={title} className="rounded-2xl p-6 border text-center" style={{ backgroundColor: bg, borderColor: border }}>
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "white", border: `1.5px solid ${border}` }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: "white", border: `1.5px solid ${border}` }}>
                 <Icon className="w-6 h-6" style={{ color }} />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1.5">{title}</h3>
@@ -452,18 +569,16 @@ export function Sleek() {
         <div className="max-w-lg mx-auto px-6 text-center">
           <h2 className="text-4xl font-bold text-white tracking-tight mb-8">Create an Account</h2>
           <div className="space-y-3">
-            <button className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors">
-              <Chrome className="w-5 h-5" />
-              Continue with Google
-            </button>
-            <button className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors">
-              <Github className="w-5 h-5" />
-              Continue with GitHub
-            </button>
-            <button className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors">
-              <Terminal className="w-5 h-5" />
-              Continue with Replit
-            </button>
+            {[
+              { Icon: Chrome,   label: "Continue with Google" },
+              { Icon: Github,   label: "Continue with GitHub" },
+              { Icon: Terminal, label: "Continue with Replit" },
+            ].map(({ Icon, label }) => (
+              <button key={label} className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors">
+                <Icon className="w-5 h-5" />
+                {label}
+              </button>
+            ))}
           </div>
           <p className="mt-5 text-xs text-white/40">Already have an account? Just sign in above.</p>
           <p className="mt-2 text-xs text-white/30 leading-relaxed">
