@@ -1,6 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Chrome,
@@ -19,16 +18,12 @@ import {
   Play,
   MessageSquare,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-import workflowScreenshot from "@assets/Screenshot_2025-12-19_at_3.34.24_PM_1766188467311.png";
+
 const LandingPreviewCanvas = lazy(
   () => import("@/components/landing/LandingPreviewCanvas"),
-);
-const FloatingShapes = lazy(
-  () => import("@/components/landing/FloatingShapes"),
 );
 const TypingPrompt = lazy(() => import("@/components/landing/TypingPrompt"));
 
@@ -43,12 +38,10 @@ function LazyCanvasLoader({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Feature detect IntersectionObserver - fall back to immediate load if unavailable
     if (typeof IntersectionObserver === "undefined") {
       setShouldLoad(true);
       return;
     }
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -58,11 +51,7 @@ function LazyCanvasLoader({
       },
       { rootMargin: "100px" },
     );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
 
@@ -71,7 +60,7 @@ function LazyCanvasLoader({
       {shouldLoad ? (
         <Suspense
           fallback={
-            <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+            <div className="w-full h-full flex items-center justify-center bg-slate-50 rounded-xl">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           }
@@ -79,10 +68,10 @@ function LazyCanvasLoader({
           <LandingPreviewCanvas variant={variant} />
         </Suspense>
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 rounded-xl border border-slate-200">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Play className="h-5 w-5" />
-            <span className="text-sm">Interactive preview loading...</span>
+            <span className="text-sm">Interactive preview loading…</span>
           </div>
         </div>
       )}
@@ -98,8 +87,78 @@ interface AuthUser {
   waitlistRequestedAt?: string | null;
 }
 
+/* ── Gradient orb background ── */
+const ORB_KEYFRAMES = `
+  @keyframes kf-orb1 {
+    0%   { transform: translate(0%,   0%)  scale(1);    }
+    20%  { transform: translate(12%, -14%) scale(1.22); }
+    45%  { transform: translate(-8%,  10%) scale(0.88); }
+    70%  { transform: translate(16%,   6%) scale(1.18); }
+    100% { transform: translate(0%,   0%)  scale(1);    }
+  }
+  @keyframes kf-orb2 {
+    0%   { transform: translate(0%,    0%)  scale(1);    }
+    25%  { transform: translate(-14%,  12%) scale(1.16); }
+    55%  { transform: translate(10%,  -10%) scale(0.84); }
+    80%  { transform: translate(-6%,   16%) scale(1.20); }
+    100% { transform: translate(0%,    0%)  scale(1);    }
+  }
+  @keyframes kf-orb3 {
+    0%   { transform: translate(0%,    0%)   scale(1);    }
+    30%  { transform: translate(-10%,  -8%)  scale(1.28); }
+    60%  { transform: translate(14%,   12%)  scale(0.80); }
+    100% { transform: translate(0%,    0%)   scale(1);    }
+  }
+  @keyframes kf-orb4 {
+    0%   { transform: translate(0%,   0%)  scale(1);    }
+    35%  { transform: translate(18%,  -6%) scale(1.14); }
+    65%  { transform: translate(-12%,  8%) scale(0.90); }
+    100% { transform: translate(0%,   0%)  scale(1);    }
+  }
+  @keyframes kf-orb5 {
+    0%   { transform: translate(0%,    0%)   scale(1);    }
+    40%  { transform: translate(-6%,  -16%)  scale(1.24); }
+    75%  { transform: translate(8%,    10%)  scale(0.86); }
+    100% { transform: translate(0%,    0%)   scale(1);    }
+  }
+`;
+
+function GradientOrbs() {
+  return (
+    <>
+      <style>{ORB_KEYFRAMES}</style>
+      <div className="absolute pointer-events-none" style={{
+        top: "-20%", left: "-15%", width: "85%", paddingTop: "85%",
+        background: "radial-gradient(circle at 50% 50%, rgba(124,58,237,0.20) 0%, rgba(139,92,246,0.09) 40%, transparent 68%)",
+        borderRadius: "50%", animation: "kf-orb1 14s ease-in-out infinite", filter: "blur(8px)",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        bottom: "-25%", right: "-10%", width: "90%", paddingTop: "90%",
+        background: "radial-gradient(circle at 50% 50%, rgba(167,139,250,0.16) 0%, rgba(196,181,253,0.06) 42%, transparent 66%)",
+        borderRadius: "50%", animation: "kf-orb2 18s ease-in-out infinite", filter: "blur(10px)",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        top: "5%", left: "25%", width: "70%", paddingTop: "70%",
+        background: "radial-gradient(circle at 50% 50%, rgba(139,92,246,0.12) 0%, rgba(167,139,250,0.04) 50%, transparent 70%)",
+        borderRadius: "50%", animation: "kf-orb3 11s ease-in-out infinite", animationDelay: "-4s", filter: "blur(12px)",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        top: "-5%", right: "-5%", width: "55%", paddingTop: "55%",
+        background: "radial-gradient(circle at 50% 50%, rgba(192,132,252,0.15) 0%, rgba(216,180,254,0.05) 48%, transparent 68%)",
+        borderRadius: "50%", animation: "kf-orb4 9s ease-in-out infinite", animationDelay: "-2s", filter: "blur(6px)",
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        bottom: "-10%", left: "5%", width: "75%", paddingTop: "75%",
+        background: "radial-gradient(circle at 50% 50%, rgba(167,139,250,0.09) 0%, rgba(139,92,246,0.03) 55%, transparent 72%)",
+        borderRadius: "50%", animation: "kf-orb5 22s ease-in-out infinite", animationDelay: "-8s", filter: "blur(16px)",
+      }} />
+    </>
+  );
+}
+
 export default function LandingPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
   const { data: user } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -114,47 +173,34 @@ export default function LandingPage() {
   const availableProviders = providersData?.providers || [];
 
   const handleOAuthLogin = (provider: string) => {
-    if (provider === "google") {
-      window.location.href = "/api/auth/google";
-    } else if (provider === "github") {
-      window.location.href = "/api/auth/github";
-    } else if (provider === "replit") {
-      window.location.href = "/api/login";
-    }
+    if (provider === "google") window.location.href = "/api/auth/google";
+    else if (provider === "github") window.location.href = "/api/auth/github";
+    else if (provider === "replit") window.location.href = "/api/login";
   };
 
   const isAuthenticated = !!user;
   const isOnWaitlist = user?.waitlistRequestedAt;
 
   return (
-    <div className="min-h-screen relative bg-white dark:bg-slate-950">
-      <Suspense fallback={null}>
-        <FloatingShapes />
-      </Suspense>
+    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
 
-      <div className="relative z-10">
-        {/* Header */}
-        <header className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <span
-              className="text-xl font-bold text-foreground"
-              data-testid="text-logo"
-            >
+      {/* ── NAV ── */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[17px] font-bold text-gray-900 tracking-tight" data-testid="text-logo">
               Kiteframe
             </span>
-            <span
-              className="px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300 rounded-full"
-              data-testid="badge-beta"
-            >
+            <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide bg-violet-100 text-violet-700 rounded-full uppercase" data-testid="badge-beta">
               Early Access
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => (window.location.href = "/faq")}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-gray-500 hover:text-gray-900"
               data-testid="button-faq-header"
             >
               FAQ
@@ -164,7 +210,7 @@ export default function LandingPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFeedbackModal(true)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-gray-500 hover:text-gray-900"
                 data-testid="button-feedback"
               >
                 <MessageSquare className="h-4 w-4 mr-1.5" />
@@ -173,14 +219,17 @@ export default function LandingPage() {
             )}
             {isAuthenticated && user?.isBeta ? (
               <Button
+                size="sm"
                 onClick={() => (window.location.href = "/app")}
+                className="ml-1"
                 data-testid="button-enter-app"
               >
-                Enter App <ArrowRight className="ml-2 h-4 w-4" />
+                Enter App <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             ) : isAuthenticated && isOnWaitlist ? (
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => (window.location.href = "/waitlist")}
                 data-testid="button-view-status"
               >
@@ -189,27 +238,44 @@ export default function LandingPage() {
             ) : (
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => (window.location.href = "/signin")}
+                className="text-gray-500 hover:text-gray-900"
                 data-testid="button-signin-header"
               >
-                Already have an account? Sign in
+                Already have an account?{" "}
+                <span className="text-violet-600 font-medium ml-1">Sign in</span>
               </Button>
             )}
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Hero Section */}
-        <section className="pt-12 pb-8">
-          <div className="max-w-7xl mx-auto px-8">
-            <div className="text-center max-w-3xl mx-auto mb-8">
+      {/* ── HERO ── */}
+      <section className="relative overflow-hidden pt-16 pb-16">
+        <GradientOrbs />
+
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-[1fr_1.15fr] gap-12 items-center">
+
+            {/* Left: copy */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-100 text-violet-700 text-xs font-medium mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                AI-powered workflow editor
+              </div>
+
               <h1
-                className="text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6"
+                className="text-[50px] leading-[1.08] font-extrabold text-gray-900 tracking-tight mb-5"
                 data-testid="text-hero-headline"
               >
-                Kiteframe helps ideas take flight
+                Kiteframe helps<br />
+                ideas{" "}
+                <span style={{ color: "#7c3aed" }}>take flight</span>
               </h1>
+
               <p
-                className="text-xl text-muted-foreground mb-8"
+                className="text-lg text-gray-500 leading-relaxed mb-8 max-w-[480px]"
                 data-testid="text-hero-subhead"
               >
                 An AI-powered visual workflow editor for product alignment,
@@ -217,10 +283,11 @@ export default function LandingPage() {
                 one place.
               </p>
 
-              <div className="flex flex-wrap gap-3 justify-center">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Button
                   size="lg"
-                  className="h-12 px-8"
+                  className="h-12 px-6 gap-2"
+                  style={{ backgroundColor: "#7c3aed" }}
                   onClick={() =>
                     document
                       .getElementById("waitlist-section")
@@ -229,11 +296,12 @@ export default function LandingPage() {
                   data-testid="button-hero-cta"
                 >
                   Create an Account
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="h-12 px-8"
+                  className="h-12 px-6"
                   onClick={() =>
                     document
                       .getElementById("features-section")
@@ -245,247 +313,211 @@ export default function LandingPage() {
                 </Button>
               </div>
 
-              {!isAuthenticated && (
-                <p className="mt-4 text-sm text-muted-foreground">
-                  Already have an account?{" "}
-                  <a
-                    href="/signin"
-                    className="text-violet-600 hover:text-violet-700 dark:text-violet-400 font-medium underline-offset-4 hover:underline"
-                    data-testid="link-signin-hero"
-                  >
-                    Sign in
-                  </a>
-                </p>
-              )}
+              <p className="mt-5 text-xs text-gray-400" data-testid="text-demo-hint">
+                From idea to handoff — powered by AI
+              </p>
             </div>
-          </div>
 
-          <div className="w-full mt-8">
-            <LazyCanvasLoader
-              variant="hero"
-              className="h-[400px] md:h-[500px] lg:h-[600px] w-full pl-[80px] pr-[80px] mt-[40px] mb-[40px]"
-            />
-            <p
-              className="text-center text-sm text-muted-foreground mt-4"
-              data-testid="text-demo-hint"
-            >
-              From idea to handoff — powered by AI
-            </p>
-          </div>
-        </section>
-
-        {/* Stats Strip */}
-        <section className="border-y border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 py-8">
-          <div className="max-w-5xl mx-auto px-8">
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16">
-              <div className="flex items-center gap-3" data-testid="stat-beta">
-                <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground">
-                    Early Access
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Exclusive early access
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3" data-testid="stat-ai">
-                <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/50 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-pink-600 dark:text-pink-400" />
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground">
-                    AI-Powered
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Intelligent generation
-                  </div>
-                </div>
-              </div>
+            {/* Right: live Kiteframe canvas in window chrome */}
+            <div className="relative hidden lg:block">
               <div
-                className="flex items-center gap-3"
-                data-testid="stat-export"
+                className="rounded-2xl overflow-hidden border border-gray-200"
+                style={{ boxShadow: "0 32px 64px -12px rgba(124,58,237,0.13), 0 8px 24px -4px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.04)" }}
               >
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                  <Download className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="bg-[#f1f2f4] px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                    <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+                    <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+                  </div>
+                  <span className="text-xs text-gray-400 ml-2">Untitled Workflow · Kiteframe</span>
+                </div>
+                <LazyCanvasLoader
+                  variant="hero"
+                  className="h-[340px] w-full bg-white"
+                />
+              </div>
+
+              {/* Floating PRD badge */}
+              <div
+                className="absolute -bottom-4 -left-4 bg-white rounded-xl px-4 py-3 flex items-center gap-3"
+                style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05)" }}
+              >
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-violet-600" />
                 </div>
                 <div>
-                  <div className="font-semibold text-foreground">
-                    Export Everything
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    No lock-in, ever
-                  </div>
+                  <div className="text-xs font-semibold text-gray-900">PRD Generated</div>
+                  <div className="text-[10px] text-gray-400">2s ago · 1,240 words</div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Section A: Ready out-of-the-box */}
-        <section id="features-section" className="max-w-7xl mx-auto px-8 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2
-                className="text-3xl font-bold text-foreground mb-4"
-                data-testid="heading-section-a"
-              >
-                Ready out-of-the-box
-              </h2>
-              <p className="text-lg text-muted-foreground mb-6">
-                Drag, zoom, pan, select multiple nodes — everything works from
-                the start. No setup required. Just open and start building your
-                workflows.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  <span>Intuitive drag-and-drop interface</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  <span>Smooth zoom and pan controls</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  <span>Multi-select and batch editing</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-emerald-500" />
-                  <span>Keyboard shortcuts for power users</span>
-                </li>
-              </ul>
+      {/* ── STATS STRIP ── */}
+      <section className="border-y border-gray-100 bg-gray-50/50 py-6">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="grid grid-cols-3 divide-x divide-gray-200">
+            <div className="flex items-center gap-4 px-8 justify-center" data-testid="stat-beta">
+              <Shield className="w-5 h-5 text-violet-500 shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Early Access</div>
+                <div className="text-xs text-gray-500">Exclusive early access</div>
+              </div>
             </div>
-            <div className="flex items-center justify-center">
-              <img
-                src={workflowScreenshot}
-                alt="Kiteframe workflow example showing connected nodes"
-                className="rounded-xl border border-slate-200 dark:border-slate-700 max-h-[300px] object-contain"
-                data-testid="img-workflow-example"
-              />
+            <div className="flex items-center gap-4 px-8 justify-center" data-testid="stat-ai">
+              <Zap className="w-5 h-5 text-violet-500 shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-gray-900">AI-Powered</div>
+                <div className="text-xs text-gray-500">Intelligent generation</div>
+              </div>
             </div>
-          </div>
-        </section>
-
-        {/* Section: More Than Standard Diagram Nodes */}
-        <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
-          <div className="max-w-5xl mx-auto px-8">
-            <div className="text-center mb-12">
-              <h2
-                className="text-3xl font-bold text-foreground mb-2"
-                data-testid="heading-diagram-nodes"
-              >
-                Not just the basic diagramming nodes
-              </h2>
-              <p className="text-xl text-muted-foreground mb-4">
-                A canvas built for real product work
-              </p>
-              <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-                Kiteframe goes beyond basic boxes and arrows with rich,
-                extensible building blocks designed for how teams actually
-                work—supporting structure, logic, data, and context in one
-                unified workflow. This isn't just diagramming; it's a system for
-                thinking, aligning, and shipping together.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Section B: Canvas Objects */}
-        <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
-          <div className="max-w-7xl mx-auto px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <LazyCanvasLoader
-                variant="objects"
-                className="order-2 lg:order-1 h-[400px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700"
-              />
-              <div className="order-1 lg:order-2">
-                <h2
-                  className="text-3xl font-bold text-foreground mb-4"
-                  data-testid="heading-section-b"
-                >
-                  More than just nodes
-                </h2>
-                <p className="text-lg text-muted-foreground mb-6">
-                  Add context to your workflows with sticky notes, shapes, text
-                  annotations, and link previews. Everything you need to
-                  communicate ideas clearly.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="w-8 h-8 rounded bg-yellow-100 dark:bg-yellow-900/50 mb-2" />
-                    <div className="font-medium text-foreground">
-                      Sticky Notes
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Quick annotations
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/50 mb-2" />
-                    <div className="font-medium text-foreground">Shapes</div>
-                    <div className="text-sm text-muted-foreground">
-                      Visual grouping
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="w-8 h-2 rounded bg-slate-300 dark:bg-slate-600 mb-4 mt-2" />
-                    <div className="font-medium text-foreground">Text</div>
-                    <div className="text-sm text-muted-foreground">
-                      Labels & headers
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="w-8 h-8 rounded bg-indigo-100 dark:bg-indigo-900/50 mb-2 flex items-center justify-center text-xs text-indigo-600">
-                      🔗
-                    </div>
-                    <div className="font-medium text-foreground">
-                      Link Previews
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      External resources
-                    </div>
-                  </div>
-                </div>
+            <div className="flex items-center gap-4 px-8 justify-center" data-testid="stat-export">
+              <Download className="w-5 h-5 text-violet-500 shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Export Everything</div>
+                <div className="text-xs text-gray-500">No lock-in, ever</div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Section C: AI-assisted */}
-        <section className="max-w-7xl mx-auto px-8 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+      {/* ── SECTION A: Ready out-of-the-box ── */}
+      <section id="features-section" className="max-w-7xl mx-auto px-6 py-24">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Canvas</p>
+            <h2
+              className="text-4xl font-bold text-gray-900 tracking-tight mb-4 leading-tight"
+              data-testid="heading-section-a"
+            >
+              Ready out-of-the-box
+            </h2>
+            <p className="text-lg text-gray-500 mb-8 leading-relaxed">
+              Drag, zoom, pan, select multiple nodes — everything works from the
+              start. No setup required. Just open and start building your workflows.
+            </p>
+            <ul className="space-y-3.5">
+              {[
+                "Intuitive drag-and-drop interface",
+                "Smooth zoom and pan controls",
+                "Multi-select and batch editing",
+                "Keyboard shortcuts for power users",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-3 text-gray-600 text-sm">
+                  <span className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <LazyCanvasLoader
+            variant="features"
+            className="h-[300px] rounded-xl overflow-hidden border border-gray-200 shadow-lg"
+            data-testid="img-workflow-example"
+          />
+        </div>
+      </section>
+
+      {/* ── CALLOUT: Not just diagramming ── */}
+      <section className="relative overflow-hidden bg-gray-50 border-y border-gray-100 py-20">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px]"
+          style={{ background: "radial-gradient(ellipse at center, rgba(139,92,246,0.07) 0%, transparent 70%)" }} />
+        <div className="relative max-w-3xl mx-auto px-6 text-center">
+          <h2
+            className="text-4xl font-bold text-gray-900 tracking-tight mb-3 leading-tight"
+            data-testid="heading-diagram-nodes"
+          >
+            Not just the basic diagramming nodes
+          </h2>
+          <p className="text-lg font-medium text-violet-600 mb-5">A canvas built for real product work</p>
+          <p className="text-gray-500 leading-relaxed">
+            Kiteframe goes beyond basic boxes and arrows with rich, extensible building blocks designed
+            for how teams actually work—supporting structure, logic, data, and context in one unified
+            workflow. This isn't just diagramming; it's a system for thinking, aligning, and shipping together.
+          </p>
+        </div>
+      </section>
+
+      {/* ── SECTION B: More than just nodes ── */}
+      <section className="bg-gray-50/50 border-b border-gray-100 py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <LazyCanvasLoader
+              variant="objects"
+              className="order-2 lg:order-1 h-[400px] rounded-xl overflow-hidden border border-gray-200 shadow-lg"
+            />
+            <div className="order-1 lg:order-2">
+              <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Context</p>
               <h2
-                className="text-3xl font-bold text-foreground mb-4"
+                className="text-4xl font-bold text-gray-900 tracking-tight mb-4 leading-tight"
+                data-testid="heading-section-b"
+              >
+                More than just nodes
+              </h2>
+              <p className="text-lg text-gray-500 mb-8 leading-relaxed">
+                Add context to your workflows with sticky notes, shapes, text
+                annotations, and link previews. Everything you need to
+                communicate ideas clearly.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { bg: "#fffbeb", border: "#fde68a", dot: "bg-yellow-300", title: "Sticky Notes", sub: "Quick annotations" },
+                  { bg: "#f5f3ff", border: "#ddd6fe", dot: "bg-violet-400", title: "Shapes", sub: "Visual grouping" },
+                  { bg: "#f8fafc", border: "#e2e8f0", dot: "bg-slate-300", title: "Text", sub: "Labels & headers" },
+                  { bg: "#eef2ff", border: "#c7d2fe", dot: "bg-indigo-400", title: "Link Previews", sub: "External resources" },
+                ].map(({ bg, border, dot, title, sub }) => (
+                  <div key={title} className="p-4 rounded-xl border" style={{ backgroundColor: bg, borderColor: border }}>
+                    <div className={`w-6 h-6 rounded-full ${dot} mb-2.5 opacity-80`} />
+                    <div className="font-medium text-gray-900 text-sm">{title}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SECTION C: AI-assisted ── */}
+      <section className="relative overflow-hidden py-24">
+        <div className="absolute bottom-0 right-0 w-[500px] h-[400px]"
+          style={{ background: "radial-gradient(ellipse at bottom right, rgba(139,92,246,0.07) 0%, transparent 65%)" }} />
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Intelligence</p>
+              <h2
+                className="text-4xl font-bold text-gray-900 tracking-tight mb-4 leading-tight"
                 data-testid="heading-section-c"
               >
-                AI-assisted, human-controlled
+                AI-assisted,<br />human-controlled
               </h2>
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-gray-500 mb-8 leading-relaxed">
                 Generate workflows from natural language prompts. Analyze Figma
                 designs. Create PRDs automatically. The AI helps you move faster
                 while you stay in control.
               </p>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-violet-500" />
-                  <span>Generate workflows from text descriptions</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-violet-500" />
-                  <span>Import and analyze Figma designs</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-violet-500" />
-                  <span>Auto-generate PRDs from workflows</span>
-                </li>
-                <li className="flex items-center gap-3 text-muted-foreground">
-                  <Check className="w-5 h-5 text-violet-500" />
-                  <span>Privacy-first with local AI options</span>
-                </li>
+              <ul className="space-y-3.5">
+                {[
+                  "Generate workflows from text descriptions",
+                  "Import and analyze Figma designs",
+                  "Auto-generate PRDs from workflows",
+                  "Privacy-first with local AI options",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-gray-600 text-sm">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: "#f5f3ff", border: "1px solid #ddd6fe" }}>
+                      <Check className="w-3 h-3" style={{ color: "#7c3aed" }} />
+                    </span>
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
             <div
@@ -503,175 +535,136 @@ export default function LandingPage() {
               </Suspense>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Built For Section */}
-        <section className="bg-slate-50/50 dark:bg-slate-900/30 py-20">
-          <div className="max-w-5xl mx-auto px-8">
+      {/* ── BUILT FOR SECTION ── */}
+      <section className="bg-gray-50/50 border-y border-gray-100 py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-14">
             <h2
-              className="text-3xl font-bold text-foreground text-center mb-4"
+              className="text-4xl font-bold text-gray-900 tracking-tight mb-3"
               data-testid="heading-built-for"
             >
               Built for cross-functional teams
             </h2>
-            <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-500">
               A shared language for everyone involved in building products.
             </p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div
-                className="p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
-                data-testid="card-pm"
-              >
-                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">
-                  Product Managers
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  From concept to PRD in one tool
-                </p>
-              </div>
-              <div
-                className="p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
-                data-testid="card-design"
-              >
-                <div className="w-12 h-12 rounded-full bg-pink-100 dark:bg-pink-900/50 flex items-center justify-center mx-auto mb-4">
-                  <Palette className="w-6 h-6 text-pink-600 dark:text-pink-400" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">
-                  Designers
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Connect Figma to execution
-                </p>
-              </div>
-              <div
-                className="p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
-                data-testid="card-engineering"
-              >
-                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center mx-auto mb-4">
-                  <Code className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">
-                  Engineers
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Clear requirements, no ambiguity
-                </p>
-              </div>
-              <div
-                className="p-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center"
-                data-testid="card-founder"
-              >
-                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center mx-auto mb-4">
-                  <Rocket className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">Founders</h3>
-                <p className="text-sm text-muted-foreground">
-                  Move fast without losing context
-                </p>
-              </div>
-            </div>
           </div>
-        </section>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { icon: Users,   color: "#3b82f6", bg: "#eff6ff", border: "#dbeafe", title: "Product Managers", sub: "From concept to PRD in one tool",    testid: "card-pm" },
+              { icon: Palette, color: "#ec4899", bg: "#fdf2f8", border: "#fce7f3", title: "Designers",        sub: "Connect Figma to execution",          testid: "card-design" },
+              { icon: Code,    color: "#10b981", bg: "#f0fdf4", border: "#d1fae5", title: "Engineers",        sub: "Clear requirements, no ambiguity",    testid: "card-engineering" },
+              { icon: Rocket,  color: "#f59e0b", bg: "#fffbeb", border: "#fde68a", title: "Founders",         sub: "Move fast without losing context",    testid: "card-founder" },
+            ].map(({ icon: Icon, color, bg, border, title, sub, testid }) => (
+              <div
+                key={title}
+                className="rounded-2xl p-6 border text-center"
+                style={{ backgroundColor: bg, borderColor: border }}
+                data-testid={testid}
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: "white", border: `1.5px solid ${border}` }}>
+                  <Icon className="w-6 h-6" style={{ color }} />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1.5">{title}</h3>
+                <p className="text-sm text-gray-500">{sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-        {/* Waitlist Section */}
-        <section id="waitlist-section" className="max-w-xl mx-auto px-8 py-20">
+      {/* ── WAITLIST / CREATE ACCOUNT ── */}
+      <section id="waitlist-section" className="bg-[#0a0a0f] py-24">
+        <div className="max-w-lg mx-auto px-6 text-center">
           <h2
-            className="text-3xl font-bold text-foreground text-center mb-8"
+            className="text-4xl font-bold text-white tracking-tight mb-8"
             data-testid="heading-waitlist"
           >
             Create an Account
           </h2>
 
           {!isOnWaitlist && (
-            <div
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6"
-              data-testid="waitlist-container"
-            >
-              <div className="space-y-4">
-                {providersLoading ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {availableProviders.includes("google") && (
-                      <Button
-                        variant="outline"
-                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
-                        onClick={() => handleOAuthLogin("google")}
-                        data-testid="button-waitlist-google"
-                      >
-                        <Chrome className="h-5 w-5 mr-3" />
-                        Continue with Google
-                      </Button>
-                    )}
-                    {availableProviders.includes("github") && (
-                      <Button
-                        variant="outline"
-                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
-                        onClick={() => handleOAuthLogin("github")}
-                        data-testid="button-waitlist-github"
-                      >
-                        <Github className="h-5 w-5 mr-3" />
-                        Continue with GitHub
-                      </Button>
-                    )}
-                    {availableProviders.includes("replit") && (
-                      <Button
-                        variant="outline"
-                        className="w-full h-12 text-base font-medium border-2 hover:bg-slate-50 dark:hover:bg-slate-800"
-                        onClick={() => handleOAuthLogin("replit")}
-                        data-testid="button-waitlist-replit"
-                      >
-                        <Terminal className="h-5 w-5 mr-3" />
-                        Continue with Replit
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                <p className="text-xs text-muted-foreground text-center pt-2">
-                  Already have an account? Just sign in above.
-                </p>
-                <p className="text-xs text-muted-foreground text-center pt-2 leading-relaxed">
-                  By continuing, you acknowledge that you agree to Kiteframe's{' '}
-                  <a href="/legal#terms" className="text-violet-600 hover:underline" data-testid="link-waitlist-terms">Terms and Conditions</a>{' '}
-                  and <a href="/legal#privacy" className="text-violet-600 hover:underline" data-testid="link-waitlist-privacy">Privacy Policy</a>.
-                </p>
-              </div>
+            <div data-testid="waitlist-container" className="space-y-3 mb-6">
+              {providersLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+                </div>
+              ) : (
+                <>
+                  {availableProviders.includes("google") && (
+                    <button
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      onClick={() => handleOAuthLogin("google")}
+                      data-testid="button-waitlist-google"
+                    >
+                      <Chrome className="w-5 h-5" />
+                      Continue with Google
+                    </button>
+                  )}
+                  {availableProviders.includes("github") && (
+                    <button
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      onClick={() => handleOAuthLogin("github")}
+                      data-testid="button-waitlist-github"
+                    >
+                      <Github className="w-5 h-5" />
+                      Continue with GitHub
+                    </button>
+                  )}
+                  {availableProviders.includes("replit") && (
+                    <button
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      onClick={() => handleOAuthLogin("replit")}
+                      data-testid="button-waitlist-replit"
+                    >
+                      <Terminal className="w-5 h-5" />
+                      Continue with Replit
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
 
           {isOnWaitlist && (
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 text-center"
+              className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-8 text-center"
               data-testid="waitlist-success"
             >
-              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
-                <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                <Check className="w-6 h-6 text-green-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">
-                You're on the list!
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                We'll notify you when your access is ready.
-              </p>
-              <Button
-                variant="outline"
+              <h3 className="text-lg font-semibold text-white mb-2">You're on the list!</h3>
+              <p className="text-white/50 mb-4">We'll notify you when your access is ready.</p>
+              <button
+                className="px-5 py-2 rounded-lg text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors"
                 onClick={() => (window.location.href = "/waitlist")}
                 data-testid="button-view-waitlist-status"
               >
                 View Your Status
-              </Button>
+              </button>
             </div>
           )}
-        </section>
 
-        <SiteFooter />
-      </div>
+          <p className="text-xs text-white/40 mb-2">Already have an account? Just sign in above.</p>
+          <p className="text-xs text-white/30 leading-relaxed">
+            By continuing, you acknowledge that you agree to Kiteframe's{" "}
+            <a href="/legal#terms" className="underline cursor-pointer hover:text-white/50 transition-colors" data-testid="link-waitlist-terms">
+              Terms and Conditions
+            </a>{" "}
+            and{" "}
+            <a href="/legal#privacy" className="underline cursor-pointer hover:text-white/50 transition-colors" data-testid="link-waitlist-privacy">
+              Privacy Policy
+            </a>.
+          </p>
+        </div>
+      </section>
+
+      <SiteFooter />
 
       {showFeedbackModal && (
         <BugReportModal onClose={() => setShowFeedbackModal(false)} />
