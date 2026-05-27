@@ -59,29 +59,29 @@ export function SiteFooter() {
   };
 
   return (
-    <footer className="border-t border-violet-100 dark:border-slate-800 bg-violet-50 dark:bg-background py-12">
+    <footer className="border-t border-white/10 bg-[#0a0a0f] py-12">
       <div className="max-w-7xl mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-8">
           {/* Left side - Branding and links */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <span className="font-semibold text-foreground">Kiteframe</span>
-              <span className="text-sm text-muted-foreground">· Early Access</span>
+              <span className="font-semibold text-white">Kiteframe</span>
+              <span className="text-sm text-white/50">· Early Access</span>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-white/50 mb-4">
               Visual workflow planning for product teams.
             </p>
             <div className="flex items-center gap-4 text-sm">
-              <a href="/faq" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-faq">
+              <a href="/faq" className="text-white/50 hover:text-white transition-colors" data-testid="link-footer-faq">
                 FAQ
               </a>
-              <a href="/legal#terms" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-terms">
+              <a href="/legal#terms" className="text-white/50 hover:text-white transition-colors" data-testid="link-footer-terms">
                 Terms & Conditions
               </a>
-              <a href="/legal#privacy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-privacy">
+              <a href="/legal#privacy" className="text-white/50 hover:text-white transition-colors" data-testid="link-footer-privacy">
                 Privacy
               </a>
-              <a href="/legal#cookies" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-cookies">
+              <a href="/legal#cookies" className="text-white/50 hover:text-white transition-colors" data-testid="link-footer-cookies">
                 Cookies
               </a>
             </div>
@@ -89,7 +89,7 @@ export function SiteFooter() {
 
           {/* Right side - Contact form */}
           <div>
-            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
               <Mail className="h-4 w-4" />
               Contact Us
             </h3>
@@ -162,11 +162,11 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="text-center md:text-left border-t border-slate-200 dark:border-slate-800 pt-6">
-          <p className="text-sm text-muted-foreground" data-testid="text-footer">
+        <div className="text-center md:text-left border-t border-white/10 pt-6">
+          <p className="text-sm text-white/40" data-testid="text-footer">
             © 2025 Kitespace LLC. All rights reserved.
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-white/40">
             Kiteframe is a product of Kitespace LLC.
           </p>
         </div>

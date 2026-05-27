@@ -621,7 +621,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── WAITLIST / CREATE ACCOUNT ── */}
-      <section id="waitlist-section" className="bg-[#0a0a0f] py-24">
+      <section id="waitlist-section" className="bg-violet-700 py-24">
         <div className="max-w-lg mx-auto px-6 text-center">
           <h2
             className="text-4xl font-bold text-white tracking-tight mb-8"
