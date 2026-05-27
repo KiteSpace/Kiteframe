@@ -6664,7 +6664,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         editorSettings={editorSettings}
         onEditorSettingsChange={setEditorSettings}
         onOpenBugReport={() => setShowBugReportModal(true)}
-        isReadOnly={isReadOnly}
+        isReadOnly={effectiveReadOnly}
       >
         <ScrollArea className="flex-1 min-w-0">
           <div className="flex items-center space-x-1 w-max">
@@ -6679,7 +6679,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               </div>
             )}
             {/* Home Tab Icon */}
-            {!isReadOnly && (
+            {!effectiveReadOnly && (
               <button
                 className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors flex-shrink-0 ${
                   isOnHomeTab
@@ -6695,7 +6695,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             )}
 
             {/* Workflow Tabs - hidden in view mode, only show open tabs */}
-            {!isReadOnly &&
+            {!effectiveReadOnly &&
               tabs
                 .filter((tab) => tab.isOpen !== false)
                 .map((tab) => (
@@ -6789,7 +6789,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   </div>
                 ))}
             {/* New Tab button - hidden in view mode */}
-            {!isReadOnly && (
+            {!effectiveReadOnly && (
               <button
                 className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
                 onClick={createNewTab}
@@ -6800,7 +6800,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               </button>
             )}
             {/* View mode: show project name */}
-            {isReadOnly && initialProjectName && (
+            {effectiveReadOnly && initialProjectName && (
               <span className="text-sm font-medium text-foreground px-2">
                 {initialProjectName}
               </span>
@@ -10161,8 +10161,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       });
                     }}
                     onImageButtonClick={setShowImageModal}
-                    onUndo={isReadOnly ? handleViewReset : handleUndo}
-                    onRedo={isReadOnly ? () => {} : handleRedo}
+                    onUndo={effectiveReadOnly ? handleViewReset : handleUndo}
+                    onRedo={effectiveReadOnly ? () => {} : handleRedo}
                     onFitView={() => {
                       if (nodes.length === 0) {
                         setViewport({ x: 0, y: 0, zoom: 1 });
@@ -10212,8 +10212,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                       setViewport({ x, y, zoom });
                     }}
-                    canUndo={isReadOnly ? true : canUndo}
-                    canRedo={isReadOnly ? false : canRedo}
+                    canUndo={effectiveReadOnly ? true : canUndo}
+                    canRedo={effectiveReadOnly ? false : canRedo}
                     onAutoLayout={handleAutoLayout}
                     onSelectionChange={(
                       nodeIds: string[],
@@ -12461,7 +12461,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     return;
                   }
                 }}
-                isReadOnly={isReadOnly}
+                isReadOnly={effectiveReadOnly}
                 shareUuid={activeShareId || undefined}
                 cloudProjectId={activeTab?.cloudProjectId ? (typeof activeTab.cloudProjectId === 'number' ? activeTab.cloudProjectId : parseInt(activeTab.cloudProjectId, 10) || null) : null}
                 onShareCreated={(shareId) => {
