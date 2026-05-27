@@ -1438,6 +1438,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   const [panning, setPanning] = useState(false);
   const panStart = useRef<{ x: number; y: number } | null>(null);
+
+  // Refs that always hold the latest values — used inside async callbacks (timers, RAF)
+  const nodesRef = useRef(props.nodes);
+  const viewportRef = useRef(viewport);
+  useEffect(() => { nodesRef.current = props.nodes; }, [props.nodes]);
+  useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+
+  // Touch interaction refs (iPad / pointer events)
+  const touchPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const touchLongPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchPanStart = useRef<{ x: number; y: number } | null>(null); // stores (clientX - vp.x, clientY - vp.y)
+  const touchPinchStart = useRef<{
+    dist: number; midX: number; midY: number;
+    viewX: number; viewY: number; zoom: number;
+  } | null>(null);
+  const touchNodeTarget = useRef<string | null>(null); // nodeId being long-pressed
+  const touchNodeDownPos = useRef<{ clientX: number; clientY: number } | null>(null);
+  const touchDragging = useRef(false); // long-press fired → dragging active
+  const touchLastTap = useRef<{
+    time: number; nodeId: string | null; part: 'header' | 'body' | null;
+  } | null>(null);
+
   // Unified Selection State (works for both nodes and canvas objects)
   const [unifiedSelectionRect, setUnifiedSelectionRect] = useState<null | {
     x: number;
@@ -2184,24 +2206,261 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     };
   }, [handleWheel]);
 
-  // Touch gesture handling - DISABLED due to conflicts with node drag interactions
-  // The enableTouchGestures prop is preserved for future implementation but currently non-functional
-  // Mobile users can use the minimap or toolbar controls for zoom/pan instead
+  // Touch gesture support — enabled unless explicitly disabled via prop
   const enableTouchGestures = props.enableTouchGestures !== false;
-  
-  // Prevent Safari gesture events (prevents browser zoom on iOS)
+
+  // Prevent Safari's native gesture events (which would conflict with our pinch handler)
   useEffect(() => {
     if (!enableTouchGestures) return;
-    
     const preventGesture = (e: Event) => e.preventDefault();
     document.addEventListener('gesturestart', preventGesture, { passive: false });
     document.addEventListener('gesturechange', preventGesture, { passive: false });
-    
     return () => {
       document.removeEventListener('gesturestart', preventGesture);
       document.removeEventListener('gesturechange', preventGesture);
     };
   }, [enableTouchGestures]);
+
+  // ===== TOUCH / POINTER EVENT HANDLERS =====
+  // These handle iPad/touch interactions. Existing onMouseDown/Move/Up handlers are
+  // unchanged and continue to serve mouse/trackpad input.
+  const TOUCH_MOVE_CANCEL_THRESHOLD = 8; // px — if finger moves this much before long-press fires, cancel it
+
+  const onCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+
+    // Capture so move/up events fire even when finger leaves the element
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) {}
+
+    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const count = touchPointers.current.size;
+
+    if (count >= 2) {
+      // Second finger detected — cancel any pending long-press / pan and switch to pinch
+      if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
+      if (touchDragging.current) { dragInfo.current = null; touchDragging.current = false; setSuppressEdgesDuringDrag(false); setDraggingNodeId(null); }
+      touchPanStart.current = null;
+      touchNodeTarget.current = null;
+      touchNodeDownPos.current = null;
+      const pts = Array.from(touchPointers.current.values());
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      touchPinchStart.current = {
+        dist: Math.max(dist, 1),
+        midX: (pts[0].x + pts[1].x) / 2,
+        midY: (pts[0].y + pts[1].y) / 2,
+        viewX: viewport.x, viewY: viewport.y, zoom: viewport.zoom,
+      };
+      return;
+    }
+
+    // Single finger — determine target (node vs background)
+    const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null;
+    if (nodeEl && !props.readOnly) {
+      const nodeId = nodeEl.getAttribute('data-node-id')!;
+      // Don't start drag when inline editing is active on this node
+      if (props.inlineEditing?.nodeId === nodeId) return;
+
+      touchNodeTarget.current = nodeId;
+      touchNodeDownPos.current = { clientX: e.clientX, clientY: e.clientY };
+      const capturedX = e.clientX;
+      const capturedY = e.clientY;
+
+      // Start long-press timer — fires drag mode after 300 ms of stillness
+      touchLongPressTimer.current = setTimeout(() => {
+        touchLongPressTimer.current = null;
+        const id = touchNodeTarget.current;
+        if (!id || !containerRef.current) return;
+        const n = nodesRef.current.find(nd => nd.id === id);
+        if (!n) return;
+        const vp = viewportRef.current;
+        const rect = containerRef.current.getBoundingClientRect();
+        const wp = clientToWorld(capturedX, capturedY, vp, rect);
+        const sel = nodesRef.current.filter(nd => nd.selected);
+        const isGroupDrag = sel.length > 1 && n.selected;
+        dragInfo.current = {
+          id: n.id,
+          start: wp,
+          origin: { ...n.position },
+          origins: isGroupDrag
+            ? sel.map(nd => ({ id: nd.id, origin: { ...nd.position } }))
+            : [{ id: n.id, origin: { ...n.position } }],
+          isGroupDrag,
+        };
+        touchDragging.current = true;
+        setDraggingNodeId(n.id);
+      }, 300);
+    } else {
+      // Background — prepare for pan
+      touchNodeTarget.current = null;
+      touchNodeDownPos.current = { clientX: e.clientX, clientY: e.clientY };
+      if (!props.disablePan) {
+        touchPanStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
+      }
+    }
+  };
+
+  const onCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+
+    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // ── Pinch zoom (2 fingers) ──
+    if (touchPinchStart.current && touchPointers.current.size >= 2) {
+      if (!containerRef.current || props.disableWheelZoom) return;
+      const pts = Array.from(touchPointers.current.values());
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+      const pinch = touchPinchStart.current;
+      const newZoom = Math.max(minZoom, Math.min(maxZoom, pinch.zoom * dist / pinch.dist));
+      const rect = containerRef.current.getBoundingClientRect();
+      // World coordinate that was under the initial pinch midpoint stays fixed,
+      // plus we account for any translation of the midpoint itself.
+      const midWorldX = (pinch.midX - rect.left - pinch.viewX) / pinch.zoom;
+      const midWorldY = (pinch.midY - rect.top - pinch.viewY) / pinch.zoom;
+      const newViewX = midX - rect.left - midWorldX * newZoom;
+      const newViewY = midY - rect.top - midWorldY * newZoom;
+      setViewport({ x: newViewX, y: newViewY, zoom: newZoom });
+      return;
+    }
+
+    // ── Long-press drag (after 300 ms timer fired) ──
+    if (touchDragging.current && dragInfo.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const vp = viewportRef.current;
+      const wp = clientToWorld(e.clientX, e.clientY, vp, rect);
+      const dx = wp.x - dragInfo.current.start.x;
+      const dy = wp.y - dragInfo.current.start.y;
+      if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
+        const updated = nodesRef.current.map(n => {
+          const o = dragInfo.current!.origins!.find(or => or.id === n.id);
+          return o ? { ...n, position: { x: o.origin.x + dx, y: o.origin.y + dy } } : n;
+        });
+        props.onNodesChange(updated);
+      } else {
+        const id = dragInfo.current.id;
+        const updated = nodesRef.current.map(n =>
+          n.id === id ? { ...n, position: { x: dragInfo.current!.origin.x + dx, y: dragInfo.current!.origin.y + dy } } : n
+        );
+        props.onNodesChange(updated);
+      }
+      return;
+    }
+
+    // ── Cancel long-press if finger moved too much before timer fired ──
+    if (touchLongPressTimer.current && touchNodeDownPos.current) {
+      const dx = e.clientX - touchNodeDownPos.current.clientX;
+      const dy = e.clientY - touchNodeDownPos.current.clientY;
+      if (Math.hypot(dx, dy) > TOUCH_MOVE_CANCEL_THRESHOLD) {
+        clearTimeout(touchLongPressTimer.current);
+        touchLongPressTimer.current = null;
+        touchNodeTarget.current = null;
+        // Transition to pan
+        if (!props.disablePan) {
+          const vp = viewportRef.current;
+          touchPanStart.current = { x: e.clientX - vp.x, y: e.clientY - vp.y };
+        }
+      }
+    }
+
+    // ── Single-finger pan ──
+    if (touchPanStart.current && !props.disablePan) {
+      const newX = e.clientX - touchPanStart.current.x;
+      const newY = e.clientY - touchPanStart.current.y;
+      setViewport({ ...viewportRef.current, x: newX, y: newY });
+    }
+  };
+
+  const onCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+
+    touchPointers.current.delete(e.pointerId);
+
+    // End pinch
+    if (touchPinchStart.current) {
+      if (touchPointers.current.size < 2) touchPinchStart.current = null;
+      return;
+    }
+
+    // End drag (long-press drag)
+    if (touchDragging.current) {
+      touchDragging.current = false;
+      dragInfo.current = null;
+      setSuppressEdgesDuringDrag(false);
+      cleanupManagerRef.current?.setTimeout(() => setDraggingNodeId(null), 75);
+      touchNodeTarget.current = null;
+      touchNodeDownPos.current = null;
+      touchPanStart.current = null;
+      return;
+    }
+
+    // End pan
+    touchPanStart.current = null;
+
+    // Long-press timer still running → this was a quick tap (no drag activated)
+    if (touchLongPressTimer.current) {
+      clearTimeout(touchLongPressTimer.current);
+      touchLongPressTimer.current = null;
+
+      const nodeId = touchNodeTarget.current;
+      const syntheticEvent = {
+        stopPropagation: () => {},
+        preventDefault: () => {},
+        clientX: e.clientX,
+        clientY: e.clientY,
+        shiftKey: false,
+      } as unknown as React.MouseEvent;
+
+      if (nodeId) {
+        const now = Date.now();
+        // Detect which part of the node was tapped (header vs body)
+        const part: 'header' | 'body' = (e.target as HTMLElement).closest('.title') ? 'header' : 'body';
+        const last = touchLastTap.current;
+        if (last && last.nodeId === nodeId && last.part === part && (now - last.time) < 350) {
+          // Double-tap → open inline editor
+          touchLastTap.current = null;
+          const n = nodesRef.current.find(nd => nd.id === nodeId);
+          if (n) props.onNodeDoubleClick?.(syntheticEvent, n, part);
+        } else {
+          // Single tap → select node
+          touchLastTap.current = { time: now, nodeId, part };
+          const updatedNodes = nodesRef.current.map(node => ({ ...node, selected: node.id === nodeId }));
+          props.onNodesChange(updatedNodes);
+          if (props.canvasObjects?.some(o => o.selected)) {
+            props.onCanvasObjectsChange?.((props.canvasObjects || []).map(o => ({ ...o, selected: false })));
+          }
+          const tappedNode = nodesRef.current.find(n => n.id === nodeId);
+          if (tappedNode) props.onNodeClick?.(syntheticEvent, tappedNode);
+        }
+      } else {
+        // Tap on background → deselect all
+        touchLastTap.current = null;
+        if (nodesRef.current.some(n => n.selected)) {
+          props.onNodesChange(nodesRef.current.map(n => ({ ...n, selected: false })));
+        }
+        if (props.canvasObjects?.some(o => o.selected)) {
+          props.onCanvasObjectsChange?.((props.canvasObjects || []).map(o => ({ ...o, selected: false })));
+        }
+        props.onCanvasClick?.();
+      }
+    }
+
+    touchNodeTarget.current = null;
+    touchNodeDownPos.current = null;
+  };
+
+  const onCanvasPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    touchPointers.current.delete(e.pointerId);
+    if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
+    touchDragging.current = false;
+    dragInfo.current = null;
+    touchPanStart.current = null;
+    touchPinchStart.current = null;
+    touchNodeTarget.current = null;
+    touchNodeDownPos.current = null;
+  };
+  // ===== END TOUCH HANDLERS =====
 
   // Function to start unified selection - can be called from anywhere
   const startUnifiedSelection = (clientX: number, clientY: number) => {
@@ -3459,6 +3718,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         onMouseDown={onBackgroundDown}
         onMouseMove={onBackgroundMove}
         onMouseUp={onBackgroundUp}
+        onPointerDown={onCanvasPointerDown}
+        onPointerMove={onCanvasPointerMove}
+        onPointerUp={onCanvasPointerUp}
+        onPointerCancel={onCanvasPointerCancel}
         onClick={(e) => {
           // Don't trigger canvas click if we just finished unified selection
           if (
