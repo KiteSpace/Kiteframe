@@ -617,9 +617,9 @@ export default function LandingPage() {
               <ul className="space-y-3.5">
                 {[
                   "Generate workflows from text descriptions",
-                  "Import and analyze Figma designs",
                   "Auto-generate PRDs from workflows",
-                  "Privacy-first with local AI options",
+                  "Test Flight for workflow diagnostics",
+                  "Explore fail edge cases with AI",
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-gray-600 text-sm">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
