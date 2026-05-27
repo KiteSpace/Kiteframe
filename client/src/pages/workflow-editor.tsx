@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileViewBar } from "@/components/MobileViewBar";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import "../lib/export/printStyles.css";
@@ -423,6 +425,8 @@ function WorkflowEditorContent({
   onReset,
 }: WorkflowEditorContentProps) {
   const isReadOnly = mode === "view";
+  const isMobileViewOnly = useIsMobile();
+  const effectiveReadOnly = isReadOnly || isMobileViewOnly;
   const { toast } = useToast();
   const promptContextStore = usePromptContextStoreOptional();
   
@@ -2394,6 +2398,28 @@ function WorkflowEditorContent({
     },
     [activeTabId, setTabs],
   );
+
+  // Fit-view callback used by MobileViewBar
+  const handleFitView = useCallback(() => {
+    if (nodes.length === 0) {
+      setViewport({ x: 0, y: 0, zoom: 1 });
+      return;
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach((node) => {
+      const w = (node.style?.width ?? node.width ?? 200) as number;
+      const h = (node.style?.height ?? node.height ?? 100) as number;
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + w);
+      maxY = Math.max(maxY, node.position.y + h);
+    });
+    const padding = 80;
+    const cw = window.innerWidth;
+    const ch = window.innerHeight;
+    const zoom = Math.max(0.1, Math.min(1.5, Math.min(cw / (maxX - minX + padding * 2), ch / (maxY - minY + padding * 2))));
+    setViewport({ x: cw / 2 - ((minX + maxX) / 2) * zoom, y: ch / 2 - ((minY + maxY) / 2) * zoom, zoom });
+  }, [nodes, setViewport]);
 
   // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
   useEffect(() => {
@@ -7218,7 +7244,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
-            <div
+            {!isMobileViewOnly && <div
               className={`${isSidebarCollapsed ? "w-0" : "w-64"} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? "overflow-visible" : "overflow-hidden"}`}
             >
               {isSidebarCollapsed ? (
@@ -9232,7 +9258,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                 />
               )}
-            </div>
+            </div>}
 
             {/* Canvas Area */}
             <div
@@ -11741,7 +11767,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   />
 
                   {/* Sketch floating bar */}
-                  {isSketchMode && (
+                  {isSketchMode && !isMobileViewOnly && (
                     <SketchFloatingBar
                       tool={sketchTool}
                       color={sketchColor}
@@ -12145,10 +12171,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   onCreateTemplate={handleCreateTemplateFromCanvas}
                 />
               )}
+
+              {/* Mobile view-only floating bar */}
+              {isMobileViewOnly && <MobileViewBar onFitView={handleFitView} />}
             </div>
 
             {/* Project Panel - docked right side */}
-            {openTabs.length > 0 && (
+            {openTabs.length > 0 && !isMobileViewOnly && (
               <ProjectPanel
                 nodes={nodes}
                 edges={edges}
@@ -13862,7 +13891,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         />
       )}
 
-      {contextMenu && (
+      {contextMenu && !isMobileViewOnly && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -14208,7 +14237,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Linear Toolbar for Node/Edge Styling */}
-      {linearToolbar && (
+      {linearToolbar && !isMobileViewOnly && (
         <LinearToolbar
           key={`toolbar-${linearToolbar.node?.id || linearToolbar.edge?.id || linearToolbar.canvasObject?.id}-${linearToolbar.editingHyperlinkId || ""}-${linearToolbar.initialSubmenu || ""}`}
           isOpen={true}
