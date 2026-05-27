@@ -1454,10 +1454,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     viewX: number; viewY: number; zoom: number;
   } | null>(null);
   const touchNodeTarget = useRef<string | null>(null); // nodeId being long-pressed
+  const touchCanvasObjTarget = useRef<string | null>(null); // canvasObjectId being tapped
   const touchNodeDownPos = useRef<{ clientX: number; clientY: number } | null>(null);
   const touchDragging = useRef(false); // long-press fired → dragging active
   const touchLastTap = useRef<{
-    time: number; nodeId: string | null; part: 'header' | 'body' | null;
+    time: number; nodeId: string | null; canvasObjId: string | null; part: 'header' | 'body' | null;
   } | null>(null);
 
   // Unified Selection State (works for both nodes and canvas objects)
@@ -2226,8 +2227,56 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   // unchanged and continue to serve mouse/trackpad input.
   const TOUCH_MOVE_CANCEL_THRESHOLD = 8; // px — if finger moves this much before long-press fires, cancel it
 
+  /**
+   * Position-based node hit test. Used as a fallback when `[data-node-id]` is not
+   * present in the DOM ancestry (special node types: text, sticky, shape, image,
+   * webview, form, compound, code, experiment, render).
+   */
+  const hitTestNodeAtPoint = (clientX: number, clientY: number): string | null => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const vp = viewportRef.current;
+    const wx = (clientX - rect.left - vp.x) / vp.zoom;
+    const wy = (clientY - rect.top - vp.y) / vp.zoom;
+    let best: { id: string; z: number } | null = null;
+    for (const n of nodesRef.current) {
+      const w = Number((n.style?.width as unknown) || n.width || 200);
+      const h = Number((n.style?.height as unknown) || n.height || 100);
+      if (wx >= n.position.x && wx <= n.position.x + w &&
+          wy >= n.position.y && wy <= n.position.y + h) {
+        const z = n.zIndex ?? 0;
+        if (!best || z >= best.z) best = { id: n.id, z };
+      }
+    }
+    return best?.id ?? null;
+  };
+
+  /**
+   * Position-based canvas object hit test. Finds the topmost canvas object
+   * under a client-space touch point.
+   */
+  const hitTestCanvasObjAtPoint = (clientX: number, clientY: number): string | null => {
+    if (!containerRef.current || !props.canvasObjects?.length) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const vp = viewportRef.current;
+    const wx = (clientX - rect.left - vp.x) / vp.zoom;
+    const wy = (clientY - rect.top - vp.y) / vp.zoom;
+    let best: { id: string; z: number } | null = null;
+    for (const obj of props.canvasObjects) {
+      const w = Number((obj.style?.width as unknown) || obj.width || 200);
+      const h = Number((obj.style?.height as unknown) || obj.height || 150);
+      if (wx >= obj.position.x && wx <= obj.position.x + w &&
+          wy >= obj.position.y && wy <= obj.position.y + h) {
+        const z = obj.zIndex ?? 0;
+        if (!best || z >= best.z) best = { id: obj.id, z };
+      }
+    }
+    return best?.id ?? null;
+  };
+
   const onCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
+    if (!enableTouchGestures) return;
 
     // Capture so move/up events fire even when finger leaves the element
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) {}
@@ -2241,6 +2290,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       if (touchDragging.current) { dragInfo.current = null; touchDragging.current = false; setSuppressEdgesDuringDrag(false); setDraggingNodeId(null); }
       touchPanStart.current = null;
       touchNodeTarget.current = null;
+      touchCanvasObjTarget.current = null;
       touchNodeDownPos.current = null;
       const pts = Array.from(touchPointers.current.values());
       const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
@@ -2253,14 +2303,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
 
-    // Single finger — determine target (node vs background)
+    // Single finger — determine target using DOM first, then position fallback
+    // Step 1: DOM traversal (works for regular nodes and TableNode)
     const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null;
-    if (nodeEl && !props.readOnly) {
-      const nodeId = nodeEl.getAttribute('data-node-id')!;
-      // Don't start drag when inline editing is active on this node
-      if (props.inlineEditing?.nodeId === nodeId) return;
+    let resolvedNodeId = nodeEl?.getAttribute('data-node-id') ?? null;
 
-      touchNodeTarget.current = nodeId;
+    // Step 2: Position-based fallback for special node types that lack [data-node-id]
+    if (!resolvedNodeId) {
+      resolvedNodeId = hitTestNodeAtPoint(e.clientX, e.clientY);
+    }
+
+    // Step 3: Check canvas objects if still no node hit
+    if (!resolvedNodeId) {
+      touchCanvasObjTarget.current = hitTestCanvasObjAtPoint(e.clientX, e.clientY);
+    } else {
+      touchCanvasObjTarget.current = null;
+    }
+
+    if (resolvedNodeId && !props.readOnly) {
+      // Don't start drag when inline editing is active on this node
+      if (props.inlineEditing?.nodeId === resolvedNodeId) return;
+
+      touchNodeTarget.current = resolvedNodeId;
       touchNodeDownPos.current = { clientX: e.clientX, clientY: e.clientY };
       const capturedX = e.clientX;
       const capturedY = e.clientY;
@@ -2289,18 +2353,23 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         touchDragging.current = true;
         setDraggingNodeId(n.id);
       }, 300);
-    } else {
+    } else if (!touchCanvasObjTarget.current) {
       // Background — prepare for pan
       touchNodeTarget.current = null;
       touchNodeDownPos.current = { clientX: e.clientX, clientY: e.clientY };
       if (!props.disablePan) {
         touchPanStart.current = { x: e.clientX - viewport.x, y: e.clientY - viewport.y };
       }
+    } else {
+      // Canvas object tapped — no long-press drag for canvas objects; just track for tap
+      touchNodeTarget.current = null;
+      touchNodeDownPos.current = { clientX: e.clientX, clientY: e.clientY };
     }
   };
 
   const onCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
+    if (!enableTouchGestures) return;
 
     touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -2355,6 +2424,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         clearTimeout(touchLongPressTimer.current);
         touchLongPressTimer.current = null;
         touchNodeTarget.current = null;
+        touchCanvasObjTarget.current = null;
         // Transition to pan
         if (!props.disablePan) {
           const vp = viewportRef.current;
@@ -2373,6 +2443,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
   const onCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
+    if (!enableTouchGestures) return;
 
     touchPointers.current.delete(e.pointerId);
 
@@ -2389,6 +2460,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       setSuppressEdgesDuringDrag(false);
       cleanupManagerRef.current?.setTimeout(() => setDraggingNodeId(null), 75);
       touchNodeTarget.current = null;
+      touchCanvasObjTarget.current = null;
       touchNodeDownPos.current = null;
       touchPanStart.current = null;
       return;
@@ -2403,6 +2475,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       touchLongPressTimer.current = null;
 
       const nodeId = touchNodeTarget.current;
+      const canvasObjId = touchCanvasObjTarget.current;
       const syntheticEvent = {
         stopPropagation: () => {},
         preventDefault: () => {},
@@ -2423,7 +2496,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           if (n) props.onNodeDoubleClick?.(syntheticEvent, n, part);
         } else {
           // Single tap → select node
-          touchLastTap.current = { time: now, nodeId, part };
+          touchLastTap.current = { time: now, nodeId, canvasObjId: null, part };
           const updatedNodes = nodesRef.current.map(node => ({ ...node, selected: node.id === nodeId }));
           props.onNodesChange(updatedNodes);
           if (props.canvasObjects?.some(o => o.selected)) {
@@ -2431,6 +2504,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           }
           const tappedNode = nodesRef.current.find(n => n.id === nodeId);
           if (tappedNode) props.onNodeClick?.(syntheticEvent, tappedNode);
+        }
+      } else if (canvasObjId) {
+        // Canvas object tapped
+        const now = Date.now();
+        const last = touchLastTap.current;
+        const tappedObj = props.canvasObjects?.find(o => o.id === canvasObjId);
+        if (tappedObj) {
+          if (last && last.canvasObjId === canvasObjId && (now - last.time) < 350) {
+            // Double-tap on canvas object → trigger inline editing (e.g. text objects)
+            touchLastTap.current = null;
+            props.onCanvasObjectDoubleClick?.(syntheticEvent, tappedObj);
+          } else {
+            // Single tap → select canvas object
+            touchLastTap.current = { time: now, nodeId: null, canvasObjId, part: null };
+            if (nodesRef.current.some(n => n.selected)) {
+              props.onNodesChange(nodesRef.current.map(n => ({ ...n, selected: false })));
+            }
+            props.onCanvasObjectsChange?.((props.canvasObjects || []).map(o => ({
+              ...o, selected: o.id === canvasObjId,
+            })));
+            props.onCanvasObjectClick?.(syntheticEvent, tappedObj);
+          }
         }
       } else {
         // Tap on background → deselect all
@@ -2446,11 +2541,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     }
 
     touchNodeTarget.current = null;
+    touchCanvasObjTarget.current = null;
     touchNodeDownPos.current = null;
   };
 
   const onCanvasPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
+    if (!enableTouchGestures) return;
     touchPointers.current.delete(e.pointerId);
     if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
     touchDragging.current = false;
@@ -2458,6 +2555,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     touchPanStart.current = null;
     touchPinchStart.current = null;
     touchNodeTarget.current = null;
+    touchCanvasObjTarget.current = null;
     touchNodeDownPos.current = null;
   };
   // ===== END TOUCH HANDLERS =====
