@@ -621,10 +621,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── WAITLIST / CREATE ACCOUNT ── */}
-      <section id="waitlist-section" className="bg-violet-700 py-24">
+      <section id="waitlist-section" className="bg-violet-50 py-24">
         <div className="max-w-lg mx-auto px-6 text-center">
           <h2
-            className="text-4xl font-bold text-white tracking-tight mb-8"
+            className="text-4xl font-bold text-violet-900 tracking-tight mb-8"
             data-testid="heading-waitlist"
           >
             Create an Account
@@ -634,13 +634,13 @@ export default function LandingPage() {
             <div data-testid="waitlist-container" className="space-y-3 mb-6">
               {providersLoading ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+                  <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
                 </div>
               ) : (
                 <>
                   {availableProviders.includes("google") && (
                     <button
-                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-violet-900 border border-violet-200 hover:border-violet-400 hover:bg-violet-100 transition-colors"
                       onClick={() => handleOAuthLogin("google")}
                       data-testid="button-waitlist-google"
                     >
@@ -650,7 +650,7 @@ export default function LandingPage() {
                   )}
                   {availableProviders.includes("github") && (
                     <button
-                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-violet-900 border border-violet-200 hover:border-violet-400 hover:bg-violet-100 transition-colors"
                       onClick={() => handleOAuthLogin("github")}
                       data-testid="button-waitlist-github"
                     >
@@ -660,7 +660,7 @@ export default function LandingPage() {
                   )}
                   {availableProviders.includes("replit") && (
                     <button
-                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-white border border-white/20 hover:border-white/40 hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl text-sm font-medium text-violet-900 border border-violet-200 hover:border-violet-400 hover:bg-violet-100 transition-colors"
                       onClick={() => handleOAuthLogin("replit")}
                       data-testid="button-waitlist-replit"
                     >
@@ -675,16 +675,16 @@ export default function LandingPage() {
 
           {isOnWaitlist && (
             <div
-              className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-8 text-center"
+              className="mb-6 rounded-2xl border border-violet-200 bg-white p-8 text-center"
               data-testid="waitlist-success"
             >
-              <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                <Check className="w-6 h-6 text-green-400" />
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <Check className="w-6 h-6 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">You're on the list!</h3>
-              <p className="text-white/50 mb-4">We'll notify you when your access is ready.</p>
+              <h3 className="text-lg font-semibold text-violet-900 mb-2">You're on the list!</h3>
+              <p className="text-violet-600 mb-4">We'll notify you when your access is ready.</p>
               <button
-                className="px-5 py-2 rounded-lg text-sm font-medium text-white border border-white/20 hover:border-white/40 transition-colors"
+                className="px-5 py-2 rounded-lg text-sm font-medium text-violet-900 border border-violet-200 hover:border-violet-400 transition-colors"
                 onClick={() => (window.location.href = "/waitlist")}
                 data-testid="button-view-waitlist-status"
               >
@@ -693,14 +693,14 @@ export default function LandingPage() {
             </div>
           )}
 
-          <p className="text-xs text-white/40 mb-2">Already have an account? Just sign in above.</p>
-          <p className="text-xs text-white/30 leading-relaxed">
+          <p className="text-xs text-violet-500 mb-2">Already have an account? Just sign in above.</p>
+          <p className="text-xs text-violet-400 leading-relaxed">
             By continuing, you acknowledge that you agree to Kiteframe's{" "}
-            <a href="/legal#terms" className="underline cursor-pointer hover:text-white/50 transition-colors" data-testid="link-waitlist-terms">
+            <a href="/legal#terms" className="underline cursor-pointer hover:text-violet-600 transition-colors" data-testid="link-waitlist-terms">
               Terms and Conditions
             </a>{" "}
             and{" "}
-            <a href="/legal#privacy" className="underline cursor-pointer hover:text-white/50 transition-colors" data-testid="link-waitlist-privacy">
+            <a href="/legal#privacy" className="underline cursor-pointer hover:text-violet-600 transition-colors" data-testid="link-waitlist-privacy">
               Privacy Policy
             </a>.
           </p>
