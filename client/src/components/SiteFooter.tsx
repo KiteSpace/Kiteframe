@@ -59,7 +59,7 @@ export function SiteFooter() {
   };
 
   return (
-    <footer className="border-t border-slate-200 dark:border-slate-800 py-12">
+    <footer className="border-t border-violet-100 dark:border-slate-800 bg-violet-50 dark:bg-background py-12">
       <div className="max-w-7xl mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-8">
           {/* Left side - Branding and links */}
@@ -147,7 +147,7 @@ export function SiteFooter() {
                   type="submit"
                   size="sm"
                   disabled={contactSubmitting}
-                  className="w-full"
+                  className="w-full bg-violet-600 hover:bg-violet-700 text-white"
                   data-testid="button-contact-submit"
                 >
                   {contactSubmitting ? (
