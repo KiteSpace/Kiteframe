@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -13,14 +14,22 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, icon, iconClassName, ...props }) {
         return (
           <Toast key={id} {...props}>
-            <div className="grid gap-1">
+            {icon && (
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                  iconClassName ?? "bg-violet-50"
+                )}
+              >
+                {icon}
+              </div>
+            )}
+            <div className="flex-1 min-w-0 grid gap-0.5">
               {title && <ToastTitle>{title}</ToastTitle>}
-              {description && (
-                <ToastDescription>{description}</ToastDescription>
-              )}
+              {description && <ToastDescription>{description}</ToastDescription>}
             </div>
             {action}
             <ToastClose />
