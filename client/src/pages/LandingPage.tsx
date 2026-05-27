@@ -616,10 +616,10 @@ export default function LandingPage() {
               </p>
               <ul className="space-y-3.5">
                 {[
-                  "Generate workflows from text descriptions",
+                  "Generate workflows from text descriptions and sketches",
                   "Auto-generate PRDs from workflows",
                   "Test Flight for workflow diagnostics",
-                  "Explore fail edge cases with AI",
+                  "Chat with KiteAI to refine and explore ideas",
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-gray-600 text-sm">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
