@@ -200,11 +200,6 @@ export default function LandingPage() {
 
             {/* Left: copy */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-100 text-violet-700 text-xs font-medium mb-6">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
-                AI-powered workflow editor
-              </div>
-
               <h1
                 className="text-[50px] leading-[1.08] font-extrabold text-gray-900 tracking-tight mb-5"
                 data-testid="text-hero-headline"
