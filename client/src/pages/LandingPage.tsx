@@ -23,6 +23,8 @@ import {
   Link2,
   Image as ImageIcon,
   Figma,
+  FlaskConical,
+  Pencil,
 } from "lucide-react";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useQuery } from "@tanstack/react-query";
@@ -505,7 +507,7 @@ export default function LandingPage() {
                   bg: "#eef2ff",
                   border: "#c7d2fe",
                   title: "Link Previews",
-                  sub: "Paste any URL to embed a live preview card with title, description, and favicon.",
+                  sub: "Add any URL to embed a live preview card with title, description, and favicon.",
                 },
                 {
                   icon: ImageIcon,
@@ -513,7 +515,7 @@ export default function LandingPage() {
                   bg: "#ecfeff",
                   border: "#a5f3fc",
                   title: "Images",
-                  sub: "Drop screenshots, mockups, or diagrams directly onto the canvas for context.",
+                  sub: "Add screenshots, mockups, or diagrams directly on the canvas for context.",
                 },
                 {
                   icon: Figma,
@@ -521,7 +523,23 @@ export default function LandingPage() {
                   bg: "#fff5f2",
                   border: "#fed7cc",
                   title: "Figma Import",
-                  sub: "Import Figma frames as image nodes or convert designs into full workflow graphs.",
+                  sub: "Import Figma frames as image nodes for easy reference.",
+                },
+                {
+                  icon: FlaskConical,
+                  iconColor: "#7c3aed",
+                  bg: "#f5f3ff",
+                  border: "#ddd6fe",
+                  title: "Experiment Nodes",
+                  sub: "Explore what-if branches and speculative paths without committing to your main flow.",
+                },
+                {
+                  icon: Pencil,
+                  iconColor: "#059669",
+                  bg: "#f0fdf4",
+                  border: "#a7f3d0",
+                  title: "Drawing",
+                  sub: "Sketch freehand annotations and shapes directly on the canvas.",
                 },
               ].map(({ icon: Icon, iconColor, bg, border, title, sub }) => (
                 <div
