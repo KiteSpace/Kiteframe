@@ -721,7 +721,11 @@ export async function setupAuth(app: Express) {
   });
 
   app.get('/api/auth/available-providers', (req, res) => {
-    const providers = ['replit'];
+    const isProductionDeployment = !!process.env.REPLIT_DEPLOYMENT;
+    const providers: string[] = [];
+    if (!isProductionDeployment) {
+      providers.push('replit');
+    }
     if (isGoogleEnabled) {
       providers.push('google');
     }
