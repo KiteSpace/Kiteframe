@@ -4418,6 +4418,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
+      // All mutation shortcuts are disabled in mobile read-only mode
+      if (effectiveReadOnly) return;
+
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
 
@@ -5009,6 +5012,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     canvasObjects,
     updateActiveTab,
     isSketchMode,
+    effectiveReadOnly,
   ]);
 
   // Track mouse position for quick create menu
@@ -11748,7 +11752,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   <SketchCanvas
                     key={activeTabId}
                     ref={sketchCanvasRef}
-                    isActive={isSketchMode}
+                    isActive={isSketchMode && !isMobileViewOnly}
                     tool={sketchTool}
                     color={sketchColor}
                     size={sketchSize}
@@ -15195,7 +15199,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Quick Create Radial Menu */}
-      {quickCreateMenu && (
+      {quickCreateMenu && !isMobileViewOnly && (
         <QuickCreateRadialMenu
           isOpen={true}
           position={quickCreateMenu.screenPosition}
