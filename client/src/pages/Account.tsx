@@ -141,7 +141,7 @@ export default function Account() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
       </div>
     );
@@ -149,7 +149,7 @@ export default function Account() {
 
   if (!authUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Sign in Required</CardTitle>
@@ -173,7 +173,7 @@ export default function Account() {
   const showManageButton = currentTier !== 'free' || (subscriptionData?.status === 'active' || isTrialing);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header with back button and logo */}
       <header className="h-16 px-4 py-2 flex items-center justify-between bg-card border-b border-border shadow-sm">
         <div className="flex items-center gap-4">

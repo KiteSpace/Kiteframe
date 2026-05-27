@@ -69,9 +69,6 @@ export default function WaitlistAuthenticated() {
   return (
     <div className="min-h-screen bg-background">
       <FullBleedSection className="min-h-[60vh]">
-        <div className="absolute inset-0 kiteframe-ambient-gradient opacity-50" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-
         <div className="relative z-10 py-20 flex flex-col items-center max-w-2xl mx-auto px-6">
           <div className="w-full bg-white dark:bg-card rounded-2xl shadow-xl border border-border/50 p-8">
             {alreadyOnWaitlist || isSubmitted ? (
