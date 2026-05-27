@@ -758,6 +758,9 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
       if (variant === 'hero') {
         const fitViewport = calculateFitViewport(HERO_NODES, rect.width, rect.height, 40);
         setViewport(fitViewport);
+      } else if (variant === 'features') {
+        const fitViewport = calculateFitViewport(FEATURE_NODES, rect.width, rect.height, 30);
+        setViewport(fitViewport);
       } else if (variant === 'objects') {
         const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, rect.width, rect.height, 30);
         setViewport(fitViewport);
@@ -774,7 +777,7 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
   }, [variant]);
 
   useEffect(() => {
-    if ((variant !== 'hero' && variant !== 'objects' && variant !== 'kiteframe-demo') || !containerRef.current) return;
+    if ((variant !== 'hero' && variant !== 'features' && variant !== 'objects' && variant !== 'kiteframe-demo') || !containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -782,6 +785,9 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
         if (width > 0 && height > 0) {
           if (variant === 'hero') {
             const fitViewport = calculateFitViewport(HERO_NODES, width, height, 40);
+            setViewport(fitViewport);
+          } else if (variant === 'features') {
+            const fitViewport = calculateFitViewport(FEATURE_NODES, width, height, 30);
             setViewport(fitViewport);
           } else if (variant === 'objects') {
             const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, width, height, 30);
