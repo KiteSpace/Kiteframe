@@ -257,7 +257,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
           <svg 
             width={screenW} 
             height={screenH} 
-            className="absolute top-0 left-0 overflow-visible pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+            className={`absolute top-0 left-0 overflow-visible pointer-events-none transition-opacity ${node.selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           >
             {(['top','bottom','left','right'] as const).map((p) => (
               <circle
@@ -265,6 +265,7 @@ export const NodeHandles: React.FC<NodeHandlesProps> = ({
                 cx={handlePositions[p].cx} 
                 cy={handlePositions[p].cy} 
                 r={handleRadius}
+                data-handle-pos={p}
                 className="pointer-events-auto cursor-crosshair"
                 fill="white" 
                 stroke="#3b82f6" 

@@ -2303,6 +2303,28 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
 
+    // ── Handle connector dot drag (edge creation via touch) ──
+    if (!props.readOnly) {
+      const handleEl = (e.target as Element).closest('[data-handle-pos]');
+      if (handleEl && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const vp = viewportRef.current;
+        const wp = clientToWorld(e.clientX, e.clientY, vp, rect);
+        // Find the source node via DOM traversal or position hit-test
+        const handleNodeEl = handleEl.closest('[data-node-id]') as HTMLElement | null;
+        const sourceId = handleNodeEl?.getAttribute('data-node-id') ?? hitTestNodeAtPoint(e.clientX, e.clientY);
+        if (sourceId) {
+          setConnecting({ sourceId, wx: wp.x, wy: wp.y, hoverTargetId: null, eligible: false });
+          // Prevent pan / long-press drag from also activating
+          touchNodeTarget.current = null;
+          touchNodeDownPos.current = null;
+          touchPanStart.current = null;
+          if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
+          return;
+        }
+      }
+    }
+
     // Single finger — determine target using DOM first, then position fallback
     // Step 1: DOM traversal (works for regular nodes and TableNode)
     const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null;
@@ -2372,6 +2394,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     if (!enableTouchGestures) return;
 
     touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // ── Touch edge connecting drag ──
+    if (connecting && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const vp = viewportRef.current;
+      const wpos = clientToWorld(e.clientX, e.clientY, vp, rect);
+      const target = findDroppableTarget(wpos.x, wpos.y);
+      let hoverTargetId: string | null = null;
+      let eligible = false;
+      if (target) {
+        hoverTargetId = target.id;
+        eligible = target.id !== connecting.sourceId && !edgeExists(connecting.sourceId, target.id);
+      }
+      setConnecting(c => c ? { ...c, wx: wpos.x, wy: wpos.y, hoverTargetId, eligible } : null);
+      return;
+    }
 
     // ── Pinch zoom (2 fingers) ──
     if (touchPinchStart.current && touchPointers.current.size >= 2) {
@@ -2446,6 +2484,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     if (!enableTouchGestures) return;
 
     touchPointers.current.delete(e.pointerId);
+
+    // ── Touch edge connecting completion ──
+    if (connecting) {
+      const syntheticEvent = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        shiftKey: false,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      } as unknown as React.MouseEvent;
+      onBackgroundUp(syntheticEvent);
+      touchNodeTarget.current = null;
+      touchNodeDownPos.current = null;
+      touchPanStart.current = null;
+      return;
+    }
 
     // End pinch
     if (touchPinchStart.current) {
