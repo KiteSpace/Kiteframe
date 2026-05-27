@@ -346,7 +346,7 @@ const FEATURE_NODES: Node[] = [
   {
     id: 'f1',
     type: 'input',
-    position: { x: 300, y: 250 },
+    position: { x: 0, y: 115 },
     data: {
       label: 'User Signs Up',
       description: 'New user creates account',
@@ -356,13 +356,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f2',
     type: 'process',
-    position: { x: 550, y: 250 },
+    position: { x: 120, y: 115 },
     data: {
       label: 'Welcome Screen',
       description: 'Show value prop and next steps',
@@ -372,13 +372,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f3',
     type: 'condition',
-    position: { x: 800, y: 250 },
+    position: { x: 240, y: 115 },
     data: {
       label: 'Account Type?',
       description: 'Free or Pro selection',
@@ -388,13 +388,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f4',
     type: 'process',
-    position: { x: 1050, y: 150 },
+    position: { x: 360, y: 50 },
     data: {
       label: 'Pro Upgrade Flow',
       description: 'Show pricing, features, payment',
@@ -404,13 +404,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f5',
     type: 'process',
-    position: { x: 1050, y: 350 },
+    position: { x: 360, y: 180 },
     data: {
       label: 'Skip to Free',
       description: 'Continue with free tier',
@@ -420,13 +420,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f6',
     type: 'process',
-    position: { x: 1300, y: 250 },
+    position: { x: 480, y: 115 },
     data: {
       label: 'Project Setup',
       description: 'Create first project screen',
@@ -436,13 +436,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f7',
     type: 'input',
-    position: { x: 1550, y: 250 },
+    position: { x: 600, y: 115 },
     data: {
       label: 'Project Details',
       description: 'Name, description, template selection',
@@ -452,13 +452,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f8',
     type: 'ai',
-    position: { x: 1800, y: 250 },
+    position: { x: 720, y: 115 },
     data: {
       label: 'AI Canvas Setup',
       description: 'Generate initial workflow nodes',
@@ -468,13 +468,13 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
   {
     id: 'f9',
     type: 'output',
-    position: { x: 2050, y: 250 },
+    position: { x: 840, y: 115 },
     data: {
       label: 'Canvas Ready',
       description: 'User lands in working canvas',
@@ -484,8 +484,8 @@ const FEATURE_NODES: Node[] = [
     draggable: false,
     selectable: false,
     doubleClickable: false,
-    width: 200,
-    height: 100,
+    width: 105,
+    height: 50,
   },
 ];
 
@@ -758,9 +758,6 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
       if (variant === 'hero') {
         const fitViewport = calculateFitViewport(HERO_NODES, rect.width, rect.height, 40);
         setViewport(fitViewport);
-      } else if (variant === 'features') {
-        const fitViewport = calculateFitViewport(FEATURE_NODES, rect.width, rect.height, 30);
-        setViewport(fitViewport);
       } else if (variant === 'objects') {
         const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, rect.width, rect.height, 30);
         setViewport(fitViewport);
@@ -777,7 +774,7 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
   }, [variant]);
 
   useEffect(() => {
-    if ((variant !== 'hero' && variant !== 'features' && variant !== 'objects' && variant !== 'kiteframe-demo') || !containerRef.current) return;
+    if ((variant !== 'hero' && variant !== 'objects' && variant !== 'kiteframe-demo') || !containerRef.current) return;
     
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -785,9 +782,6 @@ export default function LandingPreviewCanvas({ variant = 'hero' }: LandingPrevie
         if (width > 0 && height > 0) {
           if (variant === 'hero') {
             const fitViewport = calculateFitViewport(HERO_NODES, width, height, 40);
-            setViewport(fitViewport);
-          } else if (variant === 'features') {
-            const fitViewport = calculateFitViewport(FEATURE_NODES, width, height, 30);
             setViewport(fitViewport);
           } else if (variant === 'objects') {
             const fitViewport = calculateFitViewportForObjects(OBJECTS_DATA, width, height, 30);
