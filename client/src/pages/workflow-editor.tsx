@@ -5263,6 +5263,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [copiedCanvasObjectProperties, setCopiedCanvasObjectProperties] =
     useState<{ data?: any; style?: any } | null>(null);
 
+  // Clear transient edit state when switching to mobile view-only mode
+  useEffect(() => {
+    if (isMobileViewOnly) {
+      setInlineEditing(null);
+      setLinearToolbar(null);
+      setContextMenu(null);
+      setQuickCreateMenu(null);
+      setSketchSelection(null);
+    }
+  }, [isMobileViewOnly]);
+
   // Phase 5: REPLACE confirmation state for full-graph detection
   // Stores all context needed to replay the mutation through the same success path
   const [pendingReplaceConfirmation, setPendingReplaceConfirmation] = useState<{
@@ -10262,7 +10273,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         setSelectedEdgeId("");
                       }
                     }}
-                    inlineEditing={inlineEditing}
+                    inlineEditing={isMobileViewOnly ? null : inlineEditing}
                     onInlineEditingSave={(
                       nodeId: string,
                       part: "header" | "body",
@@ -11810,7 +11821,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )}
 
                   {/* Sketch selection popover */}
-                  {isSketchMode && sketchSelection && (
+                  {isSketchMode && sketchSelection && !isMobileViewOnly && (
                     <div
                       className="absolute z-[65] pointer-events-auto bg-background border border-border rounded-xl shadow-2xl px-3 py-2 flex items-center gap-2"
                       style={{
