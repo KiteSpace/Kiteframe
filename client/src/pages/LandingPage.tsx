@@ -126,7 +126,7 @@ export default function LandingPage() {
 
       {/* ── NAV ── */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between bg-[#ffffff]">
           <div className="flex items-center gap-2.5">
             <span className="text-[17px] font-bold text-gray-900 tracking-tight" data-testid="text-logo">
               Kiteframe
