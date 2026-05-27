@@ -525,9 +525,6 @@ export function HomeScreen({
     <>
     {CursorTooltip}
     <div className="flex-1 overflow-auto bg-background relative">
-      <div className="dark:hidden">
-        <GradientOrbs />
-      </div>
       <div className="relative z-10 max-w-5xl mx-auto px-6 pb-8">
         {/* Zero Credits Warning Banner */}
         {showZeroCreditsWarning && (

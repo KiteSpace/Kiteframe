@@ -6,6 +6,7 @@ import { SiGoogle, SiGithub } from 'react-icons/si';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getQueryFn } from '@/lib/queryClient';
+import { GradientOrbs } from '@/components/landing/GradientOrbs';
 
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
 
@@ -58,7 +59,8 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen relative bg-white dark:bg-slate-950">
+    <div className="min-h-screen relative overflow-hidden bg-white dark:bg-slate-950">
+      <GradientOrbs />
       <Suspense fallback={null}>
         <FloatingShapes />
       </Suspense>
