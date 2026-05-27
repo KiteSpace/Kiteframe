@@ -445,7 +445,7 @@ export function Sleek() {
                 start. No setup required. Just open and start building your workflows.
               </p>
             </div>
-            <ul className="space-y-3.5 pt-1 lg:pt-16">
+            <ul className="space-y-3.5">
               {[
                 "Intuitive drag-and-drop interface",
                 "Smooth zoom and pan controls",
