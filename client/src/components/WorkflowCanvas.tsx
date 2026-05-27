@@ -78,6 +78,7 @@ interface WorkflowCanvasProps {
   onRefreshFigma?: (nodeId: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
   isSketchMode?: boolean;
+  isReadOnly?: boolean;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
   onExperimentAdoptBranch?: (nodeId: string) => void;
   onExperimentDiscardBranch?: (nodeId: string) => void;
@@ -163,6 +164,7 @@ export function WorkflowCanvas({
   onRefreshFigma,
   isFigmaAuthenticated,
   isSketchMode,
+  isReadOnly,
   onExperimentGenerateBranch,
   onExperimentAdoptBranch,
   onExperimentDiscardBranch,
@@ -237,6 +239,7 @@ export function WorkflowCanvas({
   }, [hidden]);
   
   const onNodesChangeGuarded = useCallback((newNodes: Node[]) => {
+    if (isReadOnly) return;
     // Guard against position changes and deletions for locked nodes
     // KiteFrameCanvas sends full Node[] arrays, not change objects
     
@@ -273,42 +276,48 @@ export function WorkflowCanvas({
     }
     
     onNodesChange?.(finalNodes);
-  }, [onNodesChange, nodes, locked]);
+  }, [onNodesChange, nodes, locked, isReadOnly]);
   const onConnectGuarded = useCallback((conn:any)=>{
+    if (isReadOnly) return;
     if (isLocked(conn.source) || isLocked(conn.target)) return;
     onConnect?.(conn);
-  }, [onConnect, locked]);
+  }, [onConnect, locked, isReadOnly]);
   
   // Guard node double-click (inline editing) for locked nodes
   const onNodeDoubleClickGuarded = useCallback((e: React.MouseEvent, node: Node, part?: 'header' | 'body') => {
+    if (isReadOnly) return;
     if (isLocked(node.id)) return;
     onNodeDoubleClick?.(e, node, part);
-  }, [onNodeDoubleClick, locked]);
+  }, [onNodeDoubleClick, locked, isReadOnly]);
   
   // Guard node right-click (context menu) for locked nodes
   const onNodeRightClickGuarded = useCallback((e: React.MouseEvent, node: Node) => {
+    if (isReadOnly) { e.preventDefault(); return; }
     if (isLocked(node.id)) {
       e.preventDefault();
       return;
     }
     onNodeRightClick?.(e, node);
-  }, [onNodeRightClick, locked]);
+  }, [onNodeRightClick, locked, isReadOnly]);
   
   // Guard edge double-click (label editing) for locked edges
   const onEdgeDoubleClickGuarded = useCallback((edge: Edge) => {
+    if (isReadOnly) return;
     if (isLocked(edge.source) || isLocked(edge.target)) return;
     onEdgeDoubleClick?.(edge);
-  }, [onEdgeDoubleClick, locked]);
+  }, [onEdgeDoubleClick, locked, isReadOnly]);
   
   // Guard edge label save for locked edges
   const onEdgeLabelSaveGuarded = useCallback((edgeId: string, newLabel: string) => {
+    if (isReadOnly) return;
     const edge = edges.find(e => e.id === edgeId);
     if (edge && (isLocked(edge.source) || isLocked(edge.target))) return;
     onEdgeLabelSave?.(edgeId, newLabel);
-  }, [onEdgeLabelSave, edges, locked]);
+  }, [onEdgeLabelSave, edges, locked, isReadOnly]);
   
   // Guard edges change for locked edges
   const onEdgesChangeGuarded = useCallback((newEdges: Edge[]) => {
+    if (isReadOnly) return;
     // Prevent deletion of edges connected to locked nodes
     const currentEdgeIds = new Set(edges.map(e => e.id));
     const newEdgeIds = new Set(newEdges.map(e => e.id));
@@ -324,13 +333,14 @@ export function WorkflowCanvas({
     } else {
       onEdgesChange?.(newEdges);
     }
-  }, [onEdgesChange, edges, locked]);
+  }, [onEdgesChange, edges, locked, isReadOnly]);
   
   // Guard inline editing save for locked nodes
   const onInlineEditingSaveGuarded = useCallback((nodeId: string, part: 'header' | 'body', value: string) => {
+    if (isReadOnly) return;
     if (isLocked(nodeId)) return;
     onInlineEditingSave?.(nodeId, part, value);
-  }, [onInlineEditingSave, locked]);
+  }, [onInlineEditingSave, locked, isReadOnly]);
 
   // Canvas container ref for accurate dimensions
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -636,8 +646,8 @@ export function WorkflowCanvas({
         data-testid="workflow-canvas"
       />
 
-      {/* Floating Toolbar — hidden during sketch mode */}
-      {!isSketchMode && (
+      {/* Floating Toolbar — hidden during sketch mode and read-only mode */}
+      {!isSketchMode && !isReadOnly && (
         <FloatingToolbar
           onUndo={onUndo}
           onRedo={onRedo}
