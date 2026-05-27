@@ -393,20 +393,23 @@ export default function LandingPage() {
 
       {/* ── SECTION A: Ready out-of-the-box ── */}
       <section id="features-section" className="max-w-7xl mx-auto px-6 py-24">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Canvas</p>
-            <h2
-              className="text-4xl font-bold text-gray-900 tracking-tight mb-4 leading-tight"
-              data-testid="heading-section-a"
-            >
-              Ready out-of-the-box
-            </h2>
-            <p className="text-lg text-gray-500 mb-8 leading-relaxed">
-              Drag, zoom, pan, select multiple nodes — everything works from the
-              start. No setup required. Just open and start building your workflows.
-            </p>
-            <ul className="space-y-3.5">
+        <div className="flex flex-col gap-12">
+          {/* Top row: copy left, checklist right */}
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
+            <div>
+              <p className="text-xs font-semibold tracking-widest text-violet-600 uppercase mb-3">Canvas</p>
+              <h2
+                className="text-4xl font-bold text-gray-900 tracking-tight mb-4 leading-tight"
+                data-testid="heading-section-a"
+              >
+                Ready out-of-the-box
+              </h2>
+              <p className="text-lg text-gray-500 leading-relaxed">
+                Drag, zoom, pan, select multiple nodes — everything works from the
+                start. No setup required. Just open and start building your workflows.
+              </p>
+            </div>
+            <ul className="space-y-3.5 pt-1 lg:pt-16">
               {[
                 "Intuitive drag-and-drop interface",
                 "Smooth zoom and pan controls",
@@ -422,9 +425,10 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          {/* Features canvas in window chrome */}
+
+          {/* Bottom row: full-width canvas demo in window chrome */}
           <div
-            className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg"
+            className="rounded-2xl overflow-hidden border border-gray-200 shadow-lg w-full"
             data-testid="img-workflow-example"
           >
             <div className="bg-[#f1f2f4] px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
@@ -437,7 +441,7 @@ export default function LandingPage() {
             </div>
             <LazyCanvasLoader
               variant="features"
-              className="h-[280px] w-full bg-white"
+              className="h-[440px] w-full bg-white"
             />
           </div>
         </div>
