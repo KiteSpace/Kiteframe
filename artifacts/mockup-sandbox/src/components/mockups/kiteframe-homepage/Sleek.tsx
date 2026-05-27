@@ -386,7 +386,7 @@ export function Sleek() {
                     <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                     <div className="w-3 h-3 rounded-full bg-[#28c840]" />
                   </div>
-                  <span className="text-xs text-gray-400 ml-2">Untitled Workflow · Kiteframe</span>
+                  <span className="text-xs text-gray-400 ml-2">Max Altitude · Kiteframe</span>
                 </div>
                 <div style={{ height: 310 }}>
                   <HeroWorkflow />

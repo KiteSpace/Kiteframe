@@ -336,7 +336,7 @@ export default function LandingPage() {
                     <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                     <div className="w-3 h-3 rounded-full bg-[#28c840]" />
                   </div>
-                  <span className="text-xs text-gray-400 ml-2">Untitled Workflow · Kiteframe</span>
+                  <span className="text-xs text-gray-400 ml-2">Max Altitude · Kiteframe</span>
                 </div>
                 <LazyCanvasLoader
                   variant="hero"
@@ -433,7 +433,7 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                 <div className="w-3 h-3 rounded-full bg-[#28c840]" />
               </div>
-              <span className="text-xs text-gray-400 ml-2">Input Validation · Kiteframe</span>
+              <span className="text-xs text-gray-400 ml-2">Elevating Your Workflows · Kiteframe</span>
             </div>
             <LazyCanvasLoader
               variant="features"
