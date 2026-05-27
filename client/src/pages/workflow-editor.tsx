@@ -9274,6 +9274,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     canvasObjects={canvasObjects}
                     viewport={viewport}
                     isSketchMode={isSketchMode}
+                    isReadOnly={effectiveReadOnly}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
                       updateActiveTab({ canvasObjects: newCanvasObjects });
