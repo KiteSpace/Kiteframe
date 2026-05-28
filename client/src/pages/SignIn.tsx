@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Redirect, Link } from 'wouter';
 import { Loader2, ArrowLeft } from 'lucide-react';
@@ -7,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getQueryFn } from '@/lib/queryClient';
 import { GradientOrbs } from '@/components/landing/GradientOrbs';
-
-const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
 
 interface AuthUser {
   id: string;
@@ -61,9 +58,6 @@ export default function SignIn() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-white dark:bg-slate-950">
       <GradientOrbs />
-      <Suspense fallback={null}>
-        <FloatingShapes />
-      </Suspense>
 
       <div className="relative z-10 min-h-screen flex flex-col">
         <header className="flex items-center justify-between px-8 py-6 max-w-7xl mx-auto w-full">
