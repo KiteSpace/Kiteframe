@@ -1,21 +1,24 @@
 import { buildLinkGroups } from './linkGroups';
 
-export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone';
+export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone'|'markup';
 export interface LayerGroupBase { id:string; name:string; role:LayerRole; childIds:string[]; badges?:string[]; }
 export interface LayerLeaf { 
   id:string; 
-  role:'node'|'edge'; 
+  role:'node'|'edge'|'stroke'; 
   label:string; 
   parentId:string;
   isDecision?: boolean;
   branchDepth?: number;
   outgoingEdgeCount?: number;
+  strokeColor?: string;
+  strokeTool?: 'pen' | 'eraser';
 }
 export type LayerTree = { groups:Record<string,LayerGroupBase>; leaves:Record<string,LayerLeaf>; roots:string[]; };
 
 export function buildMultiViewTrees(
   nodes:any[], edges:any[], frames:any[],
-  workerResult:{ nodeToWorkflow:Record<string,string>, level:Record<string,number>, cycles:string[], rows:[number,string[]][] }
+  workerResult:{ nodeToWorkflow:Record<string,string>, level:Record<string,number>, cycles:string[], rows:[number,string[]][] },
+  sketchStrokes:any[] = []
 ): LayerTree {
   const groups: Record<string,LayerGroupBase> = {};
   const leaves: Record<string,LayerLeaf> = {};
@@ -196,6 +199,31 @@ export function buildMultiViewTrees(
     groups[gid]={ id:gid, name:`Row Y=${rowIdx}`, role:'spatialGroup', childIds:[...ids] };
     ids.forEach((id:string)=>{ if(!leaves[id]) leaves[id]={ id, role:'node', label:getNodeLabel(id), parentId:gid }; });
   });
+
+  // Markup group: drawn sketch strokes (pen/eraser annotations on the canvas)
+  if (sketchStrokes && sketchStrokes.length > 0) {
+    const markupId = 'markup';
+    groups['structureRoot'].childIds.push(markupId);
+    groups[markupId] = {
+      id: markupId,
+      name: 'Markup',
+      role: 'markup',
+      childIds: [],
+    };
+    sketchStrokes.forEach((stroke: any, idx: number) => {
+      const sid = `stroke:${idx}`;
+      const toolLabel = stroke?.tool === 'eraser' ? 'Eraser' : 'Pen';
+      leaves[sid] = {
+        id: sid,
+        role: 'stroke',
+        label: `${toolLabel} stroke ${idx + 1}`,
+        parentId: markupId,
+        strokeColor: stroke?.color,
+        strokeTool: stroke?.tool,
+      };
+      groups[markupId].childIds.push(sid);
+    });
+  }
 
   groups['linksRoot'] = { id:'linksRoot', name:'Links', role:'root', childIds:[] };
   const linkGroups = buildLinkGroups(edges, workerResult.nodeToWorkflow);

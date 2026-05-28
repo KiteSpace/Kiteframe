@@ -10,6 +10,7 @@ import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import type { SketchStroke } from '@/components/SketchCanvas';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
 
@@ -23,6 +24,7 @@ interface ProjectPanelProps {
   edges: Edge[];
   frames?: any[];
   canvasObjects?: CanvasObject[];
+  sketchStrokes?: SketchStroke[];
   projectId?: string;
   projectName?: string;
   onProjectNameChange?: (name: string) => void;
@@ -73,6 +75,7 @@ export function ProjectPanel({
   edges, 
   frames, 
   canvasObjects = [], 
+  sketchStrokes,
   projectId,
   projectName,
   onProjectNameChange,
@@ -355,6 +358,7 @@ export function ProjectPanel({
             edges={edges} 
             frames={frames}
             canvasObjects={canvasObjects}
+            sketchStrokes={sketchStrokes}
             projectId={projectId}
             isReadOnly={isReadOnly}
           />

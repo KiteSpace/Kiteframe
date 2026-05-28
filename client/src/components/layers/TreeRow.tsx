@@ -2,7 +2,7 @@ import * as React from 'react';
 import { 
   Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2, ChevronRight, ChevronDown,
   ArrowRight, ArrowLeft, Cog, HelpCircle, Bot, Image, Folder, Link2, Layers,
-  Circle, Clock, CheckCircle2
+  Circle, Clock, CheckCircle2, Pencil
 } from 'lucide-react';
 import type { Tri } from './triStateUtils';
 import { useState } from 'react';
@@ -34,6 +34,7 @@ const getGroupRoleIcon = (role: string) => {
     case 'workflow': return { icon: Layers, color: 'text-blue-600' };
     case 'linkGroup': return { icon: Link2, color: 'text-purple-500' };
     case 'standalone': return { icon: Folder, color: 'text-gray-400' };
+    case 'markup': return { icon: Pencil, color: 'text-pink-500' };
     default: return { icon: Folder, color: 'text-gray-500' };
   }
 };
@@ -240,6 +241,8 @@ export function LeafRow({
   const getLeafIcon = () => {
     if (role === 'edge') {
       return { icon: Link2, color: 'text-purple-400' };
+    } else if (role === 'stroke') {
+      return { icon: Pencil, color: 'text-pink-400' };
     } else if (nodeType) {
       return getNodeTypeIcon(nodeType);
     } else {

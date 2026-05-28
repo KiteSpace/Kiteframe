@@ -12199,6 +12199,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges={edges}
                 frames={[]}
                 canvasObjects={canvasObjects}
+                sketchStrokes={sketchStrokes}
                 projectId={
                   activeTab?.projectUuid ||
                   activeTab?.cloudProjectId?.toString() ||

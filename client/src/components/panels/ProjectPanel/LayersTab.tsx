@@ -15,17 +15,19 @@ import {
 import { useWorkflowMetadata, type WorkflowStatus } from '@/stores/workflowMetadataStore';
 import { Search } from 'lucide-react';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
+import type { SketchStroke } from '@/components/SketchCanvas';
 
 interface LayersTabProps {
   nodes: Node[];
   edges: Edge[];
   frames?: any[];
   canvasObjects?: CanvasObject[];
+  sketchStrokes?: SketchStroke[];
   projectId?: string;
   isReadOnly?: boolean;
 }
 
-export function LayersTab({ nodes, edges, frames, canvasObjects, projectId, isReadOnly = false }: LayersTabProps) {
+export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, projectId, isReadOnly = false }: LayersTabProps) {
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapseVersion, forceCollapseUpdate] = useReducer((x: number) => x + 1, 0);
@@ -33,10 +35,10 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, projectId, isRe
 
   useEffect(() => {
     const w = new Worker(new URL('@/components/layers/graphWorker.ts', import.meta.url), { type: 'module' });
-    w.onmessage = (e: any) => setTree(buildMultiViewTrees(nodes, edges, frames ?? [], e.data));
+    w.onmessage = (e: any) => setTree(buildMultiViewTrees(nodes, edges, frames ?? [], e.data, sketchStrokes ?? []));
     w.postMessage({ nodes, edges, frames, pinnedWorkflows: {} });
     return () => w.terminate();
-  }, [nodes, edges, frames]);
+  }, [nodes, edges, frames, sketchStrokes]);
 
   const rootId = 'structureRoot';
   const getChildren = (id: string): string[] => tree?.groups[id]?.childIds ?? [];
