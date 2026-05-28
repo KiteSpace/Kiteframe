@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsPhone } from "@/hooks/use-mobile";
 import { MobileViewBar } from "@/components/MobileViewBar";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
@@ -425,8 +425,8 @@ function WorkflowEditorContent({
   onReset,
 }: WorkflowEditorContentProps) {
   const isReadOnly = mode === "view";
-  const isMobileViewOnly = useIsMobile();
-  const effectiveReadOnly = isReadOnly || isMobileViewOnly;
+  const isPhoneViewOnly = useIsPhone();
+  const effectiveReadOnly = isReadOnly || isPhoneViewOnly;
   const { toast } = useToast();
   const promptContextStore = usePromptContextStoreOptional();
   
@@ -5265,14 +5265,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Clear transient edit state when switching to mobile view-only mode
   useEffect(() => {
-    if (isMobileViewOnly) {
+    if (isPhoneViewOnly) {
       setInlineEditing(null);
       setLinearToolbar(null);
       setContextMenu(null);
       setQuickCreateMenu(null);
       setSketchSelection(null);
     }
-  }, [isMobileViewOnly]);
+  }, [isPhoneViewOnly]);
 
   // Phase 5: REPLACE confirmation state for full-graph detection
   // Stores all context needed to replay the mutation through the same success path
@@ -7259,7 +7259,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
-            {!isMobileViewOnly && <div
+            {!isPhoneViewOnly && <div
               className={`${isSidebarCollapsed ? "w-0" : "w-64"} border-r border-border flex flex-col transition-all duration-200 ${isSidebarCollapsed ? "overflow-visible" : "overflow-hidden"}`}
             >
               {isSidebarCollapsed ? (
@@ -10273,7 +10273,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         setSelectedEdgeId("");
                       }
                     }}
-                    inlineEditing={isMobileViewOnly ? null : inlineEditing}
+                    inlineEditing={isPhoneViewOnly ? null : inlineEditing}
                     onInlineEditingSave={(
                       nodeId: string,
                       part: "header" | "body",
@@ -11763,7 +11763,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   <SketchCanvas
                     key={activeTabId}
                     ref={sketchCanvasRef}
-                    isActive={isSketchMode && !isMobileViewOnly}
+                    isActive={isSketchMode && !isPhoneViewOnly}
                     tool={sketchTool}
                     color={sketchColor}
                     size={sketchSize}
@@ -11783,7 +11783,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   />
 
                   {/* Sketch floating bar */}
-                  {isSketchMode && !isMobileViewOnly && (
+                  {isSketchMode && !isPhoneViewOnly && (
                     <SketchFloatingBar
                       tool={sketchTool}
                       color={sketchColor}
@@ -11821,7 +11821,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   )}
 
                   {/* Sketch selection popover */}
-                  {isSketchMode && sketchSelection && !isMobileViewOnly && (
+                  {isSketchMode && sketchSelection && !isPhoneViewOnly && (
                     <div
                       className="absolute z-[65] pointer-events-auto bg-background border border-border rounded-xl shadow-2xl px-3 py-2 flex items-center gap-2"
                       style={{
@@ -12189,11 +12189,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               )}
 
               {/* Mobile view-only floating bar */}
-              {isMobileViewOnly && <MobileViewBar onFitView={handleFitView} />}
+              {isPhoneViewOnly && <MobileViewBar onFitView={handleFitView} />}
             </div>
 
             {/* Project Panel - docked right side */}
-            {openTabs.length > 0 && !isMobileViewOnly && (
+            {openTabs.length > 0 && !isPhoneViewOnly && (
               <ProjectPanel
                 nodes={nodes}
                 edges={edges}
@@ -13908,7 +13908,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         />
       )}
 
-      {contextMenu && !isMobileViewOnly && (
+      {contextMenu && !isPhoneViewOnly && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -14254,7 +14254,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Linear Toolbar for Node/Edge Styling */}
-      {linearToolbar && !isMobileViewOnly && (
+      {linearToolbar && !isPhoneViewOnly && (
         <LinearToolbar
           key={`toolbar-${linearToolbar.node?.id || linearToolbar.edge?.id || linearToolbar.canvasObject?.id}-${linearToolbar.editingHyperlinkId || ""}-${linearToolbar.initialSubmenu || ""}`}
           isOpen={true}
@@ -15211,7 +15211,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Quick Create Radial Menu */}
-      {quickCreateMenu && !isMobileViewOnly && (
+      {quickCreateMenu && !isPhoneViewOnly && (
         <QuickCreateRadialMenu
           isOpen={true}
           position={quickCreateMenu.screenPosition}

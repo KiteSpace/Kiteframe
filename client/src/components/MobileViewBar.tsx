@@ -44,7 +44,7 @@ export function MobileViewBar({ onFitView }: MobileViewBarProps) {
           <div className="pointer-events-auto w-full max-w-sm bg-background border border-border rounded-2xl shadow-2xl p-4">
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm text-foreground leading-relaxed">
-                Workflow editing is not supported on this screen size. Rotate your device or open on a larger screen to edit.
+                Workflow editing isn't supported on phones. Open Kiteframe on a tablet or larger screen to edit.
               </p>
               <button
                 onClick={() => setShowInfo(false)}
