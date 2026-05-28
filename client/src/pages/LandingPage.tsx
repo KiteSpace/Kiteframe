@@ -247,10 +247,6 @@ export default function LandingPage() {
                   Learn More
                 </Button>
               </div>
-
-              <p className="mt-5 text-xs text-gray-400" data-testid="text-demo-hint">
-                From idea to handoff — powered by AI
-              </p>
             </div>
 
             {/* Right: live Kiteframe canvas in window chrome */}
