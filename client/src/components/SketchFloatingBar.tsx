@@ -312,9 +312,11 @@ export function SketchFloatingBar({
         <button
           title="Clear all sketches"
           onClick={onClear}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+          className="h-8 px-2.5 flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-accent transition-colors"
+          data-testid="button-sketch-clear-all"
         >
           <Trash2 size={15} />
+          <span className="text-xs font-medium">Clear All</span>
         </button>
 
         <div className="w-px h-5 bg-border mx-1" />

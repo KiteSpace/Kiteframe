@@ -272,8 +272,32 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                   if (edge) {
                     focusBus.focusNodes([edge.source, edge.target], { padding: 150 });
                   }
+                } else if (role === 'stroke' && id.startsWith('stroke:')) {
+                  const idx = parseInt(id.slice(7), 10);
+                  const stroke = (sketchStrokes ?? [])[idx];
+                  if (!stroke || !stroke.points || stroke.points.length === 0) return;
+                  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                  for (const p of stroke.points) {
+                    if (p.x < minX) minX = p.x;
+                    if (p.y < minY) minY = p.y;
+                    if (p.x > maxX) maxX = p.x;
+                    if (p.y > maxY) maxY = p.y;
+                  }
+                  focusBus.focusWorldRect({
+                    x: minX, y: minY,
+                    width: Math.max(maxX - minX, 1),
+                    height: Math.max(maxY - minY, 1),
+                  }, { padding: 150 });
                 }
               };
+
+              const isStroke = role === 'stroke';
+              const onToggleStrokeHidden = isStroke ? () => {
+                VLStore.set({ hidden: { ...flags.hidden, [id]: !flags.hidden[id] } });
+              } : undefined;
+              const onToggleStrokeLocked = isStroke ? () => {
+                VLStore.set({ locked: { ...flags.locked, [id]: !flags.locked[id] } });
+              } : undefined;
               
               return <LeafRow 
                 id={id} depth={depth} label={label} 
@@ -283,6 +307,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                 nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
                 isDecision={isDecision}
                 branchDepth={branchDepth}
+                onToggleHidden={onToggleStrokeHidden}
+                onToggleLocked={onToggleStrokeLocked}
               />;
             }
           }}

@@ -496,9 +496,56 @@ export function WorkflowCanvas({
     }
   }, [canvasObjects, onViewportChange, viewport]);
 
+  // Pan/zoom to fit an arbitrary world-space rectangle (used for sketch strokes)
+  const fitToWorldRect = useCallback((rect: { x: number; y: number; width: number; height: number }, options: { padding?: number; animate?: boolean } = {}) => {
+    if (!canvasRef.current) return;
+    const padding = options.padding ?? 100;
+    const animate = options.animate !== false;
+    const containerRect = canvasRef.current.getBoundingClientRect();
+    const boundingWidth = Math.max(rect.width, 1) + 2 * padding;
+    const boundingHeight = Math.max(rect.height, 1) + 2 * padding;
+    const zoomX = containerRect.width / boundingWidth;
+    const zoomY = containerRect.height / boundingHeight;
+    const targetZoom = Math.min(zoomX, zoomY, 2);
+    const centerX = rect.x + rect.width / 2;
+    const centerY = rect.y + rect.height / 2;
+    const targetViewport = {
+      x: containerRect.width / 2 - centerX * targetZoom,
+      y: containerRect.height / 2 - centerY * targetZoom,
+      zoom: targetZoom,
+    };
+    if (animate) {
+      const startViewport = viewport;
+      const startTime = Date.now();
+      const duration = 300;
+      const step = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        onViewportChange({
+          x: startViewport.x + (targetViewport.x - startViewport.x) * eased,
+          y: startViewport.y + (targetViewport.y - startViewport.y) * eased,
+          zoom: startViewport.zoom + (targetViewport.zoom - startViewport.zoom) * eased,
+        });
+        if (progress < 1) requestAnimationFrame(step);
+      };
+      step();
+    } else {
+      onViewportChange(targetViewport);
+    }
+  }, [onViewportChange, viewport]);
+
   // FocusBus integration
   useEffect(() => {
     const handleFocusEvent = (event: FocusEvent) => {
+      // Handle world-rect focus (e.g. sketch strokes)
+      if (event.type === 'focus-world-rect' && event.worldRect) {
+        fitToWorldRect(event.worldRect, {
+          padding: event.padding ?? 100,
+          animate: event.animate !== false,
+        });
+        return;
+      }
       // Handle canvas object focus
       if (event.type === 'focus-canvas-object' && event.canvasObjectId) {
         fitToCanvasObject(event.canvasObjectId, {
@@ -550,7 +597,7 @@ export function WorkflowCanvas({
     
     const unsubscribe = focusBus.subscribe(handleFocusEvent);
     return unsubscribe;
-  }, [fitToNodes, fitToCanvasObject, onSelectionChange, onCanvasObjectsChange, edges, canvasObjects]);
+  }, [fitToNodes, fitToCanvasObject, fitToWorldRect, onSelectionChange, onCanvasObjectsChange, edges, canvasObjects]);
   
 
   // Minimap handlers removed for performance

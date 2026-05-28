@@ -228,10 +228,12 @@ export function GroupRow({
 }
 
 export function LeafRow({
-  id, depth, label, effHidden, effLocked, onClick, role, nodeType, isDecision, branchDepth
+  id, depth, label, effHidden, effLocked, onClick, role, nodeType, isDecision, branchDepth,
+  onToggleHidden, onToggleLocked
 }:{
   id:string; depth:number; label:string; effHidden:boolean; effLocked:boolean;
   onClick?:()=>void; role?:string; nodeType?:string; isDecision?:boolean; branchDepth?:number;
+  onToggleHidden?:()=>void; onToggleLocked?:()=>void;
 }) {
   // Add branch indentation for decision tree visualization
   const effectiveDepth = depth + (branchDepth ?? 0);
@@ -285,7 +287,30 @@ export function LeafRow({
           </span>
         )}
       </div>
-      {effLocked && (
+      {(onToggleHidden || onToggleLocked) ? (
+        <span className="flex gap-0.5">
+          {onToggleHidden && (
+            <button
+              data-testid={`button-visibility-${id}`}
+              onClick={(e) => { e.stopPropagation(); onToggleHidden(); }}
+              title={effHidden ? 'Hidden' : 'Visible'}
+              className="hover:bg-gray-200 dark:hover:bg-gray-700 p-0.5 rounded transition-colors duration-150 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+            >
+              {effHidden ? <EyeOff size={14}/> : <Eye size={14}/>}
+            </button>
+          )}
+          {onToggleLocked && (
+            <button
+              data-testid={`button-lock-${id}`}
+              onClick={(e) => { e.stopPropagation(); onToggleLocked(); }}
+              title={effLocked ? 'Locked' : 'Unlocked'}
+              className="hover:bg-gray-200 dark:hover:bg-gray-700 p-0.5 rounded transition-colors duration-150 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+            >
+              {effLocked ? <Lock size={14}/> : <Unlock size={14}/>}
+            </button>
+          )}
+        </span>
+      ) : effLocked && (
         <span className="ml-2 text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full font-medium">
           locked
         </span>

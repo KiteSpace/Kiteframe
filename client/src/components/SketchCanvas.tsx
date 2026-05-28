@@ -51,6 +51,8 @@ interface SketchCanvasProps {
   smoothing?: boolean;
   viewport: { x: number; y: number; zoom: number };
   strokes?: SketchStroke[];
+  hiddenStrokeIndices?: ReadonlySet<number>;
+  lockedStrokeIndices?: ReadonlySet<number>;
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   onStrokesChange?: (strokes: SketchStroke[]) => void;
   onSelectionChange?: (selection: SketchSelection | null) => void;
@@ -73,9 +75,10 @@ function hitTestStroke(wx: number, wy: number, stroke: SketchStroke, zoom: numbe
   return false;
 }
 
-function findNearestStroke(wx: number, wy: number, strokes: SketchStroke[], zoom: number): number {
+function findNearestStroke(wx: number, wy: number, strokes: SketchStroke[], zoom: number, exclude?: ReadonlySet<number>): number {
   for (let i = strokes.length - 1; i >= 0; i--) {
     if (strokes[i].tool === 'eraser') continue;
+    if (exclude?.has(i)) continue;
     if (hitTestStroke(wx, wy, strokes[i], zoom)) return i;
   }
   return -1;
@@ -167,6 +170,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     {
       isActive, tool, color, size, opacity, lineStyle, dashLen, dashGap,
       smoothing, viewport, strokes: initialStrokes,
+      hiddenStrokeIndices, lockedStrokeIndices,
       onHistoryChange, onStrokesChange, onSelectionChange,
     },
     ref
@@ -198,6 +202,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     smoothingRef.current = smoothing ?? false;
     const onSelectionChangeRef = useRef(onSelectionChange);
     onSelectionChangeRef.current = onSelectionChange;
+    const hiddenRef = useRef<ReadonlySet<number>>(hiddenStrokeIndices ?? new Set());
+    hiddenRef.current = hiddenStrokeIndices ?? new Set();
+    const lockedRef = useRef<ReadonlySet<number>>(lockedStrokeIndices ?? new Set());
+    lockedRef.current = lockedStrokeIndices ?? new Set();
 
     const selectedStrokeIndicesRef = useRef<Set<number>>(new Set());
     const clipboardRef = useRef<SketchClipboard | null>(null);
@@ -248,8 +256,11 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       ctx.setTransform(vp.zoom, 0, 0, vp.zoom, vp.x, vp.y);
 
       const smooth = smoothingRef.current;
+      const hiddenSet = hiddenRef.current;
 
-      for (const stroke of strokes) {
+      for (let _i = 0; _i < strokes.length; _i++) {
+        if (hiddenSet.has(_i)) continue;
+        const stroke = strokes[_i];
         if (stroke.points.length < 2) continue;
         if (stroke.tool === 'eraser') {
           ctx.globalCompositeOperation = 'destination-out';
@@ -300,6 +311,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
       for (const selIdx of selIndices) {
         if (selIdx < 0 || selIdx >= strokes.length) continue;
+        if (hiddenSet.has(selIdx)) continue;
         const stroke = strokes[selIdx];
         if (stroke.points.length < 2) continue;
         ctx.globalCompositeOperation = 'source-over';
@@ -403,7 +415,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
       if (toolRef.current === 'cursor') {
         const isShift = (e instanceof MouseEvent) ? e.shiftKey : false;
-        const hitIdx = findNearestStroke(pos.x, pos.y, strokesRef.current, zoom);
+        const excludeSet = new Set<number>([...hiddenRef.current, ...lockedRef.current]);
+        const hitIdx = findNearestStroke(pos.x, pos.y, strokesRef.current, zoom, excludeSet);
 
         if (isShift) {
           if (hitIdx >= 0) {
@@ -527,7 +540,10 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           const ww = sw / vp.zoom;
           const wh = sh / vp.zoom;
           const found = new Set<number>();
+          const hiddenSet = hiddenRef.current;
+          const lockedSet = lockedRef.current;
           strokesRef.current.forEach((s, i) => {
+            if (hiddenSet.has(i) || lockedSet.has(i)) return;
             if (s.tool !== 'eraser' && strokeIntersectsWorldRect(s, wx, wy, ww, wh)) {
               found.add(i);
             }
@@ -758,6 +774,22 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
         canvas.removeEventListener('touchend', endStroke);
       };
     }, [startStroke, drawStroke, endStroke]);
+
+    // Prune selection when strokes become hidden/locked, and re-render
+    useEffect(() => {
+      const sel = selectedStrokeIndicesRef.current;
+      if (sel.size > 0) {
+        const hidden = hiddenStrokeIndices ?? new Set<number>();
+        const locked = lockedStrokeIndices ?? new Set<number>();
+        const next = new Set<number>();
+        sel.forEach(i => { if (!hidden.has(i) && !locked.has(i)) next.add(i); });
+        if (next.size !== sel.size) {
+          notifySelectionMulti(next);
+        }
+      }
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+    }, [hiddenStrokeIndices, lockedStrokeIndices, notifySelectionMulti, redrawAll]);
 
     useEffect(() => {
       if (initialStrokes) {

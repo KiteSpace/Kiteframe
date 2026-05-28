@@ -4376,6 +4376,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [sketchCanRedo, setSketchCanRedo] = useState(false);
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
 
+  // Subscribe to VLStore changes so sketch hide/lock toggles re-render the canvas
+  const [vlVersion, bumpVL] = useState(0);
+  useEffect(() => {
+    return VLStore.subscribe(() => bumpVL(v => v + 1));
+  }, []);
+  const { hiddenStrokeIndices, lockedStrokeIndices } = useMemo(() => {
+    const flags = VLStore.get();
+    const hidden = new Set<number>();
+    const locked = new Set<number>();
+    const markupHidden = !!flags.hidden['markup'];
+    const markupLocked = !!flags.locked['markup'];
+    for (let i = 0; i < sketchStrokes.length; i++) {
+      if (markupHidden || flags.hidden[`stroke:${i}`]) hidden.add(i);
+      if (markupLocked || flags.locked[`stroke:${i}`]) locked.add(i);
+    }
+    return { hiddenStrokeIndices: hidden, lockedStrokeIndices: locked };
+  }, [sketchStrokes, vlVersion]);
+
   // Comprehensive keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -4426,6 +4444,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       // Delete key handler (Delete or Backspace)
       if (e.key === "Delete" || e.key === "Backspace") {
+        // Sketch mode: delete selected strokes
+        if (isSketchMode && sketchCanvasRef.current?.hasSelection() && sketchSelection) {
+          e.preventDefault();
+          const indices = new Set(sketchSelection.strokeIndices);
+          setSketchStrokes(sketchStrokes.filter((_, i) => !indices.has(i)));
+          sketchCanvasRef.current?.clearSelection();
+          setSketchSelection(null);
+          return;
+        }
         // Get lock state from VLStore to check if items are locked
         const { locked } = VLStore.get();
         const ancestors = AncestorsStore.get();
@@ -11774,6 +11801,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     dashGap={sketchDashGap}
                     smoothing={sketchSmoothing}
                     strokes={sketchStrokes}
+                    hiddenStrokeIndices={hiddenStrokeIndices}
+                    lockedStrokeIndices={lockedStrokeIndices}
                     onStrokesChange={setSketchStrokes}
                     onHistoryChange={(canUndo, canRedo) => {
                       setSketchCanUndo(canUndo);
