@@ -1446,7 +1446,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
 
   // Touch interaction refs (iPad / pointer events)
-  const touchPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const touchPointers = useRef<Map<number, { x: number; y: number; type: string }>>(new Map());
   const touchLongPressTimer = useRef<NodeJS.Timeout | null>(null);
   const touchPanStart = useRef<{ x: number; y: number } | null>(null); // stores (clientX - vp.x, clientY - vp.y)
   const touchPinchStart = useRef<{
@@ -2275,16 +2275,19 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const onCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'touch') return;
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
     if (!enableTouchGestures) return;
 
     // Capture so move/up events fire even when finger leaves the element
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) {}
 
-    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const count = touchPointers.current.size;
+    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+    // Pinch requires two finger pointers — pen never participates in pinch.
+    // Only initialize pinch on a touch-down event so a pen-down during an active
+    // two-finger pinch doesn't reset the pinch baseline.
+    const fingerPts = Array.from(touchPointers.current.values()).filter(p => p.type === 'touch');
 
-    if (count >= 2) {
+    if (e.pointerType === 'touch' && fingerPts.length >= 2) {
       // Second finger detected — cancel any pending long-press / pan and switch to pinch
       if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
       if (touchDragging.current) { dragInfo.current = null; touchDragging.current = false; setSuppressEdgesDuringDrag(false); setDraggingNodeId(null); }
@@ -2292,7 +2295,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       touchNodeTarget.current = null;
       touchCanvasObjTarget.current = null;
       touchNodeDownPos.current = null;
-      const pts = Array.from(touchPointers.current.values());
+      const pts = fingerPts;
       const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       touchPinchStart.current = {
         dist: Math.max(dist, 1),
@@ -2390,10 +2393,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const onCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'touch') return;
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
     if (!enableTouchGestures) return;
 
-    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    touchPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
 
     // ── Touch edge connecting drag ──
     if (connecting && containerRef.current) {
@@ -2411,10 +2414,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
 
-    // ── Pinch zoom (2 fingers) ──
-    if (touchPinchStart.current && touchPointers.current.size >= 2) {
+    // ── Pinch zoom (2 fingers — pen excluded) ──
+    const fingerPts = Array.from(touchPointers.current.values()).filter(p => p.type === 'touch');
+    if (touchPinchStart.current && fingerPts.length >= 2) {
       if (!containerRef.current || props.disableWheelZoom) return;
-      const pts = Array.from(touchPointers.current.values());
+      const pts = fingerPts;
       const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       const midX = (pts[0].x + pts[1].x) / 2;
       const midY = (pts[0].y + pts[1].y) / 2;
@@ -2480,7 +2484,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const onCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'touch') return;
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
     if (!enableTouchGestures) return;
 
     touchPointers.current.delete(e.pointerId);
@@ -2503,7 +2507,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
     // End pinch
     if (touchPinchStart.current) {
-      if (touchPointers.current.size < 2) touchPinchStart.current = null;
+      const remainingFingers = Array.from(touchPointers.current.values()).filter(p => p.type === 'touch').length;
+      if (remainingFingers < 2) touchPinchStart.current = null;
       return;
     }
 
@@ -2600,7 +2605,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   };
 
   const onCanvasPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'touch') return;
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
     if (!enableTouchGestures) return;
     touchPointers.current.delete(e.pointerId);
     if (touchLongPressTimer.current) { clearTimeout(touchLongPressTimer.current); touchLongPressTimer.current = null; }
