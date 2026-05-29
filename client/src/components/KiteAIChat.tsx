@@ -946,7 +946,9 @@ export function KiteAIChatBrain({
             });
           } catch (networkError) {
             console.error('[KiteAIChat] Image analysis network error:', networkError);
-            throw new Error("I couldn't reach the image analysis service. Please check your connection and try again.");
+            const e = new Error("I couldn't reach the image analysis service. Please check your connection and try again.");
+            (e as any).userFacing = true;
+            throw e;
           }
 
           if (response.ok) {
@@ -1064,7 +1066,9 @@ export function KiteAIChatBrain({
                 serverMessage = "I couldn't analyze that image. Please try again in a moment.";
               }
             }
-            throw new Error(serverMessage);
+            const e = new Error(serverMessage);
+            (e as any).userFacing = true;
+            throw e;
           }
           setIsLoading(false);
           return;
@@ -1541,10 +1545,16 @@ export function KiteAIChatBrain({
 
     } catch (error) {
       console.error('AI chat error:', error);
+      // For known, user-facing failures (e.g. image analysis errors with a
+      // specific reason), show that reason in the chat transcript instead of a
+      // generic message, so the user understands what went wrong and what to do.
+      const isUserFacing = !!(error as any)?.userFacing && error instanceof Error && !!error.message;
       const errorMessage: ChatMessage = {
         id: `msg-${Date.now()}`,
         role: 'assistant',
-        content: "I'm sorry, I encountered an error processing your request. Please try again.",
+        content: isUserFacing
+          ? (error as Error).message
+          : "I'm sorry, I encountered an error processing your request. Please try again.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

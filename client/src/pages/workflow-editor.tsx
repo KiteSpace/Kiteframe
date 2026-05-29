@@ -13745,13 +13745,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 .map((f) => f.data?.src)
                 .filter(Boolean) as string[];
 
+              let visionDegradeReason = '';
               const result = await generateAIVisionWorkflow(
                 semantics,
                 thumbnailUrls,
                 { x: 400, y: startY },
+                50,
+                (reason) => {
+                  visionDegradeReason = reason;
+                },
               );
               generatedNodes = result.nodes;
               generatedEdges = result.edges;
+              if (visionDegradeReason) {
+                toast({
+                  title: "Built without image analysis",
+                  description: visionDegradeReason,
+                });
+              }
             } else if (mode === "ai_refined") {
               const semantics = sortedFrames
                 .map((f) => f.data?.figmaSemantic)

@@ -704,10 +704,19 @@ export async function generateAIVisionWorkflow(
   semantics: FigmaSemanticMetadata[],
   thumbnailUrls: string[],
   startPosition: { x: number; y: number },
-  maxSteps: number = 50
+  maxSteps: number = 50,
+  onDegrade?: (reason: string) => void
 ): Promise<GeneratedWorkflow> {
   const mode: WorkflowGenerationMode = 'ai_vision';
-  
+
+  // When image (vision) analysis can't run or fails, we fall back to a
+  // metadata-only result. Tell the caller why so the user is never silently
+  // given a lower-detail workflow.
+  const degrade = (reason: string): Promise<GeneratedWorkflow> => {
+    onDegrade?.(reason);
+    return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+  };
+
   logSemanticDebug('AIVision workflow generation started', {
     frameCount: semantics.length,
     thumbnailCount: thumbnailUrls.length,
@@ -716,7 +725,7 @@ export async function generateAIVisionWorkflow(
 
   if (thumbnailUrls.length === 0) {
     logSemanticDebug('AIVision no thumbnails available, falling back to AI refined', {}, mode);
-    return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+    return degrade('No preview images were available for these frames, so I built the workflow from the design data only (no image analysis).');
   }
 
   const clusterSummaries = semantics.map((s, idx) => {
@@ -799,7 +808,11 @@ RESPONSE FORMAT (JSON only):
       logSemanticDebug('AIVision request failed, falling back to AI refined', {
         status: response.status,
       }, mode);
-      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+      return degrade(
+        response.status === 429
+          ? 'Image analysis is rate-limited right now, so I built the workflow from the design data only. Try again in a minute for a full image-based result.'
+          : "Image analysis wasn't available, so I built the workflow from the design data only."
+      );
     }
 
     const data = await response.json();
@@ -812,7 +825,7 @@ RESPONSE FORMAT (JSON only):
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       logSemanticDebug('AIVision empty/invalid JSON, falling back to AI refined', {}, mode);
-      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+      return degrade("Image analysis didn't return a usable result, so I built the workflow from the design data only.");
     }
 
     const aiResult = JSON.parse(jsonMatch[0]);
@@ -826,7 +839,7 @@ RESPONSE FORMAT (JSON only):
 
     if (steps.length === 0) {
       logSemanticDebug('AIVision returned 0 steps, falling back to AI refined', {}, mode);
-      return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+      return degrade("Image analysis couldn't pull clear steps from these screens, so I built the workflow from the design data only.");
     }
 
     const workflowGroupId = `wf-vision-${Date.now()}`;
@@ -864,7 +877,7 @@ RESPONSE FORMAT (JSON only):
     logSemanticDebug('AIVision error, falling back to AI refined', { 
       error: error instanceof Error ? error.message : String(error),
     }, mode);
-    return generateAIRefinedWorkflow(semantics, startPosition, maxSteps);
+    return degrade('Image analysis ran into an error, so I built the workflow from the design data only. Please try again in a moment for a full image-based result.');
   }
 }
 
