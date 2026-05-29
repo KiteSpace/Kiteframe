@@ -9336,7 +9336,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setEdges((prev) =>
                         prev.map((e) =>
                           e.id === edgeId
-                            ? { ...e, controlPoint: cp ?? undefined }
+                            ? { ...e, controlPoint: cp ?? undefined, waypoints: undefined }
+                            : e,
+                        ),
+                      );
+                    }}
+                    onEdgeWaypointsChange={(edgeId, waypoints) => {
+                      setEdges((prev) =>
+                        prev.map((e) =>
+                          e.id === edgeId
+                            ? {
+                                ...e,
+                                waypoints:
+                                  waypoints && waypoints.length > 0
+                                    ? waypoints
+                                    : undefined,
+                                controlPoint: undefined,
+                              }
                             : e,
                         ),
                       );

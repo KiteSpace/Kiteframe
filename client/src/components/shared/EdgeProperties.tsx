@@ -39,13 +39,13 @@ export function EdgeProperties({ selectedEdge, onEdgeUpdate, nodes = [], compact
       </div>
 
       {/* Reset curve — only shown when the edge has a user-dragged control point */}
-      {selectedEdge.controlPoint && (
+      {(selectedEdge.controlPoint || (selectedEdge.waypoints && selectedEdge.waypoints.length > 0)) && (
         <>
           <Separator />
           <div className="space-y-2">
             <Label className="text-xs font-medium">Curve</Label>
             <button
-              onClick={() => onEdgeUpdate(selectedEdge.id, { controlPoint: undefined })}
+              onClick={() => onEdgeUpdate(selectedEdge.id, { controlPoint: undefined, waypoints: undefined })}
               className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-accent transition-colors"
               data-testid="button-reset-curve"
               title="Remove the manual bend and restore the automatic shape"

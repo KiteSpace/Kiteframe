@@ -223,6 +223,99 @@ function generatePath(
   }
 }
 
+// Build an SVG path string from an ordered list of corner points, rounding each
+// interior corner by up to `radius` (clamped to half the shorter adjacent segment).
+// Works for any orthogonal polyline (the multi-waypoint step/orthogonal router).
+function buildRoundedOrthPath(corners: { x: number; y: number }[], radius: number): string {
+  if (corners.length === 0) return '';
+  if (corners.length === 1) return `M ${corners[0].x} ${corners[0].y}`;
+  let d = `M ${corners[0].x} ${corners[0].y}`;
+  for (let i = 1; i < corners.length - 1; i++) {
+    const prev = corners[i - 1];
+    const cur = corners[i];
+    const next = corners[i + 1];
+    const len1 = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    const len2 = Math.hypot(next.x - cur.x, next.y - cur.y);
+    const rad = Math.min(radius, len1 / 2, len2 / 2);
+    if (rad <= 0 || len1 === 0 || len2 === 0) {
+      d += ` L ${cur.x} ${cur.y}`;
+      continue;
+    }
+    const p1 = { x: cur.x + ((prev.x - cur.x) / len1) * rad, y: cur.y + ((prev.y - cur.y) / len1) * rad };
+    const p2 = { x: cur.x + ((next.x - cur.x) / len2) * rad, y: cur.y + ((next.y - cur.y) / len2) * rad };
+    d += ` L ${r(p1.x)} ${r(p1.y)} Q ${cur.x} ${cur.y} ${r(p2.x)} ${r(p2.y)}`;
+  }
+  const last = corners[corners.length - 1];
+  d += ` L ${last.x} ${last.y}`;
+  return d;
+}
+
+// Expand a source anchor, an ordered list of user waypoints, and a target anchor
+// into a fully axis-aligned (orthogonal) list of corner points. Each user waypoint
+// is kept as a point the line passes through; when two consecutive points are not
+// already aligned, an L-shaped connector inserts one extra corner so every segment
+// stays horizontal or vertical. The starting orientation follows the source side,
+// then alternates to produce a clean staircase.
+function routeOrthogonalWaypoints(
+  s: AnchorResult,
+  t: AnchorResult,
+  waypoints: { x: number; y: number }[],
+): { x: number; y: number }[] {
+  const pts = [
+    { x: r(s.x), y: r(s.y) },
+    ...waypoints.map((w) => ({ x: r(w.x), y: r(w.y) })),
+    { x: r(t.x), y: r(t.y) },
+  ];
+  const corners: { x: number; y: number }[] = [pts[0]];
+  let horizontalFirst = s.direction === 'left' || s.direction === 'right';
+  for (let i = 1; i < pts.length; i++) {
+    const prev = corners[corners.length - 1];
+    const cur = pts[i];
+    if (prev.x === cur.x || prev.y === cur.y) {
+      // Already aligned on one axis — a single straight segment.
+      if (prev.x !== cur.x || prev.y !== cur.y) corners.push(cur);
+    } else if (horizontalFirst) {
+      corners.push({ x: cur.x, y: prev.y }); // go horizontal, then vertical
+      corners.push(cur);
+    } else {
+      corners.push({ x: prev.x, y: cur.y }); // go vertical, then horizontal
+      corners.push(cur);
+    }
+    // Seed next leg's orientation from how this leg ended: arrive vertical -> leave
+    // horizontal, and vice versa, so corners never double back.
+    const a = corners[corners.length - 2];
+    const b = corners[corners.length - 1];
+    if (a && b && (a.x !== b.x || a.y !== b.y)) {
+      horizontalFirst = a.x === b.x; // last segment vertical -> next leaves horizontal
+    }
+  }
+  return corners;
+}
+
+// Point at the halfway mark along a polyline (by accumulated length). Used to place
+// the "+" insert affordance exactly on the rendered staircase, not on a straight chord.
+function polylineMidpoint(points: { x: number; y: number }[]): { x: number; y: number } {
+  if (points.length === 0) return { x: 0, y: 0 };
+  if (points.length === 1) return points[0];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+  }
+  let target = total / 2;
+  for (let i = 1; i < points.length; i++) {
+    const seg = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    if (seg >= target) {
+      const f = seg === 0 ? 0 : target / seg;
+      return {
+        x: points[i - 1].x + (points[i].x - points[i - 1].x) * f,
+        y: points[i - 1].y + (points[i].y - points[i - 1].y) * f,
+      };
+    }
+    target -= seg;
+  }
+  return points[points.length - 1];
+}
+
 // Helper function to create marker based on type
 function createMarker(
   markerId: string, 
@@ -405,6 +498,7 @@ export const ConnectionEdge: React.FC<{
   canvasScale?: number;
   onControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onControlPointDragStart?: (edgeId: string) => void;
+  onWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
 }> = ({
   edge,
   sourceNode,
@@ -417,6 +511,7 @@ export const ConnectionEdge: React.FC<{
   canvasScale = 1,
   onControlPointChange,
   onControlPointDragStart,
+  onWaypointsChange,
 }) => {
   // isHovered tracks whether pointer is over the edge path OR the handle circle.
   // React 18 automatic batching ensures that path-mouseLeave + handle-mouseEnter
@@ -435,17 +530,29 @@ export const ConnectionEdge: React.FC<{
   // For experiment targets: force straight, dashed, grey
   const type = isExperimentTarget ? 'straight' : (edge.type ?? 'bezier');
 
-  // Choose each node's connection side. For step/orthogonal edges with a
-  // user-dragged bend, pick the side toward the bend so the right-angle line
-  // doesn't double back when the elbow is dragged past a node. All other edge
-  // types (and step/orthogonal edges without a bend) keep the center-to-center
-  // choice.
-  const anchorTowardPoint =
-    (type === 'step' || type === 'orthogonal') && edge.controlPoint
-      ? edge.controlPoint
-      : undefined;
-  const s = anchor(sourceNode, targetNode, anchorTowardPoint);
-  const t = anchor(targetNode, sourceNode, anchorTowardPoint);
+  const isStepLike = type === 'step' || type === 'orthogonal';
+
+  // Effective bend points. Prefer the multi-waypoint list; fall back to the legacy
+  // single controlPoint so existing edges keep working unchanged. Only step/orthogonal
+  // edges support multiple waypoints — other types keep their single controlPoint.
+  const effectiveWaypoints: { x: number; y: number }[] = isStepLike
+    ? (edge.waypoints && edge.waypoints.length > 0
+        ? edge.waypoints
+        : (edge.controlPoint ? [edge.controlPoint] : []))
+    : (edge.controlPoint ? [edge.controlPoint] : []);
+  // "Multi" routing only kicks in once there are 2+ bends; a single bend renders
+  // identically to the legacy controlPoint path.
+  const isMulti = isStepLike && effectiveWaypoints.length >= 2;
+  const singleCp = !isMulti ? (effectiveWaypoints[0] ?? undefined) : undefined;
+
+  // Choose each node's connection side. For step/orthogonal edges with bends,
+  // point the source toward the first bend and the target toward the last bend so
+  // the right-angle line doesn't double back. All other edge types keep the
+  // center-to-center choice.
+  const sourceTowardPoint = isStepLike && effectiveWaypoints.length > 0 ? effectiveWaypoints[0] : undefined;
+  const targetTowardPoint = isStepLike && effectiveWaypoints.length > 0 ? effectiveWaypoints[effectiveWaypoints.length - 1] : undefined;
+  const s = anchor(sourceNode, targetNode, sourceTowardPoint);
+  const t = anchor(targetNode, sourceNode, targetTowardPoint);
   
   // Get styling from edge.style with fallbacks to edge.data for backward compatibility
   const style = edge.style || {};
@@ -474,14 +581,20 @@ export const ConnectionEdge: React.FC<{
   const markerStartConfig = getMarkerConfig(edge.markerStart) || (hasMarkerStart ? edge.markers : undefined);
   const markerEndConfig = getMarkerConfig(edge.markerEnd) || (hasMarkerEnd ? edge.markers : undefined);
   
-  // Generate path — passes the stored controlPoint so the curve bends
-  const pathData = generatePath(type, s, t, {
-    curvature: edge.curvature,
-    cornerRadius: edge.cornerRadius,
-    controlPoint: edge.controlPoint,
-  });
+  // Generate path. With 2+ bends, route an orthogonal staircase through every
+  // waypoint; otherwise use the legacy single-controlPoint path (identical render).
+  const pathData = isMulti
+    ? buildRoundedOrthPath(
+        routeOrthogonalWaypoints(s, t, effectiveWaypoints),
+        edge.cornerRadius ?? 10,
+      )
+    : generatePath(type, s, t, {
+        curvature: edge.curvature,
+        cornerRadius: edge.cornerRadius,
+        controlPoint: singleCp,
+      });
 
-  // Compute the visible handle position.
+  // Compute the visible single-bend handle position (used when there are 0–1 bends).
   // - step/orthogonal both-H  : handle sits at (controlPoint.x, midY) — elbow column
   // - step/orthogonal both-V  : handle sits at (midX, controlPoint.y) — elbow row
   // - step/orthogonal mixed-H : handle at (controlPoint.x, midY) — intermediate column
@@ -489,7 +602,7 @@ export const ConnectionEdge: React.FC<{
   // - all other types         : handle is the stored on-curve point at t=0.5
   const handlePos = (() => {
     const mid = { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
-    const cp = edge.controlPoint;
+    const cp = singleCp;
     if (!cp) return mid;
     const isSourceH = s.direction === 'left' || s.direction === 'right';
     if (type === 'step' || type === 'orthogonal') {
@@ -542,7 +655,120 @@ export const ConnectionEdge: React.FC<{
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, [edge.id, handlePos.x, handlePos.y, canvasScale, onControlPointChange, onControlPointDragStart]);
-  
+
+  const MAX_WAYPOINTS = 10;
+
+  // The bend points shown as handles. In multi mode these are the raw stored
+  // points; with a single bend it's the visible handle position so inserting a
+  // second bend seeds from where the user sees the elbow.
+  const visualWaypoints: { x: number; y: number }[] = isMulti
+    ? effectiveWaypoints
+    : (singleCp ? [handlePos] : []);
+
+  // Move an existing waypoint (multi mode). Snapshots history once on first move,
+  // then writes the whole updated waypoint list.
+  const startWaypointDrag = useCallback((e: React.MouseEvent, index: number) => {
+    if (!onWaypointsChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const base = effectiveWaypoints.map((w) => ({ ...w }));
+    const start = base[index];
+    if (!start) return;
+    const startScreen = { x: e.clientX, y: e.clientY };
+    let saved = false;
+    const onMove = (ev: MouseEvent) => {
+      if (!saved) {
+        saved = true;
+        onControlPointDragStart?.(edge.id);
+      }
+      const sc = canvasScale || 1;
+      const dx = (ev.clientX - startScreen.x) / sc;
+      const dy = (ev.clientY - startScreen.y) / sc;
+      const next = base.map((w) => ({ ...w }));
+      next[index] = { x: start.x + dx, y: start.y + dy };
+      onWaypointsChange(edge.id, next);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [edge.id, effectiveWaypoints, canvasScale, onWaypointsChange, onControlPointDragStart]);
+
+  // Insert a new bend at segment `segIndex` (0 = source→first), then immediately
+  // start dragging it so a click-drag pulls out a fresh bend.
+  const startInsertDrag = useCallback((e: React.MouseEvent, segIndex: number, at: { x: number; y: number }) => {
+    if (!onWaypointsChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (visualWaypoints.length >= MAX_WAYPOINTS) return;
+    // Commit the insert right away (one history entry) so a plain click adds a bend.
+    onControlPointDragStart?.(edge.id);
+    const base = visualWaypoints.map((w) => ({ ...w }));
+    base.splice(segIndex, 0, { x: at.x, y: at.y });
+    onWaypointsChange(edge.id, base);
+    // Then drag the freshly inserted point (index === segIndex).
+    const start = { x: at.x, y: at.y };
+    const startScreen = { x: e.clientX, y: e.clientY };
+    const onMove = (ev: MouseEvent) => {
+      const sc = canvasScale || 1;
+      const dx = (ev.clientX - startScreen.x) / sc;
+      const dy = (ev.clientY - startScreen.y) / sc;
+      const next = base.map((w) => ({ ...w }));
+      next[segIndex] = { x: start.x + dx, y: start.y + dy };
+      onWaypointsChange(edge.id, next);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [edge.id, visualWaypoints, canvasScale, onWaypointsChange, onControlPointDragStart]);
+
+  // Remove a bend (double-click a waypoint handle in multi mode).
+  const deleteWaypoint = useCallback((index: number) => {
+    if (!onWaypointsChange) return;
+    onControlPointDragStart?.(edge.id);
+    const next = effectiveWaypoints.filter((_, i) => i !== index);
+    onWaypointsChange(edge.id, next.length > 0 ? next : null);
+  }, [edge.id, effectiveWaypoints, onWaypointsChange, onControlPointDragStart]);
+
+  // "+" insert affordances, one per logical segment (source → wp1 → ... → wpN →
+  // target). Each marker sits on the midpoint of the ACTUAL routed orthogonal
+  // sub-path for that segment (not the straight chord), so it always lands on the
+  // rendered line. Index i means "insert a new bend at waypoint position i".
+  const insertSlots = (() => {
+    const logical = [
+      { x: r(s.x), y: r(s.y) },
+      ...visualWaypoints.map((w) => ({ x: r(w.x), y: r(w.y) })),
+      { x: r(t.x), y: r(t.y) },
+    ];
+    const routed = routeOrthogonalWaypoints(s, t, visualWaypoints);
+    // Locate each logical point within the routed corner list (they appear in order).
+    const logicalIdx: number[] = [];
+    let cursor = 0;
+    for (const lp of logical) {
+      let found = -1;
+      for (let j = cursor; j < routed.length; j++) {
+        if (routed[j].x === lp.x && routed[j].y === lp.y) { found = j; break; }
+      }
+      if (found === -1) found = Math.min(cursor, routed.length - 1);
+      logicalIdx.push(found);
+      cursor = found;
+    }
+    const slots: { x: number; y: number; index: number }[] = [];
+    for (let i = 0; i < logical.length - 1; i++) {
+      const sub = routed.slice(logicalIdx[i], logicalIdx[i + 1] + 1);
+      const mid = sub.length >= 2
+        ? polylineMidpoint(sub)
+        : { x: (logical[i].x + logical[i + 1].x) / 2, y: (logical[i].y + logical[i + 1].y) / 2 };
+      slots.push({ x: mid.x, y: mid.y, index: i });
+    }
+    return slots;
+  })();
+
   // Create unique IDs for gradients and markers
   const edgeId = edge.id;
   const gradientId = `gradient-${edgeId}`;
@@ -561,7 +787,14 @@ export const ConnectionEdge: React.FC<{
   const isSelected = edge.selected;
 
   // Show handle when edge is selected or hovered, and control-point callback is wired up
-  const showHandle = (isSelected || isHovered) && !isExperimentTarget && !!onControlPointChange;
+  const handlesVisible = (isSelected || isHovered) && !isExperimentTarget;
+  // Single-bend handle (0–1 bends): the legacy elbow/control-point handle.
+  const showHandle = !isMulti && handlesVisible && !!onControlPointChange;
+  // Per-waypoint handles (2+ bends).
+  const showWaypointHandles = isMulti && handlesVisible && !!onWaypointsChange;
+  // "+" insert affordances appear only while selected, for step/orthogonal edges.
+  const showInsertSlots =
+    isStepLike && isSelected && !isExperimentTarget && !!onWaypointsChange && visualWaypoints.length < MAX_WAYPOINTS;
   
   return (
     <g 
@@ -689,7 +922,7 @@ export const ConnectionEdge: React.FC<{
           cx={handlePos.x}
           cy={handlePos.y}
           r={5}
-          fill={edge.controlPoint ? '#3b82f6' : 'rgba(59,130,246,0.45)'}
+          fill={singleCp ? '#3b82f6' : 'rgba(59,130,246,0.45)'}
           stroke="#ffffff"
           strokeWidth={2}
           style={{ cursor: 'grab', pointerEvents: 'all' }}
@@ -703,6 +936,53 @@ export const ConnectionEdge: React.FC<{
           }}
         />
       )}
+
+      {/* Per-waypoint bend handles (2+ bends): drag to move, double-click to remove. */}
+      {showWaypointHandles && effectiveWaypoints.map((wp, i) => (
+        <circle
+          key={`wp-${i}`}
+          cx={r(wp.x)}
+          cy={r(wp.y)}
+          r={5}
+          fill="#3b82f6"
+          stroke="#ffffff"
+          strokeWidth={2}
+          style={{ cursor: 'grab', pointerEvents: 'all' }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onMouseDown={(e) => startWaypointDrag(e, i)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            deleteWaypoint(i);
+          }}
+        >
+          <title>Drag to move this bend · double-click to remove</title>
+        </circle>
+      ))}
+
+      {/* "+" insert affordances at each segment midpoint: click or drag to add a bend. */}
+      {showInsertSlots && insertSlots.map((slot) => (
+        <g
+          key={`ins-${slot.index}`}
+          style={{ cursor: 'copy', pointerEvents: 'all' }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onMouseDown={(e) => startInsertDrag(e, slot.index, { x: slot.x, y: slot.y })}
+        >
+          <title>Add a bend here</title>
+          <circle
+            cx={r(slot.x)}
+            cy={r(slot.y)}
+            r={6}
+            fill="#ffffff"
+            stroke="#3b82f6"
+            strokeWidth={1.5}
+            opacity={0.9}
+          />
+          <line x1={r(slot.x) - 3} y1={r(slot.y)} x2={r(slot.x) + 3} y2={r(slot.y)} stroke="#3b82f6" strokeWidth={1.5} />
+          <line x1={r(slot.x)} y1={r(slot.y) - 3} x2={r(slot.x)} y2={r(slot.y) + 3} stroke="#3b82f6" strokeWidth={1.5} />
+        </g>
+      ))}
       
       {/* Edge label with enhanced styling - Phase 4: Hide {needs-label} sentinel */}
       {(() => {

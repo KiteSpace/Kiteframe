@@ -158,6 +158,7 @@ export type Edge = {
   reconnectable?: boolean; // Pro feature: enable endpoint reconnection
   zIndex?: number; // Z-index for edge layering
   controlPoint?: { x: number; y: number }; // User-dragged midpoint handle (point on curve at t=0.5)
+  waypoints?: { x: number; y: number }[]; // Ordered bend points for step/orthogonal multi-segment routing (backward compatible with single controlPoint)
   data?: any; // Keep for backward compatibility
   meta?: EdgeMeta; // Metadata for speculative edges, AI generation, etc.
 };

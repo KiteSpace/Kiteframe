@@ -95,6 +95,7 @@ interface WorkflowCanvasProps {
   // Edge control-point handle callbacks
   onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onEdgeControlPointDragStart?: (edgeId: string) => void;
+  onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
 }
 
 export function WorkflowCanvas({
@@ -175,6 +176,7 @@ export function WorkflowCanvas({
   highlightedNodeIds,
   onEdgeControlPointChange,
   onEdgeControlPointDragStart,
+  onEdgeWaypointsChange,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -689,6 +691,7 @@ export function WorkflowCanvas({
         highlightedNodeIds={highlightedNodeIds}
         onEdgeControlPointChange={onEdgeControlPointChange}
         onEdgeControlPointDragStart={onEdgeControlPointDragStart}
+        onEdgeWaypointsChange={onEdgeWaypointsChange}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

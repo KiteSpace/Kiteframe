@@ -1325,6 +1325,7 @@ type Props = {
   // Edge control-point handle callbacks
   onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onEdgeControlPointDragStart?: (edgeId: string) => void;
+  onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -3962,6 +3963,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     canvasScale={viewport.zoom}
                     onControlPointChange={props.onEdgeControlPointChange}
                     onControlPointDragStart={props.onEdgeControlPointDragStart}
+                    onWaypointsChange={props.onEdgeWaypointsChange}
                   />
                 );
               });
