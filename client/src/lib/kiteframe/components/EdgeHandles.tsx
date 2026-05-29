@@ -21,11 +21,19 @@ interface EdgeHandlesProps {
 interface DragState {
   isDragging: boolean;
   isSource: boolean; // true for source handle, false for target handle
+  pointerId: number;
   startPosition: { x: number; y: number };
   currentPosition: { x: number; y: number };
   originalSource: string;
   originalTarget: string;
 }
+
+// Visible handle radius (world units before zoom).
+const HANDLE_RADIUS = 8;
+// Invisible hit-target radius — larger than the visible dot so touch/pen can grab it.
+// The connection point is pushed this far outside the node border so the entire
+// hit circle clears the node DOM (which paints above the edge SVG layer).
+const HANDLE_HIT_RADIUS = 14;
 
 export function EdgeHandles({
   edge,
@@ -71,22 +79,24 @@ export function EdgeHandles({
     const absAngle = Math.abs(angle);
     const isHorizontal = absAngle < Math.PI / 4 || absAngle > (3 * Math.PI / 4);
     
-    const handleOffset = 8; // Handle size
+    // Push the handle fully outside the node so its hit area is never covered
+    // by the node DOM (which renders above the edge SVG layer).
+    const handleOffset = HANDLE_HIT_RADIUS;
     
     let connectionPoint;
     if (isHorizontal) {
       // Connect to left or right edge
       if (deltaX > 0) {
-        connectionPoint = { x: nodeX + nodeWidth + handleOffset/2, y: nodeCenterY };
+        connectionPoint = { x: nodeX + nodeWidth + handleOffset, y: nodeCenterY };
       } else {
-        connectionPoint = { x: nodeX - handleOffset/2, y: nodeCenterY };
+        connectionPoint = { x: nodeX - handleOffset, y: nodeCenterY };
       }
     } else {
       // Connect to top or bottom edge
       if (deltaY > 0) {
-        connectionPoint = { x: nodeCenterX, y: nodeY + nodeHeight + handleOffset/2 };
+        connectionPoint = { x: nodeCenterX, y: nodeY + nodeHeight + handleOffset };
       } else {
-        connectionPoint = { x: nodeCenterX, y: nodeY - handleOffset/2 };
+        connectionPoint = { x: nodeCenterX, y: nodeY - handleOffset };
       }
     }
     
@@ -111,90 +121,86 @@ export function EdgeHandles({
     return null;
   };
 
-  // Handle mouse down on edge handles
-  const handleMouseDown = (event: React.MouseEvent, isSource: boolean) => {
+  // Transform a pointer's screen coordinates into canvas/world coordinates.
+  const getCanvasCoords = (target: Element | null, clientX: number, clientY: number) => {
+    const svg = target?.closest('svg') ?? document.querySelector(`[data-edge-id="${edge.id}"]`)?.closest('svg');
+    if (!svg) return null;
+    const canvasContainer = svg.closest('.kiteframe-canvas') as HTMLElement | null;
+    if (!canvasContainer) return null;
+    const canvasRect = canvasContainer.getBoundingClientRect();
+    const rawX = clientX - canvasRect.left;
+    const rawY = clientY - canvasRect.top;
+    return {
+      x: (rawX - viewport.x) / viewport.zoom,
+      y: (rawY - viewport.y) / viewport.zoom,
+    };
+  };
+
+  // Handle pointer down on edge handles (mouse, touch, or pen)
+  const handlePointerDown = (event: React.PointerEvent, isSource: boolean) => {
     event.stopPropagation();
     event.preventDefault();
-    
-    // Prevent canvas panning during drag
+
+    const coords = getCanvasCoords(event.currentTarget as Element, event.clientX, event.clientY);
+    if (!coords) return;
+
+    // Capture the pointer so move/up events keep targeting this element even if
+    // the pointer leaves it during the drag.
+    try {
+      (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    } catch {
+      // setPointerCapture can throw if the pointer is already released; ignore.
+    }
+
+    // Prevent canvas panning during drag (dispatched only once a drag is
+    // actually starting so it is always balanced by edgeHandleDragEnd).
     const customEvent = new CustomEvent('edgeHandleDragStart');
     window.dispatchEvent(customEvent);
-
-    // Get canvas container for coordinate transformation
-    const svg = (event.currentTarget as Element).closest('svg');
-    if (!svg) return;
-
-    const canvasContainer = svg.closest('.kiteframe-canvas') as HTMLElement;
-    if (!canvasContainer) return;
-    
-    const canvasRect = canvasContainer.getBoundingClientRect();
-    
-    // Transform screen coordinates to canvas coordinates
-    const rawMouseX = event.clientX - canvasRect.left;
-    const rawMouseY = event.clientY - canvasRect.top;
-    const x = (rawMouseX - viewport.x) / viewport.zoom;
-    const y = (rawMouseY - viewport.y) / viewport.zoom;
 
     setDragState({
       isDragging: true,
       isSource,
-      startPosition: { x, y },
-      currentPosition: { x, y },
+      pointerId: event.pointerId,
+      startPosition: coords,
+      currentPosition: coords,
       originalSource: edge.source,
       originalTarget: edge.target
     });
   };
 
-  // Handle mouse move during drag
-  const handleMouseMove = (event: MouseEvent) => {
-    if (!dragState) return;
+  // Handle pointer move during drag
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
 
-    const svg = document.querySelector(`[data-edge-id="${edge.id}"]`)?.closest('svg');
-    if (!svg) return;
+    const coords = getCanvasCoords(event.target as Element, event.clientX, event.clientY);
+    if (!coords) return;
 
-    const canvasContainer = svg.closest('.kiteframe-canvas') as HTMLElement;
-    if (!canvasContainer) return;
-    
-    const canvasRect = canvasContainer.getBoundingClientRect();
-    
-    // Transform screen coordinates to canvas coordinates
-    const rawMouseX = event.clientX - canvasRect.left;
-    const rawMouseY = event.clientY - canvasRect.top;
-    const x = (rawMouseX - viewport.x) / viewport.zoom;
-    const y = (rawMouseY - viewport.y) / viewport.zoom;
-
-    // Update drag state with current cursor position
+    // Update drag state with current pointer position
     setDragState(prev => prev ? {
       ...prev,
-      currentPosition: { x, y }
+      currentPosition: coords
     } : null);
 
     // Check if we're over a valid target node for visual feedback
-    const nodeUnder = getNodeUnderCursor(x, y);
+    const nodeUnder = getNodeUnderCursor(coords.x, coords.y);
     setHoveredNode(nodeUnder && nodeUnder.id !== edge.source && nodeUnder.id !== edge.target ? nodeUnder.id : null);
   };
 
-  // Handle mouse up to complete reconnection
-  const handleMouseUp = (event: MouseEvent) => {
-    if (!dragState) return;
+  // Handle pointer up to complete reconnection
+  const handlePointerUp = (event: PointerEvent) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
 
-    const svg = document.querySelector(`[data-edge-id="${edge.id}"]`)?.closest('svg');
-    if (!svg) return;
+    try {
+      (event.target as Element)?.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // releasePointerCapture can throw if capture was already released; ignore.
+    }
 
-    const canvasContainer = svg.closest('.kiteframe-canvas') as HTMLElement;
-    if (!canvasContainer) return;
-    
-    const canvasRect = canvasContainer.getBoundingClientRect();
-    
-    // Transform screen coordinates to canvas coordinates  
-    const rawMouseX = event.clientX - canvasRect.left;
-    const rawMouseY = event.clientY - canvasRect.top;
-    const x = (rawMouseX - viewport.x) / viewport.zoom;
-    const y = (rawMouseY - viewport.y) / viewport.zoom;
+    const coords = getCanvasCoords(event.target as Element, event.clientX, event.clientY);
 
     // Check if we're over a valid target node
-    const targetNode = getNodeUnderCursor(x, y);
-    
+    const targetNode = coords ? getNodeUnderCursor(coords.x, coords.y) : null;
+
     if (targetNode && targetNode.id !== edge.source && targetNode.id !== edge.target) {
       // Calculate new source and target based on which handle was dragged
       const newSource = dragState.isSource ? targetNode.id : edge.source;
@@ -222,24 +228,46 @@ export function EdgeHandles({
     window.dispatchEvent(customEvent);
   };
 
-  // Set up global mouse events when dragging starts
+  // Cancel the drag (e.g. pointercancel) without reconnecting
+  const handlePointerCancel = (event: PointerEvent) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    try {
+      (event.target as Element)?.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // releasePointerCapture can throw if capture was already released; ignore.
+    }
+    setDragState(null);
+    setHoveredNode(null);
+    const customEvent = new CustomEvent('edgeHandleDragEnd');
+    window.dispatchEvent(customEvent);
+  };
+
+  // Set up global pointer events when dragging starts
   useEffect(() => {
     if (dragState?.isDragging) {
-      const cleanupMove = cleanupManager.addEventListener(document, 'mousemove', handleMouseMove);
-      const cleanupUp = cleanupManager.addEventListener(document, 'mouseup', handleMouseUp);
+      const cleanupMove = cleanupManager.addEventListener(document, 'pointermove', handlePointerMove as EventListener);
+      const cleanupUp = cleanupManager.addEventListener(document, 'pointerup', handlePointerUp as EventListener);
+      const cleanupCancel = cleanupManager.addEventListener(document, 'pointercancel', handlePointerCancel as EventListener);
       
       return () => {
         cleanupMove();
         cleanupUp();
+        cleanupCancel();
       };
     }
-  }, [dragState?.isDragging, edge.id, edge.source, edge.target, cleanupManager]);
+  }, [dragState?.isDragging, dragState?.pointerId, edge.id, edge.source, edge.target, cleanupManager]);
 
   if (!sourceNode || !targetNode) return null;
 
   // Calculate handle positions
   const sourcePoint = getConnectionPoint(sourceNode, targetNode);
   const targetPoint = getConnectionPoint(targetNode, sourceNode);
+
+  // Shared style for grabbable handle circles.
+  const handleStyle: React.CSSProperties = {
+    pointerEvents: 'auto',
+    touchAction: 'none',
+  };
 
   return (
     <g data-edge-id={edge.id} data-testid="edge-handles">
@@ -293,37 +321,55 @@ export function EdgeHandles({
         />
       )}
 
-      {/* Source handle (blue circle) */}
+      {/* Source handle (enlarged invisible hit area + visible blue circle) */}
       <circle
         cx={sourcePoint.x}
         cy={sourcePoint.y}
-        r="8"
+        r={HANDLE_HIT_RADIUS}
+        fill="transparent"
+        cursor="pointer"
+        onPointerDown={(e) => handlePointerDown(e, true)}
+        style={handleStyle}
+      />
+      <circle
+        cx={sourcePoint.x}
+        cy={sourcePoint.y}
+        r={HANDLE_RADIUS}
         fill={handleColor}
         stroke="white"
         strokeWidth="3"
         cursor="pointer"
         opacity={dragState?.isSource ? 0.7 : 1}
-        onMouseDown={(e) => handleMouseDown(e, true)}
+        onPointerDown={(e) => handlePointerDown(e, true)}
         style={{
           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-          pointerEvents: 'auto'
+          ...handleStyle,
         }}
       />
 
-      {/* Target handle (blue circle) */}
+      {/* Target handle (enlarged invisible hit area + visible blue circle) */}
       <circle
         cx={targetPoint.x}
         cy={targetPoint.y}
-        r="8"
+        r={HANDLE_HIT_RADIUS}
+        fill="transparent"
+        cursor="pointer"
+        onPointerDown={(e) => handlePointerDown(e, false)}
+        style={handleStyle}
+      />
+      <circle
+        cx={targetPoint.x}
+        cy={targetPoint.y}
+        r={HANDLE_RADIUS}
         fill={handleColor}
         stroke="white"
         strokeWidth="3"
         cursor="pointer"
         opacity={dragState?.isSource === false ? 0.7 : 1}
-        onMouseDown={(e) => handleMouseDown(e, false)}
+        onPointerDown={(e) => handlePointerDown(e, false)}
         style={{
           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-          pointerEvents: 'auto'
+          ...handleStyle,
         }}
       />
 
