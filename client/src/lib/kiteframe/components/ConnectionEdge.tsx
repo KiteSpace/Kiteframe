@@ -17,15 +17,26 @@ interface AnchorResult {
   direction: AnchorDirection;
 }
 
-function anchor(node: Node, toward: Node): AnchorResult {
+function anchor(node: Node, toward: Node, towardPoint?: { x: number; y: number }): AnchorResult {
   // Use measuredWidth/measuredHeight (transient DOM measurements) if available, for accurate edge tracking
   const w = node.measuredWidth ?? node.style?.width ?? node.width ?? 200;
   const h = node.measuredHeight ?? node.style?.height ?? node.height ?? 100;
   const x = node.position.x, y = node.position.y;
   const cx = x + w/2, cy = y + h/2;
-  const tw = toward.measuredWidth ?? toward.style?.width ?? toward.width ?? 200;
-  const th = toward.measuredHeight ?? toward.style?.height ?? toward.height ?? 100;
-  const tcx = toward.position.x + tw/2, tcy = toward.position.y + th/2;
+  // By default the connection side is chosen toward the other node's center.
+  // When a `towardPoint` is supplied (e.g. a step edge's dragged bend), choose
+  // the side toward that point instead, so the line leaves from the side that
+  // matches the bend rather than always toward the other node.
+  let tcx: number, tcy: number;
+  if (towardPoint) {
+    tcx = towardPoint.x;
+    tcy = towardPoint.y;
+  } else {
+    const tw = toward.measuredWidth ?? toward.style?.width ?? toward.width ?? 200;
+    const th = toward.measuredHeight ?? toward.style?.height ?? toward.height ?? 100;
+    tcx = toward.position.x + tw/2;
+    tcy = toward.position.y + th/2;
+  }
   const dx = tcx - cx, dy = tcy - cy;
   const angle = Math.atan2(dy, dx);
   const ha = Math.abs(angle) < Math.PI/4 || Math.abs(angle) > 3*Math.PI/4;
@@ -407,9 +418,6 @@ export const ConnectionEdge: React.FC<{
   onControlPointChange,
   onControlPointDragStart,
 }) => {
-  const s = anchor(sourceNode, targetNode);
-  const t = anchor(targetNode, sourceNode);
-
   // isHovered tracks whether pointer is over the edge path OR the handle circle.
   // React 18 automatic batching ensures that path-mouseLeave + handle-mouseEnter
   // fired in the same browser task collapse into a single render (net: still true).
@@ -426,6 +434,18 @@ export const ConnectionEdge: React.FC<{
   
   // For experiment targets: force straight, dashed, grey
   const type = isExperimentTarget ? 'straight' : (edge.type ?? 'bezier');
+
+  // Choose each node's connection side. For step/orthogonal edges with a
+  // user-dragged bend, pick the side toward the bend so the right-angle line
+  // doesn't double back when the elbow is dragged past a node. All other edge
+  // types (and step/orthogonal edges without a bend) keep the center-to-center
+  // choice.
+  const anchorTowardPoint =
+    (type === 'step' || type === 'orthogonal') && edge.controlPoint
+      ? edge.controlPoint
+      : undefined;
+  const s = anchor(sourceNode, targetNode, anchorTowardPoint);
+  const t = anchor(targetNode, sourceNode, anchorTowardPoint);
   
   // Get styling from edge.style with fallbacks to edge.data for backward compatibility
   const style = edge.style || {};
