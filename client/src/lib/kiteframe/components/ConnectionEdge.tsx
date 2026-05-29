@@ -614,11 +614,15 @@ export const ConnectionEdge: React.FC<{
     return cp;
   })();
 
-  // Drag handler — attached to handle circle mousedown
-  const handleHandleMouseDown = useCallback((e: React.MouseEvent) => {
+  // Drag handler — attached to handle circle pointerdown (mouse, touch, or pen)
+  const handleHandlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!onControlPointChange) return;
+    if (e.button != null && e.button !== 0) return; // primary button / touch / pen only
     e.preventDefault();
     e.stopPropagation();
+
+    const pointerId = e.pointerId;
+    try { (e.currentTarget as Element).setPointerCapture(pointerId); } catch { /* already released */ }
 
     isDraggingRef.current = true;
     hasSavedHistoryRef.current = false; // reset guard for new drag
@@ -626,7 +630,8 @@ export const ConnectionEdge: React.FC<{
     // Start from the computed handlePos so step/orthogonal edges use the correct axis
     dragStartCPRef.current = { ...handlePos };
 
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       if (!isDraggingRef.current || !dragStartScreenRef.current || !dragStartCPRef.current) return;
 
       // Save history snapshot on the FIRST actual movement (single-shot guard).
@@ -645,15 +650,18 @@ export const ConnectionEdge: React.FC<{
       });
     };
 
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       isDraggingRef.current = false;
       hasSavedHistoryRef.current = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }, [edge.id, handlePos.x, handlePos.y, canvasScale, onControlPointChange, onControlPointDragStart]);
 
   const MAX_WAYPOINTS = 10;
@@ -667,16 +675,20 @@ export const ConnectionEdge: React.FC<{
 
   // Move an existing waypoint (multi mode). Snapshots history once on first move,
   // then writes the whole updated waypoint list.
-  const startWaypointDrag = useCallback((e: React.MouseEvent, index: number) => {
+  const startWaypointDrag = useCallback((e: React.PointerEvent, index: number) => {
     if (!onWaypointsChange) return;
+    if (e.button != null && e.button !== 0) return; // primary button / touch / pen only
     e.preventDefault();
     e.stopPropagation();
+    const pointerId = e.pointerId;
+    try { (e.currentTarget as Element).setPointerCapture(pointerId); } catch { /* already released */ }
     const base = effectiveWaypoints.map((w) => ({ ...w }));
     const start = base[index];
     if (!start) return;
     const startScreen = { x: e.clientX, y: e.clientY };
     let saved = false;
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       if (!saved) {
         saved = true;
         onControlPointDragStart?.(edge.id);
@@ -688,21 +700,27 @@ export const ConnectionEdge: React.FC<{
       next[index] = { x: start.x + dx, y: start.y + dy };
       onWaypointsChange(edge.id, next);
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }, [edge.id, effectiveWaypoints, canvasScale, onWaypointsChange, onControlPointDragStart]);
 
   // Insert a new bend at segment `segIndex` (0 = source→first), then immediately
   // start dragging it so a click-drag pulls out a fresh bend.
-  const startInsertDrag = useCallback((e: React.MouseEvent, segIndex: number, at: { x: number; y: number }) => {
+  const startInsertDrag = useCallback((e: React.PointerEvent, segIndex: number, at: { x: number; y: number }) => {
     if (!onWaypointsChange) return;
+    if (e.button != null && e.button !== 0) return; // primary button / touch / pen only
     e.preventDefault();
     e.stopPropagation();
     if (visualWaypoints.length >= MAX_WAYPOINTS) return;
+    const pointerId = e.pointerId;
+    try { (e.currentTarget as Element).setPointerCapture(pointerId); } catch { /* already released */ }
     // Commit the insert right away (one history entry) so a plain click adds a bend.
     onControlPointDragStart?.(edge.id);
     const base = visualWaypoints.map((w) => ({ ...w }));
@@ -711,7 +729,8 @@ export const ConnectionEdge: React.FC<{
     // Then drag the freshly inserted point (index === segIndex).
     const start = { x: at.x, y: at.y };
     const startScreen = { x: e.clientX, y: e.clientY };
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       const sc = canvasScale || 1;
       const dx = (ev.clientX - startScreen.x) / sc;
       const dy = (ev.clientY - startScreen.y) / sc;
@@ -719,12 +738,15 @@ export const ConnectionEdge: React.FC<{
       next[segIndex] = { x: start.x + dx, y: start.y + dy };
       onWaypointsChange(edge.id, next);
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }, [edge.id, visualWaypoints, canvasScale, onWaypointsChange, onControlPointDragStart]);
 
   // Remove a bend (double-click a waypoint handle in multi mode).
@@ -925,10 +947,10 @@ export const ConnectionEdge: React.FC<{
           fill={singleCp ? '#3b82f6' : 'rgba(59,130,246,0.45)'}
           stroke="#ffffff"
           strokeWidth={2}
-          style={{ cursor: 'grab', pointerEvents: 'all' }}
+          style={{ cursor: 'grab', pointerEvents: 'all', touchAction: 'none' }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          onMouseDown={handleHandleMouseDown}
+          onPointerDown={handleHandlePointerDown}
           onDoubleClick={(e) => {
             e.stopPropagation();
             // Reset edge to automatic shape
@@ -947,10 +969,10 @@ export const ConnectionEdge: React.FC<{
           fill="#3b82f6"
           stroke="#ffffff"
           strokeWidth={2}
-          style={{ cursor: 'grab', pointerEvents: 'all' }}
+          style={{ cursor: 'grab', pointerEvents: 'all', touchAction: 'none' }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          onMouseDown={(e) => startWaypointDrag(e, i)}
+          onPointerDown={(e) => startWaypointDrag(e, i)}
           onDoubleClick={(e) => {
             e.stopPropagation();
             deleteWaypoint(i);
@@ -964,10 +986,10 @@ export const ConnectionEdge: React.FC<{
       {showInsertSlots && insertSlots.map((slot) => (
         <g
           key={`ins-${slot.index}`}
-          style={{ cursor: 'copy', pointerEvents: 'all' }}
+          style={{ cursor: 'copy', pointerEvents: 'all', touchAction: 'none' }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          onMouseDown={(e) => startInsertDrag(e, slot.index, { x: slot.x, y: slot.y })}
+          onPointerDown={(e) => startInsertDrag(e, slot.index, { x: slot.x, y: slot.y })}
         >
           <title>Add a bend here</title>
           <circle
