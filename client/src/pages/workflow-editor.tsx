@@ -12326,7 +12326,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                       const newWorkflowNodes = workflow.nodes;
                       const newWorkflowEdges = workflow.edges;
-                      const offset = calculateWorkflowOffset(newWorkflowNodes);
+                      // Place the new workflow to the RIGHT of existing content
+                      // (side-by-side), top-aligned, so it reads as its own
+                      // column rather than stacking underneath the original.
+                      const offset = (() => {
+                        if (nodes.length === 0) return { x: 0, y: 0 };
+                        const horizontalSpacing = 250;
+                        let maxExistingX = -Infinity;
+                        let minExistingY = Infinity;
+                        nodes.forEach((node) => {
+                          const right = node.position.x + (node.width || 200);
+                          if (right > maxExistingX) maxExistingX = right;
+                          if (node.position.y < minExistingY)
+                            minExistingY = node.position.y;
+                        });
+                        let minNewX = Infinity;
+                        let minNewY = Infinity;
+                        newWorkflowNodes.forEach((node) => {
+                          if (node.position.x < minNewX) minNewX = node.position.x;
+                          if (node.position.y < minNewY) minNewY = node.position.y;
+                        });
+                        return {
+                          x: maxExistingX + horizontalSpacing - minNewX,
+                          y: minExistingY - minNewY,
+                        };
+                      })();
                       const batchId = Date.now();
                       const nodeIdMapping: { [oldId: string]: string } = {};
 
