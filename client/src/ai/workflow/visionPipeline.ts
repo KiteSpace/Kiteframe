@@ -56,6 +56,13 @@ export interface VisionPipelineOutput {
   visionConfidence?: 'low' | 'medium' | 'high';
   outputMode: 'reference' | 'generated';
   beta: boolean;
+  /**
+   * True when we fell back to the no-vision heuristic instead of running real
+   * vision analysis. Callers MUST surface `degradationReason` to the user so
+   * the degradation is never silent.
+   */
+  degraded?: boolean;
+  degradationReason?: string;
 }
 
 const visionCache = new Map<string, VisionResult>();
@@ -266,6 +273,15 @@ export async function generateWorkflowFromFrame(
     }
     
     console.log('[VisionPipeline] outputMode reference (heuristic only)');
+    // Make the reason for skipping real vision explicit so callers can tell the
+    // user instead of silently degrading to a metadata-only guess.
+    const degradationReason = batchThrottled
+      ? 'Vision analysis is rate-limited right now, so this is a lower-detail result based on metadata only. Please try again in a minute for a full analysis.'
+      : !supportsVision(model)
+        ? 'The selected model does not support image analysis, so this is a metadata-only result.'
+        : summary.decorativeOnly
+          ? 'This frame looks decorative (no clear interactive or text elements), so only a basic result was produced.'
+          : 'Not enough detail was detected to run full image analysis, so this is a metadata-only result.';
     return {
       result: generateHeuristicWorkflow(summary, role),
       source: 'heuristic',
@@ -273,6 +289,8 @@ export async function generateWorkflowFromFrame(
       visionInvoked: false,
       outputMode: 'reference',
       beta: false,
+      degraded: true,
+      degradationReason,
     };
   }
   
@@ -348,6 +366,8 @@ export async function generateWorkflowFromFrame(
       visionInvoked: true,
       outputMode: 'reference',
       beta: false,
+      degraded: true,
+      degradationReason: 'Image analysis failed, so this is a lower-detail result based on metadata only. Please try again in a moment.',
     };
   }
 }

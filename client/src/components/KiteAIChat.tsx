@@ -855,7 +855,11 @@ export function KiteAIChatBrain({
       if (file.type.startsWith('image/')) {
         const preview = await new Promise<string>((resolve) => {
           const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onload = (e) => resolve((e.target?.result as string) || '');
+          reader.onerror = () => {
+            console.error('[KiteAIChat] Failed to read image preview for', file.name);
+            resolve('');
+          };
           reader.readAsDataURL(file);
         });
         attachments.push({ type: 'image', name: file.name, preview });
@@ -918,23 +922,32 @@ export function KiteAIChatBrain({
       }
 
       const imageAttachment = attachments.find(a => a.type === 'image');
+      // Gate on the actual image file (not the preview): a failed preview read
+      // must NOT cause us to silently skip analysis and fall through to text chat.
+      const imageFiles = filesToProcess.filter(f => f.type.startsWith('image/'));
       console.log('[KiteAIChat] Image attachment check:', {
         hasImageAttachment: !!imageAttachment,
         preview: imageAttachment?.preview ? 'present' : 'missing',
         filesToProcessCount: filesToProcess.length,
-        imageFilesInProcess: filesToProcess.filter(f => f.type.startsWith('image/')).length
+        imageFilesInProcess: imageFiles.length
       });
-      if (imageAttachment?.preview) {
-        const file = filesToProcess.find(f => f.type.startsWith('image/'));
+      if (imageFiles.length > 0) {
+        const file = imageFiles[0];
         console.log('[KiteAIChat] Attempting image analysis with file:', file?.name, file?.type, file?.size);
         if (file) {
           const formData = new FormData();
           formData.append('image', file);
 
-          const response = await fetch('/api/ai/analyze-workflow-image', {
-            method: 'POST',
-            body: formData,
-          });
+          let response: Response;
+          try {
+            response = await fetch('/api/ai/analyze-workflow-image', {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (networkError) {
+            console.error('[KiteAIChat] Image analysis network error:', networkError);
+            throw new Error("I couldn't reach the image analysis service. Please check your connection and try again.");
+          }
 
           if (response.ok) {
             const result = await response.json();
@@ -945,12 +958,32 @@ export function KiteAIChatBrain({
               nodeCount: result.nodes?.length || 0,
               edgeCount: result.edges?.length || 0
             });
-            
+
+            // If multiple images were attached, be explicit that only the first
+            // is analyzed rather than silently dropping the rest.
+            const multiImageNote = imageFiles.length > 1
+              ? `\n\nNote: I analyzed the first image ("${file.name}"). I can only analyze one image at a time — send the others separately if you'd like them turned into workflows too.`
+              : '';
+
+            const extractedNodeCount = result.nodes?.length || 0;
+            const hasExtractedWorkflow = extractedNodeCount > 0;
+
             let content = `I analyzed your workflow image with ${result.confidence}% confidence.\n\n${result.analysis}`;
-            
+
+            // Treat "canGenerate" OR "low confidence but a usable structure was
+            // still extracted" as actionable, so the user always gets a clear
+            // next step instead of just analysis text.
+            const offerProposal = result.canGenerate || hasExtractedWorkflow;
+
             if (result.canGenerate) {
-              content += `\n\nI was able to extract a workflow structure with ${result.nodes?.length || 0} nodes and ${result.edges?.length || 0} connections. Use the buttons below to preview or apply this workflow to your canvas.`;
-              
+              content += `\n\nI was able to extract a workflow structure with ${extractedNodeCount} nodes and ${result.edges?.length || 0} connections. Use the buttons below to preview or apply this workflow to your canvas.`;
+            } else if (hasExtractedWorkflow) {
+              content += `\n\nMy confidence is below the ${70}% threshold, so this is a best guess. I still pulled out ${extractedNodeCount} nodes and ${result.edges?.length || 0} connections — you can preview or apply it below and refine from there, or describe the workflow in text and I'll rebuild it more precisely.`;
+            } else {
+              content += `\n\nMy confidence is too low (${result.confidence}%) and I couldn't reliably pull a workflow out of this image. Try a clearer or higher-contrast diagram, or describe the workflow in text and I'll build it with you step by step.`;
+            }
+
+            if (offerProposal) {
               // SET AUTHORITATIVE WORKFLOW DRAFT for image analysis - enables Apply to Canvas buttons
               setCurrentWorkflowDraft({
                 nodes: result.nodes,
@@ -959,7 +992,7 @@ export function KiteAIChatBrain({
                 originPrompt: messageContent,
                 mergeBranchDecision: undefined,
               });
-              
+
               // Analyze workflow diagnostics for quick action suggestions (edge cases, failure handling)
               const diagnostics = analyzeWorkflowDiagnostics({
                 nodes: result.nodes.map((n: Node) => ({
@@ -974,14 +1007,14 @@ export function KiteAIChatBrain({
                   label: (e.data as any)?.label
                 }))
               });
-              
+
               // Set workflow generation state and suggested quick actions
               // In HOME proposal phase (fullscreen mode), always show edge/fail actions
               const diagnosticsContext: DiagnosticsContext = mode === 'fullscreen' ? 'HOME_PROPOSAL' : 'IN_PROJECT';
               const suggestedActions = getSuggestedQuickActions(diagnostics, diagnosticsContext);
               setWorkflowGenState('BASELINE_GENERATED');
               setPendingQuickActions(suggestedActions);
-              
+
               logAiInteraction({
                 surface: mode === 'fullscreen' ? 'home' : 'project',
                 phase: 'baseline',
@@ -990,20 +1023,20 @@ export function KiteAIChatBrain({
                 nodeDelta: result.nodes.length,
                 edgeDelta: result.edges.length,
               });
-            } else {
-              content += `\n\nThe confidence level (${result.confidence}%) is below the 70% threshold needed to automatically generate a workflow. You can describe the workflow in text, and I'll help you build it step by step.`;
             }
-            
+
             if (result.recommendations?.length > 0) {
               content += '\n\nRecommendations:\n' + result.recommendations.map((r: string) => `• ${r}`).join('\n');
             }
-            
+
+            content += multiImageNote;
+
             const assistantMessage: ChatMessage = {
               id: `msg-${Date.now()}`,
               role: 'assistant',
               content,
               timestamp: new Date(),
-              workflowProposal: result.canGenerate ? {
+              workflowProposal: offerProposal ? {
                 nodes: result.nodes,
                 edges: result.edges,
                 description: 'Generated from image analysis',
@@ -1012,9 +1045,26 @@ export function KiteAIChatBrain({
             };
             setMessages(prev => [...prev, assistantMessage]);
           } else {
-            const errorText = await response.text();
-            console.error('[KiteAIChat] Image analysis failed:', response.status, errorText);
-            throw new Error('Failed to analyze image');
+            // Surface the specific server-provided reason (credits, plan, rate
+            // limit, timeout, unreadable response) instead of a generic error.
+            let serverMessage = '';
+            try {
+              const errorJson = await response.json();
+              serverMessage = errorJson?.error || errorJson?.message || '';
+            } catch {
+              serverMessage = '';
+            }
+            console.error('[KiteAIChat] Image analysis failed:', response.status, serverMessage);
+            if (!serverMessage) {
+              if (response.status === 401 || response.status === 403) {
+                serverMessage = "Image-to-workflow needs an Advanced or Pro plan, or you may be out of credits.";
+              } else if (response.status === 413) {
+                serverMessage = "That image is too large. Please upload an image under 10MB.";
+              } else {
+                serverMessage = "I couldn't analyze that image. Please try again in a moment.";
+              }
+            }
+            throw new Error(serverMessage);
           }
           setIsLoading(false);
           return;

@@ -3068,9 +3068,16 @@ Respond with only the corrected JSON data:`;
       const base64Image = req.file.buffer.toString('base64');
       const mediaType = (req.file.mimetype as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp') || 'image/jpeg';
 
-      // Analyze image with Claude Sonnet Vision
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Analyze image with Claude Sonnet Vision (with a hard timeout so the
+      // request can't hang indefinitely and leave the user staring at a spinner)
+      const VISION_TIMEOUT_MS = 60000;
+      const timeoutController = new AbortController();
+      const timeoutHandle = setTimeout(() => timeoutController.abort(), VISION_TIMEOUT_MS);
+      let response: Response;
+      try {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
+        signal: timeoutController.signal,
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
@@ -3156,14 +3163,44 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
           max_tokens: 4000,
           temperature: 0.2
         })
-      });
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutHandle);
+        if (fetchError?.name === 'AbortError') {
+          console.error('[Image Analysis] Vision request timed out after', VISION_TIMEOUT_MS, 'ms');
+          return res.status(504).json({
+            error: "Image analysis timed out. The image may be too complex — try a smaller or simpler diagram, or try again in a moment.",
+          });
+        }
+        console.error('[Image Analysis] Vision request failed to reach AI service:', fetchError);
+        return res.status(502).json({
+          error: "Couldn't reach the image analysis service. Please try again in a moment.",
+        });
+      }
+      clearTimeout(timeoutHandle);
 
       if (!response.ok) {
         const error = await response.text();
         console.error(`Anthropic API Error ${response.status}:`, error);
-        return res.status(500).json({ 
-          error: "Failed to analyze image", 
-          details: `AI API error: ${response.status}` 
+        // Surface a specific, actionable reason instead of a generic 500.
+        if (response.status === 400 && error.includes('credit balance is too low')) {
+          return res.status(400).json({
+            error: "The image analysis service is temporarily unavailable (provider credit issue). Please try again later or contact support.",
+          });
+        }
+        if (response.status === 429) {
+          return res.status(429).json({
+            error: "Image analysis is busy right now (rate limited). Please wait a moment and try again.",
+          });
+        }
+        if (response.status === 401 || response.status === 403) {
+          return res.status(503).json({
+            error: "Image analysis is not available right now (service configuration issue). Please try again later.",
+          });
+        }
+        return res.status(502).json({
+          error: "The image analysis service returned an error. Please try again in a moment.",
+          details: `AI API error: ${response.status}`,
         });
       }
 
@@ -3172,13 +3209,47 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       
       console.log('[Image Analysis] Raw AI response length:', rawContent.length);
 
+      // Tolerant JSON parsing: the model sometimes wraps JSON in markdown code
+      // fences or adds a sentence of preamble. Strip fences first, then fall
+      // back to extracting the first balanced { ... } object.
+      const extractJsonObject = (text: string): string | null => {
+        const start = text.indexOf('{');
+        if (start === -1) return null;
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < text.length; i++) {
+          const ch = text[i];
+          if (escape) { escape = false; continue; }
+          if (ch === '\\' && inString) { escape = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) return text.slice(start, i + 1);
+          }
+        }
+        return null;
+      };
+
       let analysisResult;
       try {
-        analysisResult = JSON.parse(rawContent);
+        const cleaned = rawContent
+          .replace(/^```(?:json)?\s*\n?/i, '')
+          .replace(/\n?```\s*$/i, '')
+          .trim();
+        try {
+          analysisResult = JSON.parse(cleaned);
+        } catch {
+          const extracted = extractJsonObject(cleaned);
+          if (!extracted) throw new Error('No JSON object found in AI response');
+          analysisResult = JSON.parse(extracted);
+        }
       } catch (parseError) {
         console.error('[Image Analysis] Failed to parse AI response:', parseError);
-        return res.status(500).json({ 
-          error: "Failed to analyze image", 
+        return res.status(502).json({ 
+          error: "Couldn't read the workflow from that image. Try a clearer diagram, or describe the workflow in text and I'll build it with you.",
           details: "Invalid AI response format" 
         });
       }
