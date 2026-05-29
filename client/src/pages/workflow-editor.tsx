@@ -5301,21 +5301,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [isPhoneViewOnly]);
 
-  // Phase 5: REPLACE confirmation state for full-graph detection
-  // Stores all context needed to replay the mutation through the same success path
-  const [pendingReplaceConfirmation, setPendingReplaceConfirmation] = useState<{
-    workflow: {
-      nodes: Node[];
-      edges: Edge[];
-      canvasObjects?: CanvasObject[];
-      aiMode?: 'ADVISE' | 'EDIT' | 'GENERATE';
-      bypassConfirmation?: boolean;
-    };
-    existingNodes: Node[];
-    existingEdges: Edge[];
-    nodeCount: number;
-    existingNodeCount: number;
-  } | null>(null);
+  // Task #137: The old full-graph REPLACE confirmation dialog was removed.
+  // Full/new-workflow proposals are now added non-destructively beside the
+  // existing workflow (see onApplyWorkflow), so no destructive prompt is needed.
 
   // Phase 4: Structural regression warning state for REPLACE
   // Shows warning when replacement reduces branching/decision topology
@@ -12329,24 +12317,114 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                   
                   if (!mutationResult.success) {
-                    // Phase 5: Check if this requires REPLACE confirmation
+                    // Task #137: Full graph / new-workflow proposal on a populated
+                    // canvas. Instead of the old destructive REPLACE prompt, add
+                    // the proposal BESIDE the existing workflow as its own separate
+                    // group. Nothing is destroyed — the user can delete either one.
                     if (mutationResult.requiresConfirmation) {
-                      console.log('[Phase 5] Full graph detected - showing REPLACE confirmation dialog');
-                      // Store all context needed to replay through same success path
-                      setPendingReplaceConfirmation({
-                        workflow: {
-                          nodes: workflow.nodes,
-                          edges: workflow.edges,
-                          canvasObjects: workflow.canvasObjects,
-                          aiMode: workflow.aiMode,
-                          bypassConfirmation: true, // Will be used when replaying
+                      console.log('[Task #137] Full graph detected - adding as a new workflow beside the existing one (non-destructive)');
+
+                      const newWorkflowNodes = workflow.nodes;
+                      const newWorkflowEdges = workflow.edges;
+                      const offset = calculateWorkflowOffset(newWorkflowNodes);
+                      const batchId = Date.now();
+                      const nodeIdMapping: { [oldId: string]: string } = {};
+
+                      const offsetNodes = newWorkflowNodes.map(
+                        (node: Node, index: number) => {
+                          const oldId = node.id || `node-${index}`;
+                          const newId = `node-${batchId}-${index}`;
+                          nodeIdMapping[oldId] = newId;
+                          return {
+                            ...node,
+                            id: newId,
+                            position: {
+                              x: node.position.x + offset.x,
+                              y: node.position.y + offset.y,
+                            },
+                            selected: false,
+                            data: {
+                              ...node.data,
+                              meta: {
+                                ...(node.data as any)?.meta,
+                                createdAt: Date.now(),
+                              },
+                            },
+                          };
                         },
-                        existingNodes: nodes, // Capture current state for replay
-                        existingEdges: edges,
-                        nodeCount: workflow.nodes.length,
-                        existingNodeCount: nodes.length,
+                      );
+
+                      // Remap every edge onto the new node ids so the proposal
+                      // only connects within itself — this is what makes the
+                      // Layers panel treat it as its own separate group. We drop
+                      // any edge that can't be fully remapped to the new nodes,
+                      // so it can never cross-link into the existing workflow.
+                      const resolveNewId = (
+                        ref: string,
+                      ): string | undefined => {
+                        const direct = nodeIdMapping[ref];
+                        if (direct) return direct;
+                        // Parity with the success path: tolerate numeric-index
+                        // edge references (e.g. "0", "1") pointing at node order.
+                        const numeric = parseInt(ref, 10);
+                        if (!isNaN(numeric) && numeric < newWorkflowNodes.length) {
+                          const oldId =
+                            newWorkflowNodes[numeric]?.id || `node-${numeric}`;
+                          return nodeIdMapping[oldId];
+                        }
+                        return undefined;
+                      };
+
+                      const offsetEdges: Edge[] = [];
+                      newWorkflowEdges.forEach((edge: Edge, index: number) => {
+                        const newSource = resolveNewId(edge.source);
+                        const newTarget = resolveNewId(edge.target);
+                        if (!newSource || !newTarget) {
+                          console.warn(
+                            '[Task #137] Dropping edge that could not be remapped to the new workflow (keeps the group internal-only):',
+                            { source: edge.source, target: edge.target },
+                          );
+                          return;
+                        }
+                        offsetEdges.push({
+                          ...edge,
+                          id: `edge-${batchId}-${index}`,
+                          source: newSource,
+                          target: newTarget,
+                          selected: false,
+                        });
                       });
-                      return; // Wait for user confirmation
+
+                      setNodes((prev) => [...prev, ...offsetNodes]);
+                      setEdges((prev) => [...prev, ...offsetEdges]);
+
+                      if (
+                        workflow.canvasObjects &&
+                        workflow.canvasObjects.length > 0
+                      ) {
+                        const offsetObjects = workflow.canvasObjects.map(
+                          (obj: CanvasObject, index: number) => ({
+                            ...obj,
+                            id: `obj-${batchId}-${index}`,
+                            position: {
+                              x: obj.position.x + offset.x,
+                              y: obj.position.y + offset.y,
+                            },
+                            selected: false,
+                          }),
+                        );
+                        updateActiveTab({
+                          canvasObjects: [...canvasObjects, ...offsetObjects],
+                        });
+                      }
+
+                      setTimeout(() => saveToHistory("Add workflow as new group"), 0);
+
+                      toast({
+                        title: "New Workflow Added",
+                        description: `Added a new workflow (${offsetNodes.length} nodes) beside your existing one. Your original is unchanged — delete whichever you don't need. Use Ctrl+Z to undo.`,
+                      });
+                      return;
                     }
                     
                     console.error('[MergeSafe] Mutation blocked:', {
@@ -13163,68 +13241,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         />
       )}
 
-      {/* Phase 5: REPLACE Confirmation Dialog */}
-      <AlertDialog 
-        open={!!pendingReplaceConfirmation} 
-        onOpenChange={(open) => !open && setPendingReplaceConfirmation(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace entire workflow?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The AI generated a complete workflow with {pendingReplaceConfirmation?.nodeCount || 0} nodes. 
-              This will replace your current workflow ({pendingReplaceConfirmation?.existingNodeCount || 0} nodes).
-              <br /><br />
-              <strong>This action can be undone</strong> using Ctrl+Z or the undo button.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              onClick={() => {
-                if (!pendingReplaceConfirmation) return;
-                
-                const pending = pendingReplaceConfirmation;
-                setPendingReplaceConfirmation(null);
-                
-                // DEV DIAGNOSTIC: Log confirmation click
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('[REPLACE CONFIRM] User confirmed Replace:', {
-                    draftNodeCount: pending.workflow.nodes.length,
-                    existingNodeCount: pending.existingNodeCount,
-                  });
-                }
-                
-                // Use shared function with regression detection callback
-                const result = executeReplaceWorkflow(
-                  pending.workflow,
-                  pending.existingNodes,
-                  pending.existingEdges,
-                  {
-                    onRegressionDetected: (regressionResult) => {
-                      setPendingRegressionWarning({
-                        workflow: pending.workflow,
-                        existingNodes: pending.existingNodes,
-                        existingEdges: pending.existingEdges,
-                        regressionResult,
-                      });
-                    },
-                  }
-                );
-                
-                // result is false (failed), true (success), or 'regression_detected' (warning shown)
-                if (result === 'regression_detected') {
-                  // Regression modal will handle next steps
-                  return;
-                }
-              }}
-              className="bg-primary hover:bg-primary/90"
-              data-testid="confirm-replace-workflow"
-            >
-              Replace (Undoable)
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Task #137: The destructive REPLACE confirmation dialog was removed.
+          Full/new-workflow proposals are now added beside the existing workflow
+          (non-destructive). Explicit Replace is still available via the chat's
+          "Replace" button, which uses the regression-aware path below. */}
 
       {/* Phase 4: Structural Regression Warning Dialog */}
       <AlertDialog 
