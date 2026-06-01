@@ -35,7 +35,6 @@ interface WorkflowCanvasProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   selectedNodeIds?: string[];
   onSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
   enablePlugins?: boolean;
@@ -122,7 +121,6 @@ export function WorkflowCanvas({
   onRedo,
   canUndo,
   canRedo,
-  onAutoLayout,
   selectedNodeIds,
   onSelectionChange,
   enablePlugins,
@@ -702,7 +700,6 @@ export function WorkflowCanvas({
           onUndo={onUndo}
           onRedo={onRedo}
           onFitView={onFitView}
-          onAutoLayout={onAutoLayout}
           canUndo={canUndo}
           canRedo={canRedo}
           hiddenWorkflowCount={hiddenWorkflowCount}

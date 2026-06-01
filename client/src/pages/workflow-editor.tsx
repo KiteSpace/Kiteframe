@@ -5183,46 +5183,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [core, tabs, activeTabId, updateActiveTab]);
 
-  // Auto Layout Handler - delegates to LayoutPlugin via KiteFrame
-  // Accepts string events or objects with eventId and spacing for distribute operations
-  const handleAutoLayout = useCallback(
-    (eventData: string | { eventId: string; spacing: number }) => {
-      if (nodes.length === 0) return;
-
-      const label =
-        typeof eventData === "string" ? eventData : eventData.eventId;
-      saveToHistory(`Auto layout: ${label}`);
-
-      let eventName: string;
-      let payload: any = undefined;
-
-      if (typeof eventData === "string") {
-        // Handle string events (align, layout operations)
-        eventName = /^(align:|distribute:|layout:)/.test(eventData)
-          ? eventData
-          : `layout:${eventData}`;
-      } else {
-        // Handle object with spacing payload (distribute operations)
-        eventName = eventData.eventId;
-        payload = { spacing: eventData.spacing };
-      }
-
-      if (core) {
-        try {
-          // Emit event to the LayoutPlugin with optional payload
-          core.emit(eventName, payload);
-        } catch (error) {
-          console.error(`❌ Failed to emit layout event: ${eventName}`, error);
-        }
-      } else {
-        console.warn(
-          `⚠️ KiteFrame core not available for layout: ${typeof eventData === "string" ? eventData : eventData.eventId}`,
-        );
-      }
-    },
-    [nodes, saveToHistory, core],
-  );
-
   // Other UI state
   const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
@@ -10261,7 +10221,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     canUndo={effectiveReadOnly ? true : canUndo}
                     canRedo={effectiveReadOnly ? false : canRedo}
-                    onAutoLayout={handleAutoLayout}
                     onSelectionChange={(
                       nodeIds: string[],
                       edgeIds: string[],

@@ -1,16 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
-  Undo2, Redo2, ZoomIn, LayoutGrid, GripVertical, Camera, History, Maximize2,
-  AlignStartVertical, AlignCenterVertical, AlignEndVertical, 
-  AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
-  AlignVerticalSpaceBetween, AlignHorizontalSpaceBetween, EyeOff
+  Undo2, Redo2, ZoomIn, GripVertical, Camera, History, Maximize2, EyeOff
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onFitView: () => void;
-  onAutoLayout: (layoutType: string | { eventId: string; spacing: number }) => void;
   canUndo: boolean;
   canRedo: boolean;
   hiddenWorkflowCount?: number;
@@ -21,7 +17,6 @@ export function FloatingToolbar({
   onUndo,
   onRedo,
   onFitView,
-  onAutoLayout,
   canUndo,
   canRedo,
   hiddenWorkflowCount = 0,
@@ -30,8 +25,6 @@ export function FloatingToolbar({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
-  const [spacing, setSpacing] = useState(10);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -132,35 +125,6 @@ export function FloatingToolbar({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Unified layout options matching screenshot design
-  const workflowsOptions = [
-    {
-      title: 'Horizontal Align',
-      options: [
-        { id: 'align-left', label: 'Left', icon: AlignStartVertical, eventId: 'align:workflows-left' },
-        { id: 'align-center', label: 'Center', icon: AlignCenterVertical, eventId: 'align:workflows-center' },
-        { id: 'align-right', label: 'Right', icon: AlignEndVertical, eventId: 'align:workflows-right' },
-      ]
-    },
-    {
-      title: 'Vertical Align',
-      options: [
-        { id: 'align-top', label: 'Top', icon: AlignStartHorizontal, eventId: 'align:workflows-top' },
-        { id: 'align-middle', label: 'Middle', icon: AlignCenterHorizontal, eventId: 'align:workflows-middle' },
-        { id: 'align-bottom', label: 'Bottom', icon: AlignEndHorizontal, eventId: 'align:workflows-bottom' },
-      ]
-    },
-    {
-      title: 'Distribute',
-      hasInput: true,
-      options: [
-        { id: 'distribute-vertical', label: 'Vertical Space Between', icon: AlignVerticalSpaceBetween, eventId: 'distribute:workflows-vertical' },
-        { id: 'distribute-horizontal', label: 'Horizontal Space Between', icon: AlignHorizontalSpaceBetween, eventId: 'distribute:workflows-horizontal' },
-      ]
-    }
-  ];
-
-
   return (
     <div
       ref={containerRef}
@@ -225,97 +189,6 @@ export function FloatingToolbar({
           <Maximize2 size={16} />
         </button>
 
-        {/* Separator */}
-        <div className="w-px h-6 bg-border mx-1" />
-
-        {/* Auto Layout */}
-        <div className="relative">
-          <button
-            className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-accent rounded-full transition-colors"
-            onClick={() => setShowLayoutDropdown(!showLayoutDropdown)}
-            title="Auto Layout"
-          >
-            <LayoutGrid size={16} />
-          </button>
-          
-          {showLayoutDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-card border border-border rounded-lg shadow-lg p-4 w-80 z-50">
-              {/* Workflows Section */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Workflows</h3>
-                <div className="space-y-4">
-                  {workflowsOptions.map((section) => (
-                    <div key={section.title}>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">{section.title}</div>
-                      {section.hasInput ? (
-                        // Special layout for Distribute section with input field
-                        <div className="flex items-center gap-2">
-                          <div className="relative flex-1">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={spacing}
-                              onChange={(e) => {
-                                const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                                setSpacing(value);
-                              }}
-                              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                              placeholder="10"
-                            />
-                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
-                              px
-                            </span>
-                          </div>
-                          {section.options.map((option) => {
-                            const IconComponent = option.icon;
-                            return (
-                              <button
-                                key={option.id}
-                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50 w-12 h-12"
-                                onClick={() => {
-                                  // Pass spacing as payload data instead of in event name
-                                  const eventData = { eventId: option.eventId, spacing };
-                                  onAutoLayout(eventData);
-                                  setShowLayoutDropdown(false);
-                                }}
-                                title={option.label}
-                              >
-                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        // Regular grid layout for align sections
-                        <div className="grid grid-cols-3 gap-2">
-                          {section.options.map((option) => {
-                            const IconComponent = option.icon;
-                            return (
-                              <button
-                                key={option.id}
-                                className="flex flex-col items-center justify-center p-3 hover:bg-accent rounded-lg transition-colors group bg-muted/50"
-                                onClick={() => {
-                                  onAutoLayout(option.eventId);
-                                  setShowLayoutDropdown(false);
-                                }}
-                                title={option.label}
-                              >
-                                <IconComponent size={20} className="text-muted-foreground group-hover:text-foreground" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
-        </div>
-
         {/* Hidden Workflows Button - only show when there are hidden workflows */}
         {hiddenWorkflowCount > 0 && onUnhideAll && (
           <>
@@ -334,16 +207,6 @@ export function FloatingToolbar({
 
 
       </div>
-
-      {/* Click outside to close dropdown */}
-      {showLayoutDropdown && (
-        <div 
-          className="absolute inset-0 z-30" 
-          onClick={() => {
-            setShowLayoutDropdown(false);
-          }}
-        />
-      )}
     </div>
   );
 }
