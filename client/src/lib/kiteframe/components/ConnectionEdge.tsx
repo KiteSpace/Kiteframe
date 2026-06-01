@@ -17,12 +17,32 @@ interface AnchorResult {
   direction: AnchorDirection;
 }
 
-function anchor(node: Node, toward: Node, towardPoint?: { x: number; y: number }): AnchorResult {
+function anchor(
+  node: Node,
+  toward: Node,
+  towardPoint?: { x: number; y: number },
+  forcedDirection?: AnchorDirection,
+): AnchorResult {
   // Use measuredWidth/measuredHeight (transient DOM measurements) if available, for accurate edge tracking
   const w = node.measuredWidth ?? node.style?.width ?? node.width ?? 200;
   const h = node.measuredHeight ?? node.style?.height ?? node.height ?? 100;
   const x = node.position.x, y = node.position.y;
   const cx = x + w/2, cy = y + h/2;
+
+  // Map a chosen connection side to its exact boundary point.
+  const pointFor = (direction: AnchorDirection): AnchorResult => {
+    switch (direction) {
+      case 'right': return { x: x + w, y: cy, direction: 'right' };
+      case 'left': return { x, y: cy, direction: 'left' };
+      case 'bottom': return { x: cx, y: y + h, direction: 'bottom' };
+      case 'top': return { x: cx, y, direction: 'top' };
+    }
+  };
+
+  // A forced direction (used to keep an anchor side stable while a segment that
+  // touches this endpoint is being dragged) overrides the automatic choice.
+  if (forcedDirection) return pointFor(forcedDirection);
+
   // By default the connection side is chosen toward the other node's center.
   // When a `towardPoint` is supplied (e.g. a step edge's dragged bend), choose
   // the side toward that point instead, so the line leaves from the side that
@@ -40,16 +60,12 @@ function anchor(node: Node, toward: Node, towardPoint?: { x: number; y: number }
   const dx = tcx - cx, dy = tcy - cy;
   const angle = Math.atan2(dy, dx);
   const ha = Math.abs(angle) < Math.PI/4 || Math.abs(angle) > 3*Math.PI/4;
-  
+
   // Edge endpoints connect at exact node boundaries to align with NodeHandles centers
   if (ha) {
-    return dx > 0 
-      ? { x: x + w, y: cy, direction: 'right' } 
-      : { x, y: cy, direction: 'left' };
+    return dx > 0 ? pointFor('right') : pointFor('left');
   }
-  return dy > 0 
-    ? { x: cx, y: y + h, direction: 'bottom' } 
-    : { x: cx, y, direction: 'top' };
+  return dy > 0 ? pointFor('bottom') : pointFor('top');
 }
 
 // Helper function to round coordinates for crisp rendering
@@ -316,6 +332,83 @@ function polylineMidpoint(points: { x: number; y: number }[]): { x: number; y: n
   return points[points.length - 1];
 }
 
+// Resolve the SHARP orthogonal corner list (including the source/target anchors)
+// for a legacy single- or zero-bend step/orthogonal edge, mirroring the corner
+// sequence produced by generatePath() so segment drag-bars land exactly on the
+// rendered line. Returns null for non-orthogonal edge types.
+function orthogonalCorners(
+  type: string,
+  s: AnchorResult,
+  t: AnchorResult,
+  controlPoint?: { x: number; y: number },
+): { x: number; y: number }[] | null {
+  if (type !== 'step' && type !== 'orthogonal') return null;
+  const sx = r(s.x), sy = r(s.y), tx = r(t.x), ty = r(t.y);
+  const S = { x: sx, y: sy };
+  const T = { x: tx, y: ty };
+  const isSourceH = s.direction === 'left' || s.direction === 'right';
+  const isTargetH = t.direction === 'left' || t.direction === 'right';
+
+  if (isSourceH && isTargetH) {
+    const mx = controlPoint ? r(controlPoint.x) : r((sx + tx) / 2);
+    return [S, { x: mx, y: sy }, { x: mx, y: ty }, T];
+  } else if (!isSourceH && !isTargetH) {
+    const my = controlPoint ? r(controlPoint.y) : r((sy + ty) / 2);
+    return [S, { x: sx, y: my }, { x: tx, y: my }, T];
+  } else if (isSourceH) {
+    if (controlPoint) {
+      const mx = r(controlPoint.x);
+      return [S, { x: mx, y: sy }, { x: mx, y: ty }, T];
+    }
+    return [S, { x: tx, y: sy }, T];
+  } else {
+    if (controlPoint) {
+      const my = r(controlPoint.y);
+      return [S, { x: sx, y: my }, { x: tx, y: my }, T];
+    }
+    return [S, { x: sx, y: ty }, T];
+  }
+}
+
+// Move one segment of an orthogonal corner list perpendicular to its direction by
+// rewriting the two corners that bound it to a new value on `axis` ('y' for a
+// horizontal segment, 'x' for a vertical one). The source (index 0) and target
+// (last) anchors are pinned to their nodes: when a dragged segment touches an
+// anchor, a fresh corner is inserted next to it so the anchor stays put while the
+// segment slides. The returned list stays fully axis-aligned.
+function shiftOrthogonalSegment(
+  full: { x: number; y: number }[],
+  k: number,
+  axis: 'x' | 'y',
+  newVal: number,
+): { x: number; y: number }[] {
+  const last = full.length - 1;
+  const v = r(newVal);
+  const out: { x: number; y: number }[] = [];
+  for (let i = 0; i < full.length; i++) {
+    if (i === k) {
+      if (k === 0) {
+        // Pin the source anchor; insert a sliding corner just after it.
+        out.push({ ...full[i] });
+        out.push({ ...full[i], [axis]: v });
+      } else {
+        out.push({ ...full[i], [axis]: v });
+      }
+    } else if (i === k + 1) {
+      if (k + 1 === last) {
+        // Pin the target anchor; insert a sliding corner just before it.
+        out.push({ ...full[i], [axis]: v });
+        out.push({ ...full[i] });
+      } else {
+        out.push({ ...full[i], [axis]: v });
+      }
+    } else {
+      out.push({ ...full[i] });
+    }
+  }
+  return out;
+}
+
 // Helper function to create marker based on type
 function createMarker(
   markerId: string, 
@@ -517,6 +610,9 @@ export const ConnectionEdge: React.FC<{
   // React 18 automatic batching ensures that path-mouseLeave + handle-mouseEnter
   // fired in the same browser task collapse into a single render (net: still true).
   const [isHovered, setIsHovered] = useState(false);
+  // While a segment touching an endpoint is dragged, lock that node's anchor side
+  // so the connector keeps leaving the same face instead of flipping mid-drag.
+  const [anchorLock, setAnchorLock] = useState<{ source?: AnchorDirection; target?: AnchorDirection } | null>(null);
 
   // Drag state refs — no re-render needed while dragging
   const isDraggingRef = useRef(false);
@@ -551,8 +647,10 @@ export const ConnectionEdge: React.FC<{
   // center-to-center choice.
   const sourceTowardPoint = isStepLike && effectiveWaypoints.length > 0 ? effectiveWaypoints[0] : undefined;
   const targetTowardPoint = isStepLike && effectiveWaypoints.length > 0 ? effectiveWaypoints[effectiveWaypoints.length - 1] : undefined;
-  const s = anchor(sourceNode, targetNode, sourceTowardPoint);
-  const t = anchor(targetNode, sourceNode, targetTowardPoint);
+  // While a segment that touches an endpoint is being dragged, lock that anchor's
+  // side so the connector doesn't flip from one node face to another mid-drag.
+  const s = anchor(sourceNode, targetNode, sourceTowardPoint, anchorLock?.source);
+  const t = anchor(targetNode, sourceNode, targetTowardPoint, anchorLock?.target);
   
   // Get styling from edge.style with fallbacks to edge.data for backward compatibility
   const style = edge.style || {};
@@ -791,6 +889,111 @@ export const ConnectionEdge: React.FC<{
     return slots;
   })();
 
+  // Resolved orthogonal corner list (anchors + bends) for the CURRENTLY RENDERED
+  // path. In multi mode this is the staircase routed through every waypoint; with
+  // 0–1 bends it mirrors generatePath()'s corner sequence so the segment bars sit
+  // exactly on the drawn line. Null for non-orthogonal edge types.
+  const renderedCorners: { x: number; y: number }[] | null = !isStepLike
+    ? null
+    : isMulti
+      ? routeOrthogonalWaypoints(s, t, effectiveWaypoints)
+      : orthogonalCorners(type, s, t, singleCp);
+
+  const MIN_SEGMENT_BAR_LEN = 24; // skip tiny segments so bars don't crowd corner handles
+
+  // One draggable bar per straight segment of the rendered orthogonal path. Each
+  // bar is inset from both ends so it never overlaps the corner/endpoint handles.
+  const segmentBars = (() => {
+    if (!renderedCorners) return [] as {
+      k: number; axis: 'x' | 'y'; baseVal: number;
+      x1: number; y1: number; x2: number; y2: number;
+    }[];
+    const bars: {
+      k: number; axis: 'x' | 'y'; baseVal: number;
+      x1: number; y1: number; x2: number; y2: number;
+    }[] = [];
+    for (let i = 0; i < renderedCorners.length - 1; i++) {
+      const a = renderedCorners[i];
+      const b = renderedCorners[i + 1];
+      const horizontal = a.y === b.y && a.x !== b.x;
+      const vertical = a.x === b.x && a.y !== b.y;
+      if (!horizontal && !vertical) continue; // skip zero-length / diagonal
+      const len = horizontal ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y);
+      if (len < MIN_SEGMENT_BAR_LEN) continue;
+      const inset = Math.min(12, len * 0.25);
+      let x1: number, y1: number, x2: number, y2: number;
+      if (horizontal) {
+        const dir = b.x > a.x ? 1 : -1;
+        x1 = a.x + dir * inset; x2 = b.x - dir * inset; y1 = a.y; y2 = a.y;
+      } else {
+        const dir = b.y > a.y ? 1 : -1;
+        y1 = a.y + dir * inset; y2 = b.y - dir * inset; x1 = a.x; x2 = a.x;
+      }
+      bars.push({
+        k: i,
+        axis: horizontal ? 'y' : 'x',
+        baseVal: horizontal ? a.y : a.x,
+        x1: r(x1), y1: r(y1), x2: r(x2), y2: r(y2),
+      });
+    }
+    return bars;
+  })();
+
+  // Slide a whole segment perpendicular to its direction, rewriting edge.waypoints
+  // so the new shape persists (save/load, undo/redo). Snapshots the corner list at
+  // drag start for a stable mapping, and reuses the same history-snapshot + commit
+  // flow as the existing waypoint/insert drags.
+  const startSegmentDrag = (
+    e: React.PointerEvent,
+    bar: { k: number; axis: 'x' | 'y'; baseVal: number },
+  ) => {
+    if (!onWaypointsChange) return;
+    if (e.button != null && e.button !== 0) return; // primary button / touch / pen only
+    e.preventDefault();
+    e.stopPropagation();
+    const baseFull = renderedCorners;
+    if (!baseFull) return;
+    const pointerId = e.pointerId;
+    try { (e.currentTarget as Element).setPointerCapture(pointerId); } catch { /* already released */ }
+    const startScreen = { x: e.clientX, y: e.clientY };
+    // If this segment touches an endpoint, pin that anchor's side for the drag so
+    // the connector doesn't flip to another node face while sliding.
+    const touchesSource = bar.k === 0;
+    const touchesTarget = bar.k + 1 === baseFull.length - 1;
+    if (touchesSource || touchesTarget) {
+      setAnchorLock({
+        source: touchesSource ? s.direction : undefined,
+        target: touchesTarget ? t.direction : undefined,
+      });
+    }
+    let saved = false;
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (!saved) {
+        saved = true;
+        onControlPointDragStart?.(edge.id);
+      }
+      const sc = canvasScale || 1;
+      const delta = bar.axis === 'y'
+        ? (ev.clientY - startScreen.y) / sc
+        : (ev.clientX - startScreen.x) / sc;
+      const nextFull = shiftOrthogonalSegment(baseFull, bar.k, bar.axis, bar.baseVal + delta);
+      const wps = nextFull.slice(1, nextFull.length - 1);
+      if (wps.length > MAX_WAYPOINTS) return; // refuse drags that would exceed the bend cap
+      onWaypointsChange(edge.id, wps.length > 0 ? wps : null);
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      setAnchorLock(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   // Create unique IDs for gradients and markers
   const edgeId = edge.id;
   const gradientId = `gradient-${edgeId}`;
@@ -817,6 +1020,11 @@ export const ConnectionEdge: React.FC<{
   // "+" insert affordances appear only while selected, for step/orthogonal edges.
   const showInsertSlots =
     isStepLike && isSelected && !isExperimentTarget && !!onWaypointsChange && visualWaypoints.length < MAX_WAYPOINTS;
+  // Segment bars show on selection/hover for step/orthogonal edges, alongside the
+  // waypoint handles and "+" insert affordances (rendered above the bars so their
+  // smaller hit areas win at segment ends/midpoints).
+  const showSegmentBars =
+    isStepLike && handlesVisible && !isExperimentTarget && !!onWaypointsChange && segmentBars.length > 0;
   
   return (
     <g 
@@ -934,6 +1142,47 @@ export const ConnectionEdge: React.FC<{
           />
         </>
       )}
+
+      {/* Per-segment drag bars (step/orthogonal): grab a whole segment and slide it
+          perpendicular to its direction. Rendered BEFORE the waypoint/insert/elbow
+          handles so those smaller controls keep priority at corners & midpoints. */}
+      {showSegmentBars && segmentBars.map((bar) => (
+        <g
+          key={`seg-${bar.k}`}
+          style={{
+            cursor: bar.axis === 'y' ? 'ns-resize' : 'ew-resize',
+            pointerEvents: 'all',
+            touchAction: 'none',
+          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onPointerDown={(e) => startSegmentDrag(e, bar)}
+        >
+          <title>Drag to move this segment</title>
+          {/* Wide invisible hit area */}
+          <line
+            x1={bar.x1}
+            y1={bar.y1}
+            x2={bar.x2}
+            y2={bar.y2}
+            stroke="transparent"
+            strokeWidth={10}
+            strokeLinecap="round"
+          />
+          {/* Slim visible accent */}
+          <line
+            x1={bar.x1}
+            y1={bar.y1}
+            x2={bar.x2}
+            y2={bar.y2}
+            stroke="#3b82f6"
+            strokeWidth={3}
+            strokeLinecap="round"
+            opacity={0.55}
+            pointerEvents="none"
+          />
+        </g>
+      ))}
 
       {/* Control-point handle — drag to reshape, double-click to reset.
           onMouseEnter/Leave are mirrored on the handle so that moving the pointer
