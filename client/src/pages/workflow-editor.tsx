@@ -6629,6 +6629,143 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     [computeCloudSyncSig],
   );
 
+  // Persisted cross-device sync state: the cloud content signature + cloud
+  // updatedAt that THIS device last synced with, per project. Persisting it is
+  // what makes "no local edits since last sync" survive a reload — so a device
+  // that simply has an older snapshot pulls the newer cloud copy instead of
+  // pushing its stale one back (true last-write-wins).
+  const CLOUD_SYNC_STATE_KEY = "kiteframe-cloud-sync-state-v1";
+
+  const persistCloudSyncState = useCallback(() => {
+    try {
+      const obj: Record<string, { sig: string; ts: number }> = {};
+      cloudSyncTsRef.current.forEach((ts, cid) => {
+        const sig = cloudSyncSigRef.current.get(cid);
+        if (sig !== undefined) obj[cid] = { sig, ts };
+      });
+      localStorage.setItem(CLOUD_SYNC_STATE_KEY, JSON.stringify(obj));
+    } catch {
+      // Ignore storage errors (quota / disabled storage).
+    }
+  }, []);
+
+  // Restore persisted sync state once, synchronously, before any sync effect
+  // runs on the first render.
+  const cloudSyncLoadedRef = useRef(false);
+  if (!cloudSyncLoadedRef.current) {
+    cloudSyncLoadedRef.current = true;
+    try {
+      const raw = localStorage.getItem(CLOUD_SYNC_STATE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<
+          string,
+          { sig: string; ts: number }
+        >;
+        for (const [cid, v] of Object.entries(parsed)) {
+          if (v && typeof v.sig === "string" && typeof v.ts === "number") {
+            cloudSyncSigRef.current.set(cid, v.sig);
+            cloudSyncTsRef.current.set(cid, v.ts);
+          }
+        }
+      }
+    } catch {
+      // Ignore corrupt state.
+    }
+  }
+
+  // First-sighting reconciliation: for cloud tabs we have NO sync state for
+  // (never synced on this device — e.g. first run after this feature shipped, or
+  // a freshly opened tab), decide a one-time winner by recency. If the cloud
+  // copy is newer than the tab's local lastModified, apply the cloud copy;
+  // otherwise keep local and let auto-save push it. Ref baselines are written
+  // synchronously here so the auto-save/apply effects below act on them.
+  useEffect(() => {
+    if (isReadOnly) return;
+    if (!hasCloudAccess) return;
+    if (cloudProjects.length === 0) return;
+
+    const toApply = new Map<string, any>(); // cid -> cloud project to hydrate
+    let stateTouched = false;
+
+    tabs.forEach((tab) => {
+      const cid = tab.cloudProjectId;
+      if (!cid) return;
+      if (cloudSyncTsRef.current.has(cid)) return; // already reconciled
+      const fresh = cloudProjects.find((p) => p.id === cid);
+      if (!fresh || !fresh.workflowData) return; // wait for the cloud copy
+
+      const freshTs = fresh.updatedAt ? new Date(fresh.updatedAt).getTime() : 0;
+      const cloudSig = computeCloudSyncSig(
+        fresh.workflowData as any,
+        fresh.name,
+        fresh.description ?? undefined,
+      );
+      const localSig = tabSyncSig(tab);
+
+      cloudSyncSigRef.current.set(cid, cloudSig);
+      cloudSyncTsRef.current.set(cid, freshTs);
+      stateTouched = true;
+
+      if (localSig === cloudSig) return; // already identical → nothing to do
+      const localTs = tab.lastModified ?? 0;
+      if (freshTs > localTs) {
+        toApply.set(cid, fresh); // cloud newer → hydrate the tab
+      }
+      // else: local newer → keep it; auto-save pushes it (localSig != baseline)
+    });
+
+    if (stateTouched) persistCloudSyncState();
+    if (toApply.size === 0) return;
+
+    setTabs((prev) => {
+      let changed = false;
+      const next = prev.map((tab) => {
+        const cid = tab.cloudProjectId;
+        if (!cid || !toApply.has(cid)) return tab;
+        const fresh = toApply.get(cid);
+        const wf = fresh.workflowData as any;
+        changed = true;
+        return {
+          ...tab,
+          name: fresh.name || tab.name,
+          nodes: wf.nodes || [],
+          edges: wf.edges || [],
+          canvasObjects: wf.canvasObjects || [],
+          viewport: wf.viewport || tab.viewport,
+          flowSettings: wf.flowSettings || {},
+          sketchStrokes: wf.sketchStrokes ?? [],
+          thumbnail: fresh.thumbnail || tab.thumbnail,
+          lastModified: fresh.updatedAt
+            ? new Date(fresh.updatedAt).getTime()
+            : tab.lastModified,
+          history: [
+            {
+              nodes: wf.nodes || [],
+              edges: wf.edges || [],
+              canvasObjects: wf.canvasObjects || [],
+              viewport: wf.viewport || tab.viewport,
+            },
+          ],
+          historyIndex: 0,
+          metadata: {
+            ...tab.metadata,
+            name: fresh.name || tab.name,
+            description: fresh.description ?? tab.metadata?.description,
+          },
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [
+    tabs,
+    cloudProjects,
+    hasCloudAccess,
+    isReadOnly,
+    tabSyncSig,
+    computeCloudSyncSig,
+    persistCloudSyncState,
+  ]);
+
   // Auto-save cloud-backed tabs to the cloud (debounced), in addition to the
   // local-storage auto-save above. Skipped in view mode and for users without
   // cloud access. Redundant saves are avoided via the content signature, and the
@@ -6642,31 +6779,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     const timer = setTimeout(() => {
       cloudTabs.forEach((tab) => {
         const cid = tab.cloudProjectId!;
+        // Wait until first-sighting reconciliation has set a baseline for this
+        // tab (so we never push before knowing what the cloud holds).
+        if (!cloudSyncSigRef.current.has(cid)) return;
+
         const localSig = tabSyncSig(tab);
-
-        // First time we touch this cloud tab: baseline from the CLOUD copy (not
-        // the local tab) so any local divergence — including edits made before
-        // this baseline was set — is detected and pushed. Wait for the cloud
-        // copy to be known before doing anything.
-        if (!cloudSyncSigRef.current.has(cid)) {
-          const source = cloudProjects.find((p) => p.id === cid);
-          if (!source) return; // cloud baseline unknown yet → skip this tick
-          cloudSyncSigRef.current.set(
-            cid,
-            computeCloudSyncSig(
-              source.workflowData as any,
-              source.name,
-              source.description ?? undefined,
-            ),
-          );
-          cloudSyncTsRef.current.set(
-            cid,
-            source.updatedAt ? new Date(source.updatedAt).getTime() : 0,
-          );
-          // Fall through: if local already differs from the cloud baseline,
-          // push it on this same tick.
-        }
-
         // Nothing changed since the last sync → skip.
         if (cloudSyncSigRef.current.get(cid) === localSig) return;
 
@@ -6696,6 +6813,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   ? new Date(saved.updatedAt).getTime()
                   : Date.now(),
               );
+              persistCloudSyncState();
             }
           })
           .catch(() => {
@@ -6710,10 +6828,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     tabs,
     hasCloudAccess,
     isReadOnly,
-    cloudProjects,
     updateCloudProject,
     tabSyncSig,
-    computeCloudSyncSig,
+    persistCloudSyncState,
   ]);
 
   // Pull the latest cloud version into open cloud tabs when it is newer than
@@ -6735,21 +6852,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           ? new Date(fresh.updatedAt).getTime()
           : 0;
 
-        // First sighting: baseline from the CLOUD copy (not the local tab) so a
-        // divergent local tab is recognised as having unsaved edits and gets
-        // pushed by auto-save (last-write-wins) rather than silently kept.
-        if (!cloudSyncTsRef.current.has(cid)) {
-          cloudSyncSigRef.current.set(
-            cid,
-            computeCloudSyncSig(
-              fresh.workflowData as any,
-              fresh.name,
-              fresh.description ?? undefined,
-            ),
-          );
-          cloudSyncTsRef.current.set(cid, freshTs);
-          return tab;
-        }
+        // First-sighting reconciliation owns initialization; if we have no
+        // baseline yet, wait for it rather than guessing here.
+        if (!cloudSyncTsRef.current.has(cid)) return tab;
 
         const heldTs = cloudSyncTsRef.current.get(cid) ?? 0;
         if (freshTs <= heldTs) return tab; // cloud not newer than what we hold
@@ -6768,6 +6873,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           computeCloudSyncSig(wf, fresh.name, fresh.description ?? undefined),
         );
         cloudSyncTsRef.current.set(cid, freshTs);
+        persistCloudSyncState();
         changed = true;
         return {
           ...tab,
@@ -6798,7 +6904,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       });
       return changed ? next : prev;
     });
-  }, [cloudProjects, hasCloudAccess, isReadOnly, tabSyncSig, computeCloudSyncSig]);
+  }, [
+    cloudProjects,
+    hasCloudAccess,
+    isReadOnly,
+    tabSyncSig,
+    computeCloudSyncSig,
+    persistCloudSyncState,
+  ]);
 
   // Re-pull cloud projects when the window/tab regains focus so edits made on
   // another device show up shortly after switching back.
