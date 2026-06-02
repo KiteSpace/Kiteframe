@@ -6480,6 +6480,25 @@ jane@example.com,Jane,Smith,pro,GroupC
   // Expose broadcastShareUpdate on app for use in routes
   (app as any).broadcastShareUpdate = broadcastShareUpdate;
 
+  // Forcibly drop all live viewers of a share. Used when the owner locks down
+  // or disables a share so currently-connected viewers are immediately excluded
+  // from the viewer count and stop receiving live updates (they fall back to the
+  // access-denied / not-found screen on their next fetch). Without this, viewers
+  // connected before the lock would linger in the count until they disconnect.
+  const purgeShareSubscriptions = (shareId: string) => {
+    const subscribers = shareSubscriptions.get(shareId);
+    if (!subscribers) return;
+    subscribers.forEach((client) => {
+      clientSubscriptions.get(client)?.delete(shareId);
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'share_revoked', shareId }));
+      }
+    });
+    shareSubscriptions.delete(shareId);
+    console.log(`📡 Purged all viewers for share: ${shareId}`);
+  };
+  (app as any).purgeShareSubscriptions = purgeShareSubscriptions;
+
   // GET /api/projects/:id/share/viewers — current number of live viewers
   // connected to this project's share link. Owner-only. Count is derived
   // from the live websocket subscriptions keyed by the project's shareUuid.
@@ -6491,9 +6510,19 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
-      const count = project.shareUuid
-        ? (shareSubscriptions.get(project.shareUuid)?.size ?? 0)
-        : 0;
+      // Count distinct viewer devices (by client IP) rather than raw socket
+      // connections, so one machine opening many sockets can't inflate the
+      // number. Subscriptions are already validated server-side at subscribe
+      // time, so only genuine viewers of an unlocked share are present here.
+      let count = 0;
+      if (project.shareUuid) {
+        const subs = shareSubscriptions.get(project.shareUuid);
+        if (subs && subs.size > 0) {
+          const ips = new Set<string>();
+          subs.forEach((sock) => ips.add((sock as any).__clientIp || 'unknown'));
+          count = ips.size;
+        }
+      }
       res.json({ count });
     } catch (error) {
       console.error('Error fetching share viewer count:', error);
@@ -6506,8 +6535,18 @@ jane@example.com,Jane,Smith,pro,GroupC
     
     // Initialize client subscription tracking
     clientSubscriptions.set(ws, new Set());
+
+    // Capture the originating client IP so the viewer count can be deduplicated
+    // per device — one machine opening many sockets must not inflate the count.
+    const xff = request.headers['x-forwarded-for'];
+    const forwarded = Array.isArray(xff) ? xff[0] : xff;
+    const clientIp =
+      (forwarded ? forwarded.split(',')[0].trim() : undefined) ||
+      request.socket.remoteAddress ||
+      'unknown';
+    (ws as any).__clientIp = clientIp;
     
-    ws.on('message', (data: Buffer) => {
+    ws.on('message', async (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
         console.log('📨 WebSocket message received:', message);
@@ -6544,10 +6583,39 @@ jane@example.com,Jane,Smith,pro,GroupC
             });
             break;
           case 'subscribe_share':
-            // Subscribe to a share for live updates
+            // Subscribe to a share for live updates.
+            // Tamper-proofing: only honor (and count) a subscription when the
+            // shareId resolves to a genuinely share-enabled, non-locked project.
+            // This stops anyone from inflating the viewer count by subscribing
+            // to random/guessed share UUIDs, and excludes the access-denied
+            // (locked) screen from the count.
             if (message.shareId && typeof message.shareId === 'string') {
               const shareId = message.shareId;
-              
+
+              let isValidShare = false;
+              try {
+                const project = await storage.getProjectByShareUuid(shareId);
+                if (project) {
+                  // Genuine project share: count only when not locked down.
+                  isValidShare = !project.isShareLocked;
+                } else {
+                  // Fall back to legacy snapshot share links, which the view
+                  // handler still serves and broadcasts updates to.
+                  const shareLink = await storage.getShareLink(shareId);
+                  isValidShare = !!shareLink;
+                }
+              } catch (lookupError) {
+                console.error('Error validating share subscription:', lookupError);
+              }
+
+              if (!isValidShare) {
+                ws.send(JSON.stringify({
+                  type: 'share_subscribe_rejected',
+                  shareId,
+                }));
+                break;
+              }
+
               // Add to share subscriptions
               if (!shareSubscriptions.has(shareId)) {
                 shareSubscriptions.set(shareId, new Set());

@@ -204,6 +204,13 @@ export default function ViewOnlyViewer() {
       try {
         const message = JSON.parse(event.data) as WsMessage;
         console.log(`📡 [VIEWER WS] Received message:`, message.type, (message as ShareUpdateMessage).shareId);
+        if (message.type === 'share_revoked' && (message as ShareUpdateMessage).shareId === shareId) {
+          // The author locked down or disabled this share. Re-fetch so the
+          // viewer flips to the access-denied / not-found screen immediately.
+          console.log('📡 [VIEWER WS] Share revoked by author — refetching');
+          refetch();
+          return;
+        }
         if (message.type === 'share_update' && (message as ShareUpdateMessage).shareId === shareId) {
           const msg = message as ShareUpdateMessage;
           const nodeCount = msg.nodes?.length || 0;

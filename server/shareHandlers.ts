@@ -88,6 +88,11 @@ export async function disableProjectShareHandler(
       return res.status(404).json({ error: 'Project not found' });
     }
 
+    // Immediately drop any live viewers of the (now disabled) share link.
+    if (updated.shareUuid) {
+      (req.app as any).purgeShareSubscriptions?.(updated.shareUuid);
+    }
+
     res.json({ success: true, project: updated });
   } catch (error) {
     console.error('Error disabling project sharing:', error);
@@ -113,6 +118,12 @@ export async function setProjectShareLockHandler(
     const updated = await storage.setProjectShareLock(id, userId, locked);
     if (!updated) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // When locking down, immediately drop any live viewers so they're excluded
+    // from the viewer count and stop receiving updates right away.
+    if (locked && updated.shareUuid) {
+      (req.app as any).purgeShareSubscriptions?.(updated.shareUuid);
     }
 
     res.json({ success: true, isShareLocked: updated.isShareLocked, project: updated });
