@@ -477,6 +477,7 @@ function WorkflowEditorContent({
     createProject: createCloudProject,
     updateProject: updateCloudProject,
     deleteProject: deleteCloudProject,
+    refetch: refetchCloudProjects,
     isSaving: isCloudSaving,
   } = useCloudProjects();
 
@@ -6574,6 +6575,247 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       return () => clearTimeout(timer);
     }
   }, [tabs, saveToLocalStorage, isReadOnly]);
+
+  // ---- Cross-device cloud sync (light, last-write-wins) ----
+  // Signature of the content we currently believe is in sync with the cloud,
+  // keyed by cloudProjectId, plus the cloud updatedAt timestamp it corresponds to.
+  const cloudSyncSigRef = useRef<Map<string, string>>(new Map());
+  const cloudSyncTsRef = useRef<Map<string, number>>(new Map());
+
+  // Build a stable signature of the parts of a workflow that count as "edits".
+  // Viewport/selection are intentionally excluded so panning/zooming alone does
+  // not trigger cloud saves.
+  const computeCloudSyncSig = useCallback(
+    (
+      wf:
+        | {
+            nodes?: any[];
+            edges?: any[];
+            canvasObjects?: any[];
+            flowSettings?: any;
+            sketchStrokes?: any[];
+          }
+        | null
+        | undefined,
+      name?: string,
+      description?: string,
+    ): string => {
+      return JSON.stringify({
+        nodes: wf?.nodes || [],
+        edges: wf?.edges || [],
+        canvasObjects: wf?.canvasObjects || [],
+        flowSettings: wf?.flowSettings || {},
+        sketchStrokes: wf?.sketchStrokes || [],
+        name: name || "",
+        description: description || "",
+      });
+    },
+    [],
+  );
+
+  const tabSyncSig = useCallback(
+    (tab: WorkflowTab): string =>
+      computeCloudSyncSig(
+        {
+          nodes: tab.nodes,
+          edges: tab.edges,
+          canvasObjects: tab.canvasObjects,
+          flowSettings: tab.flowSettings,
+          sketchStrokes: tab.sketchStrokes,
+        },
+        tab.name,
+        tab.metadata?.description,
+      ),
+    [computeCloudSyncSig],
+  );
+
+  // Auto-save cloud-backed tabs to the cloud (debounced), in addition to the
+  // local-storage auto-save above. Skipped in view mode and for users without
+  // cloud access. Redundant saves are avoided via the content signature, and the
+  // generated thumbnail is persisted on every save.
+  useEffect(() => {
+    if (isReadOnly) return;
+    if (!hasCloudAccess) return;
+    const cloudTabs = tabs.filter((t) => t.cloudProjectId);
+    if (cloudTabs.length === 0) return;
+
+    const timer = setTimeout(() => {
+      cloudTabs.forEach((tab) => {
+        const cid = tab.cloudProjectId!;
+        const localSig = tabSyncSig(tab);
+
+        // First time we touch this cloud tab: baseline from the CLOUD copy (not
+        // the local tab) so any local divergence — including edits made before
+        // this baseline was set — is detected and pushed. Wait for the cloud
+        // copy to be known before doing anything.
+        if (!cloudSyncSigRef.current.has(cid)) {
+          const source = cloudProjects.find((p) => p.id === cid);
+          if (!source) return; // cloud baseline unknown yet → skip this tick
+          cloudSyncSigRef.current.set(
+            cid,
+            computeCloudSyncSig(
+              source.workflowData as any,
+              source.name,
+              source.description ?? undefined,
+            ),
+          );
+          cloudSyncTsRef.current.set(
+            cid,
+            source.updatedAt ? new Date(source.updatedAt).getTime() : 0,
+          );
+          // Fall through: if local already differs from the cloud baseline,
+          // push it on this same tick.
+        }
+
+        // Nothing changed since the last sync → skip.
+        if (cloudSyncSigRef.current.get(cid) === localSig) return;
+
+        const workflowData = {
+          nodes: tab.nodes,
+          edges: tab.edges,
+          canvasObjects: tab.canvasObjects,
+          viewport: tab.viewport,
+          flowSettings: tab.flowSettings || {},
+          sketchStrokes: tab.sketchStrokes || [],
+        };
+        const thumbnail = generateWorkflowThumbnail(tab.nodes, tab.edges);
+
+        updateCloudProject({
+          id: cid,
+          name: tab.name,
+          description: tab.metadata?.description,
+          workflowData,
+          thumbnail,
+        })
+          .then((saved) => {
+            if (saved) {
+              cloudSyncSigRef.current.set(cid, localSig);
+              cloudSyncTsRef.current.set(
+                cid,
+                saved.updatedAt
+                  ? new Date(saved.updatedAt).getTime()
+                  : Date.now(),
+              );
+            }
+          })
+          .catch(() => {
+            // Save errors are surfaced by the hook; the local-storage auto-save
+            // still preserves the work.
+          });
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [
+    tabs,
+    hasCloudAccess,
+    isReadOnly,
+    cloudProjects,
+    updateCloudProject,
+    tabSyncSig,
+    computeCloudSyncSig,
+  ]);
+
+  // Pull the latest cloud version into open cloud tabs when it is newer than
+  // what we hold and there are no unsaved local edits (last-write-wins).
+  useEffect(() => {
+    if (isReadOnly) return;
+    if (!hasCloudAccess) return;
+    if (cloudProjects.length === 0) return;
+
+    setTabs((prev) => {
+      let changed = false;
+      const next = prev.map((tab) => {
+        const cid = tab.cloudProjectId;
+        if (!cid) return tab;
+        const fresh = cloudProjects.find((p) => p.id === cid);
+        if (!fresh || !fresh.workflowData) return tab;
+
+        const freshTs = fresh.updatedAt
+          ? new Date(fresh.updatedAt).getTime()
+          : 0;
+
+        // First sighting: baseline from the CLOUD copy (not the local tab) so a
+        // divergent local tab is recognised as having unsaved edits and gets
+        // pushed by auto-save (last-write-wins) rather than silently kept.
+        if (!cloudSyncTsRef.current.has(cid)) {
+          cloudSyncSigRef.current.set(
+            cid,
+            computeCloudSyncSig(
+              fresh.workflowData as any,
+              fresh.name,
+              fresh.description ?? undefined,
+            ),
+          );
+          cloudSyncTsRef.current.set(cid, freshTs);
+          return tab;
+        }
+
+        const heldTs = cloudSyncTsRef.current.get(cid) ?? 0;
+        if (freshTs <= heldTs) return tab; // cloud not newer than what we hold
+
+        // Cloud advanced (another device saved). Only apply if we have no
+        // unsaved local edits — otherwise keep local and let auto-save push it.
+        const localSig = tabSyncSig(tab);
+        const syncedSig = cloudSyncSigRef.current.get(cid);
+        if (syncedSig !== undefined && localSig !== syncedSig) {
+          return tab; // unsaved local edits → don't clobber
+        }
+
+        const wf = fresh.workflowData as any;
+        cloudSyncSigRef.current.set(
+          cid,
+          computeCloudSyncSig(wf, fresh.name, fresh.description ?? undefined),
+        );
+        cloudSyncTsRef.current.set(cid, freshTs);
+        changed = true;
+        return {
+          ...tab,
+          name: fresh.name || tab.name,
+          nodes: wf.nodes || [],
+          edges: wf.edges || [],
+          canvasObjects: wf.canvasObjects || [],
+          viewport: wf.viewport || tab.viewport,
+          flowSettings: wf.flowSettings || {},
+          sketchStrokes: wf.sketchStrokes ?? [],
+          thumbnail: fresh.thumbnail || tab.thumbnail,
+          lastModified: freshTs,
+          history: [
+            {
+              nodes: wf.nodes || [],
+              edges: wf.edges || [],
+              canvasObjects: wf.canvasObjects || [],
+              viewport: wf.viewport || tab.viewport,
+            },
+          ],
+          historyIndex: 0,
+          metadata: {
+            ...tab.metadata,
+            name: fresh.name || tab.name,
+            description: fresh.description ?? tab.metadata?.description,
+          },
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [cloudProjects, hasCloudAccess, isReadOnly, tabSyncSig, computeCloudSyncSig]);
+
+  // Re-pull cloud projects when the window/tab regains focus so edits made on
+  // another device show up shortly after switching back.
+  useEffect(() => {
+    if (!hasCloudAccess) return;
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") {
+        refetchCloudProjects();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [hasCloudAccess, refetchCloudProjects]);
 
   // Load workflows from local storage on mount - skip in view mode
   // Also handles merging with pending chat draft if navigating from FullScreenChat
@@ -15525,6 +15767,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       <SavedProjectsDrawer
         isOpen={showCloudProjects}
         onOpenChange={setShowCloudProjects}
+        currentThumbnail={generateWorkflowThumbnail(nodes, edges) || undefined}
         currentWorkflow={{
           nodes,
           edges,

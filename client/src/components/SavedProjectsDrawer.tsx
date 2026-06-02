@@ -68,6 +68,7 @@ interface SavedProjectsDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   currentWorkflow: WorkflowData;
+  currentThumbnail?: string;
   onLoadProject: (workflowData: WorkflowData) => void;
   isPro: boolean;
   isAuthenticated: boolean;
@@ -77,6 +78,7 @@ export function SavedProjectsDrawer({
   isOpen,
   onOpenChange,
   currentWorkflow,
+  currentThumbnail,
   onLoadProject,
   isPro,
   isAuthenticated,
@@ -95,7 +97,7 @@ export function SavedProjectsDrawer({
   const projects = projectsResponse?.projects || [];
 
   const saveMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; workflowData: WorkflowData }) => {
+    mutationFn: async (data: { name: string; description: string; workflowData: WorkflowData; thumbnail?: string }) => {
       return apiRequest('POST', '/api/projects', data);
     },
     onSuccess: () => {
@@ -118,7 +120,7 @@ export function SavedProjectsDrawer({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; workflowData?: WorkflowData }) => {
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; description?: string; workflowData?: WorkflowData; thumbnail?: string }) => {
       return apiRequest('PUT', `/api/projects/${id}`, data);
     },
     onSuccess: () => {
@@ -171,6 +173,7 @@ export function SavedProjectsDrawer({
       name: projectName,
       description: projectDescription,
       workflowData: currentWorkflow,
+      thumbnail: currentThumbnail,
     });
   };
 
@@ -188,6 +191,7 @@ export function SavedProjectsDrawer({
     updateMutation.mutate({
       id: project.id,
       workflowData: currentWorkflow,
+      thumbnail: currentThumbnail,
     });
   };
 
