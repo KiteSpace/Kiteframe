@@ -41,6 +41,7 @@ export interface IStorage {
   getProjectByShareUuid(shareUuid: string): Promise<SavedProject | undefined>;
   enableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined>;
   disableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined>;
+  setProjectShareLock(id: string, userId: string, locked: boolean): Promise<SavedProject | undefined>;
   createSavedProject(project: InsertSavedProject): Promise<SavedProject>;
   updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined>;
   deleteSavedProject(id: string, userId: string): Promise<void>;
@@ -190,6 +191,7 @@ export class DatabaseStorage implements IStorage {
       .update(savedProjects)
       .set({
         isShareEnabled: true,
+        isShareLocked: false, // a freshly (re-)shared link always starts unlocked
         shareUuid: crypto.randomUUID(),
         lastSharedAt: new Date(),
         updatedAt: new Date(),
@@ -204,6 +206,19 @@ export class DatabaseStorage implements IStorage {
       .update(savedProjects)
       .set({
         isShareEnabled: false,
+        isShareLocked: false, // clear lock so a later re-share starts clean
+        updatedAt: new Date(),
+      })
+      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async setProjectShareLock(id: string, userId: string, locked: boolean): Promise<SavedProject | undefined> {
+    const [updated] = await db
+      .update(savedProjects)
+      .set({
+        isShareLocked: locked,
         updatedAt: new Date(),
       })
       .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))

@@ -96,6 +96,33 @@ export async function disableProjectShareHandler(
 }
 
 /**
+ * POST /api/projects/:id/share/lock — set/clear the "locked down" flag on a
+ * shared project. Locking keeps the share link valid (isShareEnabled stays
+ * true) but makes the read-only view inaccessible until the owner unlocks.
+ * Owner-only. Body: { locked: boolean }.
+ */
+export async function setProjectShareLockHandler(
+  req: AuthedRequest,
+  res: Response,
+) {
+  try {
+    const userId = getUserIdFromRequest(req.user);
+    const { id } = req.params;
+    const locked = req.body?.locked === true;
+
+    const updated = await storage.setProjectShareLock(id, userId, locked);
+    if (!updated) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    res.json({ success: true, isShareLocked: updated.isShareLocked, project: updated });
+  } catch (error) {
+    console.error('Error setting project share lock:', error);
+    res.status(500).json({ error: 'Failed to update share lock' });
+  }
+}
+
+/**
  * GET /api/view/:shareUuid — view-only access via shareUuid (or legacy
  * shareId). No auth required; if the caller IS the owner we return a
  * redirect payload so the editor opens instead of the read-only viewer.
@@ -143,6 +170,18 @@ export async function viewSharedProjectHandler(
           redirect: `/project/${project.projectUuid}`,
           projectUuid: project.projectUuid,
           isOwner: true,
+        });
+      }
+
+      // Locked down by the author: keep the link valid but deny access.
+      // Returned as a normal success payload (with locked: true) so the
+      // viewer can render the access-denied screen instead of the generic
+      // "not found" error path.
+      if (project.isShareLocked) {
+        return res.json({
+          locked: true,
+          projectName: project.name,
+          isOwner: false,
         });
       }
 

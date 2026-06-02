@@ -11,6 +11,7 @@ import {
 import {
   enableProjectShareHandler,
   disableProjectShareHandler,
+  setProjectShareLockHandler,
   viewSharedProjectHandler,
 } from "./shareHandlers";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -1586,6 +1587,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // graph (Stripe, websockets, Firebase, etc).
   app.post('/api/projects/:id/share', isAuthenticated, enableProjectShareHandler);
   app.delete('/api/projects/:id/share', isAuthenticated, disableProjectShareHandler);
+  // Lock / unlock a shared project (keeps the link valid, denies access).
+  app.post('/api/projects/:id/share/lock', isAuthenticated, setProjectShareLockHandler);
   // View endpoint is intentionally unauthenticated — owner detection
   // happens inside the handler via req.user?.claims?.sub when present.
   app.get('/api/view/:shareUuid', viewSharedProjectHandler);
@@ -6476,6 +6479,27 @@ jane@example.com,Jane,Smith,pro,GroupC
   
   // Expose broadcastShareUpdate on app for use in routes
   (app as any).broadcastShareUpdate = broadcastShareUpdate;
+
+  // GET /api/projects/:id/share/viewers — current number of live viewers
+  // connected to this project's share link. Owner-only. Count is derived
+  // from the live websocket subscriptions keyed by the project's shareUuid.
+  app.get('/api/projects/:id/share/viewers', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const { id } = req.params;
+      const project = await storage.getSavedProject(id, userId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      const count = project.shareUuid
+        ? (shareSubscriptions.get(project.shareUuid)?.size ?? 0)
+        : 0;
+      res.json({ count });
+    } catch (error) {
+      console.error('Error fetching share viewer count:', error);
+      res.status(500).json({ error: 'Failed to fetch viewer count' });
+    }
+  });
   
   wss.on('connection', (ws: WebSocket, request) => {
     console.log('🔗 New WebSocket connection established');

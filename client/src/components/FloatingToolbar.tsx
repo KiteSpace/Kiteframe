@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
-  Undo2, Redo2, ZoomIn, GripVertical, Camera, History, Maximize2, EyeOff
+  Undo2, Redo2, ZoomIn, GripVertical, Camera, History, Maximize2, EyeOff, Lock, LockOpen, Eye
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -11,6 +11,10 @@ interface FloatingToolbarProps {
   canRedo: boolean;
   hiddenWorkflowCount?: number;
   onUnhideAll?: () => void;
+  shareEnabled?: boolean;
+  isShareLocked?: boolean;
+  viewerCount?: number;
+  onToggleShareLock?: () => void;
 }
 
 export function FloatingToolbar({
@@ -21,6 +25,10 @@ export function FloatingToolbar({
   canRedo,
   hiddenWorkflowCount = 0,
   onUnhideAll,
+  shareEnabled = false,
+  isShareLocked = false,
+  viewerCount = 0,
+  onToggleShareLock,
 }: FloatingToolbarProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -188,6 +196,41 @@ export function FloatingToolbar({
         >
           <Maximize2 size={16} />
         </button>
+
+        {/* Share controls — only when sharing is enabled for this project */}
+        {shareEnabled && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+
+            {/* Lock / access-denied toggle */}
+            <button
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                isShareLocked
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : 'text-foreground hover:bg-accent'
+              }`}
+              onClick={onToggleShareLock}
+              title={
+                isShareLocked
+                  ? 'Access disabled — click to restore access to the shared link'
+                  : 'Disable access to the shared link (keeps the link)'
+              }
+              data-testid="button-toggle-share-lock"
+            >
+              {isShareLocked ? <Lock size={16} /> : <LockOpen size={16} />}
+            </button>
+
+            {/* Viewer count chip */}
+            <div
+              className="h-8 flex items-center gap-1.5 px-2 text-muted-foreground rounded-full"
+              title={`${viewerCount} ${viewerCount === 1 ? 'person' : 'people'} viewing the shared link`}
+              data-testid="chip-viewer-count"
+            >
+              <Eye size={16} />
+              <span className="text-sm font-medium">{viewerCount}</span>
+            </div>
+          </>
+        )}
 
         {/* Hidden Workflows Button - only show when there are hidden workflows */}
         {hiddenWorkflowCount > 0 && onUnhideAll && (

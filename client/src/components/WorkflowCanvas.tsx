@@ -95,6 +95,12 @@ interface WorkflowCanvasProps {
   onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onEdgeControlPointDragStart?: (edgeId: string) => void;
   onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
+
+  // Share controls shown in the floating toolbar
+  shareEnabled?: boolean;
+  isShareLocked?: boolean;
+  shareViewerCount?: number;
+  onToggleShareLock?: () => void;
 }
 
 export function WorkflowCanvas({
@@ -175,6 +181,10 @@ export function WorkflowCanvas({
   onEdgeControlPointChange,
   onEdgeControlPointDragStart,
   onEdgeWaypointsChange,
+  shareEnabled,
+  isShareLocked,
+  shareViewerCount,
+  onToggleShareLock,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -704,6 +714,10 @@ export function WorkflowCanvas({
           canRedo={canRedo}
           hiddenWorkflowCount={hiddenWorkflowCount}
           onUnhideAll={unhideAllWorkflows}
+          shareEnabled={shareEnabled}
+          isShareLocked={isShareLocked}
+          viewerCount={shareViewerCount}
+          onToggleShareLock={onToggleShareLock}
         />
       )}
 

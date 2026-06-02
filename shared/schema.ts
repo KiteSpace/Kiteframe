@@ -195,6 +195,7 @@ export const savedProjects = pgTable("saved_projects", {
   projectUuid: varchar("project_uuid").notNull().unique().default(sql`gen_random_uuid()`), // Stable UUID for edit URLs
   shareUuid: varchar("share_uuid").unique(), // UUID for view-only share links (null until shared)
   isShareEnabled: boolean("is_share_enabled").default(false), // Whether sharing is active
+  isShareLocked: boolean("is_share_locked").default(false), // When true, share link stays valid but access is denied
   name: varchar("name").notNull(),
   description: text("description"),
   workflowData: jsonb("workflow_data").notNull(), // Full workflow JSON (nodes, edges, canvas objects, viewport)

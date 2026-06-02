@@ -5192,6 +5192,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showImportModal, setShowImportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeShareId, setActiveShareId] = useState<string | null>(null);
+  const [isShareLocked, setIsShareLocked] = useState(false);
+  const [shareViewerCount, setShareViewerCount] = useState(0);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [showCloudProjects, setShowCloudProjects] = useState(false);
@@ -5568,6 +5570,65 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     activeTab?.metadata,
   ]);
 
+  // Toggle the "locked down" state of the shared project. Keeps the share
+  // link valid but makes the read-only view inaccessible until unlocked.
+  const handleToggleShareLock = useCallback(async () => {
+    if (!currentProjectId || !activeShareId) return;
+    const next = !isShareLocked;
+    setIsShareLocked(next); // optimistic
+    try {
+      await apiRequest("POST", `/api/projects/${currentProjectId}/share/lock`, {
+        locked: next,
+      });
+      toast({
+        title: next ? "Access disabled" : "Access restored",
+        description: next
+          ? "The shared link is now locked. Viewers can't open it until you unlock it."
+          : "Viewers can open the shared link again.",
+      });
+    } catch (error) {
+      console.error("Failed to update share lock:", error);
+      setIsShareLocked(!next); // revert on failure
+      toast({
+        title: "Error",
+        description: "Failed to update access. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [currentProjectId, activeShareId, isShareLocked, toast]);
+
+  // Poll the live viewer count while the active project is shared.
+  useEffect(() => {
+    if (!currentProjectId || !activeShareId) {
+      setShareViewerCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch(
+          `/api/projects/${currentProjectId}/share/viewers`,
+          { credentials: "include" },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === "number") {
+          setShareViewerCount(data.count);
+        }
+      } catch {
+        // Non-fatal: leave the previous count in place.
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentProjectId, activeShareId]);
+
   // Load project from URL parameter (projectUuid)
   useEffect(() => {
     if (!projectUuid || projectLoadedRef.current) return;
@@ -5621,6 +5682,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           if (data.isShareEnabled && data.shareUuid) {
             setActiveShareId(data.shareUuid);
           }
+          setIsShareLocked(!!data.project.isShareLocked);
 
           toast({
             title: "Project Loaded",
@@ -9265,6 +9327,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     viewport={viewport}
                     isSketchMode={isSketchMode}
                     isReadOnly={effectiveReadOnly}
+                    shareEnabled={!!activeShareId}
+                    isShareLocked={isShareLocked}
+                    shareViewerCount={shareViewerCount}
+                    onToggleShareLock={handleToggleShareLock}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
                       updateActiveTab({ canvasObjects: newCanvasObjects });
@@ -13203,6 +13269,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           isAuthenticated={isAuthenticated}
           onShareRevoked={() => {
             setActiveShareId(null);
+            setIsShareLocked(false);
+            setShareViewerCount(0);
             queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
           }}
         />

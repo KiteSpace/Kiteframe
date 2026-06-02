@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle, Radio } from 'lucide-react';
+import { Loader2, AlertCircle, Radio, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
 import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
@@ -18,6 +18,7 @@ import '../lib/kiteframe/styles/kiteframe.css';
 
 interface SharedProjectData {
   shareUuid: string;
+  locked?: boolean;
   projectName?: string;
   projectDescription?: string;
   nodes: Node[];
@@ -390,6 +391,21 @@ export default function ViewOnlyViewer() {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Loading shared workflow...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (data?.locked) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background" data-testid="locked-screen">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md px-6">
+          <Lock className="w-12 h-12 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Project cannot be accessed</h2>
+          <p className="text-muted-foreground">
+            The author has disabled access to this project. Access can only be
+            restored by the author from the original project.
+          </p>
         </div>
       </div>
     );
