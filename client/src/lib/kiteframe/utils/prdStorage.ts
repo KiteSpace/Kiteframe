@@ -19,6 +19,21 @@ export interface PRDHistory<T = WorkflowPRD | ProjectPRD> {
   versions: PRDVersion<T>[];
 }
 
+// Notify the rest of the app that this project's panel documentation (PRDs)
+// changed, so cloud auto-save can pick it up and push it to viewers without a
+// manual "Save to cloud". Notes/overview emit the same event from their own
+// save sites.
+export function notifyPanelDocsChanged(projectId: string): void {
+  if (typeof window === 'undefined' || !projectId) return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent('kiteframe:panelDocsChanged', { detail: { projectId } }),
+    );
+  } catch {
+    // Ignore environments without CustomEvent.
+  }
+}
+
 export function getWorkflowPRDKey(projectId: string, workflowId: string): string {
   return `${WORKFLOW_PRD_PREFIX}${projectId}-${workflowId}`;
 }
@@ -31,6 +46,7 @@ export function saveWorkflowPRD(projectId: string, workflowId: string, prd: Work
   const key = getWorkflowPRDKey(projectId, workflowId);
   try {
     localStorage.setItem(key, JSON.stringify(prd));
+    notifyPanelDocsChanged(projectId);
   } catch (e) {
     console.error('Failed to save workflow PRD:', e);
   }
@@ -72,6 +88,7 @@ export function saveProjectPRD(projectId: string, prd: ProjectPRD): void {
   const key = getProjectPRDKey(projectId);
   try {
     localStorage.setItem(key, JSON.stringify(prd));
+    notifyPanelDocsChanged(projectId);
   } catch (e) {
     console.error('Failed to save project PRD:', e);
   }
@@ -103,12 +120,14 @@ export function deleteWorkflowPRD(projectId: string, workflowId: string): void {
   const key = getWorkflowPRDKey(projectId, workflowId);
   localStorage.removeItem(key);
   localStorage.removeItem(key + BACKUP_SUFFIX);
+  notifyPanelDocsChanged(projectId);
 }
 
 export function deleteProjectPRD(projectId: string): void {
   const key = getProjectPRDKey(projectId);
   localStorage.removeItem(key);
   localStorage.removeItem(key + BACKUP_SUFFIX);
+  notifyPanelDocsChanged(projectId);
 }
 
 export function listWorkflowPRDs(projectId: string): string[] {

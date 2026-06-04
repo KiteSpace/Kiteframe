@@ -1,0 +1,1 @@
+- [Cloud sync signatures (LWW)](cloud-sync-signatures.md) — sync content signatures must be canonical (sorted collections) and timestamp-free, and cloud hydration must not retrigger auto-save, or LWW flip-flops/overwrites newer edits.

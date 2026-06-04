@@ -9,6 +9,7 @@ import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3, Sparkles, Loa
 import { cn } from '@/lib/utils';
 import { useAi } from '@/ai/AiProvider';
 import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
+import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { getRouter, extractJSON } from '@/ai/router';
 
@@ -334,7 +335,8 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     
     const toSave = { ...details, updatedAt: Date.now() };
     localStorage.setItem(storageKey, JSON.stringify(toSave));
-  }, [details, storageKey]);
+    if (!isReadOnly && projectId) notifyPanelDocsChanged(projectId);
+  }, [details, storageKey, isReadOnly, projectId]);
 
   useEffect(() => {
     if (isAddingCategory && categoryInputRef.current) {

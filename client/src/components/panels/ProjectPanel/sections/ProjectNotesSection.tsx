@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
 
 interface ProjectNotesSectionProps {
   projectId?: string;
@@ -74,6 +75,7 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
       lastSaved: now.toISOString(),
     };
     localStorage.setItem(key, JSON.stringify(data));
+    notifyPanelDocsChanged(projectId || '');
     setSavedNotes(notes);
     setLastSaved(now);
     setTimeout(() => setIsSaving(false), 500);

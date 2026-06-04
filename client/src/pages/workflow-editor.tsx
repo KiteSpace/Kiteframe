@@ -223,6 +223,8 @@ import {
   loadProjectPRD,
   listWorkflowPRDs,
   loadWorkflowPRD,
+  deleteProjectPRD,
+  deleteWorkflowPRD,
 } from "@/lib/kiteframe/utils/prdStorage";
 import {
   afterWorkflowCreation,
@@ -6582,6 +6584,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const cloudSyncSigRef = useRef<Map<string, string>>(new Map());
   const cloudSyncTsRef = useRef<Map<string, number>>(new Map());
 
+  // Bumped (debounced) whenever the right-hand Project Panel docs change, to
+  // re-trigger the cloud auto-save effect on panel-only edits.
+  const [panelDocsVersion, setPanelDocsVersion] = useState(0);
+  // Deadline (epoch ms) until which panel-doc change events are ignored. We set
+  // this while hydrating panel docs from the cloud so neither the synchronous
+  // events nor the *async* follow-on re-saves (e.g. ProjectOverviewSection
+  // reloading from storage and re-stamping its details) bump panelDocsVersion
+  // and retrigger an auto-save of state we just pulled.
+  const suppressPanelBumpUntilRef = useRef(0);
+
   // Build a stable signature of the parts of a workflow that count as "edits".
   // Viewport/selection are intentionally excluded so panning/zooming alone does
   // not trigger cloud saves.
@@ -6594,18 +6606,56 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             canvasObjects?: any[];
             flowSettings?: any;
             sketchStrokes?: any[];
+            prdData?: any;
+            workflowPRDs?: any[] | null;
+            notesData?: string | null;
+            detailsData?: string | null;
           }
         | null
         | undefined,
       name?: string,
       description?: string,
     ): string => {
+      // Canonicalize per-workflow PRD ordering so the signature is independent
+      // of array/localStorage key order. This matters because the signature is
+      // computed both from the cloud's stored workflowData (whatever order it
+      // was saved in) and from locally-read docs; if they disagreed on order a
+      // device could falsely look "out of sync" and push stale state over newer
+      // cloud edits (LWW regression).
+      const canonicalWorkflowPRDs = Array.isArray(wf?.workflowPRDs)
+        ? [...wf!.workflowPRDs].sort((a, b) =>
+            String(a?.workflowId ?? "").localeCompare(String(b?.workflowId ?? "")),
+          )
+        : (wf?.workflowPRDs ?? null);
+      // The overview/details blob re-stamps `updatedAt` (and seeds `createdAt`)
+      // on every save/reload, so comparing it raw would make idempotent reloads
+      // look like edits and ping-pong pushes between devices. Strip those
+      // volatile timestamps so the signature reflects real content only.
+      let detailsSig: string | null = wf?.detailsData ?? null;
+      if (typeof detailsSig === "string") {
+        try {
+          const parsed = JSON.parse(detailsSig);
+          if (parsed && typeof parsed === "object") {
+            delete (parsed as any).updatedAt;
+            delete (parsed as any).createdAt;
+            detailsSig = JSON.stringify(parsed);
+          }
+        } catch {
+          // Not JSON — compare as-is.
+        }
+      }
       return JSON.stringify({
         nodes: wf?.nodes || [],
         edges: wf?.edges || [],
         canvasObjects: wf?.canvasObjects || [],
         flowSettings: wf?.flowSettings || {},
         sketchStrokes: wf?.sketchStrokes || [],
+        // Panel documentation (right-hand Project Panel) is part of "edits" too,
+        // so a PRD/notes/overview change is detected and synced to viewers.
+        prdData: wf?.prdData ?? null,
+        workflowPRDs: canonicalWorkflowPRDs,
+        notesData: wf?.notesData ?? null,
+        detailsData: detailsSig,
         name: name || "",
         description: description || "",
       });
@@ -6613,20 +6663,118 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     [],
   );
 
-  const tabSyncSig = useCallback(
+  // The id panel documentation is keyed under in localStorage for a given tab.
+  // Mirrors the global `projectIdentifier` so a tab's panel docs (PRDs, notes,
+  // overview) are read/written under the same key the Project Panel uses.
+  const tabProjectIdentifier = useCallback(
     (tab: WorkflowTab): string =>
-      computeCloudSyncSig(
+      tab.projectUuid || tab.cloudProjectId?.toString() || tab.id,
+    [],
+  );
+
+  // Read the right-hand Project Panel documentation (project PRD, per-workflow
+  // PRDs, notes, overview/details) out of localStorage for a project id. These
+  // are the same keys the manual "Save to cloud" bundles, so cloud auto-save can
+  // carry them too and the shared view-only page stays current.
+  const readPanelDocs = useCallback((pid: string) => {
+    let prdData: any = null;
+    let workflowPRDs: any[] | null = null;
+    let notesData: string | null = null;
+    let detailsData: string | null = null;
+    try {
+      prdData = loadProjectPRD(pid);
+    } catch {}
+    try {
+      // Sort by workflow id so the resulting array (and therefore the cloud
+      // sync signature) is canonical and device-independent. Without this,
+      // two devices with identical PRDs but different localStorage key order
+      // would produce different signatures and falsely look "out of sync",
+      // which could make a device push stale state over newer cloud edits.
+      const ids = [...listWorkflowPRDs(pid)].sort();
+      const prds = ids.map((id) => loadWorkflowPRD(pid, id)).filter(Boolean);
+      workflowPRDs = prds.length > 0 ? (prds as any[]) : null;
+    } catch {}
+    try {
+      notesData = localStorage.getItem(`kiteframe-notes-${pid}`);
+    } catch {}
+    try {
+      detailsData = localStorage.getItem(`kiteframe-details-${pid}`);
+    } catch {}
+    return { prdData, workflowPRDs, notesData, detailsData };
+  }, []);
+
+  // Mirror cloud-held panel documentation back into localStorage so the open
+  // Project Panel reflects edits made on another device, and so auto-save does
+  // not immediately re-push our stale copy (which would clobber the newer cloud
+  // copy). Mirrors what the view-only viewer does for shared viewers.
+  const writePanelDocs = useCallback((pid: string, wf: any) => {
+    if (!pid || !wf) return;
+    // Suppress panel-doc bumps for a short window so neither the synchronous
+    // change events below nor the async follow-on re-saves they cause (panels
+    // reloading from storage) retrigger an auto-save of what we just pulled.
+    suppressPanelBumpUntilRef.current = Date.now() + 1500;
+    try {
+      if (wf.prdData) {
+        saveProjectPRD(pid, wf.prdData);
+      } else {
+        deleteProjectPRD(pid);
+      }
+      // Only reconcile per-workflow PRDs when the field was actually provided.
+      if ("workflowPRDs" in wf) {
+        const fresh = (wf.workflowPRDs ?? []) as any[];
+        const freshIds = new Set<string>(
+          fresh.map((w) => w?.workflowId).filter(Boolean),
+        );
+        for (const existingId of listWorkflowPRDs(pid)) {
+          if (!freshIds.has(existingId)) deleteWorkflowPRD(pid, existingId);
+        }
+        for (const w of fresh) {
+          if (w?.workflowId) saveWorkflowPRD(pid, w.workflowId, w);
+        }
+      }
+      if (wf.notesData) {
+        localStorage.setItem(`kiteframe-notes-${pid}`, wf.notesData);
+      } else {
+        localStorage.removeItem(`kiteframe-notes-${pid}`);
+      }
+      if (wf.detailsData) {
+        localStorage.setItem(`kiteframe-details-${pid}`, wf.detailsData);
+      } else {
+        localStorage.removeItem(`kiteframe-details-${pid}`);
+      }
+      // Tell the open panels to reload from the freshly seeded localStorage.
+      prdGenerationBus.notifyProjectDetailsUpdated(pid);
+      prdGenerationBus.notifyPRDUpdated(pid);
+      window.dispatchEvent(
+        new CustomEvent("kiteframe:panelDataRefresh", {
+          detail: { projectId: pid },
+        }),
+      );
+    } catch (e) {
+      console.warn("[cloud-sync] writePanelDocs failed:", e);
+    }
+    // Note: we intentionally do NOT clear suppressPanelBumpUntilRef here — the
+    // deadline set above must outlive this synchronous call to also cover the
+    // async re-saves panels perform after reloading from the seeded storage.
+  }, []);
+
+  const tabSyncSig = useCallback(
+    (tab: WorkflowTab): string => {
+      const docs = readPanelDocs(tabProjectIdentifier(tab));
+      return computeCloudSyncSig(
         {
           nodes: tab.nodes,
           edges: tab.edges,
           canvasObjects: tab.canvasObjects,
           flowSettings: tab.flowSettings,
           sketchStrokes: tab.sketchStrokes,
+          ...docs,
         },
         tab.name,
         tab.metadata?.description,
-      ),
-    [computeCloudSyncSig],
+      );
+    },
+    [computeCloudSyncSig, readPanelDocs, tabProjectIdentifier],
   );
 
   // Persisted cross-device sync state: the cloud content signature + cloud
@@ -6717,6 +6865,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (stateTouched) persistCloudSyncState();
     if (toApply.size === 0) return;
 
+    // Seed the cloud copy's panel docs into localStorage so the Project Panel
+    // shows them and auto-save doesn't re-push our stale copy.
+    toApply.forEach((fresh, cid) => {
+      const tab = tabs.find((t) => t.cloudProjectId === cid);
+      writePanelDocs(
+        tab ? tabProjectIdentifier(tab) : cid.toString(),
+        fresh.workflowData as any,
+      );
+    });
+
     setTabs((prev) => {
       let changed = false;
       const next = prev.map((tab) => {
@@ -6764,6 +6922,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     tabSyncSig,
     computeCloudSyncSig,
     persistCloudSyncState,
+    writePanelDocs,
+    tabProjectIdentifier,
   ]);
 
   // Auto-save cloud-backed tabs to the cloud (debounced), in addition to the
@@ -6787,6 +6947,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // Nothing changed since the last sync → skip.
         if (cloudSyncSigRef.current.get(cid) === localSig) return;
 
+        // Bundle the right-hand Project Panel docs so the cloud copy (and the
+        // shared view-only page) carries the current PRDs/notes/overview.
+        const docs = readPanelDocs(tabProjectIdentifier(tab));
         const workflowData = {
           nodes: tab.nodes,
           edges: tab.edges,
@@ -6794,6 +6957,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           viewport: tab.viewport,
           flowSettings: tab.flowSettings || {},
           sketchStrokes: tab.sketchStrokes || [],
+          prdData: docs.prdData,
+          workflowPRDs: docs.workflowPRDs,
+          notesData: docs.notesData,
+          detailsData: docs.detailsData,
         };
         const thumbnail = generateWorkflowThumbnail(tab.nodes, tab.edges);
 
@@ -6831,6 +6998,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     updateCloudProject,
     tabSyncSig,
     persistCloudSyncState,
+    readPanelDocs,
+    tabProjectIdentifier,
+    // Re-run when the right-hand Project Panel docs change so a panel-only edit
+    // (no canvas change) still triggers a cloud auto-save.
+    panelDocsVersion,
   ]);
 
   // Pull the latest cloud version into open cloud tabs when it is newer than
@@ -6840,6 +7012,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (!hasCloudAccess) return;
     if (cloudProjects.length === 0) return;
 
+    const docWrites: Array<{ pid: string; wf: any }> = [];
     setTabs((prev) => {
       let changed = false;
       const next = prev.map((tab) => {
@@ -6874,6 +7047,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         );
         cloudSyncTsRef.current.set(cid, freshTs);
         persistCloudSyncState();
+        // Mirror the newer cloud panel docs into localStorage (applied after the
+        // state update so it stays out of the pure reducer).
+        docWrites.push({ pid: tabProjectIdentifier(tab), wf });
         changed = true;
         return {
           ...tab,
@@ -6904,6 +7080,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       });
       return changed ? next : prev;
     });
+
+    // Apply localStorage panel-doc writes outside the state reducer.
+    docWrites.forEach(({ pid, wf }) => writePanelDocs(pid, wf));
   }, [
     cloudProjects,
     hasCloudAccess,
@@ -6911,6 +7090,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     tabSyncSig,
     computeCloudSyncSig,
     persistCloudSyncState,
+    writePanelDocs,
+    tabProjectIdentifier,
   ]);
 
   // Re-pull cloud projects when the window/tab regains focus so edits made on
@@ -6929,6 +7110,52 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       document.removeEventListener("visibilitychange", handleFocus);
     };
   }, [hasCloudAccess, refetchCloudProjects]);
+
+  // Watch for right-hand Project Panel edits (PRDs, notes, overview) so a
+  // panel-only change — which does not touch `tabs` — still triggers the cloud
+  // auto-save above. The bump is debounced so a burst of edits causes at most
+  // one extra render.
+  useEffect(() => {
+    if (isReadOnly) return;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const bump = () => {
+      // Ignore the events our own cloud-apply hydration emits (and the async
+      // re-saves they trigger) — they reflect a pull, not a user edit, and must
+      // not retrigger an auto-save.
+      if (Date.now() < suppressPanelBumpUntilRef.current) return;
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => setPanelDocsVersion((v) => v + 1), 800);
+    };
+    const onDocsChanged = () => bump();
+    const unsub = prdGenerationBus.subscribe((event) => {
+      if (
+        event.type === "prd-updated" ||
+        event.type === "project-details-updated" ||
+        event.type === "generation-completed"
+      ) {
+        bump();
+      }
+    });
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (
+        e.key.startsWith("kiteframe-notes-") ||
+        e.key.startsWith("kiteframe-details-") ||
+        e.key.startsWith("prd-project-") ||
+        e.key.startsWith("prd-workflow-")
+      ) {
+        bump();
+      }
+    };
+    window.addEventListener("kiteframe:panelDocsChanged", onDocsChanged);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      window.removeEventListener("kiteframe:panelDocsChanged", onDocsChanged);
+      window.removeEventListener("storage", onStorage);
+      unsub();
+    };
+  }, [isReadOnly]);
 
   // Load workflows from local storage on mount - skip in view mode
   // Also handles merging with pending chat draft if navigating from FullScreenChat

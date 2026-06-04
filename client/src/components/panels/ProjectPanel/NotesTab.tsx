@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
 
 interface NotesTabProps {
   projectId?: string;
@@ -155,10 +156,11 @@ export function NotesTab({ projectId, isReadOnly = false }: NotesTabProps) {
       lastSaved: now.toISOString(),
     };
     localStorage.setItem(key, JSON.stringify(data));
+    if (!isReadOnly) notifyPanelDocsChanged(projectId || '');
     setSavedNotes(notes);
     setLastSaved(now);
     setTimeout(() => setIsSaving(false), 500);
-  }, [notes, projectId]);
+  }, [notes, projectId, isReadOnly]);
 
   useEffect(() => {
     if (isReadOnly) return; // Don't auto-save in read-only mode
