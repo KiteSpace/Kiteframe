@@ -89,10 +89,18 @@ export class VersionControlPlugin implements KiteFramePlugin {
       if (!(await this.ensureAuthed())) return;
 
       const currentTab = tabManager.currentTab;
+      // Send the workflow's real name so that when the server has to
+      // auto-create a saved_projects row (tab has no cloudProjectId yet) it
+      // names the row after the user's project instead of a placeholder.
+      // Fall back to "Untitled" (never empty) — the server rejects snapshot
+      // writes with no name, and "Untitled" is treated as a placeholder so it
+      // never clobbers a real local name on the way back.
+      const realName: string =
+        currentTab.name || currentTab.metadata?.name || "Untitled";
       const snapshotData = {
         workflowId: currentTab.id,
         cloudProjectId: currentTab.cloudProjectId || undefined,
-        name: `Auto-save ${new Date().toLocaleString()}`,
+        name: realName,
         description: 'Automatic snapshot',
         nodes: JSON.stringify(currentTab.nodes),
         edges: JSON.stringify(currentTab.edges),

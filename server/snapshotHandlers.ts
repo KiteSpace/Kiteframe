@@ -204,10 +204,15 @@ export async function createSnapshotHandler(req: Request, res: Response) {
             },
           });
         } else {
+          // Prefer the real workflow name the client sent so the auto-created
+          // row matches the user's project. Only fall back to a dated
+          // placeholder when the client supplied no usable name.
           const stamp = new Date().toISOString().slice(0, 10);
+          const cleanName =
+            typeof name === 'string' && name.trim() ? name.trim() : '';
           const created = await storage.createSavedProject({
             userId,
-            name: `Untitled — ${stamp}`,
+            name: cleanName || `Untitled — ${stamp}`,
             description: 'Auto-created from autosave',
             workflowData: {
               workflowId,

@@ -415,6 +415,30 @@ interface WorkflowEditorContentProps {
   onReset?: () => void;
 }
 
+// A name the cloud auto-save/snapshot mirror generated for an unnamed project,
+// e.g. "Untitled", "Untitled — 2026-06-04", or a legacy "Auto-save ..." row.
+// These must never overwrite a real name the user typed when we pull/hydrate
+// a cloud copy back into an open tab.
+function isPlaceholderProjectName(n?: string | null): boolean {
+  if (!n) return true;
+  const t = n.trim();
+  if (!t) return true;
+  if (t === "Untitled") return true;
+  if (/^Untitled\s*—\s*\d{4}-\d{2}-\d{2}$/.test(t)) return true;
+  if (/^Auto-save\b/.test(t)) return true;
+  return false;
+}
+
+// Choose the name to keep when reconciling a cloud copy with an open tab.
+// Prefer the cloud name, but never let a placeholder cloud name clobber a
+// meaningful local name (the source of the "Untitled — date" overwrite bug).
+function pickSyncedName(cloudName?: string | null, localName?: string): string {
+  if (isPlaceholderProjectName(cloudName) && !isPlaceholderProjectName(localName)) {
+    return localName as string;
+  }
+  return (cloudName as string) || localName || "";
+}
+
 function WorkflowEditorContent({
   onAiSettingsChange,
   mode = "edit",
@@ -6883,9 +6907,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         const fresh = toApply.get(cid);
         const wf = fresh.workflowData as any;
         changed = true;
+        const syncedName = pickSyncedName(fresh.name, tab.name);
         return {
           ...tab,
-          name: fresh.name || tab.name,
+          name: syncedName,
           nodes: wf.nodes || [],
           edges: wf.edges || [],
           canvasObjects: wf.canvasObjects || [],
@@ -6907,7 +6932,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           historyIndex: 0,
           metadata: {
             ...tab.metadata,
-            name: fresh.name || tab.name,
+            name: syncedName,
             description: fresh.description ?? tab.metadata?.description,
           },
         };
@@ -7051,9 +7076,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // state update so it stays out of the pure reducer).
         docWrites.push({ pid: tabProjectIdentifier(tab), wf });
         changed = true;
+        const syncedName = pickSyncedName(fresh.name, tab.name);
         return {
           ...tab,
-          name: fresh.name || tab.name,
+          name: syncedName,
           nodes: wf.nodes || [],
           edges: wf.edges || [],
           canvasObjects: wf.canvasObjects || [],
@@ -7073,7 +7099,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           historyIndex: 0,
           metadata: {
             ...tab.metadata,
-            name: fresh.name || tab.name,
+            name: syncedName,
             description: fresh.description ?? tab.metadata?.description,
           },
         };

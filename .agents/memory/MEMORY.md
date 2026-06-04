@@ -1,1 +1,2 @@
 - [Cloud sync signatures (LWW)](cloud-sync-signatures.md) — sync content signatures must be canonical (sorted collections) and timestamp-free, and cloud hydration must not retrigger auto-save, or LWW flip-flops/overwrites newer edits.
+- [saved_projects dual-write & placeholder names](saved-projects-dual-write.md) — two autosave paths write saved_projects (cloud-sync + snapshot mirror); a placeholder name must never clobber a real local name on pull.
