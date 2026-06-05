@@ -6918,8 +6918,29 @@ jane@example.com,Jane,Smith,pro,GroupC
               let allowed = false;
               let subType: 'owner' | 'share' = 'share';
 
-              // Path A: share-link authorization
-              if (subShareId) {
+              // Path A (checked FIRST): owner-by-session authorization.
+              // Owner is checked before share-link so that when an owner has
+              // sharing enabled and passes shareId, they are still tagged as
+              // 'owner' — preventing them from being revoked when the share is
+              // later locked/disabled. Awaits the non-blocking promise started
+              // at connection open (message handler was attached synchronously,
+              // so no subscribe_comments message is missed during this await).
+              try {
+                const sessionUserId = await sessionUserIdPromise;
+                if (sessionUserId) {
+                  const project = await storage.getProjectByProjectUuid(projectId);
+                  if (project && project.userId === sessionUserId) {
+                    allowed = true;
+                    subType = 'owner';
+                  }
+                }
+              } catch (lookupError) {
+                console.error('Error validating comment subscription (owner):', lookupError);
+              }
+
+              // Path B: share-link authorization (used when the caller is a
+              // viewer, not the project owner).
+              if (!allowed && subShareId) {
                 try {
                   const shared = await storage.getProjectByShareUuid(subShareId);
                   if (shared && !shared.isShareLocked && shared.projectUuid === projectId) {
@@ -6928,25 +6949,6 @@ jane@example.com,Jane,Smith,pro,GroupC
                   }
                 } catch (lookupError) {
                   console.error('Error validating comment subscription (share):', lookupError);
-                }
-              }
-
-              // Path B: owner-by-session authorization (owner gets live sync
-              // even when sharing is off, and keeps it even if sharing is later locked).
-              // Awaits the session promise started at connection time — the message
-              // handler was attached synchronously so no subscribe message is missed.
-              if (!allowed) {
-                try {
-                  const sessionUserId = await sessionUserIdPromise;
-                  if (sessionUserId) {
-                    const project = await storage.getProjectByProjectUuid(projectId);
-                    if (project && project.userId === sessionUserId) {
-                      allowed = true;
-                      subType = 'owner';
-                    }
-                  }
-                } catch (lookupError) {
-                  console.error('Error validating comment subscription (owner):', lookupError);
                 }
               }
 
