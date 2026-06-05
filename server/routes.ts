@@ -6614,7 +6614,7 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!secret) return null;
       const unsigned = cookieSig.unsign(rawSid.slice(2), secret);
       if (!unsigned) return null;
-      const rows = await db.execute(sql`SELECT sess FROM sessions WHERE sid = ${unsigned} LIMIT 1`);
+      const rows = await db.execute(sql`SELECT sess FROM sessions WHERE sid = ${unsigned} AND expire > NOW() LIMIT 1`);
       if (!rows.rows || rows.rows.length === 0) return null;
       const sess = rows.rows[0].sess as any;
       const user = sess?.passport?.user;
@@ -6775,15 +6775,17 @@ jane@example.com,Jane,Smith,pro,GroupC
     }
   });
   
-  wss.on('connection', async (ws: WebSocket, request) => {
+  wss.on('connection', (ws: WebSocket, request) => {
     console.log('🔗 New WebSocket connection established');
     
     // Initialize client subscription tracking
     clientSubscriptions.set(ws, new Set());
 
-    // Resolve the session user so the comment subscription can authorize
-    // project owners without needing a share link.
-    (ws as any).__sessionUserId = await getUserIdFromWsRequest(request);
+    // Start session lookup immediately as a non-blocking promise so the
+    // message handler can be attached synchronously below (avoiding a race
+    // where subscribe_comments arrives before the handler is registered).
+    // Awaited only inside the owner-by-session auth path of subscribe_comments.
+    const sessionUserIdPromise = getUserIdFromWsRequest(request);
 
     // Capture the originating client IP so the viewer count can be deduplicated
     // per device — one machine opening many sockets must not inflate the count.
@@ -6930,13 +6932,18 @@ jane@example.com,Jane,Smith,pro,GroupC
               }
 
               // Path B: owner-by-session authorization (owner gets live sync
-              // even when sharing is off, and keeps it even if sharing is later locked)
-              if (!allowed && (ws as any).__sessionUserId) {
+              // even when sharing is off, and keeps it even if sharing is later locked).
+              // Awaits the session promise started at connection time — the message
+              // handler was attached synchronously so no subscribe message is missed.
+              if (!allowed) {
                 try {
-                  const project = await storage.getProjectByProjectUuid(projectId);
-                  if (project && project.userId === (ws as any).__sessionUserId) {
-                    allowed = true;
-                    subType = 'owner';
+                  const sessionUserId = await sessionUserIdPromise;
+                  if (sessionUserId) {
+                    const project = await storage.getProjectByProjectUuid(projectId);
+                    if (project && project.userId === sessionUserId) {
+                      allowed = true;
+                      subType = 'owner';
+                    }
                   }
                 } catch (lookupError) {
                   console.error('Error validating comment subscription (owner):', lookupError);
@@ -7022,7 +7029,6 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
       // Clean up subscription-type tracking
       delete (ws as any).__commentSubTypes;
-      delete (ws as any).__sessionUserId;
     });
     
     ws.on('error', (error) => {
