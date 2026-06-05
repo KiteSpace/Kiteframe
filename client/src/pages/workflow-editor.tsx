@@ -5221,6 +5221,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeShareId, setActiveShareId] = useState<string | null>(null);
   const [isShareLocked, setIsShareLocked] = useState(false);
+  const [commentPlacing, setCommentPlacing] = useState(false);
   const [shareViewerCount, setShareViewerCount] = useState(0);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
@@ -9940,6 +9941,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     isShareLocked={isShareLocked}
                     shareViewerCount={shareViewerCount}
                     onToggleShareLock={handleToggleShareLock}
+                    commentModeActive={commentPlacing}
+                    onToggleCommentMode={() => setCommentPlacing((p) => !p)}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
                       updateActiveTab({ canvasObjects: newCanvasObjects });
@@ -12863,6 +12866,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   workflowId={activeTab?.projectUuid}
                   shareId={activeShareId ?? undefined}
                   isAuthenticated={isAuthenticated}
+                  placing={commentPlacing}
+                  onPlacingChange={setCommentPlacing}
                   viewport={viewport}
                   onViewportChange={setViewport}
                   containerRef={canvasContainerRef}

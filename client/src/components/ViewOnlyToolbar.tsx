@@ -1,16 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { GripVertical, Maximize2, RotateCcw, Home } from 'lucide-react';
+import { GripVertical, Maximize2, RotateCcw, Home, MessageCircle } from 'lucide-react';
 
 interface ViewOnlyToolbarProps {
   onFitView: () => void;
   onReset: () => void;
   onGoHome: () => void;
+  commentModeActive?: boolean;
+  onToggleCommentMode?: () => void;
 }
 
 export function ViewOnlyToolbar({
   onFitView,
   onReset,
   onGoHome,
+  commentModeActive = false,
+  onToggleCommentMode,
 }: ViewOnlyToolbarProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -151,6 +155,24 @@ export function ViewOnlyToolbar({
         >
           <RotateCcw size={16} />
         </button>
+
+        {onToggleCommentMode && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <button
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                commentModeActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+              onClick={onToggleCommentMode}
+              title={commentModeActive ? 'Exit comment mode' : 'Add comment'}
+              data-testid="comment-mode-toggle"
+            >
+              <MessageCircle size={16} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

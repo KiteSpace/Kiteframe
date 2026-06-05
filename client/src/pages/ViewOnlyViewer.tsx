@@ -78,6 +78,7 @@ export default function ViewOnlyViewer() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [panelStorageSeeded, setPanelStorageSeeded] = useState(false);
   const [liveUpdates, setLiveUpdates] = useState(false);
+  const [commentPlacing, setCommentPlacing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -544,12 +545,16 @@ export default function ViewOnlyViewer() {
               onFitView={handleFitView}
               onReset={handleReset}
               onGoHome={handleGoHome}
+              commentModeActive={commentPlacing}
+              onToggleCommentMode={() => setCommentPlacing((p) => !p)}
             />
 
             <CommentsOverlay
               workflowId={data?.projectUuid}
               shareId={shareId}
               isAuthenticated={!!user}
+              placing={commentPlacing}
+              onPlacingChange={setCommentPlacing}
               viewport={viewport}
               onViewportChange={setViewport}
               containerRef={canvasContainerRef}

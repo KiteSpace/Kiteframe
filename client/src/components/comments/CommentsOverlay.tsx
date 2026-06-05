@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MessageSquarePlus, MessageCircle, Check, Trash2, Send, X } from 'lucide-react';
+import { MessageCircle, Check, Trash2, Send, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,10 @@ interface CommentsOverlayProps {
   shareId?: string | null;
   /** Whether the current user is signed in (controls delete + author label). */
   isAuthenticated?: boolean;
+  /** Controlled comment-placement mode — owned by the parent. */
+  placing?: boolean;
+  /** Called when the overlay wants to change placement mode (e.g. after placing). */
+  onPlacingChange?: (value: boolean) => void;
   viewport: Viewport;
   onViewportChange?: (vp: Viewport) => void;
   containerRef: React.RefObject<HTMLDivElement>;
@@ -59,6 +63,8 @@ export function CommentsOverlay({
   workflowId,
   shareId,
   isAuthenticated = false,
+  placing = false,
+  onPlacingChange,
   viewport,
   onViewportChange,
   containerRef,
@@ -68,7 +74,10 @@ export function CommentsOverlay({
     shareId,
   });
 
-  const [placing, setPlacing] = useState(false);
+  const setPlacing = (value: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof value === 'function' ? value(placing) : value;
+    onPlacingChange?.(next);
+  };
   const [draft, setDraft] = useState<{ x: number; y: number } | null>(null);
   const [draftText, setDraftText] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -321,22 +330,6 @@ export function CommentsOverlay({
         );
       })()}
 
-      {/* Place-comment toggle button */}
-      <Button
-        variant={placing ? 'default' : 'secondary'}
-        size="sm"
-        className="absolute left-4 bottom-4 shadow-md gap-1.5"
-        style={{ pointerEvents: 'auto' }}
-        onClick={(e) => {
-          e.stopPropagation();
-          setPlacing((p) => !p);
-          setDraft(null);
-        }}
-        data-testid="comment-mode-toggle"
-      >
-        <MessageSquarePlus size={16} />
-        {placing ? 'Click canvas to place' : 'Comment'}
-      </Button>
     </div>
   );
 }

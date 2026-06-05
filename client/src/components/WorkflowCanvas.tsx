@@ -101,6 +101,9 @@ interface WorkflowCanvasProps {
   isShareLocked?: boolean;
   shareViewerCount?: number;
   onToggleShareLock?: () => void;
+  // Comment mode toggle shown in the floating toolbar
+  commentModeActive?: boolean;
+  onToggleCommentMode?: () => void;
 }
 
 export function WorkflowCanvas({
@@ -185,6 +188,8 @@ export function WorkflowCanvas({
   isShareLocked,
   shareViewerCount,
   onToggleShareLock,
+  commentModeActive,
+  onToggleCommentMode,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -718,6 +723,8 @@ export function WorkflowCanvas({
           isShareLocked={isShareLocked}
           viewerCount={shareViewerCount}
           onToggleShareLock={onToggleShareLock}
+          commentModeActive={commentModeActive}
+          onToggleCommentMode={onToggleCommentMode}
         />
       )}
 

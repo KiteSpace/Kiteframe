@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
-  Undo2, Redo2, ZoomIn, GripVertical, Camera, History, Maximize2, EyeOff, Lock, LockOpen, Eye
+  Undo2, Redo2, GripVertical, Maximize2, EyeOff, Lock, LockOpen, Eye, MessageCircle
 } from 'lucide-react';
 
 interface FloatingToolbarProps {
@@ -15,6 +15,8 @@ interface FloatingToolbarProps {
   isShareLocked?: boolean;
   viewerCount?: number;
   onToggleShareLock?: () => void;
+  commentModeActive?: boolean;
+  onToggleCommentMode?: () => void;
 }
 
 export function FloatingToolbar({
@@ -29,6 +31,8 @@ export function FloatingToolbar({
   isShareLocked = false,
   viewerCount = 0,
   onToggleShareLock,
+  commentModeActive = false,
+  onToggleCommentMode,
 }: FloatingToolbarProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -248,6 +252,24 @@ export function FloatingToolbar({
           </>
         )}
 
+        {/* Comment mode toggle */}
+        {onToggleCommentMode && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <button
+              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                commentModeActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+              onClick={onToggleCommentMode}
+              title={commentModeActive ? 'Exit comment mode' : 'Add comment'}
+              data-testid="comment-mode-toggle"
+            >
+              <MessageCircle size={16} />
+            </button>
+          </>
+        )}
 
       </div>
     </div>
