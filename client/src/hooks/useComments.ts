@@ -70,17 +70,22 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
       }));
   }, [comments]);
 
-  // Live updates via WebSocket, keyed by project UUID.
+  // Live updates via WebSocket, keyed by project UUID. The server only accepts
+  // a comment subscription when we present a valid `shareId` for an unlocked
+  // share whose project matches — so live sync is scoped to actively shared
+  // projects. Owners pass their active share link; viewers pass the URL share
+  // id. Without a shareId there are no other clients to sync with, and the
+  // owner's own tabs already refresh via mutation success.
   const wsRef = useRef<WebSocket | null>(null);
   useEffect(() => {
-    if (!isEnabled || !workflowId) return;
+    if (!isEnabled || !workflowId || !shareId) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'subscribe_comments', projectId: workflowId }));
+      ws.send(JSON.stringify({ type: 'subscribe_comments', projectId: workflowId, shareId }));
     };
 
     ws.onmessage = (event) => {
@@ -105,7 +110,7 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
       ws.close();
       wsRef.current = null;
     };
-  }, [isEnabled, workflowId]);
+  }, [isEnabled, workflowId, shareId]);
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['/api/comments', workflowId] });

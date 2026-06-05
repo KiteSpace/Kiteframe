@@ -92,6 +92,10 @@ export async function disableProjectShareHandler(
     if (updated.shareUuid) {
       (req.app as any).purgeShareSubscriptions?.(updated.shareUuid);
     }
+    // Also drop comment-stream subscribers, who authorized via this share.
+    if (updated.projectUuid) {
+      (req.app as any).purgeCommentSubscriptionsForProject?.(updated.projectUuid);
+    }
 
     res.json({ success: true, project: updated });
   } catch (error) {
@@ -124,6 +128,10 @@ export async function setProjectShareLockHandler(
     // from the viewer count and stop receiving updates right away.
     if (locked && updated.shareUuid) {
       (req.app as any).purgeShareSubscriptions?.(updated.shareUuid);
+    }
+    // Locking also revokes the comment stream for viewers who joined via share.
+    if (locked && updated.projectUuid) {
+      (req.app as any).purgeCommentSubscriptionsForProject?.(updated.projectUuid);
     }
 
     res.json({ success: true, isShareLocked: updated.isShareLocked, project: updated });

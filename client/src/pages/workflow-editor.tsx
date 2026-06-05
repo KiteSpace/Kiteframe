@@ -12861,6 +12861,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               {openTabs.length > 0 && (
                 <CommentsOverlay
                   workflowId={activeTab?.projectUuid}
+                  shareId={activeShareId ?? undefined}
                   isAuthenticated={isAuthenticated}
                   viewport={viewport}
                   onViewportChange={setViewport}
@@ -12884,6 +12885,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }
                 projectName={activeTab?.name}
                 commentWorkflowId={activeTab?.projectUuid}
+                commentShareId={activeShareId ?? undefined}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onApplyWorkflow={(workflow) => {
                   // Non-destructive mode: add modified workflow as new copy alongside original

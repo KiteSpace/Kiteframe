@@ -6691,6 +6691,25 @@ jane@example.com,Jane,Smith,pro,GroupC
   };
   (app as any).purgeShareSubscriptions = purgeShareSubscriptions;
 
+  // Drop all live comment subscribers for a project (by projectUuid). Called
+  // when a share is locked or disabled so viewers who subscribed while the
+  // share was unlocked stop receiving comment events immediately, matching the
+  // subscribe-time authorization. (The owner's editor re-subscribes with a
+  // valid share link once sharing is re-enabled.)
+  const purgeCommentSubscriptionsForProject = (projectId: string) => {
+    const subscribers = commentSubscriptions.get(projectId);
+    if (!subscribers) return;
+    subscribers.forEach((client) => {
+      clientCommentSubscriptions.get(client)?.delete(projectId);
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: 'comments_subscribe_rejected', projectId }));
+      }
+    });
+    commentSubscriptions.delete(projectId);
+    console.log(`📡 Purged all comment subscribers for project: ${projectId}`);
+  };
+  (app as any).purgeCommentSubscriptionsForProject = purgeCommentSubscriptionsForProject;
+
   // GET /api/projects/:id/share/viewers — current number of live viewers
   // connected to this project's share link. Owner-only. Count is derived
   // from the live websocket subscriptions keyed by the project's shareUuid.
@@ -6848,19 +6867,24 @@ jane@example.com,Jane,Smith,pro,GroupC
             break;
           case 'subscribe_comments':
             // Subscribe to live comment events for a project (by projectUuid).
-            // Live comment broadcast is a cross-client feature that only matters
-            // when a project is actively shared. We therefore only allow a
-            // subscription when the project exists and has an unlocked share
-            // link, which prevents eavesdropping on private projects by UUID.
-            // (An owner's own open tabs still refresh via mutation success.)
+            // The caller must prove access by supplying a valid `shareId` whose
+            // share is unlocked and whose project UUID matches the requested
+            // project. This mirrors the share path of the REST `resolveCommentAuth`
+            // gate, so a client cannot eavesdrop on a project's comment stream
+            // just by knowing its UUID. (Owners of unshared projects have no
+            // other clients to sync with; their own tabs refresh via mutation
+            // success, and once they share they pass the active share link here.)
             if (message.projectId && typeof message.projectId === 'string') {
               const projectId = message.projectId;
+              const subShareId = typeof message.shareId === 'string' ? message.shareId : null;
               let allowed = false;
-              try {
-                const project = await storage.getProjectByProjectUuid(projectId);
-                allowed = !!project && !!project.shareUuid && project.isShareEnabled === true && !project.isShareLocked;
-              } catch (lookupError) {
-                console.error('Error validating comment subscription:', lookupError);
+              if (subShareId) {
+                try {
+                  const shared = await storage.getProjectByShareUuid(subShareId);
+                  allowed = !!shared && !shared.isShareLocked && shared.projectUuid === projectId;
+                } catch (lookupError) {
+                  console.error('Error validating comment subscription:', lookupError);
+                }
               }
 
               if (!allowed) {
