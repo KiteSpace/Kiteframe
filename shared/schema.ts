@@ -278,6 +278,14 @@ export const insertProjectFolderSchema = createInsertSchema(projectFolders).omit
   updatedAt: true,
 });
 
+export const insertWorkflowCommentSchema = createInsertSchema(workflowComments).omit({
+  id: true,
+  userId: true,
+  isResolved: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserCreditsSchema = createInsertSchema(userCredits).omit({
   id: true,
   createdAt: true,
@@ -316,6 +324,11 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type WorkflowComment = typeof workflowComments.$inferSelect;
 export type InsertWorkflowComment = typeof workflowComments.$inferInsert;
+export type ValidatedInsertWorkflowComment = z.infer<typeof insertWorkflowCommentSchema>;
+export type CommentWithAuthor = WorkflowComment & {
+  authorName: string;
+  authorImageUrl: string | null;
+};
 export type UserCredits = typeof userCredits.$inferSelect;
 export type InsertUserCredits = z.infer<typeof insertUserCreditsSchema>;
 export type UnlockCode = typeof unlockCodes.$inferSelect;

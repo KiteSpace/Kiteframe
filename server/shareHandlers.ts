@@ -200,6 +200,7 @@ export async function viewSharedProjectHandler(
       const doc = workflowData?.documentation;
       return res.json({
         shareUuid: project.shareUuid,
+        projectUuid: project.projectUuid,
         projectName: project.name,
         projectDescription: project.description,
         nodes: workflowData?.nodes || [],

@@ -34,6 +34,7 @@ import {
   announcements,
   announcementDismissals,
   bannedEmails,
+  insertWorkflowCommentSchema,
 } from "@shared/schema";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
@@ -2648,51 +2649,213 @@ Respond with only the corrected JSON data:`;
     }
   });
 
-  // Workflow Comments API (Collaboration Pro)
-  app.post('/api/comments', csrfProtection, chatRateLimiter, async (req, res) => {
-    try {
-      const { workflowId, roomId, nodeId, positionX, positionY, content } = req.body;
-      
-      if (!content || typeof content !== 'string') {
-        return res.status(400).json({ error: 'Comment content is required' });
+  // Workflow Comments API (Figma-style canvas comments)
+  //
+  // Comments are keyed by `workflowId` which holds the project's UUID. This is
+  // the one identifier shared by both the editor (URL param) and the view-only
+  // viewer (returned in the /api/view response), so a comment placed in either
+  // surface shows up in the other.
+  //
+  // Authorization for posting:
+  //   • An authenticated user (session) is attributed by their userId.
+  //   • An unauthenticated viewer may post as "Anonymous" only when they supply
+  //     a valid `shareId` that resolves to an unlocked project whose UUID equals
+  //     the target workflowId. This proves they hold a real share link.
+
+  // Resolve the caller's authorization for a project's comments. A caller is
+  // authorized when they are either (a) the authenticated project owner, or
+  // (b) anyone (signed-in or not) holding a valid, unlocked share link whose
+  // project UUID matches the target. This is the single gate used by every
+  // comment endpoint so read/write access stays consistent with the share model.
+  const resolveCommentAuth = async (
+    req: any,
+    workflowId: string,
+  ): Promise<{ authorized: boolean; userId: string | null; isOwner: boolean }> => {
+    let userId: string | null = null;
+    if (req.user) {
+      try {
+        userId = getUserIdFromRequest(req.user);
+      } catch {
+        userId = null;
       }
-      
+    }
+
+    // Authenticated project owner.
+    if (userId) {
+      try {
+        const project = await storage.getProjectByProjectUuid(workflowId);
+        if (project && project.userId === userId) {
+          return { authorized: true, userId, isOwner: true };
+        }
+      } catch (lookupError) {
+        console.error('Error validating comment owner context:', lookupError);
+      }
+    }
+
+    // Valid, unlocked share link for this project (signed-in or anonymous).
+    const shareId = req.body?.shareId ?? req.query?.shareId;
+    if (shareId && typeof shareId === 'string') {
+      try {
+        const shared = await storage.getProjectByShareUuid(shareId);
+        if (shared && !shared.isShareLocked && shared.projectUuid === workflowId) {
+          return { authorized: true, userId, isOwner: false };
+        }
+      } catch (lookupError) {
+        console.error('Error validating comment share context:', lookupError);
+      }
+    }
+
+    return { authorized: false, userId, isOwner: false };
+  };
+
+  app.post('/api/comments', csrfProtection, chatRateLimiter, async (req: any, res) => {
+    try {
+      const parsed = insertWorkflowCommentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid comment data', details: parsed.error.flatten() });
+      }
+
+      const { workflowId, roomId, nodeId, positionX, positionY, content, parentCommentId } = parsed.data;
+
       const sanitizedContent = sanitizeText(content).substring(0, 2000);
       if (!sanitizedContent) {
         return res.status(400).json({ error: 'Comment cannot be empty' });
       }
-      
-      const comment = await db.insert(workflowComments).values({
-        workflowId,
-        roomId,
-        nodeId,
-        positionX,
-        positionY,
-        content: sanitizedContent
-      }).returning();
 
-      // In real implementation, broadcast via WebSocket
-      res.json(comment[0]);
+      // Every poster must be authorized for this project: the authenticated
+      // owner, or anyone holding a valid unlocked share link. The owner is
+      // attributed by userId; share viewers post as "Anonymous" unless signed in.
+      const auth = await resolveCommentAuth(req, workflowId);
+      if (!auth.authorized) {
+        return res.status(403).json({ error: 'Not allowed to comment on this project' });
+      }
+      const userId = auth.userId;
+
+      // If this is a reply, make sure the parent exists, belongs to the same
+      // project, and is itself a root comment (threads are single-level).
+      if (parentCommentId) {
+        const parent = await storage.getCommentById(parentCommentId);
+        if (!parent || parent.workflowId !== workflowId) {
+          return res.status(400).json({ error: 'Invalid parent comment' });
+        }
+        if (parent.parentCommentId) {
+          return res.status(400).json({ error: 'Replies cannot be nested' });
+        }
+      }
+
+      const created = await storage.createComment({
+        workflowId,
+        roomId: roomId ?? null,
+        nodeId: nodeId ?? null,
+        positionX: positionX ?? null,
+        positionY: positionY ?? null,
+        content: sanitizedContent,
+        parentCommentId: parentCommentId ?? null,
+        userId,
+      });
+
+      // Enrich with author display info for the response + broadcast.
+      let authorName = 'Anonymous';
+      let authorImageUrl: string | null = null;
+      if (userId) {
+        const author = await storage.getUser(userId);
+        if (author) {
+          const nameParts = [author.firstName, author.lastName].filter(Boolean);
+          authorName = nameParts.join(' ').trim() || author.email || 'Anonymous';
+          authorImageUrl = author.profileImageUrl ?? null;
+        }
+      }
+
+      const enriched = { ...created, authorName, authorImageUrl };
+      (app as any).broadcastCommentEvent?.(workflowId, 'create', enriched);
+      res.json(enriched);
     } catch (error) {
       console.error('Comment creation error:', error);
       res.status(500).json({ error: 'Failed to create comment' });
     }
   });
 
-  app.get('/api/comments/:workflowId', async (req, res) => {
+  app.get('/api/comments/:workflowId', async (req: any, res) => {
     try {
       const { workflowId } = req.params;
-      
-      const comments = await db
-        .select()
-        .from(workflowComments)
-        .where(eq(workflowComments.workflowId, workflowId))
-        .orderBy(desc(workflowComments.createdAt));
-
+      const auth = await resolveCommentAuth(req, workflowId);
+      if (!auth.authorized) {
+        return res.status(403).json({ error: 'Not allowed to view comments for this project' });
+      }
+      const comments = await storage.getCommentsByWorkflow(workflowId);
       res.json(comments);
     } catch (error) {
       console.error('Comments fetch error:', error);
       res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+  });
+
+  app.patch('/api/comments/:id/resolve', csrfProtection, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const isResolved = req.body?.isResolved !== false; // default to true
+
+      const existing = await storage.getCommentById(id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+
+      // Allow resolve toggles from anyone authorized for this project: the
+      // authenticated owner, or a viewer holding a valid unlocked share link.
+      const auth = await resolveCommentAuth(req, existing.workflowId);
+      if (!auth.authorized) {
+        return res.status(403).json({ error: 'Not allowed to update this comment' });
+      }
+
+      const updated = await storage.setCommentResolved(id, isResolved);
+      (app as any).broadcastCommentEvent?.(existing.workflowId, 'resolve', updated);
+      res.json(updated);
+    } catch (error) {
+      console.error('Comment resolve error:', error);
+      res.status(500).json({ error: 'Failed to update comment' });
+    }
+  });
+
+  app.delete('/api/comments/:id', csrfProtection, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existing = await storage.getCommentById(id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+
+      // Only authenticated users may delete: either the comment's author or the
+      // project owner. Anonymous viewers cannot delete comments.
+      if (!req.user) {
+        return res.status(403).json({ error: 'Not allowed to delete this comment' });
+      }
+      let userId: string | null = null;
+      try {
+        userId = getUserIdFromRequest(req.user);
+      } catch {
+        userId = null;
+      }
+      if (!userId) {
+        return res.status(403).json({ error: 'Not allowed to delete this comment' });
+      }
+
+      let authorized = existing.userId === userId;
+      if (!authorized) {
+        const project = await storage.getProjectByProjectUuid(existing.workflowId);
+        if (project && project.userId === userId) {
+          authorized = true;
+        }
+      }
+      if (!authorized) {
+        return res.status(403).json({ error: 'Not allowed to delete this comment' });
+      }
+
+      await storage.deleteComment(id);
+      (app as any).broadcastCommentEvent?.(existing.workflowId, 'delete', { id, parentCommentId: existing.parentCommentId });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Comment delete error:', error);
+      res.status(500).json({ error: 'Failed to delete comment' });
     }
   });
 
@@ -6441,6 +6604,35 @@ jane@example.com,Jane,Smith,pro,GroupC
   const shareSubscriptions = new Map<string, Set<WebSocket>>();
   // Track which shares each client is subscribed to for cleanup
   const clientSubscriptions = new Map<WebSocket, Set<string>>();
+
+  // Track comment subscriptions: projectUuid -> Set of WebSocket clients.
+  // Both the editor and view-only viewers subscribe by the project's UUID so
+  // comment add/reply/resolve/delete events sync live in every open session.
+  const commentSubscriptions = new Map<string, Set<WebSocket>>();
+  // Track which comment rooms each client is subscribed to for cleanup
+  const clientCommentSubscriptions = new Map<WebSocket, Set<string>>();
+
+  // Broadcast a comment event to everyone watching a given project's comments.
+  const broadcastCommentEvent = (
+    projectId: string,
+    action: 'create' | 'resolve' | 'delete',
+    comment: any,
+  ) => {
+    const subscribers = commentSubscriptions.get(projectId);
+    if (!subscribers || subscribers.size === 0) return;
+    const message = JSON.stringify({
+      type: 'comment_event',
+      projectId,
+      action,
+      comment,
+    });
+    subscribers.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  };
+  (app as any).broadcastCommentEvent = broadcastCommentEvent;
   
   // Function to broadcast share updates to all subscribed viewers
   const broadcastShareUpdate = (shareId: string, data: {
@@ -6654,6 +6846,59 @@ jane@example.com,Jane,Smith,pro,GroupC
               }));
             }
             break;
+          case 'subscribe_comments':
+            // Subscribe to live comment events for a project (by projectUuid).
+            // Live comment broadcast is a cross-client feature that only matters
+            // when a project is actively shared. We therefore only allow a
+            // subscription when the project exists and has an unlocked share
+            // link, which prevents eavesdropping on private projects by UUID.
+            // (An owner's own open tabs still refresh via mutation success.)
+            if (message.projectId && typeof message.projectId === 'string') {
+              const projectId = message.projectId;
+              let allowed = false;
+              try {
+                const project = await storage.getProjectByProjectUuid(projectId);
+                allowed = !!project && !!project.shareUuid && project.isShareEnabled === true && !project.isShareLocked;
+              } catch (lookupError) {
+                console.error('Error validating comment subscription:', lookupError);
+              }
+
+              if (!allowed) {
+                ws.send(JSON.stringify({
+                  type: 'comments_subscribe_rejected',
+                  projectId,
+                }));
+                break;
+              }
+
+              if (!commentSubscriptions.has(projectId)) {
+                commentSubscriptions.set(projectId, new Set());
+              }
+              commentSubscriptions.get(projectId)!.add(ws);
+              if (!clientCommentSubscriptions.has(ws)) {
+                clientCommentSubscriptions.set(ws, new Set());
+              }
+              clientCommentSubscriptions.get(ws)!.add(projectId);
+              ws.send(JSON.stringify({
+                type: 'comments_subscribed',
+                projectId,
+              }));
+            }
+            break;
+          case 'unsubscribe_comments':
+            if (message.projectId && typeof message.projectId === 'string') {
+              const projectId = message.projectId;
+              commentSubscriptions.get(projectId)?.delete(ws);
+              clientCommentSubscriptions.get(ws)?.delete(projectId);
+              if (commentSubscriptions.get(projectId)?.size === 0) {
+                commentSubscriptions.delete(projectId);
+              }
+              ws.send(JSON.stringify({
+                type: 'comments_unsubscribed',
+                projectId,
+              }));
+            }
+            break;
         }
       } catch (error) {
         console.error('❌ WebSocket message error:', error);
@@ -6673,6 +6918,18 @@ jane@example.com,Jane,Smith,pro,GroupC
           }
         });
         clientSubscriptions.delete(ws);
+      }
+
+      // Clean up comment subscriptions for this client
+      const commentSubs = clientCommentSubscriptions.get(ws);
+      if (commentSubs) {
+        commentSubs.forEach((projectId) => {
+          commentSubscriptions.get(projectId)?.delete(ws);
+          if (commentSubscriptions.get(projectId)?.size === 0) {
+            commentSubscriptions.delete(projectId);
+          }
+        });
+        clientCommentSubscriptions.delete(ws);
       }
     });
     

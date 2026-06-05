@@ -11,6 +11,9 @@ import {
   type InsertInsightHistory,
   type BannedEmail,
   type InsertBannedEmail,
+  type WorkflowComment,
+  type InsertWorkflowComment,
+  type CommentWithAuthor,
   users,
   savedProjects,
   projectFolders,
@@ -58,6 +61,12 @@ export interface IStorage {
   createInsightHistory(data: InsertInsightHistory): Promise<InsightHistory>;
   updateInsightHistory(id: string, data: Partial<InsertInsightHistory>): Promise<InsightHistory | undefined>;
   getUsersWithMismatchedTier(): Promise<User[]>;
+  // Workflow comments
+  createComment(data: InsertWorkflowComment): Promise<WorkflowComment>;
+  getCommentsByWorkflow(workflowId: string): Promise<CommentWithAuthor[]>;
+  getCommentById(id: string): Promise<WorkflowComment | undefined>;
+  setCommentResolved(id: string, isResolved: boolean): Promise<WorkflowComment | undefined>;
+  deleteComment(id: string): Promise<void>;
   // Ban management
   getBannedEmail(email: string): Promise<BannedEmail | undefined>;
   listBannedEmails(): Promise<BannedEmail[]>;
@@ -436,6 +445,63 @@ export class DatabaseStorage implements IStorage {
       .update(bannedEmails)
       .set({ loginAttempts: sql`${bannedEmails.loginAttempts} + 1` })
       .where(eq(bannedEmails.email, email.toLowerCase()));
+  }
+
+  // Workflow comments
+  async createComment(data: InsertWorkflowComment): Promise<WorkflowComment> {
+    const [row] = await db.insert(workflowComments).values(data).returning();
+    return row;
+  }
+
+  async getCommentsByWorkflow(workflowId: string): Promise<CommentWithAuthor[]> {
+    const rows = await db
+      .select({
+        comment: workflowComments,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        profileImageUrl: users.profileImageUrl,
+      })
+      .from(workflowComments)
+      .leftJoin(users, eq(workflowComments.userId, users.id))
+      .where(eq(workflowComments.workflowId, workflowId))
+      .orderBy(workflowComments.createdAt);
+
+    return rows.map((row) => {
+      const nameParts = [row.firstName, row.lastName].filter(Boolean);
+      let authorName = nameParts.join(" ").trim();
+      if (!authorName) authorName = row.email || "";
+      if (!authorName) authorName = "Anonymous";
+      return {
+        ...row.comment,
+        authorName,
+        authorImageUrl: row.profileImageUrl ?? null,
+      };
+    });
+  }
+
+  async getCommentById(id: string): Promise<WorkflowComment | undefined> {
+    const [row] = await db
+      .select()
+      .from(workflowComments)
+      .where(eq(workflowComments.id, id))
+      .limit(1);
+    return row;
+  }
+
+  async setCommentResolved(id: string, isResolved: boolean): Promise<WorkflowComment | undefined> {
+    const [row] = await db
+      .update(workflowComments)
+      .set({ isResolved, updatedAt: new Date() })
+      .where(eq(workflowComments.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteComment(id: string): Promise<void> {
+    // Delete the comment and any replies that point to it.
+    await db.delete(workflowComments).where(eq(workflowComments.parentCommentId, id));
+    await db.delete(workflowComments).where(eq(workflowComments.id, id));
   }
 }
 

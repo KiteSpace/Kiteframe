@@ -3,18 +3,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote, AlertTriangle } from 'lucide-react';
+import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote, AlertTriangle, MessageCircle } from 'lucide-react';
 import { KiteAITab } from './KiteAITab';
 import { ProjectDocTab } from './ProjectDocTab';
 import { LayersTab } from './LayersTab';
 import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
+import { CommentsTab } from './CommentsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { SketchStroke } from '@/components/SketchCanvas';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
 
-export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'diagnostics';
+export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'comments' | 'diagnostics';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
@@ -33,6 +34,10 @@ interface ProjectPanelProps {
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   isReadOnly?: boolean;
   shareUuid?: string;
+  /** Project UUID used as the shared key for comments (editor + viewer). */
+  commentWorkflowId?: string | null;
+  /** Share UUID present in the view-only viewer; lets viewers post comments. */
+  commentShareId?: string | null;
   cloudProjectId?: number | null;
   onShareCreated?: (shareUuid: string) => void;
   insights?: Insight[];
@@ -67,6 +72,7 @@ const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[]
   { id: 'project', icon: ClipboardList, label: 'Project' },
   { id: 'layers', icon: ListTree, label: 'Layers' },
   { id: 'notes', icon: StickyNote, label: 'Notes' },
+  { id: 'comments', icon: MessageCircle, label: 'Comments' },
   { id: 'diagnostics', icon: AlertTriangle, label: 'Insights' }
 ];
 
@@ -84,6 +90,8 @@ export function ProjectPanel({
   onPreviewWorkflow,
   isReadOnly = false,
   shareUuid,
+  commentWorkflowId,
+  commentShareId,
   cloudProjectId,
   onShareCreated,
   insights = [],
@@ -298,6 +306,14 @@ export function ProjectPanel({
                 Notes
               </TabsTrigger>
               <TabsTrigger 
+                value="comments" 
+                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
+                data-testid="tab-comments"
+              >
+                <MessageCircle size={14} />
+                Comments
+              </TabsTrigger>
+              <TabsTrigger 
                 value="diagnostics" 
                 className="text-xs px-3 gap-1.5 data-[state=active]:bg-background relative" 
                 data-testid="tab-insights"
@@ -372,6 +388,14 @@ export function ProjectPanel({
           />
         </TabsContent>
         
+        <TabsContent value="comments" className="flex-1 m-0 overflow-hidden">
+          <CommentsTab
+            key={commentWorkflowId || 'default'}
+            workflowId={commentWorkflowId}
+            shareId={commentShareId}
+          />
+        </TabsContent>
+
         <TabsContent value="diagnostics" className="flex-1 m-0 overflow-hidden">
           <DiagnosticsTab
             key={projectId || 'default'}

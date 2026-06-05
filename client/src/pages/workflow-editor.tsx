@@ -7,6 +7,7 @@ import "../lib/export/printStyles.css";
 import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
 import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
+import { CommentsOverlay } from "@/components/comments/CommentsOverlay";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -12856,6 +12857,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
               {/* Mobile view-only floating bar */}
               {isPhoneViewOnly && <MobileViewBar onFitView={handleFitView} />}
+
+              {openTabs.length > 0 && (
+                <CommentsOverlay
+                  workflowId={activeTab?.projectUuid}
+                  isAuthenticated={isAuthenticated}
+                  viewport={viewport}
+                  onViewportChange={setViewport}
+                  containerRef={canvasContainerRef}
+                />
+              )}
             </div>
 
             {/* Project Panel - docked right side */}
@@ -12872,6 +12883,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   activeTabId
                 }
                 projectName={activeTab?.name}
+                commentWorkflowId={activeTab?.projectUuid}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onApplyWorkflow={(workflow) => {
                   // Non-destructive mode: add modified workflow as new copy alongside original

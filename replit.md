@@ -68,8 +68,16 @@ Preferred communication style: Simple, everyday language.
 - **Features**: Unified `Insight` model; actions (Explore, Defer, Add to PRD); no auto-run; no system-initiated experiments.
 
 ### Project Panel
-- **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy), Notes, Insights.
+- **Tabs**: KiteAI (AI assistant), Project (unified document), Layers (canvas hierarchy), Notes, Comments, Insights.
 - **Persistence**: Collapsible panel and active tab state persisted in localStorage.
+
+### Comment System (Figma-style)
+- **Purpose**: Clickable comment pins on the canvas (editor + view-only viewer) with threaded reply popups.
+- **Keying**: Comments are keyed by the project UUID (`workflow_comments.workflowId` holds `projectUuid`), the one identifier shared by the editor (URL param) and the viewer (returned in `/api/view`), so pins appear in both surfaces.
+- **Identity**: Signed-in users show their real name (firstName/lastName, else email); unauthenticated share viewers post as "Anonymous".
+- **Authorization (single gate `resolveCommentAuth`)**: All comment endpoints (GET/POST/PATCH resolve) require the caller to be either the authenticated project owner OR anyone holding a valid unlocked share link whose `projectUuid` matches. DELETE is author-or-owner only (no anonymous delete). Viewers pass `shareId` (query param on GET, body on writes).
+- **Threading**: Single-level (root + replies). Replies to replies are rejected server-side.
+- **Realtime**: `comment_event` broadcast over the `/ws` WebSocket; clients `subscribe_comments`/`unsubscribe_comments` by project UUID. Subscriptions are only allowed for actively shared (unlocked) projects to prevent eavesdropping by UUID; owner's own tabs still refresh via mutation success.
 
 ### PRD System (Project Tab)
 - **AI-Powered Generation**: Generates Product Requirement Documents from workflow semantic models.

@@ -6,6 +6,8 @@ import { Loader2, AlertCircle, Radio, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
 import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
+import { CommentsOverlay } from '@/components/comments/CommentsOverlay';
+import { useAuth } from '@/hooks/useAuth';
 import { SharedViewHeader } from '@/components/SharedViewHeader';
 import { AiProvider } from '../ai/AiProvider';
 import { OpenAICompatClient } from '../ai/OpenAICompatClient';
@@ -59,6 +61,7 @@ type WsMessage = ShareUpdateMessage | ShareSubscribedMessage | { type: string };
 export default function ViewOnlyViewer() {
   const { shareId } = useParams<{ shareId: string }>();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -542,6 +545,15 @@ export default function ViewOnlyViewer() {
               onReset={handleReset}
               onGoHome={handleGoHome}
             />
+
+            <CommentsOverlay
+              workflowId={data?.projectUuid}
+              shareId={shareId}
+              isAuthenticated={!!user}
+              viewport={viewport}
+              onViewportChange={setViewport}
+              containerRef={canvasContainerRef}
+            />
           </div>
 
           {/* Project Panel - docked right side. Only mount after localStorage is seeded
@@ -554,6 +566,8 @@ export default function ViewOnlyViewer() {
               projectId={shareId}
               projectName={projectName}
               isReadOnly={true}
+              commentWorkflowId={data?.projectUuid}
+              commentShareId={shareId}
             />
           )}
         </div>
