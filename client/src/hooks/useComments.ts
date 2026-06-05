@@ -70,15 +70,14 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
       }));
   }, [comments]);
 
-  // Live updates via WebSocket, keyed by project UUID. The server only accepts
-  // a comment subscription when we present a valid `shareId` for an unlocked
-  // share whose project matches — so live sync is scoped to actively shared
-  // projects. Owners pass their active share link; viewers pass the URL share
-  // id. Without a shareId there are no other clients to sync with, and the
-  // owner's own tabs already refresh via mutation success.
+  // Live updates via WebSocket, keyed by project UUID. The server accepts a
+  // subscription either via owner session (the server reads the session cookie
+  // from the WS upgrade request) or via a valid unlocked share link.
+  // Owners therefore always get live sync even without sharing enabled; viewers
+  // pass the URL shareId. The server rejects anyone else.
   const wsRef = useRef<WebSocket | null>(null);
   useEffect(() => {
-    if (!isEnabled || !workflowId || !shareId) return;
+    if (!isEnabled || !workflowId) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -110,6 +109,8 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
       ws.close();
       wsRef.current = null;
     };
+  // shareId stays in deps: if the share link activates/changes, reconnect so
+  // the server can also authorize via that path (dual-path: owner OR share).
   }, [isEnabled, workflowId, shareId]);
 
   const invalidate = useCallback(() => {

@@ -1,5 +1,7 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { createServer, type Server, type IncomingMessage } from "http";
+import cookie from 'cookie';
+import cookieSig from 'cookie-signature';
 import { WebSocketServer, WebSocket } from 'ws';
 import multer from 'multer';
 import { storage } from "./storage";
@@ -6598,6 +6600,32 @@ jane@example.com,Jane,Smith,pro,GroupC
   const httpServer = createServer(app);
   
   // WebSocket server for real-time collaboration
+  // Parse the session cookie from a raw WebSocket upgrade request to identify
+  // the logged-in user. This lets the WS comment subscription accept owner
+  // connections without requiring a share link (same session used by REST).
+  async function getUserIdFromWsRequest(request: IncomingMessage): Promise<string | null> {
+    try {
+      const cookieHeader = request.headers.cookie;
+      if (!cookieHeader) return null;
+      const cookies = cookie.parse(cookieHeader);
+      const rawSid = cookies['connect.sid'];
+      if (!rawSid || !rawSid.startsWith('s:')) return null;
+      const secret = process.env.SESSION_SECRET;
+      if (!secret) return null;
+      const unsigned = cookieSig.unsign(rawSid.slice(2), secret);
+      if (!unsigned) return null;
+      const rows = await db.execute(sql`SELECT sess FROM sessions WHERE sid = ${unsigned} LIMIT 1`);
+      if (!rows.rows || rows.rows.length === 0) return null;
+      const sess = rows.rows[0].sess as any;
+      const user = sess?.passport?.user;
+      if (!user) return null;
+      // OIDC (Replit) stores claims.sub; OAuth (Google/GitHub) stores id directly
+      return user?.claims?.sub || user?.id || null;
+    } catch {
+      return null;
+    }
+  }
+
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   
   // Track share subscriptions: shareId -> Set of WebSocket clients
@@ -6691,22 +6719,28 @@ jane@example.com,Jane,Smith,pro,GroupC
   };
   (app as any).purgeShareSubscriptions = purgeShareSubscriptions;
 
-  // Drop all live comment subscribers for a project (by projectUuid). Called
-  // when a share is locked or disabled so viewers who subscribed while the
-  // share was unlocked stop receiving comment events immediately, matching the
-  // subscribe-time authorization. (The owner's editor re-subscribes with a
-  // valid share link once sharing is re-enabled.)
+  // Drop share-link-based comment subscribers for a project (by projectUuid).
+  // Called when a share is locked or disabled. Only purges clients whose
+  // subscription was authorized via the share link ('share' type); owner-session
+  // subscriptions ('owner' type) are unaffected — the owner always keeps access.
   const purgeCommentSubscriptionsForProject = (projectId: string) => {
     const subscribers = commentSubscriptions.get(projectId);
     if (!subscribers) return;
+    const toPurge: WebSocket[] = [];
     subscribers.forEach((client) => {
+      const subType = (client as any).__commentSubTypes?.get(projectId);
+      if (subType !== 'owner') toPurge.push(client);
+    });
+    for (const client of toPurge) {
+      subscribers.delete(client);
       clientCommentSubscriptions.get(client)?.delete(projectId);
+      (client as any).__commentSubTypes?.delete(projectId);
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: 'comments_subscribe_rejected', projectId }));
       }
-    });
-    commentSubscriptions.delete(projectId);
-    console.log(`📡 Purged all comment subscribers for project: ${projectId}`);
+    }
+    if (subscribers.size === 0) commentSubscriptions.delete(projectId);
+    console.log(`📡 Purged ${toPurge.length} share-based comment subscriber(s) for project: ${projectId}`);
   };
   (app as any).purgeCommentSubscriptionsForProject = purgeCommentSubscriptionsForProject;
 
@@ -6741,11 +6775,15 @@ jane@example.com,Jane,Smith,pro,GroupC
     }
   });
   
-  wss.on('connection', (ws: WebSocket, request) => {
+  wss.on('connection', async (ws: WebSocket, request) => {
     console.log('🔗 New WebSocket connection established');
     
     // Initialize client subscription tracking
     clientSubscriptions.set(ws, new Set());
+
+    // Resolve the session user so the comment subscription can authorize
+    // project owners without needing a share link.
+    (ws as any).__sessionUserId = await getUserIdFromWsRequest(request);
 
     // Capture the originating client IP so the viewer count can be deduplicated
     // per device — one machine opening many sockets must not inflate the count.
@@ -6867,23 +6905,41 @@ jane@example.com,Jane,Smith,pro,GroupC
             break;
           case 'subscribe_comments':
             // Subscribe to live comment events for a project (by projectUuid).
-            // The caller must prove access by supplying a valid `shareId` whose
-            // share is unlocked and whose project UUID matches the requested
-            // project. This mirrors the share path of the REST `resolveCommentAuth`
-            // gate, so a client cannot eavesdrop on a project's comment stream
-            // just by knowing its UUID. (Owners of unshared projects have no
-            // other clients to sync with; their own tabs refresh via mutation
-            // success, and once they share they pass the active share link here.)
+            // Two authorization paths (mirrors REST resolveCommentAuth):
+            //  A — share link: shareId is valid, unlocked, and projectUuid matches.
+            //  B — owner session: the session cookie on this WS connection belongs
+            //      to the project owner (no share link required).
+            // Anyone else is rejected so private projects stay private.
             if (message.projectId && typeof message.projectId === 'string') {
               const projectId = message.projectId;
               const subShareId = typeof message.shareId === 'string' ? message.shareId : null;
               let allowed = false;
+              let subType: 'owner' | 'share' = 'share';
+
+              // Path A: share-link authorization
               if (subShareId) {
                 try {
                   const shared = await storage.getProjectByShareUuid(subShareId);
-                  allowed = !!shared && !shared.isShareLocked && shared.projectUuid === projectId;
+                  if (shared && !shared.isShareLocked && shared.projectUuid === projectId) {
+                    allowed = true;
+                    subType = 'share';
+                  }
                 } catch (lookupError) {
-                  console.error('Error validating comment subscription:', lookupError);
+                  console.error('Error validating comment subscription (share):', lookupError);
+                }
+              }
+
+              // Path B: owner-by-session authorization (owner gets live sync
+              // even when sharing is off, and keeps it even if sharing is later locked)
+              if (!allowed && (ws as any).__sessionUserId) {
+                try {
+                  const project = await storage.getProjectByProjectUuid(projectId);
+                  if (project && project.userId === (ws as any).__sessionUserId) {
+                    allowed = true;
+                    subType = 'owner';
+                  }
+                } catch (lookupError) {
+                  console.error('Error validating comment subscription (owner):', lookupError);
                 }
               }
 
@@ -6903,6 +6959,14 @@ jane@example.com,Jane,Smith,pro,GroupC
                 clientCommentSubscriptions.set(ws, new Set());
               }
               clientCommentSubscriptions.get(ws)!.add(projectId);
+
+              // Track subscription type so revocation on lock/disable only
+              // drops share-based subscribers, not the owner's own session.
+              if (!(ws as any).__commentSubTypes) {
+                (ws as any).__commentSubTypes = new Map<string, 'owner' | 'share'>();
+              }
+              (ws as any).__commentSubTypes.set(projectId, subType);
+
               ws.send(JSON.stringify({
                 type: 'comments_subscribed',
                 projectId,
@@ -6914,6 +6978,7 @@ jane@example.com,Jane,Smith,pro,GroupC
               const projectId = message.projectId;
               commentSubscriptions.get(projectId)?.delete(ws);
               clientCommentSubscriptions.get(ws)?.delete(projectId);
+              (ws as any).__commentSubTypes?.delete(projectId);
               if (commentSubscriptions.get(projectId)?.size === 0) {
                 commentSubscriptions.delete(projectId);
               }
@@ -6955,6 +7020,9 @@ jane@example.com,Jane,Smith,pro,GroupC
         });
         clientCommentSubscriptions.delete(ws);
       }
+      // Clean up subscription-type tracking
+      delete (ws as any).__commentSubTypes;
+      delete (ws as any).__sessionUserId;
     });
     
     ws.on('error', (error) => {
