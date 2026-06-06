@@ -378,17 +378,23 @@ export default function ViewOnlyViewer() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTextEditable =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.contentEditable === 'true';
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const target = e.target as HTMLElement;
-        const isTextEditable = 
-          target.tagName === 'INPUT' || 
-          target.tagName === 'TEXTAREA' || 
-          target.contentEditable === 'true';
-        
         if (!isTextEditable) {
           e.preventDefault();
           e.stopPropagation();
         }
+      }
+
+      // C - Toggle comment placement mode
+      if (e.key === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey && !isTextEditable) {
+        e.preventDefault();
+        setCommentPlacing((prev) => !prev);
       }
     };
 

@@ -4464,6 +4464,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
+      // C - Toggle comment placement mode (works regardless of read-only state)
+      if (e.key === "c" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setCommentPlacing((prev) => !prev);
+        return;
+      }
+
       // All mutation shortcuts are disabled in mobile read-only mode
       if (effectiveReadOnly) return;
 

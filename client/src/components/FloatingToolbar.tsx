@@ -263,7 +263,7 @@ export function FloatingToolbar({
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               }`}
               onClick={onToggleCommentMode}
-              title={commentModeActive ? 'Exit comment mode' : 'Add comment'}
+              title={commentModeActive ? 'Exit comment mode (C)' : 'Add comment (C)'}
               data-testid="comment-mode-toggle"
             >
               <MessageCircle size={16} />
