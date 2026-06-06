@@ -50,12 +50,11 @@ function focusComment(comment: CommentWithAuthor) {
 
 interface CommentRowProps {
   comment: CommentWithAuthor;
-  isAuthenticated: boolean;
   onDelete: (id: string) => void;
   indented?: boolean;
 }
 
-function CommentRow({ comment, isAuthenticated, onDelete, indented = false }: CommentRowProps) {
+function CommentRow({ comment, onDelete, indented = false }: CommentRowProps) {
   return (
     <div className={indented ? 'pl-5 border-l-2 border-border ml-3' : ''}>
       <div className="flex items-start gap-2">
@@ -76,7 +75,7 @@ function CommentRow({ comment, isAuthenticated, onDelete, indented = false }: Co
               {timeAgo(comment.createdAt)}
             </span>
             <div className="ml-auto flex items-center gap-0.5 flex-shrink-0">
-              {isAuthenticated && (
+              {comment.canDelete && (
                 <button
                   type="button"
                   className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
@@ -99,7 +98,6 @@ function CommentRow({ comment, isAuthenticated, onDelete, indented = false }: Co
 
 interface ThreadCardProps {
   thread: CommentThread;
-  isAuthenticated: boolean;
   shareId?: string | null;
   onResolve: (id: string, isResolved: boolean) => void;
   onDelete: (id: string) => void;
@@ -108,7 +106,6 @@ interface ThreadCardProps {
 
 function ThreadCard({
   thread,
-  isAuthenticated,
   onResolve,
   onDelete,
   onCreate,
@@ -181,7 +178,7 @@ function ThreadCard({
             >
               <Check size={13} />
             </button>
-            {isAuthenticated && (
+            {root.canDelete && (
               <button
                 type="button"
                 className="p-0.5 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
@@ -202,7 +199,6 @@ function ThreadCard({
             <CommentRow
               key={reply.id}
               comment={reply}
-              isAuthenticated={isAuthenticated}
               onDelete={onDelete}
               indented
             />
@@ -355,7 +351,6 @@ export function CommentsTab({ workflowId, shareId }: CommentsTabProps) {
               <ThreadCard
                 key={thread.root.id}
                 thread={thread}
-                isAuthenticated={isAuthenticated}
                 shareId={shareId}
                 onResolve={handleResolve}
                 onDelete={handleDelete}

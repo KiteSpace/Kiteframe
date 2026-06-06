@@ -261,7 +261,7 @@ export function CommentsOverlay({
                 >
                   <Check size={14} className={root.isResolved ? 'text-green-600' : ''} />
                 </Button>
-                {isAuthenticated && (
+                {root.canDelete && (
                   <Button
                     variant="ghost"
                     size="icon"

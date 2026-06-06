@@ -2785,7 +2785,13 @@ Respond with only the corrected JSON data:`;
         return res.status(403).json({ error: 'Not allowed to view comments for this project' });
       }
       const comments = await storage.getCommentsByWorkflow(workflowId);
-      res.json(comments);
+      // Annotate each comment with canDelete so the client can show the trash icon
+      // only where the requester actually has permission (author or project owner).
+      const annotated = comments.map((c) => ({
+        ...c,
+        canDelete: auth.isOwner || (auth.userId != null && c.userId === auth.userId),
+      }));
+      res.json(annotated);
     } catch (error) {
       console.error('Comments fetch error:', error);
       res.status(500).json({ error: 'Failed to fetch comments' });

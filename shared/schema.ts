@@ -328,6 +328,8 @@ export type ValidatedInsertWorkflowComment = z.infer<typeof insertWorkflowCommen
 export type CommentWithAuthor = WorkflowComment & {
   authorName: string;
   authorImageUrl: string | null;
+  /** True when the requesting user is allowed to delete this comment (author or project owner). */
+  canDelete?: boolean;
 };
 export type UserCredits = typeof userCredits.$inferSelect;
 export type InsertUserCredits = z.infer<typeof insertUserCreditsSchema>;
