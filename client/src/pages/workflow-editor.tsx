@@ -12872,7 +12872,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 <CommentsOverlay
                   workflowId={activeTab?.projectUuid}
                   shareId={activeShareId ?? undefined}
-                  isAuthenticated={isAuthenticated}
+                  isAuthenticated={isAuthenticated || !!serverUser}
                   placing={commentPlacing}
                   onPlacingChange={setCommentPlacing}
                   viewport={viewport}

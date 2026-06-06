@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useComments, type CommentThread, type CommentWithAuthor } from '@/hooks/useComments';
 import { useAuth } from '@/hooks/useAuth';
+import { useReplitAuth } from '@/hooks/useReplitAuth';
 
 const REPLIES_PREVIEW_COUNT = 2;
 
@@ -288,7 +289,9 @@ export function CommentsTab({ workflowId, shareId }: CommentsTabProps) {
     workflowId,
     shareId,
   });
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated: firebaseAuth } = useAuth();
+  const { isAuthenticated: sessionAuth } = useReplitAuth();
+  const isAuthenticated = firebaseAuth || sessionAuth;
   const [showResolved, setShowResolved] = useState(false);
 
   const visible = threads.filter((t) => showResolved || !t.root.isResolved);
