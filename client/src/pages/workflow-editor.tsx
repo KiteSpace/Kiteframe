@@ -6883,16 +6883,24 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       );
       const localSig = tabSyncSig(tab);
 
-      cloudSyncSigRef.current.set(cid, cloudSig);
       cloudSyncTsRef.current.set(cid, freshTs);
       stateTouched = true;
 
-      if (localSig === cloudSig) return; // already identical → nothing to do
+      if (localSig === cloudSig) {
+        cloudSyncSigRef.current.set(cid, cloudSig);
+        return; // already identical → nothing to do
+      }
       const localTs = tab.lastModified ?? 0;
       if (freshTs > localTs) {
+        cloudSyncSigRef.current.set(cid, cloudSig);
         toApply.set(cid, fresh); // cloud newer → hydrate the tab
+      } else {
+        // Local is newer — keep local content; cloud will be updated on the
+        // next real user edit. Seed the baseline with localSig so the
+        // auto-save effect doesn't see a mismatch on every page load and
+        // spuriously stamp updatedAt=now on all projects simultaneously.
+        cloudSyncSigRef.current.set(cid, localSig);
       }
-      // else: local newer → keep it; auto-save pushes it (localSig != baseline)
     });
 
     if (stateTouched) persistCloudSyncState();
@@ -6907,6 +6915,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         fresh.workflowData as any,
       );
     });
+
+    // Signal the VersionControlPlugin to suppress snapshot autosave while we
+    // hydrate tabs from the cloud so loading doesn't fire a snapshot (which
+    // would touch updatedAt on the active project).
+    (window as any).kiteframeHydrating = true;
+    setTimeout(() => { (window as any).kiteframeHydrating = false; }, 15000);
 
     setTabs((prev) => {
       let changed = false;
@@ -7486,33 +7500,50 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <>
           <HomeScreen
             recentProjects={[
-              // Local projects from tabs (stored in browser)
+              // Local projects from tabs (stored in browser). For cloud-backed
+              // tabs, also surface share status so the badge/revoke UI works.
               ...tabs
                 .filter((tab) => tab.nodes.length > 0)
-                .map((tab) => ({
-                  id: tab.id,
-                  name: tab.name,
-                  lastModified: new Date(tab.lastModified || Date.now()),
-                  status: "private" as const,
-                  thumbnail: tab.thumbnail,
-                  isLocal: true,
-                })),
-              // Cloud projects for Pro/Admin users
-              ...(hasCloudAccess
-                ? cloudProjects.map((project) => ({
-                    id: project.id,
-                    name: project.name,
-                    lastModified: new Date(
-                      project.updatedAt || project.createdAt || Date.now(),
-                    ),
-                    status: project.isPublic
+                .map((tab) => {
+                  const cp = tab.cloudProjectId
+                    ? cloudProjects.find((p) => p.id === tab.cloudProjectId)
+                    : null;
+                  return {
+                    id: tab.id,
+                    name: tab.name,
+                    lastModified: new Date(tab.lastModified || Date.now()),
+                    status: cp?.isPublic
                       ? ("published" as const)
                       : ("private" as const),
-                    thumbnail: project.thumbnail || undefined,
-                    isLocal: false,
-                    shareUuid: project.shareUuid || undefined,
-                    isShareEnabled: project.isShareEnabled || false,
-                  }))
+                    thumbnail: tab.thumbnail || cp?.thumbnail || undefined,
+                    isLocal: true,
+                    shareUuid: cp?.shareUuid || undefined,
+                    isShareEnabled: cp?.isShareEnabled || false,
+                  };
+                }),
+              // Cloud projects for Pro/Admin users — exclude any that are
+              // already open as a local tab (identified by cloudProjectId)
+              // so each project appears exactly once in the list.
+              ...(hasCloudAccess
+                ? cloudProjects
+                    .filter(
+                      (project) =>
+                        !tabs.some((t) => t.cloudProjectId === project.id),
+                    )
+                    .map((project) => ({
+                      id: project.id,
+                      name: project.name,
+                      lastModified: new Date(
+                        project.updatedAt || project.createdAt || Date.now(),
+                      ),
+                      status: project.isPublic
+                        ? ("published" as const)
+                        : ("private" as const),
+                      thumbnail: project.thumbnail || undefined,
+                      isLocal: false,
+                      shareUuid: project.shareUuid || undefined,
+                      isShareEnabled: project.isShareEnabled || false,
+                    }))
                 : []),
             ].sort(
               (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
@@ -7674,8 +7705,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setShowFigmaModal(true);
             }}
             onShareProject={async (projectId, onCopied) => {
-              // Only cloud projects can be shared via a link
-              const project = cloudProjects.find((p) => p.id === projectId);
+              // Resolve the cloud project: projectId may be a cloud project UUID
+              // (cloud-only entry) or a tab.id (cloud-backed tab). Try both.
+              let project = cloudProjects.find((p) => p.id === projectId);
+              if (!project) {
+                const tab = tabs.find((t) => t.id === projectId);
+                if (tab?.cloudProjectId) {
+                  project = cloudProjects.find(
+                    (p) => p.id === tab.cloudProjectId,
+                  );
+                }
+              }
               if (!project) {
                 toast({
                   title: "Save to cloud first",
@@ -7712,7 +7752,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onRevokeProjectShare={async (projectId) => {
-              const project = cloudProjects.find((p) => p.id === projectId);
+              // Resolve cloud project — projectId may be a tab.id for
+              // cloud-backed tabs or a cloud UUID for cloud-only entries.
+              let project = cloudProjects.find((p) => p.id === projectId);
+              if (!project) {
+                const tab = tabs.find((t) => t.id === projectId);
+                if (tab?.cloudProjectId) {
+                  project = cloudProjects.find(
+                    (p) => p.id === tab.cloudProjectId,
+                  );
+                }
+              }
               if (!project) return;
               try {
                 await apiRequest("DELETE", `/api/projects/${project.id}/share`);
@@ -7785,10 +7835,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setActiveTabId(remainingTabs[0].id);
                   }
                 }
+                // Also remove from cloud when this tab is cloud-backed so the
+                // project doesn't reappear on the next page load.
+                if (tab.cloudProjectId) {
+                  deleteCloudProject(tab.cloudProjectId);
+                }
                 toast({
                   title: "Deleted",
                   description: `"${tab.name}" has been deleted.`,
                 });
+              } else if (hasCloudAccess) {
+                // Cloud-only project (not currently open as a tab) — remove
+                // directly from the server.
+                const cloudProject = cloudProjects.find(
+                  (p) => p.id === projectId,
+                );
+                if (cloudProject) {
+                  deleteCloudProject(projectId).then((ok) => {
+                    if (ok) {
+                      toast({
+                        title: "Deleted",
+                        description: `"${cloudProject.name}" has been deleted.`,
+                      });
+                    }
+                  });
+                }
               }
             }}
             onDuplicateProject={async (projectId) => {

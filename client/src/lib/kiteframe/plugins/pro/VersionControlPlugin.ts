@@ -57,6 +57,10 @@ export class VersionControlPlugin implements KiteFramePlugin {
   private debounceAutoSave = (() => {
     let timeout: number | null = null;
     return () => {
+      // Skip scheduling while the editor is hydrating tabs from the cloud.
+      // Canvas events fired during hydration are not real user edits, so we
+      // must not let them bump updatedAt on every page load.
+      if ((window as any).kiteframeHydrating) return;
       if (timeout) clearTimeout(timeout);
       timeout = window.setTimeout(() => {
         this.createAutoSnapshot();
