@@ -95,7 +95,7 @@ const workflowTemplates: WorkflowTemplate[] = [
   },
   {
     id: "template-1",
-    name: "User Journey Map",
+    name: "User Journey",
     description: "Visualize customer touchpoints from discovery to advocacy",
     category: "Design",
     templateType: "user-journey",

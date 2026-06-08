@@ -950,6 +950,21 @@ function WorkflowEditorContent({
       },
     ];
 
+    // ── Divider label between sections ────────────────────────────────────
+    const dividerNode: Node = {
+      id: "divider-label",
+      type: "process",
+      position: { x: 100, y: 240 },
+      data: {
+        label: "Working Example: Feature Request to Launch",
+        description: "See how a real workflow connects — from an idea submitted to AI-powered measurement.",
+        icon: "ArrowRight",
+        iconColor: "text-primary",
+      },
+      width: 1240,
+      height: 60,
+    };
+
     // ── Section 2: Working example — Feature Request to Launch ─────────────
     const exampleNodes: Node[] = [
       {
@@ -1045,7 +1060,7 @@ function WorkflowEditorContent({
       },
     ];
 
-    const nodes: Node[] = [...tourNodes, ...exampleNodes];
+    const nodes: Node[] = [...tourNodes, dividerNode, ...exampleNodes];
 
     const edges: Edge[] = [
       // Example flow — main path
