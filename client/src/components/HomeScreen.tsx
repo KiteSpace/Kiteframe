@@ -63,7 +63,6 @@ interface WorkflowTemplate {
   id: string;
   name: string;
   description: string;
-  author: string;
   thumbnail?: string;
   category: string;
   templateType: string;
@@ -88,62 +87,77 @@ interface HomeScreenProps {
 
 const workflowTemplates: WorkflowTemplate[] = [
   {
+    id: "template-gs",
+    name: "Getting Started",
+    description: "Tour every node type, then see a real workflow in action",
+    category: "Getting Started",
+    templateType: "getting-started",
+  },
+  {
     id: "template-1",
     name: "User Journey Map",
-    description: "Visualize customer touchpoints and experiences",
-    author: "Kiteframe",
-    category: "UX Design",
+    description: "Visualize customer touchpoints from discovery to advocacy",
+    category: "Design",
     templateType: "user-journey",
   },
   {
-    id: "template-2",
-    name: "Mind Map",
-    description: "Brainstorm and organize ideas visually",
-    author: "Kiteframe",
-    category: "Planning",
-    templateType: "mindmap",
+    id: "template-rm",
+    name: "Product Roadmap",
+    description: "Now / Next / Later milestone planning for your product",
+    category: "Product",
+    templateType: "product-roadmap",
   },
   {
-    id: "template-3",
-    name: "System Architecture",
-    description: "Technical architecture diagram with components",
-    author: "Kiteframe",
-    category: "DevOps",
-    templateType: "system-architecture",
+    id: "template-okr",
+    name: "OKR Planning",
+    description: "Objectives with branching key results and success metrics",
+    category: "Product",
+    templateType: "okr-planning",
+  },
+  {
+    id: "template-fr",
+    name: "Feature Request Flow",
+    description: "End-to-end lifecycle from idea submission to retrospective",
+    category: "Product",
+    templateType: "feature-request-flow",
+  },
+  {
+    id: "template-dt",
+    name: "Decision Tree",
+    description: "Binary branching structure for clear if/then logic",
+    category: "Process",
+    templateType: "decision-tree",
   },
   {
     id: "template-4",
     name: "Swim Lanes",
-    description: "Process flow with role-based lanes",
-    author: "Kiteframe",
+    description: "Process flow distributed across role-based lanes",
     category: "Process",
     templateType: "swim-lanes",
   },
   {
-    id: "template-5",
-    name: "User Account Creation",
-    description: "Complete user registration workflow",
-    author: "Kiteframe",
-    category: "Authentication",
-    templateType: "user-account-creation",
-  },
-  {
-    id: "template-6",
-    name: "I/O Logic Flow",
-    description: "Input/output processing with decision logic",
-    author: "Kiteframe",
-    category: "Data",
-    templateType: "io-logic",
+    id: "template-3",
+    name: "System Architecture",
+    description: "Layered technical stack with components and data flow",
+    category: "Engineering",
+    templateType: "system-architecture",
   },
 ];
 
 const categoryIcons: Record<string, typeof Workflow> = {
-  "UX Design": Users,
-  Planning: Zap,
-  DevOps: GitBranch,
+  "Getting Started": Zap,
+  Design: Users,
+  Product: GitBranch,
   Process: Settings,
-  Authentication: Users,
-  Data: Database,
+  Engineering: Database,
+};
+
+const categoryChipColors: Record<string, string> = {
+  "Getting Started": "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  Design: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  Product: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+  Process: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  Engineering: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 
 function formatTimeAgo(date: Date): string {
@@ -682,6 +696,9 @@ export function HomeScreen({
             {workflowTemplates.map((template) => {
               const IconComponent =
                 categoryIcons[template.category] || Workflow;
+              const chipColor =
+                categoryChipColors[template.category] ||
+                "bg-muted text-muted-foreground";
               return (
                 <button
                   type="button"
@@ -695,21 +712,20 @@ export function HomeScreen({
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
                         <IconComponent size={24} className="text-primary" />
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {template.category}
-                      </span>
                     </div>
                   </div>
                   <div className="p-3">
-                    <h3 className="font-medium">{template.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {template.description}
-                    </p>
-                    <div className="mt-2 pt-2 border-t border-border">
-                      <span className="text-xs text-muted-foreground">
-                        by {template.author}
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-medium leading-tight">{template.name}</h3>
+                      <span
+                        className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${chipColor}`}
+                      >
+                        {template.category}
                       </span>
                     </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {template.description}
+                    </p>
                   </div>
                 </button>
               );

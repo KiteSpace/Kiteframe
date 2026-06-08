@@ -833,85 +833,32 @@ function WorkflowEditorContent({
     return { nodes, edges };
   }, []);
 
-  // Generate User Journey template
+  // Generate User Journey template (fixed, no randomisation)
   const generateUserJourneyTemplate = useCallback((): {
     nodes: Node[];
     edges: Edge[];
   } => {
-    const journeySteps = [
-      "Discovery",
-      "Awareness",
-      "Research",
-      "Consideration",
-      "Decision",
-      "Purchase",
-      "Onboarding",
-      "Usage",
-      "Support",
-      "Advocacy",
+    const steps = [
+      { label: "Discovery", touchpoint: "Social Media / Blog", emotion: "Curious", icon: "Search" },
+      { label: "Research", touchpoint: "Website / Product Demo", emotion: "Interested", icon: "User" },
+      { label: "Consideration", touchpoint: "Reviews / Comparison", emotion: "Evaluating", icon: "User" },
+      { label: "Purchase", touchpoint: "Checkout / Sales Call", emotion: "Confident", icon: "User" },
+      { label: "Advocacy", touchpoint: "Referrals / Reviews", emotion: "Loyal", icon: "Star" },
     ];
 
-    const touchpoints = [
-      "Website Visit",
-      "Social Media",
-      "Email Campaign",
-      "Product Demo",
-      "Customer Service",
-      "Mobile App",
-      "In-Store Experience",
-      "Review Platform",
-    ];
-
-    const emotions = [
-      "Curious",
-      "Excited",
-      "Overwhelmed",
-      "Confident",
-      "Satisfied",
-      "Frustrated",
-      "Delighted",
-      "Concerned",
-      "Hopeful",
-      "Loyal",
-    ];
-
-    const selectedSteps = journeySteps
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5);
-    const nodes = selectedSteps.map((step, index) => {
-      const touchpoint =
-        touchpoints[Math.floor(Math.random() * touchpoints.length)];
-      const emotion = emotions[Math.floor(Math.random() * emotions.length)];
-
-      return {
-        id: `step-${index + 1}`,
-        type:
-          index === 0
-            ? "input"
-            : index === selectedSteps.length - 1
-              ? "output"
-              : "process",
-        position: { x: 150 + index * 350, y: 200 + Math.random() * 80 },
-        data: {
-          label: step,
-          description: `${touchpoint}\nFeeling: ${emotion}`,
-          icon:
-            index === 0
-              ? "ArrowRight"
-              : index === selectedSteps.length - 1
-                ? "ArrowLeft"
-                : "User",
-          iconColor:
-            index === 0
-              ? "text-blue-500"
-              : index === selectedSteps.length - 1
-                ? "text-red-500"
-                : "text-green-500",
-        },
-        width: 200,
-        height: 100,
-      };
-    });
+    const nodes = steps.map((step, index) => ({
+      id: `step-${index + 1}`,
+      type: index === 0 ? "input" : index === steps.length - 1 ? "output" : "process",
+      position: { x: 150 + index * 350, y: 200 },
+      data: {
+        label: step.label,
+        description: `${step.touchpoint}\nFeeling: ${step.emotion}`,
+        icon: index === 0 ? "ArrowRight" : index === steps.length - 1 ? "Star" : step.icon,
+        iconColor: index === 0 ? "text-blue-500" : index === steps.length - 1 ? "text-amber-500" : "text-green-500",
+      },
+      width: 200,
+      height: 100,
+    }));
 
     const edges: Edge[] = [];
     for (let i = 0; i < nodes.length - 1; i++) {
@@ -925,6 +872,497 @@ function WorkflowEditorContent({
         markers: { type: "arrow" as const, position: "end" as const },
       });
     }
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Getting Started template
+  const generateGettingStartedTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
+    // ── Section 1: Node type tour ──────────────────────────────────────────
+    const tourNodes: Node[] = [
+      {
+        id: "tour-input",
+        type: "input",
+        position: { x: 100, y: 80 },
+        data: {
+          label: "Input Node",
+          description: "Where a workflow begins — a trigger, form submission, or incoming request.",
+          icon: "ArrowRight",
+          iconColor: "text-blue-500",
+        },
+        width: 200,
+        height: 110,
+      },
+      {
+        id: "tour-process",
+        type: "process",
+        position: { x: 360, y: 80 },
+        data: {
+          label: "Process Node",
+          description: "A step that transforms, validates, or acts on data.",
+          icon: "Cog",
+          iconColor: "text-green-500",
+        },
+        width: 200,
+        height: 110,
+      },
+      {
+        id: "tour-condition",
+        type: "condition",
+        position: { x: 620, y: 80 },
+        data: {
+          label: "Condition Node",
+          description: "A decision point — routes flow based on a Yes/No or if/then rule.",
+          icon: "HelpCircle",
+          iconColor: "text-amber-500",
+        },
+        width: 200,
+        height: 110,
+      },
+      {
+        id: "tour-output",
+        type: "output",
+        position: { x: 880, y: 80 },
+        data: {
+          label: "Output Node",
+          description: "The end result — a notification sent, a record saved, or a response returned.",
+          icon: "CheckCircle",
+          iconColor: "text-red-500",
+        },
+        width: 200,
+        height: 110,
+      },
+      {
+        id: "tour-ai",
+        type: "ai",
+        position: { x: 1140, y: 80 },
+        data: {
+          label: "AI Node",
+          description: "An AI-powered step — analysis, generation, classification, or summarisation.",
+          icon: "Zap",
+          iconColor: "text-purple-500",
+        },
+        width: 200,
+        height: 110,
+      },
+    ];
+
+    // ── Section 2: Working example — Feature Request to Launch ─────────────
+    const exampleNodes: Node[] = [
+      {
+        id: "ex-idea",
+        type: "input",
+        position: { x: 100, y: 340 },
+        data: {
+          label: "Idea Submitted",
+          description: "A user or stakeholder submits a feature request.",
+          icon: "ArrowRight",
+          iconColor: "text-blue-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-review",
+        type: "process",
+        position: { x: 360, y: 340 },
+        data: {
+          label: "PM Review",
+          description: "Product manager evaluates impact, effort, and alignment.",
+          icon: "User",
+          iconColor: "text-green-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-approved",
+        type: "condition",
+        position: { x: 620, y: 340 },
+        data: {
+          label: "Approved?",
+          description: "Is the feature prioritised for the current cycle?",
+          icon: "HelpCircle",
+          iconColor: "text-amber-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-build",
+        type: "process",
+        position: { x: 880, y: 280 },
+        data: {
+          label: "Build Sprint",
+          description: "Engineering builds and QA tests the feature.",
+          icon: "Cog",
+          iconColor: "text-green-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-launch",
+        type: "output",
+        position: { x: 1140, y: 280 },
+        data: {
+          label: "Launch",
+          description: "Feature ships to users via a staged or full release.",
+          icon: "CheckCircle",
+          iconColor: "text-red-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-measure",
+        type: "ai",
+        position: { x: 1140, y: 420 },
+        data: {
+          label: "Measure Impact",
+          description: "AI analyses usage metrics and surfaces insight for the next cycle.",
+          icon: "Zap",
+          iconColor: "text-purple-500",
+        },
+        width: 200,
+        height: 100,
+      },
+      {
+        id: "ex-backlog",
+        type: "output",
+        position: { x: 880, y: 430 },
+        data: {
+          label: "Added to Backlog",
+          description: "Not approved this cycle — parked for future consideration.",
+          icon: "ArrowLeft",
+          iconColor: "text-slate-400",
+        },
+        width: 200,
+        height: 100,
+      },
+    ];
+
+    const nodes: Node[] = [...tourNodes, ...exampleNodes];
+
+    const edges: Edge[] = [
+      // Example flow — main path
+      { id: "ex-e1", source: "ex-idea", target: "ex-review", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "ex-e2", source: "ex-review", target: "ex-approved", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "ex-e3", source: "ex-approved", target: "ex-build", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "Yes" },
+      { id: "ex-e4", source: "ex-approved", target: "ex-backlog", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(220, 13%, 69%)", strokeWidth: 2, strokeDasharray: "5,5" }, markers: { type: "arrow" as const, position: "end" as const }, label: "No" },
+      { id: "ex-e5", source: "ex-build", target: "ex-launch", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "ex-e6", source: "ex-launch", target: "ex-measure", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(262.1, 83.3%, 57.8%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+    ];
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Product Roadmap template
+  const generateProductRoadmapTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
+    const columns = [
+      {
+        label: "Now",
+        color: "text-green-500",
+        x: 100,
+        items: [
+          { label: "User Auth Revamp", desc: "Streamline signup and SSO integration" },
+          { label: "Performance Audit", desc: "Identify and fix top 5 slowest pages" },
+          { label: "Mobile Responsive", desc: "Ensure core flows work on all screen sizes" },
+        ],
+      },
+      {
+        label: "Next",
+        color: "text-blue-500",
+        x: 420,
+        items: [
+          { label: "Dashboard V2", desc: "Redesigned analytics and key metrics view" },
+          { label: "API V2 Launch", desc: "New versioned public API with rate limits" },
+          { label: "Notification Centre", desc: "In-app alerts for key events" },
+        ],
+      },
+      {
+        label: "Later",
+        color: "text-slate-400",
+        x: 740,
+        items: [
+          { label: "AI Recommendations", desc: "ML-powered personalisation layer" },
+          { label: "Enterprise SSO", desc: "SAML and SCIM provisioning" },
+          { label: "Offline Mode", desc: "Local-first sync for mobile clients" },
+        ],
+      },
+    ];
+
+    const nodes: Node[] = [];
+
+    columns.forEach((col) => {
+      // Column header node
+      nodes.push({
+        id: `col-${col.label.toLowerCase()}`,
+        type: "input",
+        position: { x: col.x, y: 60 },
+        data: {
+          label: col.label,
+          description: `${col.label === "Now" ? "Current quarter" : col.label === "Next" ? "Next quarter" : "Future quarters"}`,
+          icon: col.label === "Now" ? "Zap" : col.label === "Next" ? "ArrowRight" : "Clock",
+          iconColor: col.color,
+        },
+        width: 260,
+        height: 80,
+      });
+
+      // Milestone nodes
+      col.items.forEach((item, i) => {
+        nodes.push({
+          id: `milestone-${col.label.toLowerCase()}-${i}`,
+          type: "process",
+          position: { x: col.x, y: 200 + i * 140 },
+          data: {
+            label: item.label,
+            description: item.desc,
+            icon: "CheckCircle",
+            iconColor: col.color,
+          },
+          width: 260,
+          height: 100,
+        });
+      });
+    });
+
+    // No edges for a roadmap — columns are visually separate
+    return { nodes, edges: [] };
+  }, []);
+
+  // Generate OKR Planning template
+  const generateOKRPlanningTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
+    const objective = {
+      id: "obj-1",
+      label: "Become the #1 tool for product teams",
+      desc: "Increase market share and user satisfaction in the product-management segment",
+    };
+
+    const keyResults = [
+      { id: "kr-1", label: "Reach 10k active workspaces", desc: "Measured by monthly active workspaces with ≥1 edit", metric: "8.2k → 10k" },
+      { id: "kr-2", label: "NPS score above 50", desc: "Quarterly in-app survey across all paid tiers", metric: "42 → 50" },
+      { id: "kr-3", label: "Reduce time-to-first-workflow to < 3 min", desc: "From signup to first saved workflow in the editor", metric: "6 min → 3 min" },
+    ];
+
+    const metrics = [
+      { id: "m-1", label: "New signups per week", desc: "Target: +15% QoQ growth rate", krId: "kr-1" },
+      { id: "m-2", label: "Churn rate < 3%", desc: "Monthly involuntary + voluntary churn combined", krId: "kr-2" },
+      { id: "m-3", label: "Onboarding completion rate", desc: "% of signups who complete the first workflow", krId: "kr-3" },
+    ];
+
+    const nodes: Node[] = [
+      {
+        id: objective.id,
+        type: "input",
+        position: { x: 500, y: 60 },
+        data: { label: objective.label, description: objective.desc, icon: "Target", iconColor: "text-purple-500" },
+        width: 300,
+        height: 110,
+      },
+      ...keyResults.map((kr, i) => ({
+        id: kr.id,
+        type: "process" as const,
+        position: { x: 150 + i * 380, y: 260 },
+        data: { label: kr.label, description: `${kr.desc}\n\nProgress: ${kr.metric}`, icon: "TrendingUp", iconColor: "text-blue-500" },
+        width: 280,
+        height: 120,
+      })),
+      ...metrics.map((m, i) => ({
+        id: m.id,
+        type: "output" as const,
+        position: { x: 150 + i * 380, y: 470 },
+        data: { label: m.label, description: m.desc, icon: "BarChart", iconColor: "text-green-500" },
+        width: 280,
+        height: 100,
+      })),
+    ];
+
+    const edges: Edge[] = [
+      ...keyResults.map((kr) => ({
+        id: `e-obj-${kr.id}`,
+        source: objective.id,
+        target: kr.id,
+        type: "bezier" as const,
+        animated: false,
+        style: { strokeColor: "hsl(262.1, 83.3%, 57.8%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
+      })),
+      ...metrics.map((m) => ({
+        id: `e-kr-${m.id}`,
+        source: m.krId,
+        target: m.id,
+        type: "bezier" as const,
+        animated: false,
+        style: { strokeColor: "hsl(221.2, 83.2%, 53.3%)", strokeWidth: 2 },
+        markers: { type: "arrow" as const, position: "end" as const },
+      })),
+    ];
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Feature Request Flow template
+  const generateFeatureRequestFlowTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
+    const nodes: Node[] = [
+      {
+        id: "fr-idea",
+        type: "input",
+        position: { x: 100, y: 200 },
+        data: { label: "Idea Submitted", description: "User, customer, or internal stakeholder submits a feature request via the product portal.", icon: "ArrowRight", iconColor: "text-blue-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-scoping",
+        type: "process",
+        position: { x: 380, y: 200 },
+        data: { label: "Scoping", description: "PM writes a brief — problem statement, target users, success criteria, and rough sizing.", icon: "FileText", iconColor: "text-green-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-priority",
+        type: "condition",
+        position: { x: 660, y: 200 },
+        data: { label: "Prioritised?", description: "Does this feature make the cut for the current or next quarter based on impact vs. effort?", icon: "HelpCircle", iconColor: "text-amber-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-build",
+        type: "process",
+        position: { x: 940, y: 120 },
+        data: { label: "Build Sprint", description: "Engineering designs, builds, and tests the feature. PM reviews progress at key milestones.", icon: "Cog", iconColor: "text-green-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-launch",
+        type: "output",
+        position: { x: 1220, y: 120 },
+        data: { label: "Launch", description: "Feature ships — staged rollout, release notes, and customer comms go out.", icon: "CheckCircle", iconColor: "text-red-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-retro",
+        type: "ai",
+        position: { x: 1220, y: 280 },
+        data: { label: "Retrospective", description: "AI surfaces usage metrics, adoption rate, and qualitative feedback to inform the next iteration.", icon: "Zap", iconColor: "text-purple-500" },
+        width: 220,
+        height: 110,
+      },
+      {
+        id: "fr-backlog",
+        type: "output",
+        position: { x: 940, y: 320 },
+        data: { label: "Parked in Backlog", description: "Not this cycle — added to the backlog with context preserved for future re-evaluation.", icon: "ArrowLeft", iconColor: "text-slate-400" },
+        width: 220,
+        height: 110,
+      },
+    ];
+
+    const edges: Edge[] = [
+      { id: "fr-e1", source: "fr-idea", target: "fr-scoping", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "fr-e2", source: "fr-scoping", target: "fr-priority", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "fr-e3", source: "fr-priority", target: "fr-build", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "Yes" },
+      { id: "fr-e4", source: "fr-priority", target: "fr-backlog", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(220, 13%, 69%)", strokeWidth: 2, strokeDasharray: "5,5" }, markers: { type: "arrow" as const, position: "end" as const }, label: "No" },
+      { id: "fr-e5", source: "fr-build", target: "fr-launch", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+      { id: "fr-e6", source: "fr-launch", target: "fr-retro", type: "bezier" as const, animated: true, style: { strokeColor: "hsl(262.1, 83.3%, 57.8%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const } },
+    ];
+
+    return { nodes, edges };
+  }, []);
+
+  // Generate Decision Tree template
+  const generateDecisionTreeTemplate = useCallback((): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
+    const nodes: Node[] = [
+      // Root
+      {
+        id: "dt-root",
+        type: "condition",
+        position: { x: 500, y: 60 },
+        data: { label: "Is the user authenticated?", description: "Check whether the current user has a valid session before proceeding.", icon: "HelpCircle", iconColor: "text-amber-500" },
+        width: 260,
+        height: 110,
+      },
+      // Yes branch
+      {
+        id: "dt-yes",
+        type: "condition",
+        position: { x: 200, y: 260 },
+        data: { label: "Has an active subscription?", description: "Check the user's billing status and tier.", icon: "HelpCircle", iconColor: "text-amber-500" },
+        width: 240,
+        height: 110,
+      },
+      {
+        id: "dt-yes-yes",
+        type: "output",
+        position: { x: 60, y: 460 },
+        data: { label: "Grant Full Access", description: "User is authenticated and on a paid plan — show all features.", icon: "CheckCircle", iconColor: "text-green-500" },
+        width: 220,
+        height: 100,
+      },
+      {
+        id: "dt-yes-no",
+        type: "output",
+        position: { x: 320, y: 460 },
+        data: { label: "Show Upgrade Prompt", description: "User is logged in but on the free tier — surface the upgrade CTA.", icon: "ArrowRight", iconColor: "text-blue-500" },
+        width: 220,
+        height: 100,
+      },
+      // No branch
+      {
+        id: "dt-no",
+        type: "condition",
+        position: { x: 800, y: 260 },
+        data: { label: "Accessing a public page?", description: "Is the target route accessible without authentication?", icon: "HelpCircle", iconColor: "text-amber-500" },
+        width: 240,
+        height: 110,
+      },
+      {
+        id: "dt-no-yes",
+        type: "output",
+        position: { x: 660, y: 460 },
+        data: { label: "Render Public Page", description: "Route is public — serve the page without requiring login.", icon: "CheckCircle", iconColor: "text-green-500" },
+        width: 220,
+        height: 100,
+      },
+      {
+        id: "dt-no-no",
+        type: "output",
+        position: { x: 920, y: 460 },
+        data: { label: "Redirect to Login", description: "Route requires auth — redirect to the login page with a return URL.", icon: "ArrowLeft", iconColor: "text-red-500" },
+        width: 220,
+        height: 100,
+      },
+    ];
+
+    const edges: Edge[] = [
+      { id: "dt-e1", source: "dt-root", target: "dt-yes", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "Yes" },
+      { id: "dt-e2", source: "dt-root", target: "dt-no", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(220, 13%, 69%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "No" },
+      { id: "dt-e3", source: "dt-yes", target: "dt-yes-yes", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "Yes" },
+      { id: "dt-e4", source: "dt-yes", target: "dt-yes-no", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(220, 13%, 69%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "No" },
+      { id: "dt-e5", source: "dt-no", target: "dt-no-yes", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "Yes" },
+      { id: "dt-e6", source: "dt-no", target: "dt-no-no", type: "bezier" as const, animated: false, style: { strokeColor: "hsl(220, 13%, 69%)", strokeWidth: 2 }, markers: { type: "arrow" as const, position: "end" as const }, label: "No" },
+    ];
 
     return { nodes, edges };
   }, []);
@@ -2818,8 +3256,23 @@ function WorkflowEditorContent({
 
       // Generate appropriate template based on type
       switch (templateType) {
+        case "getting-started":
+          templateData = generateGettingStartedTemplate();
+          break;
         case "user-journey":
           templateData = generateUserJourneyTemplate();
+          break;
+        case "product-roadmap":
+          templateData = generateProductRoadmapTemplate();
+          break;
+        case "okr-planning":
+          templateData = generateOKRPlanningTemplate();
+          break;
+        case "feature-request-flow":
+          templateData = generateFeatureRequestFlowTemplate();
+          break;
+        case "decision-tree":
+          templateData = generateDecisionTreeTemplate();
           break;
         case "mindmap":
           templateData = generateMindmapTemplate();
@@ -3928,8 +4381,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       // Generate appropriate template based on type
       switch (templateType) {
+        case "getting-started":
+          templateData = generateGettingStartedTemplate();
+          break;
         case "user-journey":
           templateData = generateUserJourneyTemplate();
+          break;
+        case "product-roadmap":
+          templateData = generateProductRoadmapTemplate();
+          break;
+        case "okr-planning":
+          templateData = generateOKRPlanningTemplate();
+          break;
+        case "feature-request-flow":
+          templateData = generateFeatureRequestFlowTemplate();
+          break;
+        case "decision-tree":
+          templateData = generateDecisionTreeTemplate();
           break;
         case "mindmap":
           templateData = generateMindmapTemplate();
@@ -7629,8 +8097,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               // Generate template data based on type
               let templateData: { nodes: Node[]; edges: Edge[] } | undefined;
               switch (templateType) {
+                case "getting-started":
+                  templateData = generateGettingStartedTemplate();
+                  break;
                 case "user-journey":
                   templateData = generateUserJourneyTemplate();
+                  break;
+                case "product-roadmap":
+                  templateData = generateProductRoadmapTemplate();
+                  break;
+                case "okr-planning":
+                  templateData = generateOKRPlanningTemplate();
+                  break;
+                case "feature-request-flow":
+                  templateData = generateFeatureRequestFlowTemplate();
+                  break;
+                case "decision-tree":
+                  templateData = generateDecisionTreeTemplate();
                   break;
                 case "mindmap":
                   templateData = generateMindmapTemplate();
