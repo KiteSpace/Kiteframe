@@ -42,6 +42,7 @@ app.use(helmet({
         "https://avatars.githubusercontent.com",  // GitHub profile pictures
         "https://*.githubusercontent.com",         // GitHub raw assets
         "https://*.replit.com",                   // Replit avatars / CDN assets
+        "https://figma-alpha-api.s3.us-west-2.amazonaws.com", // Figma exported frame images
       ],
       connectSrc: [
         "'self'",

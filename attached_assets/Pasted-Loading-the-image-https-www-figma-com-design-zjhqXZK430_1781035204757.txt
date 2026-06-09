@@ -1,0 +1,17 @@
+Loading the image 'https://www.figma.com/design/zjhqXZK430nO94tExq33G8/Untitled?node-id=1-3163&t=jUb7B68rCtMmNsJE-4' violates the following Content Security Policy directive: "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://avatars.githubusercontent.com https://*.githubusercontent.com https://*.replit.com". The action has been blocked.
+workflow-editor-B2Lg3uOR.js:215 🎯 HANDLE ICON CLICK CALLED: Object
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] handleContinue called
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] URL: https://www.figma.com/design/zjhqXZK430nO94tExq33G8/Untitled?node-id=1-3163&t=jUb7B68rCtMmNsJE-4
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] Parsed URL: Object
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] Using OAuth: true | Has nodeId: true
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] Fetching node data for nodeId: 1:3163
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] Node type from API: FRAME | Detected URL type: frame
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] FRAME detected - importing directly
+workflow-editor-B2Lg3uOR.js:338 [SemanticDebug] Extractor result for frame Object
+workflow-editor-B2Lg3uOR.js:338 [FigmaImport] Direct import - calling onImport with 1 frame
+workflow-editor-B2Lg3uOR.js:531 [WorkflowEditor] onImport received: 1 frames, mode: new-project importMode: undefined
+workflow-editor-B2Lg3uOR.js:531 [WorkflowEditor] Frame details: Array(1)
+workflow-editor-B2Lg3uOR.js:531 [WorkflowEditor] Creating new project with 1 frames
+workflow-editor-B2Lg3uOR.js:531 [WorkflowEditor] Built workflow data - nodes: 1 edges: 0
+app:1 Loading the image 'https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/fa698ef4-f5fc-4cb1-b2cc-1d138b981b18' violates the following Content Security Policy directive: "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.googleusercontent.com https://avatars.githubusercontent.com https://*.githubusercontent.com https://*.replit.com". The action has been blocked.
+api/comments/project-1781035087221-0buqgi91a:1  Failed to load resource: the server responded with a status of 403 ()

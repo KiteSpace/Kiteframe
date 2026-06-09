@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils';
 import { NodeHandles } from './NodeHandles';
 import { ResizeHandle } from './ResizeHandle';
 import DragPlaceholder from './DragPlaceholder';
-import { Upload, Image as ImageIcon, AlertCircle, Globe, RefreshCw, ExternalLink, Loader2, Calendar } from 'lucide-react';
+import { Upload, Image as ImageIcon, AlertCircle, Globe, RefreshCw, ExternalLink, Loader2, Calendar, Lock } from 'lucide-react';
+import { SiFigma } from 'react-icons/si';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
@@ -19,7 +20,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onImageUpload,
   onImageUrlSet,
   onRefreshFigma,
+  onFigmaFrameAdd,
   isFigmaAuthenticated = false,
+  isAdvanced = false,
   onDoubleClick,
   className,
   style,
@@ -35,6 +38,10 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
+  const [showFigmaInput, setShowFigmaInput] = useState(false);
+  const [figmaUrlValue, setFigmaUrlValue] = useState('');
+  const [isFetchingFigma, setIsFetchingFigma] = useState(false);
+  const [figmaInputError, setFigmaInputError] = useState('');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
@@ -150,6 +157,22 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       data: { ...node.data, src: url, sourceType: 'url', isImageBroken: false }
     });
   }, [node.id, node.data, onImageUrlSet, onUpdate]);
+
+  const handleFigmaSubmit = useCallback(async () => {
+    const url = figmaUrlValue.trim();
+    if (!url || !onFigmaFrameAdd) return;
+    setFigmaInputError('');
+    setIsFetchingFigma(true);
+    try {
+      await onFigmaFrameAdd(node.id, url);
+      setShowFigmaInput(false);
+      setFigmaUrlValue('');
+    } catch (err: any) {
+      setFigmaInputError(err?.message || 'Failed to import Figma frame');
+    } finally {
+      setIsFetchingFigma(false);
+    }
+  }, [figmaUrlValue, node.id, onFigmaFrameAdd]);
 
   const handleLabelSubmit = useCallback(() => {
     const sanitizedLabel = sanitizeText(editLabelValue.trim() || 'Image');
@@ -556,6 +579,24 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   >
                     <Globe size={18} />
                   </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isAdvanced) { setShowFigmaInput(true); }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); if (isAdvanced) setShowFigmaInput(true); }}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors shadow-md relative ${
+                      isAdvanced
+                        ? 'bg-[#F24E1E] hover:bg-[#E04332] text-white'
+                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    }`}
+                    title={isAdvanced ? 'Import from Figma' : 'Figma import requires Advanced plan'}
+                    data-testid={`image-node-figma-btn-${node.id}`}
+                  >
+                    {isAdvanced ? <SiFigma size={16} /> : <Lock size={16} />}
+                  </button>
                 </div>
               </>
             ) : showInlineUrlInput ? (
@@ -603,6 +644,48 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                   </button>
                 </div>
               </div>
+            ) : showFigmaInput ? (
+              <div className="w-full px-4">
+                <div className="flex items-center gap-1.5 mb-2 justify-center">
+                  <SiFigma size={13} className="text-[#F24E1E]" />
+                  <span className="text-xs font-medium text-muted-foreground">Paste a Figma frame URL</span>
+                </div>
+                <input
+                  type="text"
+                  value={figmaUrlValue}
+                  onChange={(e) => { setFigmaUrlValue(e.target.value); setFigmaInputError(''); }}
+                  placeholder="https://www.figma.com/design/..."
+                  className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#F24E1E]"
+                  autoFocus
+                  disabled={isFetchingFigma}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') { handleFigmaSubmit(); }
+                    else if (e.key === 'Escape') { setShowFigmaInput(false); setFigmaUrlValue(''); setFigmaInputError(''); }
+                  }}
+                />
+                {figmaInputError && (
+                  <p className="text-xs text-red-500 mt-1 text-center truncate" title={figmaInputError}>{figmaInputError}</p>
+                )}
+                <div className="flex justify-center gap-2 mt-2">
+                  <button
+                    className="px-3 py-1 text-sm text-[#F24E1E] hover:text-[#E04332] font-medium disabled:opacity-50"
+                    disabled={isFetchingFigma || !figmaUrlValue.trim()}
+                    onClick={(e) => { e.stopPropagation(); handleFigmaSubmit(); }}
+                  >
+                    {isFetchingFigma ? 'Importing…' : 'Import'}
+                  </button>
+                  <button
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                    disabled={isFetchingFigma}
+                    onClick={(e) => { e.stopPropagation(); setShowFigmaInput(false); setFigmaUrlValue(''); setFigmaInputError(''); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
                 <ImageIcon className="w-8 h-8 mb-2 opacity-60" />
@@ -631,6 +714,24 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                     data-testid={`image-node-url-btn-${node.id}`}
                   >
                     <Globe size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isAdvanced) { setShowFigmaInput(true); }
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); if (isAdvanced) setShowFigmaInput(true); }}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors shadow-md ${
+                      isAdvanced
+                        ? 'bg-[#F24E1E] hover:bg-[#E04332] text-white'
+                        : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    }`}
+                    title={isAdvanced ? 'Import from Figma' : 'Figma import requires Advanced plan'}
+                    data-testid={`image-node-figma-btn-${node.id}`}
+                  >
+                    {isAdvanced ? <SiFigma size={16} /> : <Lock size={16} />}
                   </button>
                 </div>
               </>

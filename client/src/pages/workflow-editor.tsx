@@ -12371,6 +12371,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     isFigmaAuthenticated={isFigmaAuthenticated}
+                    isAdvanced={isAdvanced}
+                    onFigmaFrameAdd={async (nodeId: string, figmaUrl: string) => {
+                      const { parseFigmaUrl } = await import('@/lib/integration/figmaUrl');
+                      const parsed = parseFigmaUrl(figmaUrl);
+                      if (!parsed) {
+                        throw new Error('Invalid Figma URL. Please paste a link from figma.com.');
+                      }
+                      if (!parsed.nodeId) {
+                        throw new Error('URL must point to a specific frame. Select a frame in Figma and copy its link.');
+                      }
+                      const { fetchFigmaNodeThumbnail } = await import('@/lib/integration/figmaApi');
+                      const thumbnail = await fetchFigmaNodeThumbnail(parsed.fileKey, parsed.nodeId);
+                      if (!thumbnail) {
+                        throw new Error('Could not fetch image from Figma. Make sure Figma is connected in Settings.');
+                      }
+                      setNodes((prev) =>
+                        prev.map((n) =>
+                          n.id === nodeId
+                            ? {
+                                ...n,
+                                data: {
+                                  ...n.data,
+                                  src: thumbnail,
+                                  figmaFileKey: parsed.fileKey,
+                                  figmaId: parsed.nodeId,
+                                  sourceType: 'figma',
+                                  cachedAt: new Date().toISOString(),
+                                  isImageBroken: false,
+                                },
+                              }
+                            : n,
+                        ),
+                      );
+                      saveToHistory('Add Figma frame');
+                      toast({ title: 'Figma frame imported', description: 'Image loaded from Figma.' });
+                    }}
                     onExperimentGenerateBranch={async (nodeId: string, currentDescription?: string) => {
                       const rawNode = nodes.find(n => n.id === nodeId);
                       if (!rawNode || rawNode.type !== 'experiment') return;

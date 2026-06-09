@@ -1224,7 +1224,9 @@ type Props = {
   onImageUpload?: (id: string, data: string) => void;
   onImageUrlSet?: (id: string, url: string) => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
+  onFigmaFrameAdd?: (nodeId: string, figmaUrl: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
+  isAdvanced?: boolean;
   disablePan?: boolean;
   disableWheelZoom?: boolean;
   enableTouchGestures?: boolean;
@@ -4444,7 +4446,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       props.onImageUrlSet?.(nodeId, url);
                     }}
                     onRefreshFigma={props.onRefreshFigma}
+                    onFigmaFrameAdd={props.onFigmaFrameAdd}
                     isFigmaAuthenticated={props.isFigmaAuthenticated}
+                    isAdvanced={props.isAdvanced}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
                     showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
