@@ -4345,6 +4345,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Handle edge reconnection from pro features
   const handleEdgeReconnect = useCallback(
     (edgeId: string, newSource: string, newTarget: string) => {
+      saveToHistory("Reconnect edge");
       setEdges((prev) =>
         prev.map((edge) =>
           edge.id === edgeId
@@ -4352,8 +4353,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             : edge,
         ),
       );
-
-      saveToHistory("Reconnect edge");
     },
     [setEdges, saveToHistory],
   );
@@ -4504,12 +4503,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         interactable: true, // Make edges clickable
       }));
 
+      // Save to history for undo/redo (before mutations so snapshot is pre-addition)
+      saveToHistory("Add template");
+
       // Append to existing nodes and edges
       setNodes((prev) => [...prev, ...offsetNodes]);
       setEdges((prev) => [...prev, ...offsetEdges]);
-
-      // Save to history for undo/redo
-      saveToHistory("Add template");
 
       // Toast notification for template creation
       toast({
@@ -4993,7 +4992,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         const lockedNodesCount = selectedNodesList.length - deletableNodes.length;
         const lockedEdgesCount = selectedEdgesList.length - deletableEdges.length;
 
-        // Track what was deleted for the label
+        // Pre-compute deletion label before any mutations so saveToHistory
+        // captures the pre-deletion state (correct "undo" snapshot).
+        const wouldDelete = deletableNodes.length > 0 || deletableEdges.length > 0 || hasSelectedObjects;
+        if (wouldDelete) {
+          const deletionParts = [
+            deletableNodes.length > 0 ? `${deletableNodes.length} node(s)` : null,
+            deletableEdges.length > 0 ? `${deletableEdges.length} edge(s)` : null,
+            hasSelectedObjects ? `${selectedCanvasObjects.length} object(s)` : null,
+          ].filter(Boolean);
+          saveToHistory(`Delete ${deletionParts.join(", ")}`);
+        }
+
         const deletedItems: string[] = [];
 
         if (deletableNodes.length > 0) {
@@ -5030,11 +5040,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           });
           setLinearToolbar(null);
           deletedItems.push(`${selectedCanvasObjects.length} object(s)`);
-        }
-
-        // Single saveToHistory call for all deletions
-        if (deletedItems.length > 0) {
-          saveToHistory(`Delete ${deletedItems.join(", ")}`);
         }
         return;
       }
@@ -5192,12 +5197,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         };
 
         // Deselect all other nodes first
+        saveToHistory("Add node");
         setNodes((prev) => [
           ...prev.map((n) => ({ ...n, selected: false })),
           newNode,
         ]);
         setSelectedNodeId(newNode.id);
-        saveToHistory("Add node");
 
         toast({
           title: "Node Added",
@@ -5298,12 +5303,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           selected: true,
         };
 
+        saveToHistory("Add node");
         setNodes((prev) => [
           ...prev.map((n) => ({ ...n, selected: false })),
           newNode,
         ]);
         setSelectedNodeId(newNode.id);
-        saveToHistory("Add node");
 
         toast({
           title: `${nodeLabels[e.key]} Node Added`,
@@ -5348,10 +5353,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           ...obj,
           selected: false,
         }));
+        saveToHistory("Add text object");
         updateActiveTab({
           canvasObjects: [...updatedObjects, newTextObject],
         });
-        saveToHistory("Add text object");
         toast({
           title: "Text Object Added",
           description: "Press T again to add more",
@@ -5396,10 +5401,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           ...obj,
           selected: false,
         }));
+        saveToHistory("Add shape");
         updateActiveTab({
           canvasObjects: [...updatedObjects, newShapeObject],
         });
-        saveToHistory("Add shape");
         toast({
           title: "Rectangle Added",
           description: "Press S again to add more",
@@ -5442,10 +5447,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           ...obj,
           selected: false,
         }));
+        saveToHistory("Add sticky note");
         updateActiveTab({
           canvasObjects: [...updatedObjects, newStickyObject],
         });
-        saveToHistory("Add sticky note");
         toast({
           title: "Sticky Note Added",
           description: "Press P again to add more",
@@ -5501,6 +5506,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   : 0,
           };
 
+          saveToHistory("Nudge node");
           setNodes((prev) =>
             prev.map((n) =>
               n.selected
@@ -5514,7 +5520,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 : n,
             ),
           );
-          saveToHistory("Nudge node");
         }
         return;
       }
@@ -6719,9 +6724,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       });
 
       // Add nodes to canvas
+      saveToHistory("Add nodes from template");
       setNodes((prev) => [...prev, ...newNodes]);
       incrementTemplateUsage(template.id);
-      saveToHistory("Add nodes from template");
 
       toast({
         title: "Nodes Generated",
@@ -6909,8 +6914,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               color: "#94a3b8",
             };
 
-            setEdges((prev) => [...prev, newEdge]);
             saveToHistory("Auto-connect edge");
+            setEdges((prev) => [...prev, newEdge]);
           },
           // onEdgesChange callback
           (updatedEdges) => {
@@ -7001,6 +7006,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         height: 100,
       };
 
+      // Save to history before mutations so snapshot is pre-addition
+      saveToHistory("Quick add node");
+
       // Add the new node
       setNodes((prev) => [...prev, newNode]);
 
@@ -7016,9 +7024,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       };
 
       setEdges((prev) => [...prev, newEdge]);
-
-      // Save to history
-      saveToHistory("Quick add node");
     };
 
     // Listen for quick-add events
@@ -8627,8 +8632,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           resizable: true,
                         };
 
-                        setNodes((prev) => [...prev, newNode]);
                         saveToHistory("Add node");
+                        setNodes((prev) => [...prev, newNode]);
 
                         toast({
                           title: "Node Added",
@@ -8774,8 +8779,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           resizable: true,
                         };
 
-                        setNodes((prev) => [...prev, newNode]);
                         saveToHistory("Add node");
+                        setNodes((prev) => [...prev, newNode]);
 
                         toast({
                           title: "Node Added",
@@ -8797,10 +8802,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           "Are you sure you want to clear the canvas? This will remove all nodes and edges.",
                         )
                       ) {
+                        saveToHistory("Clear canvas");
                         setNodes([]);
                         setEdges([]);
                         updateActiveTab({ canvasObjects: [] });
-                        saveToHistory("Clear canvas");
                       }
                     }}
                     onExport={() => {
@@ -8892,6 +8897,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setCurrentTheme(theme);
                       localStorage.setItem("workflow-theme", theme.id);
 
+                      saveToHistory("Apply theme");
+
                       // Apply theme to all nodes using the enhanced helper function
                       setNodes((prev) =>
                         prev.map((node) => ({
@@ -8904,8 +8911,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       setEdges((prev) =>
                         prev.map((edge) => applyThemeToEdge(edge, theme)),
                       );
-
-                      saveToHistory("Apply theme");
                     }}
                     activePopout={activePopout}
                     setActivePopout={setActivePopout}
@@ -9067,8 +9072,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : undefined,
                       };
 
-                      setNodes((prev) => [...prev, newNode]);
                       saveToHistory("Add node");
+                      setNodes((prev) => [...prev, newNode]);
 
                       // Toast notification for node creation
                       toast({
@@ -9222,8 +9227,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : undefined,
                       };
 
-                      setNodes((prev) => [...prev, newNode]);
                       saveToHistory("Add node");
+                      setNodes((prev) => [...prev, newNode]);
 
                       // Toast notification for node creation
                       toast({
@@ -9466,8 +9471,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               : undefined,
                         };
 
-                        setNodes([newNode]);
                         saveToHistory("Add node");
+                        setNodes([newNode]);
                       }, 0);
                       return;
                     }
@@ -10134,17 +10139,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     input.click();
                   }}
                   onNodeUpdate={(nodeId: string, updates: Partial<Node>) => {
+                    saveToHistory("Update node");
                     setNodes((prev) =>
                       prev.map((n) =>
                         n.id === nodeId ? { ...n, ...updates } : n,
                       ),
                     );
-                    saveToHistory("Update node");
                   }}
                   onBulkNodeUpdate={(
                     nodeIds: string[],
                     updates: Partial<Node>,
                   ) => {
+                    saveToHistory("Update nodes");
                     setNodes((prev) =>
                       prev.map((n) =>
                         nodeIds.includes(n.id)
@@ -10158,15 +10164,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           : n,
                       ),
                     );
-                    saveToHistory("Update nodes");
                   }}
                   onEdgeUpdate={(edgeId: string, updates: Partial<Edge>) => {
+                    saveToHistory("Update edge");
                     setEdges((prev) =>
                       prev.map((e) =>
                         e.id === edgeId ? { ...e, ...updates } : e,
                       ),
                     );
-                    saveToHistory("Update edge");
                   }}
                   onDeselectNode={() => {
                     setSelectedNodeId("");
@@ -10202,8 +10207,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     const updatedObjects = canvasObjects.map((obj) =>
                       obj.id === objectId ? { ...obj, data: nextData } : obj,
                     );
-                    updateActiveTab({ canvasObjects: updatedObjects });
                     saveToHistory("Update canvas object");
+                    updateActiveTab({ canvasObjects: updatedObjects });
                   }}
                   onDeselectCanvasObjects={() => {
                     const updatedObjects = canvasObjects.map((obj) => ({
@@ -10239,6 +10244,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       imageWidth = Math.round(imageWidth * scale);
                       imageHeight = Math.round(imageHeight * scale);
 
+                      saveToHistory("Upload image");
                       setNodes((prev) =>
                         prev.map((n) =>
                           n.id === nodeId
@@ -10251,7 +10257,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : n,
                         ),
                       );
-                      saveToHistory("Upload image");
                     };
                     img.src = objectPath;
                   }}
@@ -10277,6 +10282,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       imageWidth = Math.round(imageWidth * scale);
                       imageHeight = Math.round(imageHeight * scale);
 
+                      saveToHistory("Set image URL");
                       setNodes((prev) =>
                         prev.map((n) =>
                           n.id === nodeId
@@ -10289,7 +10295,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : n,
                         ),
                       );
-                      saveToHistory("Set image URL");
                     };
                     img.src = url;
                   }}
@@ -10304,6 +10309,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setCurrentTheme(theme);
                     localStorage.setItem("workflow-theme", theme.id);
 
+                    saveToHistory("Apply theme");
+
                     // Apply theme to all nodes using the enhanced helper function
                     setNodes((prev) =>
                       prev.map((node) => ({
@@ -10316,8 +10323,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setEdges((prev) =>
                       prev.map((edge) => applyThemeToEdge(edge, theme)),
                     );
-
-                    saveToHistory("Apply theme");
                   }}
                   copiedProperties={copiedProperties}
                   onApplyToWorkflow={(colors) => {
@@ -10478,8 +10483,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       resizable: true,
                     };
 
-                    setNodes((prev) => [...prev, newNode]);
                     saveToHistory("Create from template");
+                    setNodes((prev) => [...prev, newNode]);
                   }}
                   onDeleteSavedTemplate={deleteTemplate}
                   onRenameSavedTemplate={(
@@ -10525,8 +10530,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onToggleCommentMode={() => setCommentPlacing((p) => !p)}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
-                      updateActiveTab({ canvasObjects: newCanvasObjects });
                       saveToHistory("Update canvas objects");
+                      updateActiveTab({ canvasObjects: newCanvasObjects });
                     }}
                     proFeatures={proFeaturesConfig}
                     onQuickAdd={handleQuickAdd}
@@ -10570,8 +10575,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (Array.isArray(changes)) {
                         // Handle empty array (e.g., all nodes deleted)
                         if (changes.length === 0) {
-                          setNodes([]);
                           saveToHistory("Delete all nodes");
+                          setNodes([]);
                           return;
                         }
                         // Check if it's a direct nodes array update (from drag operations or node updates)
@@ -10609,10 +10614,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           if (nodesWereAdded) {
                             // This is a paste operation - save to history
                             const addedCount = incomingNodeCount - currentNodeCount;
-                            setNodes(incomingNodes);
                             saveToHistory(`Paste ${addedCount} node${addedCount > 1 ? 's' : ''}`);
+                            setNodes(incomingNodes);
                           } else {
                             // This is a drag operation - handle normally
+                            // Save pre-drag state to history on the FIRST drag event so
+                            // undo correctly restores the position before dragging started.
+                            if (!isDraggingRef.current) {
+                              saveToHistory("Move node");
+                            }
+
                             // Mark as dragging to prevent properties panel from opening
                             isDraggingRef.current = true;
 
@@ -10634,7 +10645,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             }, 200); // Reset after 200ms of no drag activity
 
                             setNodes(incomingNodes);
-                            // Don't save to history on every drag move, only on drag end
                           }
                         } else {
                           // Change-based updates
@@ -10662,6 +10672,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             selectionChanges.length > 0 ||
                             positionChanges.length > 0
                           ) {
+                            // Save pre-move state BEFORE applying position changes
+                            if (positionChanges.length > 0) {
+                              saveToHistory("Move node");
+                            }
+
                             setNodes((prev) => {
                               let newNodes = [...prev];
                               [...selectionChanges, ...positionChanges].forEach(
@@ -10694,11 +10709,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               );
                               return newNodes;
                             });
-
-                            // Only save to history for position changes (structural changes)
-                            if (positionChanges.length > 0) {
-                              saveToHistory("Move node");
-                            }
                           }
 
                           // Process removal changes individually
@@ -10721,6 +10731,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                           // Process other changes
                           if (otherChanges.length > 0) {
+                            saveToHistory("Update node");
                             setNodes((prev) => {
                               let newNodes = [...prev];
                               otherChanges.forEach((change) => {
@@ -10728,7 +10739,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               });
                               return newNodes;
                             });
-                            saveToHistory("Update node");
                           }
                         }
                       }
@@ -10811,6 +10821,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                       // Process other changes in batch
                       if (otherChanges.length > 0) {
+                        saveToHistory("Update edge");
                         setEdges((prev) => {
                           let newEdges = [...prev];
                           otherChanges.forEach((change) => {
@@ -10818,7 +10829,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           });
                           return newEdges;
                         });
-                        saveToHistory("Update edge");
                       }
                     }}
                     onConnect={(connection) => {
@@ -10909,6 +10919,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : undefined,
                         data: edgeData,
                       };
+                      saveToHistory("Add edge");
                       setEdges((prev) => [...prev, newEdge]);
 
                       // Set linked table context for table→form connections
@@ -11002,8 +11013,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           duration: 3000,
                         });
                       }
-
-                      saveToHistory("Add edge");
                     }}
                     onNodeClick={(e: React.MouseEvent, node: Node) => {
                       // Clear any existing click delay timer
@@ -11527,6 +11536,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       part: "header" | "body",
                       value: string,
                     ) => {
+                      saveToHistory("Edit node text");
                       setNodes((prev) =>
                         prev.map((node) => {
                           if (node.id === nodeId) {
@@ -11546,9 +11556,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       );
                       setInlineEditing(null);
                       setSelectedText("");
-                      saveToHistory("Edit node text");
                     }}
                     onEdgeLabelSave={(edgeId: string, newLabel: string) => {
+                      saveToHistory("Edit edge label");
                       setEdges((prev) =>
                         prev.map((edge) => {
                           if (edge.id === edgeId) {
@@ -11558,7 +11568,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }),
                       );
                       setInlineEditing(null);
-                      saveToHistory("Edit edge label");
                     }}
                     onInlineEditingCancel={() => {
                       setInlineEditing(null);
@@ -11790,6 +11799,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         ),
                       };
 
+                      saveToHistory("Create form from table row");
+
                       setNodes((prev) => [...prev, newNode]);
 
                       // Create edge between table and form with link emoji
@@ -11819,8 +11830,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         setEdges((prev) => [...prev, newEdge]);
                       }
 
-                      saveToHistory("Create form from table row");
-
                       toast({
                         title: "Form Created",
                         description: `Created form with ${columns.length} linked fields from row ${rowIndex + 1}`,
@@ -11848,6 +11857,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const formNode = nodes.find((n) => n.id === nodeId);
                       const linkedTableNodeId = (formNode?.data as any)
                         ?.linkedTableNodeId;
+
+                      saveToHistory("Unlink form from table");
 
                       // Delete the edge between form and table
                       if (linkedTableNodeId) {
@@ -11890,7 +11901,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return n;
                         }),
                       );
-                      saveToHistory("Unlink form from table");
                       toast({
                         title: "Table Unlinked",
                         description: "Form is no longer linked to a table.",
@@ -11988,6 +11998,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     onNodeStatusChange={(nodeId) => {
                       // Cycle status: undefined/todo -> inprogress -> done -> undefined
+                      saveToHistory("Change node status");
                       setNodes((prev) =>
                         prev.map((n) => {
                           if (n.id === nodeId) {
@@ -12008,7 +12019,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           return n;
                         }),
                       );
-                      saveToHistory("Change node status");
                     }}
                     onApplyTheme={(flowId, theme) => {
                       saveToHistory("Apply workflow theme");
@@ -12344,6 +12354,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }
                         
                         // Update node with new image, metadata, and cache timestamp
+                        saveToHistory("Refresh Figma image");
                         setNodes(prev => prev.map(n => {
                           if (n.id === nodeId) {
                             return {
@@ -12358,8 +12369,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           }
                           return n;
                         }));
-                        
-                        saveToHistory("Refresh Figma image");
                         
                         toast({
                           title: "Image refreshed",
@@ -12435,6 +12444,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (!thumbnail) {
                         throw new Error('Could not fetch image from Figma. Make sure Figma is connected in Settings.');
                       }
+                      saveToHistory('Add Figma frame');
                       setNodes((prev) =>
                         prev.map((n) =>
                           n.id === nodeId
@@ -12453,7 +12463,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             : n,
                         ),
                       );
-                      saveToHistory('Add Figma frame');
                       toast({ title: 'Figma frame imported', description: 'Image loaded from Figma.' });
                     }}
                     onExperimentGenerateBranch={async (nodeId: string, currentDescription?: string) => {
@@ -12800,6 +12809,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       generatedEdgeIds.forEach((oldId, index) => {
                         edgeIdRemap.set(oldId, `committed-edge-${commitTimestamp}-${index}`);
                       });
+
+                      saveToHistory("Adopt speculative branch");
                       
                       setNodes(prev => {
                         const filtered = prev.filter(n => n.id !== nodeId);
@@ -12933,8 +12944,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           };
                         }),
                       });
-                      
-                      saveToHistory("Adopt speculative branch");
                       
                       console.log('[EXPERIMENT] Adopt completed - experiment node removed, branch re-parented', { 
                         removedNodeId: nodeId,
@@ -14681,6 +14690,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     <button
                       key={tableNode.id}
                       onClick={() => {
+                        saveToHistory("Link form to table");
                         setNodes((prev) =>
                           prev.map((n) => {
                             if (n.id === tableLinkPicker.formNodeId) {
@@ -14697,7 +14707,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             return n;
                           }),
                         );
-                        saveToHistory("Link form to table");
                         setTableLinkPicker(null);
                         toast({
                           title: "Table Linked",
@@ -15290,8 +15299,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               height: 100,
             };
 
-            setNodes((prev) => [...prev, newNode]);
             saveToHistory("Create node from table row");
+            setNodes((prev) => [...prev, newNode]);
 
             toast({
               title: "Data Node Created",
@@ -15557,8 +15566,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   y: contextMenu.node.position.y + 20,
                 },
               };
-              setNodes((prev) => [...prev, newNode]);
               saveToHistory("Duplicate node");
+              setNodes((prev) => [...prev, newNode]);
               setContextMenu(null);
             } else if (contextMenu.canvasObject) {
               const newObject = {
@@ -15571,8 +15580,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 selected: false,
               };
               const updatedObjects = [...canvasObjects, newObject];
-              updateActiveTab({ canvasObjects: updatedObjects });
               saveToHistory("Duplicate canvas object");
+              updateActiveTab({ canvasObjects: updatedObjects });
               setContextMenu(null);
             }
           }}
@@ -16665,12 +16674,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               height: config.height,
               selected: true,
             };
+            saveToHistory(`Add ${nodeVariant} node`);
             setNodes((prev) => [
               ...prev.map((n) => ({ ...n, selected: false })),
               newNode,
             ]);
             setSelectedNodeId(newNode.id);
-            saveToHistory(`Add ${nodeVariant} node`);
             toast({
               title: `${config.label} Added`,
               description: "Double-click to edit",
@@ -16702,10 +16711,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               ...obj,
               selected: false,
             }));
+            saveToHistory("Add text object");
             updateActiveTab({
               canvasObjects: [...updatedObjects, newTextObject],
             });
-            saveToHistory("Add text object");
             toast({
               title: "Text Object Added",
               description: "Double-click to edit the text",
@@ -16765,10 +16774,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               ...obj,
               selected: false,
             }));
+            saveToHistory("Add shape");
             updateActiveTab({
               canvasObjects: [...updatedObjects, newShapeObject],
             });
-            saveToHistory("Add shape");
             toast({
               title: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} Added`,
               description:
@@ -16802,10 +16811,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               ...obj,
               selected: false,
             }));
+            saveToHistory("Add sticky note");
             updateActiveTab({
               canvasObjects: [...updatedObjects, newStickyObject],
             });
-            saveToHistory("Add sticky note");
             toast({
               title: "Sticky Note Added",
               description: "Double-click to edit",
