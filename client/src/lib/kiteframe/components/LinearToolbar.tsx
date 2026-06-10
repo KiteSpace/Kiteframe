@@ -2375,8 +2375,11 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
-          {/* Refine mockup button - shown only for mockup image nodes (isMockup flag) */}
-          {isNodeTarget && node?.type === 'image' && (node?.data as Record<string, unknown>)?.isMockup === true && !isInlineEditing && (
+          {/* Refine mockup button - shown for mockup image nodes (isMockup flag or legacy SVG data-URL nodes) */}
+          {isNodeTarget && node?.type === 'image' && (() => {
+            const d = node?.data as Record<string, unknown>;
+            return d?.isMockup === true || (d?.sourceType === 'data' && typeof d?.src === 'string' && (d.src as string).startsWith('data:image/svg+xml'));
+          })() && !isInlineEditing && (
             <UpsellTooltip disabled={canUseWireframe} featureName="wireframe mockups" side="top">
               <button
                 className={cn(
