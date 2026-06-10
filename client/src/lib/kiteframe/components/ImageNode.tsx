@@ -41,6 +41,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
   const [showFigmaInput, setShowFigmaInput] = useState(false);
@@ -124,11 +125,12 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const handleRefineSubmit = useCallback(async () => {
     if (!refinePrompt.trim() || isRefining) return;
     setIsRefining(true);
+    setRefineError(null);
     try {
       await onRefinementSubmit?.(refinePrompt.trim());
       setRefinePrompt('');
     } catch (err) {
-      // error handling is done by parent
+      setRefineError('Generation failed — try again');
     } finally {
       setIsRefining(false);
     }
@@ -545,7 +547,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5">What would you like to change?</p>
                 <textarea
                   value={refinePrompt}
-                  onChange={(e) => setRefinePrompt(e.target.value)}
+                  onChange={(e) => { setRefinePrompt(e.target.value); if (refineError) setRefineError(null); }}
                   placeholder="e.g. Add a search bar at the top"
                   disabled={isRefining}
                   className="w-full text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60"
@@ -563,6 +565,9 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                     }
                   }}
                 />
+                {refineError && (
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1 mb-0.5">{refineError}</p>
+                )}
                 <div className="flex justify-end gap-1.5 mt-1.5">
                   <button
                     className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50 rounded transition-colors"
