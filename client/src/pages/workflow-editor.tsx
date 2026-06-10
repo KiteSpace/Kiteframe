@@ -4964,6 +4964,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       // Delete key handler (Delete or Backspace)
       if (e.key === "Delete" || e.key === "Backspace") {
+        // Do not allow deletion while a mockup node is in refine-prompt mode
+        if (refineMockupNodeId) return;
         // Sketch mode: delete selected strokes
         if (isSketchMode && sketchCanvasRef.current?.hasSelection() && sketchSelection) {
           e.preventDefault();

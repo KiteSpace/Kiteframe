@@ -565,6 +565,8 @@ export interface ImageNodeData {
   originalHeight?: number;
   // Semantic metadata extracted from Figma node tree (for AI workflows)
   figmaSemantic?: FigmaSemanticMetadata | null;
+  // AI-generated wireframe flag
+  isMockup?: boolean;
   // Reference frame flag - when true, frame is excluded from workflow/PRD generation
   isReferenceFrame?: boolean;
   // Import source tracking - identifies where the image originated from

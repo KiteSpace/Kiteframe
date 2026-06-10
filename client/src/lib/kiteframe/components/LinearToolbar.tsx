@@ -2376,7 +2376,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
           })}
           
           {/* Refine mockup button - shown only for mockup image nodes (isMockup flag) */}
-          {isNodeTarget && node?.type === 'image' && (node?.data as any)?.isMockup && !isInlineEditing && (
+          {isNodeTarget && node?.type === 'image' && (node?.data as Record<string, unknown>)?.isMockup === true && !isInlineEditing && (
             <UpsellTooltip disabled={canUseWireframe} featureName="wireframe mockups" side="top">
               <button
                 className={cn(

@@ -1977,11 +1977,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
   app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
-      const { label, description, nodeType, refinementPrompt } = req.body;
-      
-      if (!label || !nodeType) {
-        return res.status(400).json({ error: 'Node label and type are required' });
+      const wireframeSchema = z.object({
+        label: z.string().min(1).max(100),
+        nodeType: z.string().min(1).max(50),
+        description: z.string().max(300).optional(),
+        refinementPrompt: z.string().max(500).optional(),
+      });
+
+      const parsed = wireframeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request', details: parsed.error.issues });
       }
+
+      const { label, description, nodeType, refinementPrompt } = parsed.data;
 
       const sanitize = (value: string, maxLength: number) =>
         String(value).replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLength);
