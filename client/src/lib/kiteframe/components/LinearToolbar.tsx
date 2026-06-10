@@ -20,7 +20,9 @@ import {
   Link2,
   Link2Off,
   Link as LinkIcon,
+  ArrowLeft,
   ArrowLeftRight,
+  Loader2,
   Minus,
   MoveRight,
   Circle,
@@ -96,6 +98,9 @@ interface LinearToolbarProps {
   onWireframe?: () => void;
   canUseWireframe?: boolean;
   onRefineMockup?: () => void;
+  refineMockupNodeId?: string;
+  onRefineMockupSubmit?: (prompt: string) => Promise<void>;
+  onRefineMockupCancel?: () => void;
   onGenerateWorkflow?: () => void;
   onCanvasObjectColorChange?: (color: string) => void;
   onCanvasObjectStyleChange?: (style: {
@@ -225,6 +230,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onWireframe,
   canUseWireframe = false,
   onRefineMockup,
+  refineMockupNodeId,
+  onRefineMockupSubmit,
+  onRefineMockupCancel,
   onGenerateWorkflow,
   onCanvasObjectColorChange,
   onCanvasObjectStyleChange,
@@ -242,6 +250,23 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [refinePrompt, setRefinePrompt] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
+  const handleRefineSubmit = useCallback(async () => {
+    if (!refinePrompt.trim() || isRefining) return;
+    setIsRefining(true);
+    setRefineError(null);
+    try {
+      await onRefineMockupSubmit?.(refinePrompt.trim());
+      setRefinePrompt('');
+    } catch {
+      setRefineError('Generation failed — try again');
+    } finally {
+      setIsRefining(false);
+    }
+  }, [refinePrompt, isRefining, onRefineMockupSubmit]);
   const submenuRef = useRef<HTMLDivElement>(null);
   
   // Handle initialSubmenu prop changes (e.g., when edit hyperlink is requested)
@@ -2350,6 +2375,45 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       data-toolbar="linear"
     >
       <div className="relative">
+        {refineMockupNodeId && refineMockupNodeId === node?.id ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-200 dark:border-purple-700 animate-in fade-in-0 zoom-in-95 duration-200 min-w-[300px]">
+              <button
+                className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => onRefineMockupCancel?.()}
+                title="Cancel"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <input
+                type="text"
+                className="flex-1 text-sm bg-transparent border-none outline-none placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-gray-100 min-w-0"
+                placeholder="What would you like to change?"
+                value={refinePrompt}
+                onChange={(e) => { setRefinePrompt(e.target.value); if (refineError) setRefineError(null); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); if (refinePrompt.trim() && !isRefining) handleRefineSubmit(); }
+                  else if (e.key === 'Escape') { onRefineMockupCancel?.(); }
+                }}
+                disabled={isRefining}
+                autoFocus
+              />
+              <button
+                className="flex-shrink-0 h-8 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
+                disabled={isRefining || !refinePrompt.trim()}
+                onClick={handleRefineSubmit}
+              >
+                {isRefining ? (
+                  <><Loader2 size={12} className="animate-spin" /><span>Refining…</span></>
+                ) : 'Apply'}
+              </button>
+            </div>
+            {refineError && (
+              <p className="text-xs text-red-500 dark:text-red-400 text-center px-3">{refineError}</p>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Main toolbar - horizontal row of circular buttons */}
         <div className="flex items-center gap-2 p-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-200">
           {buttons.filter(b => b.id !== 'delete').map((button, index) => {
@@ -2475,6 +2539,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'endpoints' && renderEndpointsSubmenu()}
         {activeSubmenu === 'fillStyle' && renderFillStyleSubmenu()}
         {activeSubmenu === 'shapeType' && renderShapeTypeSubmenu()}
+        </>
+        )}
       </div>
     </div>
   );

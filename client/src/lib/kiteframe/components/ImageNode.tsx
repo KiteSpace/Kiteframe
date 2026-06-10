@@ -23,9 +23,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   onFigmaFrameAdd,
   isFigmaAuthenticated = false,
   isAdvanced = false,
-  isRefinementMode = false,
-  onRefinementSubmit,
-  onRefinementCancel,
   onDoubleClick,
   className,
   style,
@@ -39,9 +36,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   isAnyDragActive = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [refinePrompt, setRefinePrompt] = useState('');
-  const [isRefining, setIsRefining] = useState(false);
-  const [refineError, setRefineError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
   const [showFigmaInput, setShowFigmaInput] = useState(false);
@@ -122,22 +116,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     onDoubleClick?.(e);
   }, [onDoubleClick]);
 
-  const handleRefineSubmit = useCallback(async () => {
-    if (!refinePrompt.trim() || isRefining) return;
-    setIsRefining(true);
-    setRefineError(null);
-    try {
-      await onRefinementSubmit?.(refinePrompt.trim());
-      setRefinePrompt('');
-    } catch (err) {
-      setRefineError('Generation failed — try again');
-    } finally {
-      setIsRefining(false);
-    }
-  }, [refinePrompt, isRefining, onRefinementSubmit]);
-
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (isRefinementMode) return;
     const target = e.target as HTMLElement;
     const isInteractiveElement = target.closest('input, button, textarea, select, [contenteditable="true"]');
     if (isInteractiveElement) return;
@@ -529,70 +508,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
         aria-label="Image content"
       >
         {hasImage && !isUploading ? (
-          isRefinementMode ? (
-            <div className="flex flex-col w-full h-full">
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <img
-                  ref={imgRef}
-                  src={node.data.src}
-                  alt={node.data.altText || node.data.label || node.data.filename || 'Image'}
-                  className="block select-none w-full h-full"
-                  style={{ objectFit: 'contain', pointerEvents: 'none' }}
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  draggable={false}
-                />
-              </div>
-              <div className="flex-shrink-0 p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
-                <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1.5">What would you like to change?</p>
-                <textarea
-                  value={refinePrompt}
-                  onChange={(e) => { setRefinePrompt(e.target.value); if (refineError) setRefineError(null); }}
-                  placeholder="e.g. Add a search bar at the top"
-                  disabled={isRefining}
-                  className="w-full text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60"
-                  rows={2}
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      if (refinePrompt.trim() && !isRefining) handleRefineSubmit();
-                    } else if (e.key === 'Escape') {
-                      onRefinementCancel?.();
-                    }
-                  }}
-                />
-                {refineError && (
-                  <p className="text-xs text-red-500 dark:text-red-400 mt-1 mb-0.5">{refineError}</p>
-                )}
-                <div className="flex justify-end gap-1.5 mt-1.5">
-                  <button
-                    className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50 rounded transition-colors"
-                    disabled={isRefining}
-                    onClick={(e) => { e.stopPropagation(); onRefinementCancel?.(); }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-2.5 py-1 text-xs text-white bg-purple-500 hover:bg-purple-600 rounded disabled:opacity-50 flex items-center gap-1 transition-colors"
-                    disabled={isRefining || !refinePrompt.trim()}
-                    onClick={(e) => { e.stopPropagation(); handleRefineSubmit(); }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    {isRefining ? (
-                      <><Loader2 size={10} className="animate-spin" /><span>Refining…</span></>
-                    ) : (
-                      'Apply'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
           <div className="relative w-full h-full cursor-move overflow-hidden">
             <img
               ref={imgRef}
@@ -614,7 +529,6 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
               </div>
             )}
           </div>
-          )
         ) : (
           <div
             className={cn(
@@ -838,7 +752,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
       )}
 
       {/* Resize Handle - always rendered outside conditional */}
-      {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && !isRefinementMode && (
+      {showResizeHandle && node.resizable !== false && node.selected && !showDragPlaceholder && (
         <ResizeHandle
           position="bottom-right"
           nodeRef={nodeRef}
