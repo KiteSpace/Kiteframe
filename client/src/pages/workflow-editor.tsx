@@ -12405,14 +12405,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const { svg } = await response.json();
                       const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 
+                      saveToHistory("Refine mockup");
+
                       setNodes(prev => prev.map(n => {
                         if (n.id === nodeId) {
                           return { ...n, data: { ...n.data, src: svgDataUrl } };
                         }
                         return n;
                       }));
-
-                      saveToHistory("Refine mockup");
                       setRefineMockupNodeId(null);
 
                       toast({
