@@ -2488,6 +2488,7 @@ function WorkflowEditorContent({
 
   // Track wireframe generation loading state
   const [generatingWireframe, setGeneratingWireframe] = useState(false);
+  const [refineMockupNodeId, setRefineMockupNodeId] = useState<string | null>(null);
 
   // Wireframe generation handler
   useEffect(() => {
@@ -2566,6 +2567,7 @@ function WorkflowEditorContent({
             filename: `${node.data?.label || "wireframe"}.svg`,
             sourceType: "data",
             imageSize: "contain",
+            isMockup: true,
           },
           width: 400,
           height: 300,
@@ -12372,6 +12374,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     }}
                     isFigmaAuthenticated={isFigmaAuthenticated}
                     isAdvanced={isAdvanced}
+                    mockupRefinementNodeId={refineMockupNodeId ?? undefined}
+                    onRefineMockupSubmit={async (nodeId: string, prompt: string) => {
+                      const targetNode = nodes.find(n => n.id === nodeId);
+                      if (!targetNode) return;
+
+                      const response = await fetch("/api/generate-wireframe", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          label: targetNode.data?.label || "Mockup",
+                          description: targetNode.data?.description || "",
+                          nodeType: targetNode.type || "image",
+                          refinementPrompt: prompt,
+                        }),
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: "Failed to refine mockup" }));
+                        toast({
+                          title: "Refinement failed",
+                          description: errorData.error || "Could not update the mockup. Please try again.",
+                          variant: "destructive",
+                        });
+                        throw new Error(errorData.error || "Failed to refine mockup");
+                      }
+
+                      const { svg } = await response.json();
+                      const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+
+                      setNodes(prev => prev.map(n => {
+                        if (n.id === nodeId) {
+                          return { ...n, data: { ...n.data, src: svgDataUrl } };
+                        }
+                        return n;
+                      }));
+
+                      saveToHistory("Refine mockup");
+                      setRefineMockupNodeId(null);
+
+                      toast({
+                        title: "Mockup updated",
+                        description: "Your refinement has been applied.",
+                      });
+                    }}
+                    onRefineMockupCancel={() => setRefineMockupNodeId(null)}
                     onFigmaFrameAdd={async (nodeId: string, figmaUrl: string) => {
                       const { parseFigmaUrl } = await import('@/lib/integration/figmaUrl');
                       const parsed = parseFigmaUrl(figmaUrl);
@@ -16214,6 +16261,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             }
           }}
           canUseWireframe={isAdvanced || isAdmin}
+          onRefineMockup={() => {
+            if (linearToolbar.node) {
+              setRefineMockupNodeId(linearToolbar.node.id);
+            }
+          }}
           onGenerateWorkflow={async () => {
             if (linearToolbar.node && linearToolbar.node.data?.figmaSemantic) {
               const semantic = linearToolbar.node.data.figmaSemantic;

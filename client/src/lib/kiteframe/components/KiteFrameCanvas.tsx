@@ -1227,6 +1227,9 @@ type Props = {
   onFigmaFrameAdd?: (nodeId: string, figmaUrl: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
   isAdvanced?: boolean;
+  mockupRefinementNodeId?: string; // ID of the mockup image node currently in refine-prompt mode
+  onRefineMockupSubmit?: (nodeId: string, prompt: string) => Promise<void>;
+  onRefineMockupCancel?: (nodeId: string) => void;
   disablePan?: boolean;
   disableWheelZoom?: boolean;
   enableTouchGestures?: boolean;
@@ -4449,6 +4452,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onFigmaFrameAdd={props.onFigmaFrameAdd}
                     isFigmaAuthenticated={props.isFigmaAuthenticated}
                     isAdvanced={props.isAdvanced}
+                    isRefinementMode={props.mockupRefinementNodeId === n.id}
+                    onRefinementSubmit={async (prompt: string) => {
+                      await props.onRefineMockupSubmit?.(n.id, prompt);
+                    }}
+                    onRefinementCancel={() => props.onRefineMockupCancel?.(n.id)}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
                     showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}

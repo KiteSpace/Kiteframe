@@ -95,6 +95,7 @@ interface LinearToolbarProps {
   onEdgeDirectionSwap?: () => void;
   onWireframe?: () => void;
   canUseWireframe?: boolean;
+  onRefineMockup?: () => void;
   onGenerateWorkflow?: () => void;
   onCanvasObjectColorChange?: (color: string) => void;
   onCanvasObjectStyleChange?: (style: {
@@ -223,6 +224,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onEdgeDirectionSwap,
   onWireframe,
   canUseWireframe = false,
+  onRefineMockup,
   onGenerateWorkflow,
   onCanvasObjectColorChange,
   onCanvasObjectStyleChange,
@@ -2373,6 +2375,40 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             );
           })}
           
+          {/* Refine mockup button - shown only for mockup image nodes (isMockup flag) */}
+          {isNodeTarget && node?.type === 'image' && (node?.data as any)?.isMockup && !isInlineEditing && (
+            <UpsellTooltip disabled={canUseWireframe} featureName="wireframe mockups" side="top">
+              <button
+                className={cn(
+                  "h-9 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium shadow-md transition-all duration-200",
+                  canUseWireframe
+                    ? "text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 hover:scale-105 active:scale-95 hover:shadow-lg cursor-pointer"
+                    : "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/60 cursor-pointer"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!canUseWireframe) {
+                    onClose();
+                    window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
+                  } else {
+                    onRefineMockup?.();
+                    onClose();
+                  }
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                title={canUseWireframe ? "Refine this mockup with AI" : undefined}
+                data-testid="toolbar-button-refine-mockup"
+                tabIndex={0}
+              >
+                <Sparkles size={14} />
+                <span>Refine</span>
+                {!canUseWireframe && (
+                  <Lock size={12} className="ml-0.5" />
+                )}
+              </button>
+            </UpsellTooltip>
+          )}
+
           {/* Wireframe button - shown for all node types except image/table/form/code/experiment */}
           {isNodeTarget && node?.type !== 'image' && node?.type !== 'table' && node?.type !== 'form' && node?.type !== 'code' && node?.type !== 'experiment' && !isInlineEditing && (
             <UpsellTooltip disabled={canUseWireframe} featureName="wireframe mockups" side="top">

@@ -1977,7 +1977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
   app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
-      const { label, description, nodeType } = req.body;
+      const { label, description, nodeType, refinementPrompt } = req.body;
       
       if (!label || !nodeType) {
         return res.status(400).json({ error: 'Node label and type are required' });
@@ -1989,9 +1989,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeLabel = sanitize(label, 100);
       const safeNodeType = sanitize(nodeType, 50);
       const safeDescription = description ? sanitize(description, 300) : 'No description provided';
+      const safeRefinementPrompt = refinementPrompt ? sanitize(refinementPrompt, 500) : null;
 
       // Create prompt for wireframe generation
-      const prompt = `Create a simple, clean SVG wireframe mockup for a UI component representing "${safeLabel}".
+      const prompt = safeRefinementPrompt
+        ? `Modify the existing SVG wireframe mockup for a UI component representing "${safeLabel}" based on the user's requested change.
+
+Node Type: ${safeNodeType}
+Description: ${safeDescription}
+Requested change: ${safeRefinementPrompt}
+
+Requirements:
+- Generate ONLY the updated SVG code, no explanations
+- Use a 400x300 viewBox
+- Use simple shapes (rectangles, circles, lines, text)
+- Use grayscale colors (#333, #666, #999, #ddd, #f5f5f5)
+- Apply the requested change while keeping the overall wireframe style consistent
+- Make it look like a professional wireframe mockup
+- Keep it simple and clean
+
+Return ONLY the SVG code starting with <svg> and ending with </svg>.`
+        : `Create a simple, clean SVG wireframe mockup for a UI component representing "${safeLabel}".
 
 Node Type: ${safeNodeType}
 Description: ${safeDescription}

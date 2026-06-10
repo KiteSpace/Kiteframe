@@ -963,6 +963,9 @@ export interface ImageNodeComponentProps extends BaseNodeComponentProps<ImageNod
   onFigmaFrameAdd?: (nodeId: string, figmaUrl: string) => Promise<void>; // Import a Figma frame by URL
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
   isAdvanced?: boolean; // Whether the user has Advanced plan or higher (gates Figma import)
+  isRefinementMode?: boolean; // Whether this mockup node is in inline refine-prompt mode
+  onRefinementSubmit?: (prompt: string) => Promise<void>; // Submit a refinement prompt
+  onRefinementCancel?: () => void; // Exit refine mode without changes
   onStartDrag?: (e: React.MouseEvent, node: Node) => void;
   onClick?: (e: React.MouseEvent, node: Node) => void;
   onHandleConnect?: (position: 'top' | 'bottom' | 'left' | 'right', e: React.MouseEvent) => void;
