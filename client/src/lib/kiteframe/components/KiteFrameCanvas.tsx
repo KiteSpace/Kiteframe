@@ -4431,16 +4431,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onImageUpload={async (nodeId: string, file: File) => {
-                      // Convert File to data URL for compatibility with existing system
-                      return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const dataUrl = reader.result as string;
-                          props.onImageUpload?.(nodeId, dataUrl);
-                          resolve(dataUrl);
-                        };
-                        reader.readAsDataURL(file);
-                      });
+                      try {
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                        if (!res.ok) throw new Error('Upload failed');
+                        const { url } = await res.json();
+                        props.onImageUpload?.(nodeId, url);
+                        return url as string;
+                      } catch {
+                        return new Promise((resolve) => {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const dataUrl = reader.result as string;
+                            props.onImageUpload?.(nodeId, dataUrl);
+                            resolve(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                      }
                     }}
                     onImageUrlSet={(nodeId: string, url: string) => {
                       props.onImageUrlSet?.(nodeId, url);
@@ -4989,15 +4998,25 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
                     onImageUpload={async (nodeId: string, file: File) => {
-                      return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const dataUrl = reader.result as string;
-                          props.onImageUpload?.(nodeId, dataUrl);
-                          resolve(dataUrl);
-                        };
-                        reader.readAsDataURL(file);
-                      });
+                      try {
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                        if (!res.ok) throw new Error('Upload failed');
+                        const { url } = await res.json();
+                        props.onImageUpload?.(nodeId, url);
+                        return url as string;
+                      } catch {
+                        return new Promise((resolve) => {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const dataUrl = reader.result as string;
+                            props.onImageUpload?.(nodeId, dataUrl);
+                            resolve(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                      }
                     }}
                     tables={props.tableData ? Object.entries(props.tableData).map(([tableId, table]) => {
                       const tableNode = props.nodes.find(node => 

@@ -206,6 +206,21 @@ export class ObjectStorageService {
     return `/objects/${entityId}`;
   }
 
+  // Uploads a buffer to private object storage and returns the /objects/... path.
+  async uploadBuffer(buffer: Buffer, contentType: string, originalFilename: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    const rawExt = originalFilename.split('.').pop()?.toLowerCase() || 'bin';
+    const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(rawExt) ? rawExt : 'bin';
+    const objectName = `uploads/${objectId}.${safeExt}`;
+    const fullPath = privateObjectDir.replace(/\/$/, '') + '/' + objectName;
+    const { bucketName, objectName: gcObjectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(gcObjectName);
+    await file.save(buffer, { contentType, resumable: false });
+    return `/objects/${objectName}`;
+  }
+
   // Tries to set the ACL policy for the object entity and return the normalized path.
   async trySetObjectEntityAclPolicy(
     rawPath: string,

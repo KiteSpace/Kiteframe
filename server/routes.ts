@@ -2907,6 +2907,25 @@ Respond with only the corrected JSON data:`;
     },
   });
 
+  // Image upload endpoint — stores files in object storage so base64 never enters localStorage
+  app.post('/api/upload-image', upload.single('image'), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const url = await objectStorageService.uploadBuffer(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname,
+      );
+      res.json({ url });
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      res.status(500).json({ error: 'Upload failed' });
+    }
+  });
+
   // Bug Report endpoint
   app.post('/api/bug-report', handleBugReport);
 

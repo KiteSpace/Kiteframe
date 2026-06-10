@@ -7044,7 +7044,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Uses refs so the callbacks are stable and don't rebuild when user identity resolves.
   const saveToLocalStorage = useCallback((tabsToSave: WorkflowTab[]) => {
     try {
-      localStorage.setItem(storageKeyRef.current, JSON.stringify(tabsToSave));
+      // Strip inline base64 image data before saving to localStorage.
+      // Images uploaded via the server have a /objects/... URL (small) and are kept.
+      // Legacy base64 blobs are cleared so they don't blow the quota.
+      const stripBase64 = (nodes: Node[]) =>
+        nodes.map(n => {
+          if (n.type === 'image' && typeof (n.data as any)?.src === 'string' && (n.data as any).src.startsWith('data:')) {
+            return { ...n, data: { ...(n.data as any), src: '' } };
+          }
+          return n;
+        });
+
+      const stripped = tabsToSave.map(tab => ({
+        ...tab,
+        nodes: stripBase64(tab.nodes),
+        history: tab.history.map(h => ({ ...h, nodes: stripBase64(h.nodes) })),
+      }));
+      localStorage.setItem(storageKeyRef.current, JSON.stringify(stripped));
     } catch (error) {
       console.error("❌ Failed to save workflows to local storage:", error);
     }
