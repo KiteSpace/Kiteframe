@@ -17,6 +17,7 @@ import type {
   QuickAddConfig,
 } from "../types";
 import { useEventCleanup } from "../utils/eventCleanup";
+import { compressImage, IMAGE_MAX_BYTES, IMAGE_MAX_BYTES_LABEL } from "../utils/imageCompression";
 import { clientToWorld, zoomAroundPoint } from "../utils/geometry";
 import {
   recalculateAllEdgeZIndexes,
@@ -4431,9 +4432,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onImageUpload={async (nodeId: string, file: File) => {
+                      if (file.size > IMAGE_MAX_BYTES) {
+                        throw new Error(`File too large — max ${IMAGE_MAX_BYTES_LABEL}`);
+                      }
                       try {
+                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('image', file);
+                        formData.append('image', compressed);
                         const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
                         if (!res.ok) throw new Error('Upload failed');
                         const { url } = await res.json();
@@ -4998,9 +5003,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showDragPlaceholder={draggingNodeId === n.id}
                     isAnyDragActive={!!draggingNodeId}
                     onImageUpload={async (nodeId: string, file: File) => {
+                      if (file.size > IMAGE_MAX_BYTES) {
+                        throw new Error(`File too large — max ${IMAGE_MAX_BYTES_LABEL}`);
+                      }
                       try {
+                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('image', file);
+                        formData.append('image', compressed);
                         const res = await fetch('/api/upload-image', { method: 'POST', body: formData });
                         if (!res.ok) throw new Error('Upload failed');
                         const { url } = await res.json();

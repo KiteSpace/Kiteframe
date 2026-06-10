@@ -9,6 +9,7 @@ import { SiFigma } from 'react-icons/si';
 import type { Node, ImageNodeData, ImageNodeComponentProps, ImageFit } from '../types';
 import { getDynamicClassName, getNodeStyleClasses } from '../utils/styles';
 import { sanitizeText } from '../utils/validation';
+import { IMAGE_MAX_BYTES, IMAGE_MAX_BYTES_LABEL } from '../utils/imageCompression';
 import { ImageUploadModal } from './modals/ImageUploadModal';
 import { toPxNumber } from '@/utils/size';
 
@@ -37,6 +38,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
   const [showInlineUrlInput, setShowInlineUrlInput] = useState(false);
   const [showFigmaInput, setShowFigmaInput] = useState(false);
   const [figmaUrlValue, setFigmaUrlValue] = useState('');
@@ -72,7 +74,14 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
   const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
+    if (file.size > IMAGE_MAX_BYTES) {
+      setUploadErrorMsg(`File too large — max ${IMAGE_MAX_BYTES_LABEL}`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setUploadErrorMsg(null);
+
     if (onImageUpload) {
       setIsUploading(true);
       setImageError(false);
@@ -734,6 +743,11 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
                     {isAdvanced ? <SiFigma size={16} /> : <Lock size={16} />}
                   </button>
                 </div>
+                {uploadErrorMsg ? (
+                  <p className="text-xs text-red-500 mt-2 px-2 text-center">{uploadErrorMsg}</p>
+                ) : (
+                  <p className="text-xs opacity-40 mt-2">Max {IMAGE_MAX_BYTES_LABEL} · auto-compressed</p>
+                )}
               </>
             )}
           </div>

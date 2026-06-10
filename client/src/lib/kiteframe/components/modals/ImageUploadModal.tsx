@@ -49,9 +49,9 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       return;
     }
 
-    // Validate file size (250KB max)
-    if (file.size > 256000) {
-      console.error('File size must be less than 250KB');
+    // Validate file size (5 MB max — compression happens in the canvas handler)
+    if (file.size > 5 * 1024 * 1024) {
+      console.error('File size must be less than 5 MB');
       return;
     }
 
@@ -141,7 +141,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   {isUploading ? 'Uploading...' : 'Choose File'}
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Supported formats: JPG, PNG, GIF, WebP, SVG (max 250KB)
+                  Supported formats: JPG, PNG, GIF, WebP, SVG (max 5 MB · auto-compressed)
                 </p>
               </div>
             </div>
