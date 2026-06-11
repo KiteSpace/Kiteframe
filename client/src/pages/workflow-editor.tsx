@@ -12408,7 +12408,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     isFigmaAuthenticated={isFigmaAuthenticated}
-                    isAdvanced={isAdvanced}
+                    isAdvanced={subscriptionTier !== 'free'}
                     onFigmaFrameAdd={async (nodeId: string, figmaUrl: string) => {
                       const { parseFigmaUrl } = await import('@/lib/integration/figmaUrl');
                       const parsed = parseFigmaUrl(figmaUrl);
