@@ -75,7 +75,9 @@ interface WorkflowCanvasProps {
   onDragWorkflow?: (flowId: string, nodeIds: string[], deltaX: number, deltaY: number, isDragStart?: boolean) => void;
   onLayoutWorkflow?: (flowId: string, nodeIds: string[], layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   onRefreshFigma?: (nodeId: string) => Promise<void>;
+  onFigmaFrameAdd?: (nodeId: string, figmaUrl: string) => Promise<void>;
   isFigmaAuthenticated?: boolean; // Whether user can refresh Figma frames
+  isAdvanced?: boolean;
   isSketchMode?: boolean;
   isReadOnly?: boolean;
   onExperimentGenerateBranch?: (nodeId: string, currentDescription?: string) => void;
@@ -170,7 +172,9 @@ export function WorkflowCanvas({
   onDragWorkflow,
   onLayoutWorkflow,
   onRefreshFigma,
+  onFigmaFrameAdd,
   isFigmaAuthenticated,
+  isAdvanced,
   isSketchMode,
   isReadOnly,
   onExperimentGenerateBranch,
@@ -693,7 +697,9 @@ export function WorkflowCanvas({
         onDragWorkflow={onDragWorkflow}
         onLayoutWorkflow={onLayoutWorkflow}
         onRefreshFigma={onRefreshFigma}
+        onFigmaFrameAdd={onFigmaFrameAdd}
         isFigmaAuthenticated={isFigmaAuthenticated}
+        isAdvanced={isAdvanced}
         onExperimentGenerateBranch={onExperimentGenerateBranch}
         onExperimentAdoptBranch={onExperimentAdoptBranch}
         onExperimentDiscardBranch={onExperimentDiscardBranch}
