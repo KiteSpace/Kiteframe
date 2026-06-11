@@ -2459,7 +2459,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                     window.dispatchEvent(new CustomEvent('showFeatureUpsell', { detail: { type: 'wireframe' } }));
                   } else {
                     onRefineMockup?.();
-                    onClose();
                   }
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
