@@ -80,6 +80,8 @@ export function CommentsOverlay({
   };
   const [draft, setDraft] = useState<{ x: number; y: number } | null>(null);
   const [draftText, setDraftText] = useState('');
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftSubmitting, setDraftSubmitting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
@@ -128,15 +130,29 @@ export function CommentsOverlay({
     const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
     setDraft({ x: wx, y: wy });
     setDraftText('');
+    setDraftError(null);
     setPlacing(false);
     setSelectedId(null);
   };
 
   const submitDraft = async () => {
     if (!draft || !draftText.trim()) return;
-    await createComment({ content: draftText.trim(), positionX: Math.round(draft.x), positionY: Math.round(draft.y) });
-    setDraft(null);
-    setDraftText('');
+    setDraftError(null);
+    setDraftSubmitting(true);
+    try {
+      await createComment({ content: draftText.trim(), positionX: Math.round(draft.x), positionY: Math.round(draft.y) });
+      setDraft(null);
+      setDraftText('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setDraftError(
+        msg.includes('403')
+          ? 'Not authorized — make sure the project is cloud-saved.'
+          : 'Failed to post comment. Please try again.',
+      );
+    } finally {
+      setDraftSubmitting(false);
+    }
   };
 
   const submitReply = async (parentId: string) => {
@@ -154,7 +170,7 @@ export function CommentsOverlay({
 
   return (
     <div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden z-[80]"
       style={{ pointerEvents: placing ? 'auto' : 'none', cursor: placing ? 'crosshair' : 'default' }}
       onClick={handlePlaceClick}
       data-testid="comments-overlay"

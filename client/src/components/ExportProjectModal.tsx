@@ -95,11 +95,12 @@ export function ExportProjectModal({
   useEffect(() => {
     if (isOpen) {
       setSelectedExports(new Set());
-      if (selectableWorkflows.length > 0) {
-        setSelectedWorkflows(new Set(selectableWorkflows.map(w => w.id)));
+      // Include ALL workflows so canvas-only exports (kiteframe_project) get full canvas data
+      if (workflowsWithPRD.length > 0) {
+        setSelectedWorkflows(new Set(workflowsWithPRD.map(w => w.id)));
       }
     }
-  }, [isOpen, selectableWorkflows.length]);
+  }, [isOpen, workflowsWithPRD.length]);
 
   const handleToggleExport = useCallback((exportId: ExportOption, checked: boolean) => {
     if (checked && PRD_GATED_EXPORTS.includes(exportId) && !canUsePRDExports) {
@@ -118,7 +119,7 @@ export function ExportProjectModal({
 
   const handleSelectAllWorkflows = (checked: boolean) => {
     if (checked) {
-      setSelectedWorkflows(new Set(selectableWorkflows.map(w => w.id)));
+      setSelectedWorkflows(new Set(workflowsWithPRD.map(w => w.id)));
     } else {
       setSelectedWorkflows(new Set());
     }
@@ -136,8 +137,8 @@ export function ExportProjectModal({
     });
   };
 
-  const allWorkflowsSelected = selectableWorkflows.length > 0 && 
-    selectableWorkflows.every(w => selectedWorkflows.has(w.id));
+  const allWorkflowsSelected = workflowsWithPRD.length > 0 &&
+    workflowsWithPRD.every(w => selectedWorkflows.has(w.id));
 
   const canExport = selectedExports.size > 0;
 
@@ -434,7 +435,7 @@ export function ExportProjectModal({
             </div>
           </div>
 
-          {selectableWorkflows.length > 0 && (
+          {workflowsWithPRD.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Workflows to include</Label>
@@ -462,7 +463,6 @@ export function ExportProjectModal({
                         id={`workflow-${workflow.id}`}
                         checked={selectedWorkflows.has(workflow.id)}
                         onCheckedChange={(checked) => handleToggleWorkflow(workflow.id, !!checked)}
-                        disabled={!workflow.hasPRD}
                         data-testid={`checkbox-workflow-${workflow.id}`}
                       />
                       <Label 

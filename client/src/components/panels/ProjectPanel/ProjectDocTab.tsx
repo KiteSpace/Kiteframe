@@ -150,7 +150,7 @@ export function ProjectDocTab({
       const nodeCount = flow.nodes.length;
       const edgeCount = flow.edges.length;
 
-      if (nodeCount >= 2 && edgeCount >= 2) {
+      if (nodeCount >= 2 && edgeCount >= 1) {
         workflows.push({
           id: flow.id,
           name: getWorkflowName(projectId, flow.id, workflows.length),
