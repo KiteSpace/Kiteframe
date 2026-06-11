@@ -93,7 +93,7 @@ export function useSubscription() {
     isTrialing,
     trialEnd,
     isPro: tier === 'pro' && (status === 'active' || isTrialing),
-    isAdvanced: (tier === 'advanced' || tier === 'pro') && (status === 'active' || isTrialing),
+    isAdvanced: isAdmin || ((tier === 'advanced' || tier === 'pro') && (status === 'active' || isTrialing)),
     isPaid: isAdmin || isPaidOrTrialing,
     hasActiveSubscription: isAdmin || status === 'active' || isTrialing,
     isServerAuthenticated,

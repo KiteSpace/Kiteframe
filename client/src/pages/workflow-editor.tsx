@@ -7047,9 +7047,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       // Strip inline base64 image data before saving to localStorage.
       // Images uploaded via the server have a /objects/... URL (small) and are kept.
       // Legacy base64 blobs are cleared so they don't blow the quota.
+      // Only strip large raster base64 blobs. SVG data URLs (data:image/svg+xml)
+      // are small text and used by mockup nodes — keep them so they survive refresh.
       const stripBase64 = (nodes: Node[]) =>
         nodes.map(n => {
-          if (n.type === 'image' && typeof (n.data as any)?.src === 'string' && (n.data as any).src.startsWith('data:')) {
+          const src = (n.data as any)?.src as string | undefined;
+          if (
+            n.type === 'image' &&
+            typeof src === 'string' &&
+            src.startsWith('data:') &&
+            !src.startsWith('data:image/svg+xml')
+          ) {
             return { ...n, data: { ...(n.data as any), src: '' } };
           }
           return n;
