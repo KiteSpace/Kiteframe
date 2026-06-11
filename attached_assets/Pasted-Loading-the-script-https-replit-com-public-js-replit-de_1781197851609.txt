@@ -1,0 +1,56 @@
+Loading the script 'https://replit.com/public/js/replit-dev-banner.js' violates the following Content Security Policy directive: "script-src 'self' https://js.stripe.com https://*.replit.com 'sha256-O+WhTQr0Wi4S217qJDCCjsXpTYoLh5WuHV/jsnKLSrE='". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+5Creating a worker from 'blob:<URL>' violates the following Content Security Policy directive: "script-src 'self' <URL> <URL> 'sha256-O+WhTQr0Wi4S217qJDCCjsXpTYoLh5WuHV/jsnKLSrE='". Note that 'worker-src' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.
+KiteFrameCanvas-R87xzQZV.js:414 Worker error: Event
+handleWorkerError @ KiteFrameCanvas-R87xzQZV.js:414
+KiteFrameCanvas-R87xzQZV.js:414 Worker error: Event
+handleWorkerError @ KiteFrameCanvas-R87xzQZV.js:414
+KiteFrameCanvas-R87xzQZV.js:414 Worker error: Event
+handleWorkerError @ KiteFrameCanvas-R87xzQZV.js:414
+KiteFrameCanvas-R87xzQZV.js:414 Worker error: Event
+handleWorkerError @ KiteFrameCanvas-R87xzQZV.js:414
+KiteFrameCanvas-R87xzQZV.js:414 Worker error: Event
+handleWorkerError @ KiteFrameCanvas-R87xzQZV.js:414
+5useAuth-D3Aoj2S4.js:1940 🔐 useAuth: Component mounted, checking auth state...
+KiteFrameCanvas-R87xzQZV.js:177 Plugin "console-demo" is already installed, replacing...
+use @ KiteFrameCanvas-R87xzQZV.js:177
+KiteFrameCanvas-R87xzQZV.js:177 Plugin "test-demo" is already installed, replacing...
+use @ KiteFrameCanvas-R87xzQZV.js:177
+KiteFrameCanvas-R87xzQZV.js:177 Plugin "advanced-interactions-pro" is already installed, replacing...
+use @ KiteFrameCanvas-R87xzQZV.js:177
+5useAuth-D3Aoj2S4.js:1940 🔄 Auth state changed: No user
+5useAuth-D3Aoj2S4.js:1940 ℹ️ No redirect result found
+9index-kZg0R81Z.js:41 ReferenceError: isRefinementMode is not defined
+    at sS (KiteFrameCanvas-R87xzQZV.js:178:7997)
+    at yc (index-kZg0R81Z.js:39:16981)
+    at Za (index-kZg0R81Z.js:41:3135)
+    at km (index-kZg0R81Z.js:41:2351)
+    at hf (index-kZg0R81Z.js:41:1893)
+    at Bm (index-kZg0R81Z.js:41:47192)
+    at Um (index-kZg0R81Z.js:41:39686)
+    at lx (index-kZg0R81Z.js:41:39614)
+    at Gi (index-kZg0R81Z.js:41:39468)
+    at cu (index-kZg0R81Z.js:41:35850)
+Ja @ index-kZg0R81Z.js:41
+KiteFrameCanvas-R87xzQZV.js:349 Uncaught error: ReferenceError: isRefinementMode is not defined
+    at sS (KiteFrameCanvas-R87xzQZV.js:178:7997)
+    at yc (index-kZg0R81Z.js:39:16981)
+    at Za (index-kZg0R81Z.js:41:3135)
+    at km (index-kZg0R81Z.js:41:2351)
+    at hf (index-kZg0R81Z.js:41:1893)
+    at Bm (index-kZg0R81Z.js:41:47192)
+    at Um (index-kZg0R81Z.js:41:39686)
+    at lx (index-kZg0R81Z.js:41:39614)
+    at Gi (index-kZg0R81Z.js:41:39468)
+    at cu (index-kZg0R81Z.js:41:35850)
+(anonymous) @ KiteFrameCanvas-R87xzQZV.js:349
+KiteFrameCanvas-R87xzQZV.js:349 Error in global: ReferenceError: isRefinementMode is not defined
+    at sS (KiteFrameCanvas-R87xzQZV.js:178:7997)
+    at yc (index-kZg0R81Z.js:39:16981)
+    at Za (index-kZg0R81Z.js:41:3135)
+    at km (index-kZg0R81Z.js:41:2351)
+    at hf (index-kZg0R81Z.js:41:1893)
+    at Bm (index-kZg0R81Z.js:41:47192)
+    at Um (index-kZg0R81Z.js:41:39686)
+    at lx (index-kZg0R81Z.js:41:39614)
+    at Gi (index-kZg0R81Z.js:41:39468)
+    at cu (index-kZg0R81Z.js:41:35850)

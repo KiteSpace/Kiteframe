@@ -131,7 +131,7 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
     if (isInteractiveElement) return;
     e.stopPropagation();
     onStartDrag?.(e, node);
-  }, [isRefinementMode, onStartDrag, node]);
+  }, [onStartDrag, node]);
 
   const handleModalImageUpload = useCallback(async (file: File) => {
     if (!onImageUpload) return '';
