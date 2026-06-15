@@ -13516,7 +13516,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
               {openTabs.length > 0 && (
                 <CommentsOverlay
-                  workflowId={activeTab?.projectUuid}
+                  workflowId={
+                    // For cloud-backed tabs the DB stores its own server-generated
+                    // projectUuid (≠ the local tab.projectUuid used for localStorage).
+                    // resolveCommentAuth looks up by projectUuid in the DB, so we
+                    // must pass the server's value, not the local tab id.
+                    activeTab?.cloudProjectId
+                      ? (cloudProjects.find((p) => p.id === activeTab.cloudProjectId)?.projectUuid
+                          ?? activeTab?.projectUuid)
+                      : activeTab?.projectUuid
+                  }
                   shareId={activeShareId ?? undefined}
                   isAuthenticated={isAuthenticated || !!serverUser}
                   placing={commentPlacing}
