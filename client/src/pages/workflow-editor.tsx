@@ -7411,11 +7411,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         cloudSyncSigRef.current.set(cid, cloudSig);
         toApply.set(cid, fresh); // cloud newer → hydrate the tab
       } else {
-        // Local is newer — keep local content; cloud will be updated on the
-        // next real user edit. Seed the baseline with localSig so the
-        // auto-save effect doesn't see a mismatch on every page load and
-        // spuriously stamp updatedAt=now on all projects simultaneously.
-        cloudSyncSigRef.current.set(cid, localSig);
+        // Local is newer — keep local content. Set the cloud baseline to
+        // the cloud's own signature (not localSig) so the auto-save fires
+        // and pushes any local changes — especially panel docs (PRDs,
+        // notes, details) — that the cloud copy is missing. Using localSig
+        // here caused the auto-save to skip, leaving panel docs stuck in
+        // the author's localStorage and never visible to share-link viewers.
+        // Content-identical cases short-circuit above (localSig === cloudSig
+        // guard), so a save triggered here always reflects a real difference.
+        cloudSyncSigRef.current.set(cid, cloudSig);
       }
     });
 

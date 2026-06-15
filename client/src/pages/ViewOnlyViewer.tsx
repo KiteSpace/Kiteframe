@@ -155,11 +155,22 @@ export default function ViewOnlyViewer() {
           } else {
             localStorage.removeItem(`prd-project-${shareId}`);
           }
-          if (data.workflowPRDs && data.workflowPRDs.length > 0) {
-            for (const wPRD of data.workflowPRDs) {
-              if (wPRD.workflowId) {
-                saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
-              }
+          // Reconcile workflow PRDs: remove stale keys then seed fresh ones.
+          // Mirrors the WS live-update handler so a re-load never shows
+          // PRDs from a previous share-link visit.
+          const freshWfIds = new Set<string>(
+            ((data.workflowPRDs ?? []) as any[])
+              .map((w: any) => w?.workflowId)
+              .filter(Boolean),
+          );
+          for (const existingId of listWorkflowPRDs(shareId)) {
+            if (!freshWfIds.has(existingId)) {
+              deleteWorkflowPRD(shareId, existingId);
+            }
+          }
+          for (const wPRD of (data.workflowPRDs ?? []) as any[]) {
+            if (wPRD?.workflowId) {
+              saveWorkflowPRD(shareId, wPRD.workflowId, wPRD);
             }
           }
           if (data.notesData) {

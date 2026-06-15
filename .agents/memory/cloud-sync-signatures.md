@@ -34,6 +34,24 @@ docs — and they must match for unchanged content or LWW regresses.
 bytes for the same meaning?" If yes (ordering, timestamps, ephemeral ids),
 canonicalize it first.
 
+# "Local is newer" reconciliation must use cloudSig as baseline (not localSig)
+
+When reconciliation finds local is newer (`localTs >= freshTs`), the baseline stored
+in `cloudSyncSigRef` **must** be set to `cloudSig` (the cloud's own signature), NOT
+`localSig`. Using `localSig` caused the auto-save to see no diff and skip — meaning
+panel docs (PRDs, notes, details) that exist in the author's localStorage were never
+pushed to cloud, so share-link viewers always saw empty panel content.
+
+**Why:** `cloudSyncSig` is the "what cloud already has" baseline. If we set it to
+`localSig`, we're lying — we're telling the auto-save the cloud already matches local,
+even when it doesn't. Setting it to `cloudSig` (the truth) lets the auto-save detect
+any mismatch (including panel-doc-only diffs) and fire. Content-identical cases
+short-circuit before reaching this branch (`localSig === cloudSig` guard), so the
+save is never spurious.
+
+**How to apply:** the relevant branch is in the reconciliation effect in
+`workflow-editor.tsx` — the `else` branch after `if (freshTs > localTs)`.
+
 # Hydration must not retrigger auto-save
 
 When applying cloud docs locally (`writePanelDocs`), the writes emit panel-change
