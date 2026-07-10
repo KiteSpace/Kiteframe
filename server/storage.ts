@@ -14,6 +14,10 @@ import {
   type WorkflowComment,
   type InsertWorkflowComment,
   type CommentWithAuthor,
+  type ExternalApiKey,
+  type InsertExternalApiKey,
+  type ExternalWorkflow,
+  type InsertExternalWorkflow,
   users,
   savedProjects,
   projectFolders,
@@ -27,6 +31,8 @@ import {
   chatMessages,
   workflowComments,
   bannedEmails,
+  externalApiKeys,
+  externalWorkflows,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, inArray, isNotNull, sql } from "drizzle-orm";
@@ -73,6 +79,13 @@ export interface IStorage {
   createBannedEmail(data: InsertBannedEmail): Promise<BannedEmail>;
   deleteBannedEmail(id: string): Promise<void>;
   incrementBanLoginAttempts(email: string): Promise<void>;
+  // External API keys (Claude Code skill, etc.)
+  getExternalApiKeyByHash(keyHash: string): Promise<ExternalApiKey | undefined>;
+  createExternalApiKey(data: InsertExternalApiKey): Promise<ExternalApiKey>;
+  touchExternalApiKeyLastUsed(id: string): Promise<void>;
+  // External workflows (submitted via external API)
+  createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow>;
+  getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -502,6 +515,48 @@ export class DatabaseStorage implements IStorage {
     // Delete the comment and any replies that point to it.
     await db.delete(workflowComments).where(eq(workflowComments.parentCommentId, id));
     await db.delete(workflowComments).where(eq(workflowComments.id, id));
+  }
+
+  // External API keys
+  async getExternalApiKeyByHash(keyHash: string): Promise<ExternalApiKey | undefined> {
+    const [row] = await db
+      .select()
+      .from(externalApiKeys)
+      .where(eq(externalApiKeys.keyHash, keyHash))
+      .limit(1);
+    return row;
+  }
+
+  async createExternalApiKey(data: InsertExternalApiKey): Promise<ExternalApiKey> {
+    const [row] = await db.insert(externalApiKeys).values(data).returning();
+    return row;
+  }
+
+  async touchExternalApiKeyLastUsed(id: string): Promise<void> {
+    await db
+      .update(externalApiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(externalApiKeys.id, id));
+  }
+
+  // External workflows
+  async createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow> {
+    const serialized = {
+      ...data,
+      nodes: JSON.parse(JSON.stringify(data.nodes)),
+      edges: JSON.parse(JSON.stringify(data.edges)),
+    };
+    const [row] = await db.insert(externalWorkflows).values(serialized).returning();
+    return row;
+  }
+
+  async getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined> {
+    const [row] = await db
+      .select()
+      .from(externalWorkflows)
+      .where(eq(externalWorkflows.id, id))
+      .limit(1);
+    return row;
   }
 }
 

@@ -137,3 +137,24 @@ export const chatRateLimiter = rateLimit({
   keyGenerator: getClientKey,
   validate: { keyGeneratorIpFallback: false }
 });
+
+// Keyed by scoped API key id (set by the external-API auth middleware),
+// not by IP, since callers may share an IP (e.g. CI runners) but must each
+// stay within their own key's quota.
+const getExternalApiKey = (req: Request): string => {
+  const apiKey = (req as any).apiKey;
+  return apiKey?.id ? `apikey:${apiKey.id}` : (req.ip || 'anonymous');
+};
+
+export const externalApiRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: {
+    error: 'Too many requests for this API key. Please slow down.',
+    retryAfter: 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getExternalApiKey,
+  validate: { keyGeneratorIpFallback: false }
+});

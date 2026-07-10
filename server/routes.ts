@@ -66,6 +66,7 @@ import { z } from "zod";
 import { registerFigmaRoutes } from "./figmaRoutes";
 import { createOptimizationSession, invalidateOptimizationSession, getOptimizationSessionOwner } from "./optimizationSession";
 import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
+import { registerExternalWorkflowRoutes } from "./externalWorkflowRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
 
 // Initialize Firebase Admin on module load
@@ -447,6 +448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup Feature Flag routes
   registerFeatureFlagRoutes(app);
+
+  // Setup External Workflow API routes (Claude Code skill, etc.)
+  registerExternalWorkflowRoutes(app);
 
   // Firebase auth sync endpoint - syncs Firebase auth to backend session
   app.post('/api/auth/firebase-sync', authRateLimiter, async (req: any, res) => {

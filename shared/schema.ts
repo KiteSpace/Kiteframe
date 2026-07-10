@@ -723,3 +723,41 @@ export const insertBannedEmailSchema = createInsertSchema(bannedEmails).omit({
 
 export type BannedEmail = typeof bannedEmails.$inferSelect;
 export type InsertBannedEmail = z.infer<typeof insertBannedEmailSchema>;
+
+// Scoped API keys for external integrations (e.g. Claude Code skill).
+// Raw key is never stored — only its sha256 hash. Printed once at issuance time.
+export const externalApiKeys = pgTable("external_api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(), // human label, e.g. "claude-code-skill"
+  keyHash: varchar("key_hash").notNull().unique(), // sha256 hex digest of the raw key
+  revokedAt: timestamp("revoked_at"), // non-null = revoked, always reject
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_external_api_keys_key_hash").on(table.keyHash),
+]);
+
+export type ExternalApiKey = typeof externalApiKeys.$inferSelect;
+export type InsertExternalApiKey = typeof externalApiKeys.$inferInsert;
+
+// Workflows submitted via the external API (e.g. from the Claude Code skill).
+// Rendered read-only at /workflows/:id — intentionally separate from
+// savedProjects/shareLinks since there's no owning user or PRD/notes data.
+export const externalWorkflows = pgTable("external_workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  apiKeyId: varchar("api_key_id").references(() => externalApiKeys.id).notNull(),
+  title: varchar("title"),
+  nodes: jsonb("nodes").notNull(),
+  edges: jsonb("edges").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_external_workflows_api_key").on(table.apiKeyId),
+]);
+
+export const insertExternalWorkflowSchema = createInsertSchema(externalWorkflows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ExternalWorkflow = typeof externalWorkflows.$inferSelect;
+export type InsertExternalWorkflow = z.infer<typeof insertExternalWorkflowSchema>;
