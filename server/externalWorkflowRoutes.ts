@@ -76,6 +76,7 @@ export function registerExternalWorkflowRoutes(app: Express) {
     try {
       const providedSecret = req.headers["x-admin-secret"];
       const expectedSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
+      console.log(`[bootstrap] ADMIN_BOOTSTRAP_SECRET present=${!!expectedSecret} len=${expectedSecret ? expectedSecret.length : 0} NODE_ENV=${process.env.NODE_ENV}`);
       if (!expectedSecret) {
         return res.status(503).json({ error: "ADMIN_BOOTSTRAP_SECRET is not configured on this instance." });
       }
