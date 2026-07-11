@@ -1,0 +1,314 @@
+# Kiteframe External Workflow API — Phase 2 Spec
+
+## Anonymous creation + 24h expiry, account claiming, in-session edits, URL-based resume
+
+Builds on the existing `/api/external/workflows/*` routes, schema, and auth
+middleware. This phase adds: expiry for anonymous workflows, a claim flow
+into real Kiteframe accounts, ownership-gated edits, and a way for the
+skill to resume/edit a previously-created workflow by URL or id.
+
+-----
+
+## Decisions locked in (don’t re-litigate these mid-build)
+
+- **Anonymous key issuance stays open.** No login required to use the skill.
+- **Anonymous workflows expire 24 hours after creation**, full stop — no
+  exception for claimed ones (see below on why claim doesn’t need to
+  prevent expiry).
+- **Edit access is gated by matching API key.** Only the API key that
+  created a workflow can PATCH it. A pasted URL from someone else’s
+  session is read-only to you unless you own the underlying key.
+- **Claiming is a copy, not a transfer.** Multiple different accounts can
+  independently claim the same anonymous workflow into their own account.
+  The original anonymous record is untouched by claiming and still expires
+  on its normal 24h schedule regardless of how many people claimed it.
+
+-----
+
+## 1. Schema changes
+
+```sql
+alter table external_workflows
+  add column expires_at timestamptz not null default (now() + interval '24 hours');
+
+create index idx_external_workflows_expires_at on external_workflows (expires_at);
+```
+
+No change needed to `external_api_keys` for this phase — ownership gating
+already works off the existing `api_key_id` column on `external_workflows`.
+
+-----
+
+## 2. Expiry job
+
+Simplest v1: a scheduled job (Replit’s built-in cron / scheduled deployments,
+or a `node-cron` job inside the existing server process) that runs hourly:
+
+```js
+// jobs/expireWorkflows.js
+async function expireAnonymousWorkflows() {
+  const { rowCount } = await db
+    .delete(externalWorkflows)
+    .where(lt(externalWorkflows.expires_at, new Date()));
+
+  if (rowCount > 0) {
+    console.log(`Expired ${rowCount} anonymous workflow(s)`);
+  }
+}
+
+module.exports = { expireAnonymousWorkflows };
+```
+
+Schedule it (adapt to whatever cron mechanism Replit’s deployment supports):
+
+```js
+setInterval(expireAnonymousWorkflows, 60 * 60 * 1000); // hourly
+```
+
+**Render page (`/workflows/:id`) needs a visible countdown/warning**, not a
+silent 404 later:
+
+```
+"This workflow was created anonymously and will expire in {X hours}.
+Sign in to save it to your account permanently."
+```
+
+Compute the remaining time client-side from `expires_at` (include it in
+the GET response, see below).
+
+-----
+
+## 3. Ownership-gated edits (fixes a gap in the original PATCH route)
+
+The PATCH route spec’d earlier didn’t check that the caller’s key matches
+the workflow’s creator. Fix:
+
+```js
+// PATCH /api/external/workflows/:id
+router.patch('/:id', requireApiKey, externalApiLimiter, async (req, res) => {
+  const existing = await db.select().from(externalWorkflows)
+    .where(eq(externalWorkflows.id, req.params.id)).limit(1);
+
+  if (!existing[0]) {
+    return res.status(404).json({ error: 'Workflow not found' });
+  }
+  if (existing[0].api_key_id !== req.apiKey.id) {
+    return res.status(403).json({ error: 'This API key does not own this workflow' });
+  }
+
+  const { workflow } = req.body || {};
+  const { valid, errors } = validateWorkflow(workflow);
+  if (!valid) return res.status(422).json({ error: 'Failed validation', details: errors });
+
+  const [updated] = await db.update(externalWorkflows)
+    .set({ workflow_json: workflow, updated_at: new Date() })
+    .where(eq(externalWorkflows.id, req.params.id))
+    .returning();
+
+  res.json({
+    id: updated.id,
+    diagram_url: `${PUBLIC_APP_URL}/workflows/${updated.id}`,
+    expires_at: updated.expires_at,
+  });
+});
+```
+
+**GET also needs the same ownership check**, since it’s what powers “paste
+a URL to resume editing” (section 5 below) — a workflow should only be
+fetchable-for-editing by the key that created it:
+
+```js
+// GET /api/external/workflows/:id
+router.get('/:id', requireApiKey, externalApiLimiter, async (req, res) => {
+  const [wf] = await db.select().from(externalWorkflows)
+    .where(eq(externalWorkflows.id, req.params.id)).limit(1);
+
+  if (!wf) return res.status(404).json({ error: 'Workflow not found' });
+  if (wf.api_key_id !== req.apiKey.id) {
+    return res.status(403).json({ error: 'This API key does not own this workflow' });
+  }
+
+  res.json({
+    id: wf.id,
+    workflow: wf.workflow_json,
+    created_at: wf.created_at,
+    expires_at: wf.expires_at,
+  });
+});
+```
+
+Note: the *public render page* (`/workflows/:id` on the frontend, viewed in
+a browser) is a separate, unauthenticated route from this API — viewing
+the diagram in a browser doesn’t require a key, only editing via the skill
+does. Don’t accidentally gate the human-facing view page behind API key
+auth; only the API routes need it.
+
+-----
+
+## 4. Claim endpoint (copy into a real account)
+
+This requires the user to be logged into Kiteframe’s normal web session
+(not API-key auth — this is a browser action, “click claim while signed
+in”).
+
+```js
+// POST /api/workflows/claim  (note: not under /external — this is an
+// authenticated in-app route, using normal session/cookie auth)
+router.post('/claim', requireLoggedInSession, async (req, res) => {
+  const { externalWorkflowId } = req.body;
+
+  const [source] = await db.select().from(externalWorkflows)
+    .where(eq(externalWorkflows.id, externalWorkflowId)).limit(1);
+
+  if (!source) {
+    return res.status(404).json({ error: 'Workflow not found or already expired' });
+  }
+
+  // Transform external JSON (nodes/edges, no layout) into native
+  // in-app format (adds x/y via auto-layout, native styling defaults).
+  const nativeWorkflow = transformExternalToNative(source.workflow_json);
+  // ^ reuse whatever layout function ViewOnlyViewer already calls to
+  // position nodes for display — ask Replit to confirm this exists
+  // and can be called server-side, not just client-side.
+
+  const [created] = await db.insert(workflows) // your main, native table
+    .values({
+      user_id: req.session.userId,
+      title: nativeWorkflow.title,
+      data: nativeWorkflow,
+      source: 'claimed-external',
+      source_external_id: source.id,
+    })
+    .returning();
+
+  res.json({ id: created.id, editUrl: `${PUBLIC_APP_URL}/app/workflows/${created.id}` });
+});
+```
+
+Important: this does **not** delete or modify the `external_workflows` row.
+It stays as-is, still expires on its normal schedule, and can still be
+claimed independently by someone else with a different account.
+
+**Frontend:** on `/workflows/:id`, show a “Save to my account” button.
+
+- If not logged in → prompts login/signup, then retries the claim.
+- If logged in → calls `/api/workflows/claim` directly, then redirects to
+  the new native `editUrl` on success.
+
+-----
+
+## 5. Skill side: in-session edits + resume-by-URL
+
+### a) Track the id within a conversation (no code change — just SKILL.md instruction)
+
+Already covered in the earlier PATCH addition. Claude holds the id in
+context after first creating a workflow and passes `--id` on subsequent
+submissions in the same conversation.
+
+### b) New capability: resume editing a workflow from a pasted URL/id in a *new* session
+
+Add a new script, `fetch_workflow.py`, so the skill can pull an existing
+workflow’s JSON back into context when the user pastes a link:
+
+```python
+#!/usr/bin/env python3
+"""
+Fetches an existing workflow (owned by this API key) so Claude can load
+it back into context for further editing in a new conversation.
+
+Usage:
+  python3 fetch_workflow.py --id <workflow-id>
+  python3 fetch_workflow.py --url https://kiteframe.space/workflows/<id>
+"""
+import argparse, json, os, re, sys, urllib.request, urllib.error
+
+def extract_id(id_arg, url_arg):
+    if id_arg:
+        return id_arg
+    match = re.search(r'/workflows/([a-f0-9-]+)', url_arg or '')
+    if not match:
+        print("ERROR: could not extract a workflow id from --url", file=sys.stderr)
+        sys.exit(1)
+    return match.group(1)
+
+def fetch_workflow(workflow_id):
+    base = os.environ.get("KITEFRAME_API_BASE")
+    key = os.environ.get("EXTERNAL_API_KEY")
+    if not base or not key:
+        print("ERROR: KITEFRAME_API_BASE and/or EXTERNAL_API_KEY are not set.", file=sys.stderr)
+        sys.exit(1)
+
+    url = f"{base.rstrip('/')}/api/external/workflows/{workflow_id}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8', 'ignore')
+        if e.code == 403:
+            print(f"ERROR: this API key doesn't own workflow {workflow_id} — it can't be edited from here.", file=sys.stderr)
+        elif e.code == 404:
+            print(f"ERROR: workflow {workflow_id} not found — it may have expired (anonymous workflows expire after 24h).", file=sys.stderr)
+        else:
+            print(f"ERROR: {e.code}: {body}", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"ERROR: could not reach Kiteframe API: {e.reason}", file=sys.stderr)
+        sys.exit(1)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--id")
+    parser.add_argument("--url")
+    args = parser.parse_args()
+    if not args.id and not args.url:
+        print("ERROR: provide --id or --url", file=sys.stderr)
+        sys.exit(1)
+    workflow_id = extract_id(args.id, args.url)
+    print(json.dumps(fetch_workflow(workflow_id), indent=2))
+
+if __name__ == "__main__":
+    main()
+```
+
+### c) `SKILL.md` additions
+
+Add a new triggering condition and step:
+
+> **Resuming an existing workflow:** if the user pastes a Kiteframe
+> workflow URL (matching `kiteframe.space/workflows/<id>`) or references
+> “the workflow at [link]”, run `fetch_workflow.py --url <url>` to pull it
+> back into context before making changes. If it returns a 403, tell the
+> user this workflow was created under a different API key and can’t be
+> edited from this session — they can still view it, or claim it into
+> their account via the “Save to my account” button on the page. If it
+> returns a 404, tell the user it likely expired (anonymous workflows are
+> deleted 24 hours after creation) and offer to recreate it if they still
+> have the original description or can describe it again.
+> 
+> Once loaded, treat further edits the same as an in-session refinement —
+> submit updates via `submit_workflow.py --id <id>`.
+
+-----
+
+## 6. Summary of what to build
+
+1. `expires_at` column + index on `external_workflows`
+1. Hourly expiry job (delete where `expires_at < now()`)
+1. Ownership check added to existing PATCH route (403 if key mismatch)
+1. Ownership check added to existing GET route (same 403 behavior)
+1. Countdown/expiry warning + “Save to my account” button on the render page
+1. `POST /api/workflows/claim` — session-authed, copies external → native
+   format via auto-layout transform, does not mutate/delete the source
+1. New `fetch_workflow.py` script for the skill
+1. `SKILL.md` update: resume-by-URL instructions, in-session id tracking
+   (already partly covered), and 403/404 handling language
+
+## Open question for Replit
+
+Does a server-callable auto-layout function already exist (used by
+`ViewOnlyViewer` or elsewhere) that can turn raw `nodes`/`edges` JSON into
+positioned, styled native format? If yes, `transformExternalToNative()` is
+a thin wrapper around it. If no, this is the one piece of genuinely new
+logic in this phase — worth scoping separately before committing to a
+timeline for the claim feature.
