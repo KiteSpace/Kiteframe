@@ -35,7 +35,7 @@ import {
   externalWorkflows,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, inArray, isNotNull, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, isNotNull, sql, lt } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -86,6 +86,7 @@ export interface IStorage {
   // External workflows (submitted via external API)
   createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow>;
   getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined>;
+  deleteExpiredExternalWorkflows(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -557,6 +558,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(externalWorkflows.id, id))
       .limit(1);
     return row;
+  }
+
+  async deleteExpiredExternalWorkflows(): Promise<number> {
+    const result = await db
+      .delete(externalWorkflows)
+      .where(lt(externalWorkflows.expiresAt, sql`now()`))
+      .returning({ id: externalWorkflows.id });
+    return result.length;
   }
 }
 

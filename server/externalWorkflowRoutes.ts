@@ -72,11 +72,16 @@ export function registerExternalWorkflowRoutes(app: Express) {
       if (!workflow) {
         return res.status(404).json({ error: "Workflow not found." });
       }
+      // Treat expired workflows as not found — the cleanup job may not have run yet
+      if (workflow.expiresAt && workflow.expiresAt < new Date()) {
+        return res.status(404).json({ error: "Workflow has expired." });
+      }
       res.json({
         id: workflow.id,
         title: workflow.title,
         nodes: workflow.nodes,
         edges: workflow.edges,
+        expires_at: workflow.expiresAt,
       });
     } catch (err) {
       console.error("[externalWorkflowRoutes] Failed to fetch public workflow:", err);

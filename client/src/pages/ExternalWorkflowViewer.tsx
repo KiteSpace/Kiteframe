@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Node, Edge } from '../lib/kiteframe/types';
 import '../lib/kiteframe/styles/kiteframe.css';
@@ -17,6 +17,37 @@ interface ExternalWorkflowData {
   title?: string | null;
   nodes: Node[];
   edges: Edge[];
+  expires_at?: string | null;
+}
+
+function useExpiryCountdown(expiresAt: string | null | undefined) {
+  const [msLeft, setMsLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      setMsLeft(diff);
+    };
+
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  return msLeft;
+}
+
+function formatTimeLeft(ms: number): string {
+  if (ms <= 0) return 'expired';
+  const totalMinutes = Math.floor(ms / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  return `${minutes}m`;
 }
 
 export default function ExternalWorkflowViewer() {
@@ -30,6 +61,8 @@ export default function ExternalWorkflowViewer() {
     enabled: !!id,
     refetchOnWindowFocus: false,
   });
+
+  const msLeft = useExpiryCountdown(data?.expires_at);
 
   const nodes = data?.nodes || [];
   const edges = data?.edges || [];
@@ -94,13 +127,19 @@ export default function ExternalWorkflowViewer() {
   }
 
   if (error || !data) {
+    // Distinguish a 404 (expired / not found) from other errors
+    const is404 = error && (error as any)?.message?.includes('404');
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background" data-testid="error-screen">
         <div className="flex flex-col items-center gap-4 text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive" />
-          <h2 className="text-xl font-semibold">Workflow Not Found</h2>
+          <h2 className="text-xl font-semibold">
+            {is404 ? 'Workflow Expired' : 'Workflow Not Found'}
+          </h2>
           <p className="text-muted-foreground">
-            This workflow may not exist or may have been removed.
+            {is404
+              ? 'This workflow was created anonymously and has expired. Sign in to Kiteframe to save workflows permanently.'
+              : 'This workflow may not exist or may have been removed.'}
           </p>
           <Button onClick={() => setLocation('/')} data-testid="button-go-home">
             Go to Kiteframe
@@ -110,8 +149,26 @@ export default function ExternalWorkflowViewer() {
     );
   }
 
+  // Show expiry banner when the workflow expires within 24 h and hasn't expired yet
+  const showExpiryBanner = msLeft !== null && msLeft > 0;
+
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="external-workflow-viewer">
+      {showExpiryBanner && (
+        <div
+          className="shrink-0 flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 px-4 py-2 text-sm"
+          data-testid="expiry-banner"
+        >
+          <Clock className="w-4 h-4 shrink-0" />
+          <span>
+            This workflow was created anonymously and expires in{' '}
+            <strong>{formatTimeLeft(msLeft)}</strong>.{' '}
+            <a href="/" className="underline underline-offset-2 font-medium hover:text-amber-900 dark:hover:text-amber-200">
+              Sign in to save it permanently.
+            </a>
+          </span>
+        </div>
+      )}
       <div className="h-14 flex items-center px-4 border-b border-border shrink-0">
         <h1 className="text-sm font-medium truncate">{data.title || 'Workflow'}</h1>
         <span className="ml-3 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Read Only</span>

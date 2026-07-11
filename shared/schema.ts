@@ -750,13 +750,18 @@ export const externalWorkflows = pgTable("external_workflows", {
   nodes: jsonb("nodes").notNull(),
   edges: jsonb("edges").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull().default(sql`now() + interval '24 hours'`),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("IDX_external_workflows_api_key").on(table.apiKeyId),
+  index("IDX_external_workflows_expires_at").on(table.expiresAt),
 ]);
 
 export const insertExternalWorkflowSchema = createInsertSchema(externalWorkflows).omit({
   id: true,
   createdAt: true,
+  expiresAt: true,
+  updatedAt: true,
 });
 
 export type ExternalWorkflow = typeof externalWorkflows.$inferSelect;
