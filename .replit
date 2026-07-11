@@ -64,6 +64,7 @@ ADMIN_USERNAME = "master-rooney"
 VITE_ENABLE_LOOP_DETECTION_WARNINGS = "true"
 VITE_ENABLE_GPT5_WORKFLOW_REASONING = "true"
 BETA_SIGNUP_CAP = "50"
+PUBLIC_APP_URL = "https://kiteframe.space"
 
 [userenv.development]
 VITE_PROPOSE_SOLUTION_PREVIEW = "true"
