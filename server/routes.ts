@@ -1101,6 +1101,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Claim an external workflow into the authenticated user's account.
+  // Source external_workflow row is NOT deleted — multiple users may claim independently.
+  app.post('/api/workflows/claim', projectRateLimiter, isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const user = await storage.getUser(userId);
+
+      if (!(await hasCloudProjectAccess(user))) {
+        return res.status(403).json({ error: 'Sign in required to save projects' });
+      }
+
+      const { externalWorkflowId } = req.body;
+      if (!externalWorkflowId || typeof externalWorkflowId !== 'string') {
+        return res.status(400).json({ error: 'externalWorkflowId is required' });
+      }
+
+      const externalWorkflow = await storage.getExternalWorkflow(externalWorkflowId);
+      if (!externalWorkflow) {
+        return res.status(404).json({ error: 'External workflow not found or has expired' });
+      }
+
+      const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
+      if (!projectLimit.allowed) {
+        return res.status(403).json({
+          error: `Project limit reached (${projectLimit.currentCount}/${projectLimit.limit}). Upgrade your plan for more projects.`,
+          currentCount: projectLimit.currentCount,
+          limit: projectLimit.limit,
+          limitReached: true,
+        });
+      }
+
+      const workflowData = {
+        nodes: externalWorkflow.nodes,
+        edges: externalWorkflow.edges,
+        canvasObjects: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+
+      const sanitizedWorkflowData = sanitizeWorkflowContent(workflowData);
+      const sanitizedName = sanitizeNodeLabel(externalWorkflow.title) || 'Claimed Workflow';
+
+      const project = await storage.createSavedProject({
+        userId,
+        name: sanitizedName,
+        description: `Claimed from external workflow ${externalWorkflowId}`,
+        workflowData: sanitizedWorkflowData,
+        isPublic: false,
+      });
+
+      const editUrl = `/project/${project.projectUuid}`;
+      return res.status(201).json({ id: project.id, projectUuid: project.projectUuid, editUrl });
+    } catch (error) {
+      console.error('[claim] Error claiming external workflow:', error);
+      return res.status(500).json({ error: 'Failed to claim workflow' });
+    }
+  });
+
   app.get('/api/projects/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);

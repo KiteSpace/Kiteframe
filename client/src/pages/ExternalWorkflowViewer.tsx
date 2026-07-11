@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { KiteFrameCanvas } from '../lib/kiteframe/components/KiteFrameCanvas';
-import { Loader2, AlertCircle, Clock } from 'lucide-react';
+import { Loader2, AlertCircle, Clock, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Node, Edge } from '../lib/kiteframe/types';
+import { apiRequest } from '@/lib/queryClient';
 import '../lib/kiteframe/styles/kiteframe.css';
+
+const CLAIM_RETURN_KEY = 'kiteframe-claim-return-url';
+const CLAIM_ID_KEY = 'kiteframe-claim-workflow-id';
 
 // Lightweight read-only render page for workflows submitted via the external
 // API (/api/external/workflows). Intentionally not a reuse of ViewOnlyViewer:
@@ -18,6 +22,12 @@ interface ExternalWorkflowData {
   nodes: Node[];
   edges: Edge[];
   expires_at?: string | null;
+}
+
+interface ClaimResponse {
+  id: string;
+  projectUuid: string;
+  editUrl: string;
 }
 
 function useExpiryCountdown(expiresAt: string | null | undefined) {
@@ -68,6 +78,57 @@ export default function ExternalWorkflowViewer() {
   const edges = data?.edges || [];
 
   const noopChange = useCallback(() => {}, []);
+
+  const claimMutation = useMutation<ClaimResponse, Error, string>({
+    mutationFn: async (externalWorkflowId: string) => {
+      const res = await apiRequest('POST', '/api/workflows/claim', { externalWorkflowId });
+      return res.json();
+    },
+    onSuccess: (result) => {
+      localStorage.removeItem(CLAIM_RETURN_KEY);
+      localStorage.removeItem(CLAIM_ID_KEY);
+      setLocation(result.editUrl);
+    },
+  });
+
+  // On mount: if returning from login with a pending claim for this workflow, auto-trigger it
+  useEffect(() => {
+    if (!id) return;
+    const pendingId = localStorage.getItem(CLAIM_ID_KEY);
+    if (pendingId === id) {
+      // Small delay to let auth session settle after redirect back
+      const timer = setTimeout(() => {
+        claimMutation.mutate(id);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const handleClaim = useCallback(() => {
+    if (!id) return;
+
+    // Check if user is authenticated by trying the claim; if 401, redirect to login
+    // We detect auth state by whether /api/auth/user is in the query cache, but it's
+    // simpler to just attempt the mutation and redirect on 401. However, to give instant
+    // feedback for unauthenticated users, we check the session first.
+    fetch('/api/auth/user', { credentials: 'include' })
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) {
+          // Not logged in — save intent and redirect to login
+          localStorage.setItem(CLAIM_RETURN_KEY, window.location.href);
+          localStorage.setItem(CLAIM_ID_KEY, id);
+          window.location.href = '/api/login';
+        } else {
+          claimMutation.mutate(id);
+        }
+      })
+      .catch(() => {
+        // Network error — attempt the claim and let the mutation surface the error
+        claimMutation.mutate(id);
+      });
+  }, [id, claimMutation]);
 
   const handleFitView = useCallback(() => {
     if (nodes.length === 0) return;
@@ -151,6 +212,8 @@ export default function ExternalWorkflowViewer() {
 
   // Show expiry banner when the workflow expires within 24 h and hasn't expired yet
   const showExpiryBanner = msLeft !== null && msLeft > 0;
+  const isClaiming = claimMutation.isPending;
+  const claimError = claimMutation.error;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden" data-testid="external-workflow-viewer">
@@ -163,15 +226,42 @@ export default function ExternalWorkflowViewer() {
           <span>
             This workflow was created anonymously and expires in{' '}
             <strong>{formatTimeLeft(msLeft)}</strong>.{' '}
-            <a href="/" className="underline underline-offset-2 font-medium hover:text-amber-900 dark:hover:text-amber-200">
-              Sign in to save it permanently.
-            </a>
+            Save it to your account to keep it permanently.
           </span>
         </div>
       )}
-      <div className="h-14 flex items-center px-4 border-b border-border shrink-0">
-        <h1 className="text-sm font-medium truncate">{data.title || 'Workflow'}</h1>
-        <span className="ml-3 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Read Only</span>
+      {claimError && (
+        <div
+          className="shrink-0 flex items-center gap-2 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-2 text-sm"
+          data-testid="claim-error-banner"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{claimError.message || 'Failed to save workflow. Please try again.'}</span>
+        </div>
+      )}
+      <div className="h-14 flex items-center px-4 border-b border-border shrink-0 gap-3">
+        <h1 className="text-sm font-medium truncate flex-1">{data.title || 'Workflow'}</h1>
+        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">Read Only</span>
+        <Button
+          size="sm"
+          variant="default"
+          onClick={handleClaim}
+          disabled={isClaiming}
+          data-testid="button-save-to-account"
+          className="shrink-0"
+        >
+          {isClaiming ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />
+              Save to my account
+            </>
+          )}
+        </Button>
       </div>
       <div ref={canvasContainerRef} className="flex-1 relative overflow-hidden">
         <KiteFrameCanvas
