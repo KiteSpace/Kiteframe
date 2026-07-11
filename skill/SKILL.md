@@ -36,6 +36,32 @@ Response: `{ "id": "<uuid>", "diagram_url": "https://kiteframe.space/workflows/<
 Open `diagram_url` in any browser. No login required. The link is valid for
 **24 hours**; after that the workflow is deleted automatically.
 
+**Always share the `diagram_url` with the user** so they can open it directly:
+
+```
+Workflow created: https://kiteframe.space/workflows/<uuid>
+Open the link above to view and interact with your diagram.
+```
+
+### 4 — Saving the workflow permanently (claim flow)
+
+External workflows expire after 24 hours. If the user wants to keep the
+workflow permanently, they can **claim it** by visiting the `diagram_url` and
+clicking the **"Save to my account"** button that appears at the top of the
+page.
+
+Claiming requires a free Kiteframe account. Once claimed:
+- The workflow is copied into the user's account and **never expires**.
+- They can open, edit, and share it from their Kiteframe project list.
+- The original external URL continues to work until its 24-hour TTL runs out.
+
+**When to mention this:** Whenever you create or update a workflow, tell the
+user they can save it permanently:
+
+> "Your diagram is ready at `<diagram_url>`. Visit the link and click
+> **'Save to my account'** to keep it permanently — external diagrams expire
+> after 24 hours."
+
 ---
 
 ## Resuming a workflow in a new conversation (resume-by-URL)
