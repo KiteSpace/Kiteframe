@@ -1122,6 +1122,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'External workflow not found or has expired' });
       }
 
+      // Reject expired workflows even if the async cleanup job hasn't run yet
+      if (externalWorkflow.expiresAt && externalWorkflow.expiresAt < new Date()) {
+        return res.status(404).json({ error: 'External workflow has expired' });
+      }
+
       const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
       if (!projectLimit.allowed) {
         return res.status(403).json({

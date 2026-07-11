@@ -10,7 +10,11 @@ export default function AuthComplete() {
   const maxAttempts = 10;
 
   const params = new URLSearchParams(window.location.search);
-  const redirectTo = params.get('redirect') || '/';
+  // If user was redirected to login from an external workflow claim, honour that return URL
+  const claimReturnUrl = localStorage.getItem('kiteframe-claim-return-url');
+  const rawRedirect = params.get('redirect') || '/';
+  // Only use the claim return URL if it points to a workflow page (safety check)
+  const redirectTo = claimReturnUrl && claimReturnUrl.includes('/workflows/') ? claimReturnUrl : rawRedirect;
   const token = params.get('token');
 
   useEffect(() => {
