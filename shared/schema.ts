@@ -203,6 +203,8 @@ export const savedProjects = pgTable("saved_projects", {
   isPublic: boolean("is_public").default(false),
   folderId: varchar("folder_id"), // For folder organization
   tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  source: varchar("source"), // Provenance: null = created in editor, 'claimed-external' = claimed via external API
+  sourceExternalId: varchar("source_external_id"), // ID of the source external_workflow row if claimed
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   lastSharedAt: timestamp("last_shared_at"), // When sharing was last enabled

@@ -3,6 +3,8 @@ import { useLocation } from 'wouter';
 import { Loader2 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 
+const CLAIM_RETURN_KEY = 'kiteframe-claim-return-url';
+
 export default function AuthComplete() {
   const [, setLocation] = useLocation();
   const [attempts, setAttempts] = useState(0);
@@ -10,10 +12,14 @@ export default function AuthComplete() {
   const maxAttempts = 10;
 
   const params = new URLSearchParams(window.location.search);
-  // If user was redirected to login from an external workflow claim, honour that return URL
-  const claimReturnUrl = localStorage.getItem('kiteframe-claim-return-url');
   const rawRedirect = params.get('redirect') || '/';
-  // Only use the claim return URL if it points to a workflow page (safety check)
+  // Consume (read + delete) the claim return URL once so stale intent doesn't
+  // misdirect future unrelated logins if claim fails or user abandons the flow.
+  const claimReturnUrl = localStorage.getItem(CLAIM_RETURN_KEY);
+  if (claimReturnUrl) {
+    localStorage.removeItem(CLAIM_RETURN_KEY);
+  }
+  // Override post-login destination if user came from an external workflow claim
   const redirectTo = claimReturnUrl && claimReturnUrl.includes('/workflows/') ? claimReturnUrl : rawRedirect;
   const token = params.get('token');
 

@@ -1153,6 +1153,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `Claimed from external workflow ${externalWorkflowId}`,
         workflowData: sanitizedWorkflowData,
         isPublic: false,
+        source: 'claimed-external',
+        sourceExternalId: externalWorkflowId,
       });
 
       const editUrl = `/project/${project.projectUuid}`;
