@@ -50,17 +50,61 @@ export function registerExternalWorkflowRoutes(app: Express) {
       if (!workflow) {
         return res.status(404).json({ error: "Workflow not found." });
       }
+      if (workflow.apiKeyId !== req.apiKey!.id) {
+        return res.status(403).json({ error: "You do not have permission to access this workflow." });
+      }
       res.json({
         id: workflow.id,
         title: workflow.title,
         nodes: workflow.nodes,
         edges: workflow.edges,
         created_at: workflow.createdAt,
+        expires_at: workflow.expiresAt,
         diagram_url: `${getPublicAppUrl()}/workflows/${workflow.id}`,
       });
     } catch (err) {
       console.error("[externalWorkflowRoutes] Failed to fetch workflow:", err);
       res.status(500).json({ error: "Failed to fetch workflow." });
+    }
+  });
+
+  app.patch(`${router}/:id`, requireExternalApiKey, externalApiRateLimiter, async (req, res) => {
+    try {
+      const workflow = await storage.getExternalWorkflow(req.params.id);
+      if (!workflow) {
+        return res.status(404).json({ error: "Workflow not found." });
+      }
+      if (workflow.apiKeyId !== req.apiKey!.id) {
+        return res.status(403).json({ error: "You do not have permission to modify this workflow." });
+      }
+
+      // Accept either the full body or a nested { workflow: { nodes, edges, title } }
+      const body = req.body?.workflow ?? req.body;
+      const { valid, errors } = validateExternalWorkflow(body);
+      if (!valid) {
+        return res.status(422).json({ error: "Workflow failed schema validation.", details: errors });
+      }
+
+      const { nodes, edges, title } = body as { nodes: unknown; edges: unknown; title?: string };
+      const updated = await storage.updateExternalWorkflow(req.params.id, {
+        nodes,
+        edges,
+        title: title ?? workflow.title,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: "Workflow not found after update." });
+      }
+
+      const diagramUrl = `${getPublicAppUrl()}/workflows/${updated.id}`;
+      res.json({
+        id: updated.id,
+        diagram_url: diagramUrl,
+        expires_at: updated.expiresAt,
+      });
+    } catch (err) {
+      console.error("[externalWorkflowRoutes] Failed to patch workflow:", err);
+      res.status(500).json({ error: "Failed to update workflow." });
     }
   });
 

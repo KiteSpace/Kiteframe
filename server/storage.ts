@@ -86,6 +86,7 @@ export interface IStorage {
   // External workflows (submitted via external API)
   createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow>;
   getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined>;
+  updateExternalWorkflow(id: string, data: { nodes: unknown; edges: unknown; title?: string | null }): Promise<ExternalWorkflow | undefined>;
   deleteExpiredExternalWorkflows(): Promise<number>;
 }
 
@@ -557,6 +558,20 @@ export class DatabaseStorage implements IStorage {
       .from(externalWorkflows)
       .where(eq(externalWorkflows.id, id))
       .limit(1);
+    return row;
+  }
+
+  async updateExternalWorkflow(id: string, data: { nodes: unknown; edges: unknown; title?: string | null }): Promise<ExternalWorkflow | undefined> {
+    const [row] = await db
+      .update(externalWorkflows)
+      .set({
+        nodes: JSON.parse(JSON.stringify(data.nodes)) as any,
+        edges: JSON.parse(JSON.stringify(data.edges)) as any,
+        title: data.title ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(externalWorkflows.id, id))
+      .returning();
     return row;
   }
 
