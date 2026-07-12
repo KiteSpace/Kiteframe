@@ -1127,10 +1127,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'External workflow has expired' });
       }
 
-      if (entity.entityType === 'design') {
-        return res.status(501).json({ error: 'Design claim coming soon' });
-      }
-
       const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
       if (!projectLimit.allowed) {
         return res.status(403).json({
@@ -1141,26 +1137,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const entityData = entity.data as { nodes: unknown; edges: unknown; title?: string | null };
-      const workflowData = {
-        nodes: entityData.nodes,
-        edges: entityData.edges,
-        canvasObjects: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-      };
+      let project;
 
-      const sanitizedWorkflowData = sanitizeWorkflowContent(workflowData);
-      const sanitizedName = sanitizeNodeLabel(entityData.title) || 'Claimed Workflow';
+      if (entity.entityType === 'design') {
+        const designData = entity.data as { title?: string | null; components?: unknown[] };
+        const sanitizedName = sanitizeNodeLabel(designData.title) || 'Claimed Design';
+        // Store design data inside workflowData so the project is self-contained.
+        // The canvas editor will see empty nodes/edges; the full component list is
+        // preserved under designData for future use.
+        const workflowData = {
+          nodes: [],
+          edges: [],
+          canvasObjects: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+          designData: {
+            title: designData.title ?? null,
+            components: designData.components ?? [],
+          },
+        };
 
-      const project = await storage.createSavedProject({
-        userId,
-        name: sanitizedName,
-        description: `Claimed from external workflow ${externalWorkflowId}`,
-        workflowData: sanitizedWorkflowData,
-        isPublic: false,
-        source: 'claimed-external',
-        sourceExternalId: externalWorkflowId,
-      });
+        project = await storage.createSavedProject({
+          userId,
+          name: sanitizedName,
+          description: `Claimed from external design ${externalWorkflowId}`,
+          workflowData,
+          isPublic: false,
+          source: 'claimed-external',
+          sourceExternalId: externalWorkflowId,
+        });
+      } else {
+        const entityData = entity.data as { nodes: unknown; edges: unknown; title?: string | null };
+        const workflowData = {
+          nodes: entityData.nodes,
+          edges: entityData.edges,
+          canvasObjects: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        };
+
+        const sanitizedWorkflowData = sanitizeWorkflowContent(workflowData);
+        const sanitizedName = sanitizeNodeLabel(entityData.title) || 'Claimed Workflow';
+
+        project = await storage.createSavedProject({
+          userId,
+          name: sanitizedName,
+          description: `Claimed from external workflow ${externalWorkflowId}`,
+          workflowData: sanitizedWorkflowData,
+          isPublic: false,
+          source: 'claimed-external',
+          sourceExternalId: externalWorkflowId,
+        });
+      }
 
       const editUrl = `/project/${project.projectUuid}`;
       return res.status(201).json({ id: project.id, projectUuid: project.projectUuid, editUrl });

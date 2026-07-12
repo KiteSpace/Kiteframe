@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertCircle, Clock, AlertTriangle } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Loader2, AlertCircle, Clock, AlertTriangle, BookmarkPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/queryClient';
 
 // ---------------------------------------------------------------------------
 // Astryx component registry
@@ -231,6 +232,15 @@ interface DesignEntityResponse {
 const DESIGN_MAX = 150;
 const DESIGN_WARN = 120;
 
+const CLAIM_RETURN_KEY = 'kiteframe-claim-return-url';
+const CLAIM_ID_KEY = 'kiteframe-claim-workflow-id';
+
+interface ClaimResponse {
+  id: string;
+  projectUuid: string;
+  editUrl: string;
+}
+
 // ---------------------------------------------------------------------------
 // Expiry countdown (shared pattern with ExternalWorkflowViewer)
 // ---------------------------------------------------------------------------
@@ -301,6 +311,49 @@ export default function DesignCanvasViewer() {
   });
 
   const msLeft = useExpiryCountdown(data?.expires_at);
+
+  const claimMutation = useMutation<ClaimResponse, Error, string>({
+    mutationFn: async (externalWorkflowId: string) => {
+      const res = await apiRequest('POST', '/api/workflows/claim', { externalWorkflowId });
+      return res.json();
+    },
+    onSuccess: (result) => {
+      localStorage.removeItem(CLAIM_RETURN_KEY);
+      localStorage.removeItem(CLAIM_ID_KEY);
+      setLocation(result.editUrl);
+    },
+  });
+
+  // On mount: if returning from login with a pending claim for this design, auto-trigger it
+  useEffect(() => {
+    if (!id) return;
+    const pendingId = localStorage.getItem(CLAIM_ID_KEY);
+    if (pendingId === id) {
+      const timer = setTimeout(() => {
+        claimMutation.mutate(id);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const handleClaim = useCallback(() => {
+    if (!id) return;
+    fetch('/api/auth/user', { credentials: 'include' })
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) {
+          localStorage.setItem(CLAIM_RETURN_KEY, window.location.href);
+          localStorage.setItem(CLAIM_ID_KEY, id);
+          window.location.href = '/api/login';
+        } else {
+          claimMutation.mutate(id);
+        }
+      })
+      .catch(() => {
+        claimMutation.mutate(id);
+      });
+  }, [id, claimMutation]);
   const components = data?.data?.components ?? [];
   const componentCount = components.length;
 
@@ -348,6 +401,8 @@ export default function DesignCanvasViewer() {
   }
 
   const showExpiryBanner = msLeft !== null && msLeft > 0;
+  const isClaiming = claimMutation.isPending;
+  const claimError = claimMutation.error;
   const title = data.data?.title || "Design Canvas";
 
   return (
@@ -359,8 +414,17 @@ export default function DesignCanvasViewer() {
         >
           <Clock className="w-4 h-4 shrink-0" />
           <span>
-            This design expires in <strong>{formatTimeLeft(msLeft)}</strong>. Sign in to Kiteframe to save it permanently.
+            This design expires in <strong>{formatTimeLeft(msLeft)}</strong>. Save it to your account to keep it permanently.
           </span>
+        </div>
+      )}
+      {claimError && (
+        <div
+          className="shrink-0 flex items-center gap-2 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-2 text-sm"
+          data-testid="claim-error-banner"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{claimError.message || 'Failed to save design. Please try again.'}</span>
         </div>
       )}
 
@@ -369,6 +433,26 @@ export default function DesignCanvasViewer() {
         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
           Design Canvas · Read Only
         </span>
+        <Button
+          size="sm"
+          variant="default"
+          onClick={handleClaim}
+          disabled={isClaiming}
+          data-testid="button-save-to-account"
+          className="shrink-0"
+        >
+          {isClaiming ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />
+              Save to my account
+            </>
+          )}
+        </Button>
       </div>
 
       <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
