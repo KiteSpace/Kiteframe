@@ -176,20 +176,10 @@ export function registerExternalEntityRoutes(app: Express) {
       if (entity.expiresAt && entity.expiresAt < new Date()) {
         return res.status(404).json({ error: "Entity has expired." });
       }
-      const entityData = entity.data as any;
-      if (dbType === "workflow") {
-        return res.json({
-          id: entity.id,
-          title: entityData.title ?? null,
-          nodes: entityData.nodes ?? [],
-          edges: entityData.edges ?? [],
-          expires_at: entity.expiresAt,
-        });
-      }
       res.json({
         id: entity.id,
         entity_type: entity.entityType,
-        data: entityData,
+        data: entity.data,
         expires_at: entity.expiresAt,
       });
     } catch (err) {

@@ -16,11 +16,14 @@ const CLAIM_ID_KEY = 'kiteframe-claim-workflow-id';
 // that component is coupled to shareUuid/PRD-notes-seeding/localStorage that
 // don't apply to externally-submitted workflows, which have no owning user,
 // PRD, or notes data — just nodes/edges to render.
-interface ExternalWorkflowData {
+interface ExternalEntityPublicResponse {
   id: string;
-  title?: string | null;
-  nodes: Node[];
-  edges: Edge[];
+  entity_type: string;
+  data: {
+    title?: string | null;
+    nodes?: Node[];
+    edges?: Edge[];
+  };
   expires_at?: string | null;
 }
 
@@ -66,7 +69,7 @@ export default function ExternalWorkflowViewer() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
-  const { data, isLoading, error } = useQuery<ExternalWorkflowData>({
+  const { data, isLoading, error } = useQuery<ExternalEntityPublicResponse>({
     queryKey: ['/api/public/entities/workflows', id],
     enabled: !!id,
     refetchOnWindowFocus: false,
@@ -74,8 +77,8 @@ export default function ExternalWorkflowViewer() {
 
   const msLeft = useExpiryCountdown(data?.expires_at);
 
-  const nodes = data?.nodes || [];
-  const edges = data?.edges || [];
+  const nodes = data?.data?.nodes || [];
+  const edges = data?.data?.edges || [];
 
   const noopChange = useCallback(() => {}, []);
 
@@ -240,7 +243,7 @@ export default function ExternalWorkflowViewer() {
         </div>
       )}
       <div className="h-14 flex items-center px-4 border-b border-border shrink-0 gap-3">
-        <h1 className="text-sm font-medium truncate flex-1">{data.title || 'Workflow'}</h1>
+        <h1 className="text-sm font-medium truncate flex-1">{data.data?.title || 'Workflow'}</h1>
         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">Read Only</span>
         <Button
           size="sm"

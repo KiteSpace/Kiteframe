@@ -45,6 +45,7 @@ import { apiRequest } from '@/lib/queryClient';
 const CLAIM_RETURN_KEY = 'kiteframe-claim-return-url';
 const CLAIM_ID_KEY = 'kiteframe-claim-workflow-id';
 const WORKFLOW_ID = 'test-wf-abc';
+const QUERY_KEY = ['/api/public/entities/workflows', WORKFLOW_ID];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,9 +61,12 @@ function makeQueryClient() {
 
 const MOCK_WORKFLOW_DATA = {
   id: WORKFLOW_ID,
-  title: 'My Test Workflow',
-  nodes: [{ id: 'n1', type: 'process', position: { x: 100, y: 100 }, data: { label: 'Step' } }],
-  edges: [],
+  entity_type: 'workflow',
+  data: {
+    title: 'My Test Workflow',
+    nodes: [{ id: 'n1', type: 'process', position: { x: 100, y: 100 }, data: { label: 'Step' } }],
+    edges: [],
+  },
   expires_at: null,
 };
 
@@ -97,7 +101,7 @@ afterEach(() => {
 describe('Save to my account button — visibility', () => {
   it('renders the button when workflow data is loaded', async () => {
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 
@@ -107,7 +111,7 @@ describe('Save to my account button — visibility', () => {
 
   it('renders the workflow title in the header', async () => {
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 
@@ -126,13 +130,10 @@ describe('Save to my account button — visibility', () => {
 
   it('shows error screen (not the button) when workflow query fails', async () => {
     const qc = makeQueryClient();
-    qc.setQueryData(
-      ['/api/public/workflows', WORKFLOW_ID],
-      undefined,
-    );
+    qc.setQueryData(QUERY_KEY, undefined);
     // Mark query as errored
     await qc.fetchQuery({
-      queryKey: ['/api/public/workflows', WORKFLOW_ID],
+      queryKey: QUERY_KEY,
       queryFn: () => Promise.reject(Object.assign(new Error('404 Not Found'), { status: 404 })),
       retry: false,
     }).catch(() => {});
@@ -149,7 +150,7 @@ describe('Save to my account button — visibility', () => {
 describe('Save to my account button — expiry banner', () => {
   it('shows the expiry banner when expires_at is set to a future date', async () => {
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_EXPIRING_WORKFLOW);
+    qc.setQueryData(QUERY_KEY, MOCK_EXPIRING_WORKFLOW);
 
     renderWithQuery(qc);
 
@@ -159,7 +160,7 @@ describe('Save to my account button — expiry banner', () => {
 
   it('does not show the expiry banner when expires_at is null', async () => {
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 
@@ -181,7 +182,7 @@ describe('Save to my account button — unauthenticated click flow', () => {
     });
 
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 
@@ -204,7 +205,7 @@ describe('Save to my account button — unauthenticated click flow', () => {
     vi.mocked(apiRequest).mockResolvedValue(mockResponse as any);
 
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 
@@ -234,7 +235,7 @@ describe('Save to my account button — already-claimed state', () => {
     vi.mocked(apiRequest).mockResolvedValue(mockResponse as any);
 
     const qc = makeQueryClient();
-    qc.setQueryData(['/api/public/workflows', WORKFLOW_ID], MOCK_WORKFLOW_DATA);
+    qc.setQueryData(QUERY_KEY, MOCK_WORKFLOW_DATA);
 
     renderWithQuery(qc);
 

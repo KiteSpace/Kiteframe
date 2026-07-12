@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  check,
   index,
   jsonb,
   pgTable,
@@ -750,7 +751,7 @@ export const externalEntities = pgTable("external_entities", {
   entityType: text("entity_type").notNull(), // 'workflow' | 'design'
   apiKeyId: varchar("api_key_id").references(() => externalApiKeys.id).notNull(),
   data: jsonb("data").notNull(),
-  sourceEntityId: varchar("source_entity_id"), // nullable UUID informal ref
+  sourceEntityId: varchar("source_entity_id").references((): any => externalEntities.id), // nullable self-ref
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   expiresAt: timestamp("expires_at").notNull().default(sql`now() + interval '24 hours'`),
@@ -758,6 +759,7 @@ export const externalEntities = pgTable("external_entities", {
   index("IDX_external_entities_api_key").on(table.apiKeyId),
   index("IDX_external_entities_expires_at").on(table.expiresAt),
   index("IDX_external_entities_type").on(table.entityType),
+  check("external_entities_entity_type_check", sql`${table.entityType} IN ('workflow', 'design')`),
 ]);
 
 export const insertExternalEntitySchema = createInsertSchema(externalEntities).omit({
