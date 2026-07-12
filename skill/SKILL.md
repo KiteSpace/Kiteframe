@@ -201,3 +201,107 @@ Tell the user:
 | `process` | Actions, transformations, steps |
 | `condition` | Decisions, branches, if/else |
 | `output` | Results, endpoints, sinks |
+
+---
+
+## Design canvas
+
+Use the design canvas to generate and share positioned UI mockups built from
+Astryx components. Each component is placed at an absolute `(x, y)` position
+on a scrollable canvas.
+
+### Create a design
+
+```bash
+curl -s -X POST https://kiteframe.space/api/external/designs \
+  -H "Authorization: Bearer $KITEFRAME_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "title": "User Profile Screen",
+      "components": [
+        { "id": "c1", "astryxComponent": "Heading", "x": 24, "y": 24, "props": { "children": "Profile", "size": "xl" } },
+        { "id": "c2", "astryxComponent": "Avatar", "x": 24, "y": 80, "props": { "name": "Alex Johnson", "size": "lg" } },
+        { "id": "c3", "astryxComponent": "Button", "x": 24, "y": 160, "props": { "children": "Follow", "variant": "primary" } }
+      ]
+    }
+  }'
+```
+
+Response: `{ "id": "<uuid>", "url": "https://kiteframe.space/designs/<uuid>", "expires_at": "<iso8601>" }`
+
+### Get the prompt template
+
+```bash
+curl -s https://kiteframe.space/api/external/designs/prompt-template \
+  -H "Authorization: Bearer $KITEFRAME_API_KEY"
+```
+
+Returns `system_prompt`, `output_schema`, and `few_shot_examples` for the
+design entity type.
+
+### JSON payload shape
+
+```json
+{
+  "data": {
+    "title": "Screen title (optional)",
+    "components": [
+      {
+        "id": "c1",
+        "astryxComponent": "Button",
+        "x": 24,
+        "y": 24,
+        "props": { "children": "Click me", "variant": "primary" }
+      }
+    ]
+  }
+}
+```
+
+- **`id`** — unique string within this design
+- **`astryxComponent`** — PascalCase component name from the supported list below
+- **`x`, `y`** — pixel position from top-left of canvas
+- **`props`** — optional; use `"children"` for visible text
+
+### 150-component limit
+
+Each design canvas accepts a maximum of **150 components**. Submitting more
+returns a `422` error.
+
+**Split-when-large rule:** If a requested UI would reasonably need more than
+~100 components, propose splitting into multiple frames/screens rather than
+generating one oversized canvas. Create each screen as a separate design entity
+and share all URLs with the user.
+
+The canvas viewer shows a badge in the bottom-right corner:
+- **Grey** — fewer than 120 components (normal)
+- **Amber ⚠** — 120+ components (approaching limit)
+- **Red** — exactly 150 (limit reached)
+
+### Supported `astryxComponent` values
+
+| Component | Use for | Key props |
+|-----------|---------|-----------|
+| `Button` | Clickable action | `children`, `variant` (primary/secondary/outline/ghost), `size` (sm/md/lg) |
+| `Card` | Container box | `children`, `variant` (elevated/outlined/ghost) |
+| `Badge` | Small label pill | `children`, `color` (blue/green/amber/red/gray) |
+| `Text` | Body copy | `children`, `size` (xs/sm/md/lg), `muted` |
+| `Heading` | Title text | `children`, `size` (sm/md/lg/xl/2xl) |
+| `Avatar` | User avatar circle | `name`, `src`, `size` (xs/sm/md/lg) |
+| `Spinner` | Loading indicator | `size` (sm/md/lg) |
+| `Divider` | Horizontal separator | `label` |
+| `ProgressBar` | Progress indicator | `value` (0–100), `color` (blue/green/amber/red) |
+| `StatusDot` | Online-status dot | `status` (online/offline/busy/away) |
+| `Skeleton` | Loading placeholder | `width`, `height` |
+| `Banner` | Notification bar | `children`, `variant` (info/success/warning/error) |
+| `EmptyState` | Empty-list placeholder | `title`, `description`, `action` |
+| `ChatMessage` | Chat bubble | `children`, `sender`, `timestamp`, `isOwn` |
+| `Token` | Removable tag chip | `children` |
+| `TextInput` | Text field | `placeholder`, `label`, `value`, `disabled` |
+| `Stack` / `VStack` | Vertical layout | `gap` |
+| `HStack` | Horizontal layout | `gap`, `align` (start/center/end) |
+| `Icon` | Icon glyph | `name`, `size` (sm/md/lg) |
+
+> Components not in this list render as a dashed placeholder `[ComponentName]`
+> in the viewer. Always use a name from the supported list.

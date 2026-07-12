@@ -3,6 +3,12 @@ import {
   EXTERNAL_WORKFLOW_SYSTEM_PROMPT,
   EXTERNAL_WORKFLOW_FEW_SHOT_EXAMPLES,
 } from "./externalWorkflowPrompt";
+import { validateExternalDesign, designJsonSchema } from "./designSchema";
+import {
+  DESIGN_SYSTEM_PROMPT,
+  DESIGN_JSON_SCHEMA,
+  DESIGN_FEW_SHOT_EXAMPLES,
+} from "./designPrompt";
 
 export type UrlEntityType = "workflows" | "designs";
 export type DbEntityType = "workflow" | "design";
@@ -26,7 +32,8 @@ export function getValidatorForType(
   dbType: DbEntityType
 ): (data: unknown) => ValidationResult {
   if (dbType === "workflow") return validateExternalWorkflow;
-  throw { status: 501, message: "Design entity type not yet implemented" };
+  if (dbType === "design") return validateExternalDesign;
+  throw { status: 400, message: `Unknown entity type: ${dbType}` };
 }
 
 export function getPromptTemplateForType(dbType: DbEntityType) {
@@ -37,5 +44,12 @@ export function getPromptTemplateForType(dbType: DbEntityType) {
       few_shot_examples: EXTERNAL_WORKFLOW_FEW_SHOT_EXAMPLES,
     };
   }
-  throw { status: 501, message: "Design prompt template not yet implemented" };
+  if (dbType === "design") {
+    return {
+      system_prompt: DESIGN_SYSTEM_PROMPT,
+      output_schema: DESIGN_JSON_SCHEMA,
+      few_shot_examples: DESIGN_FEW_SHOT_EXAMPLES,
+    };
+  }
+  throw { status: 400, message: `Unknown entity type: ${dbType}` };
 }
