@@ -1,0 +1,320 @@
+# Kiteframe — Generic Expiry/Claim + Design Canvas Component Limit
+
+## Part 1: Generic expiry/claim, shared across workflows and design files
+
+### Why unify now
+
+Workflows and design files will have identical lifecycle logic: anonymous
+creation → 24h expiry → optional claim-as-copy into an account. Building
+this once, generically, avoids duplicating the cron job, the claim route,
+and the ownership-check logic per entity type — and makes adding a third
+entity type later (if it ever comes up) a non-event.
+
+### Schema: consolidate into one table with a type discriminator
+
+```sql
+create table external_entities (
+  id uuid primary key default gen_random_uuid(),
+  entity_type text not null check (entity_type in ('workflow', 'design')),
+  api_key_id uuid not null references external_api_keys(id),
+  data jsonb not null,                      -- workflow_json or design_json, shape depends on entity_type
+  source_entity_id uuid references external_entities(id), -- e.g. design file's originating workflow, nullable
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '24 hours')
+);
+
+create index idx_external_entities_expires_at on external_entities (expires_at);
+create index idx_external_entities_type on external_entities (entity_type);
+```
+
+**Migration from existing `external_workflows` table:**
+
+```sql
+insert into external_entities (id, entity_type, api_key_id, data, created_at, updated_at, expires_at)
+select id, 'workflow', api_key_id, workflow_json, created_at, updated_at, expires_at
+from external_workflows;
+
+-- keep external_workflows around temporarily (renamed or just unreferenced)
+-- until you've confirmed the new table serves all read paths correctly,
+-- then drop it.
+```
+
+Update the native `workflows` table’s `source_external_id` references (from
+the claim flow) to point at `external_entities.id` instead — same ids
+carry over since the migration preserves `id`.
+
+### Generic validation
+
+Each entity type gets its own schema, but validation is dispatched through
+one function:
+
+```js
+// lib/entitySchemas.js
+const WORKFLOW_SCHEMA = require('./workflowSchema'); // existing
+const DESIGN_SCHEMA = require('./designSchema');       // new, see Part 2
+
+const SCHEMAS_BY_TYPE = {
+  workflow: WORKFLOW_SCHEMA,
+  design: DESIGN_SCHEMA,
+};
+
+function getSchemaForType(entityType) {
+  const schema = SCHEMAS_BY_TYPE[entityType];
+  if (!schema) throw new Error(`Unknown entity type: ${entityType}`);
+  return schema;
+}
+
+module.exports = { getSchemaForType };
+```
+
+### Generic routes
+
+Replace `/api/external/workflows/*` with a parameterized `/api/external/:entityType/*`
+(keep `/workflows` as an accepted alias if you don’t want to break the
+already-deployed skill scripts — see note at the end).
+
+```js
+// routes/externalEntities.js
+const router = express.Router({ mergeParams: true });
+
+const VALID_TYPES = ['workflows', 'designs']; // plural, matches URL convention
+const TYPE_MAP = { workflows: 'workflow', designs: 'design' };
+
+function resolveType(req, res, next) {
+  const type = TYPE_MAP[req.params.entityType];
+  if (!type) return res.status(404).json({ error: 'Unknown entity type' });
+  req.entityType = type;
+  next();
+}
+
+// GET /api/external/:entityType/prompt-template
+router.get('/:entityType/prompt-template', requireApiKey, externalApiLimiter, resolveType, (req, res) => {
+  const template = getPromptTemplateForType(req.entityType); // dispatch to workflowPrompt.js or designPrompt.js
+  res.json(template);
+});
+
+// POST /api/external/:entityType
+router.post('/:entityType', requireApiKey, externalApiLimiter, resolveType, async (req, res) => {
+  const { data } = req.body || {};
+  const schema = getSchemaForType(req.entityType);
+  const { valid, errors } = validateAgainstSchema(data, schema);
+  if (!valid) return res.status(422).json({ error: 'Failed validation', details: errors });
+
+  const [created] = await db.insert(externalEntities)
+    .values({
+      entity_type: req.entityType,
+      api_key_id: req.apiKey.id,
+      data,
+      source_entity_id: req.body.sourceEntityId || null,
+    })
+    .returning();
+
+  res.json({
+    id: created.id,
+    url: `${PUBLIC_APP_URL}/${req.params.entityType}/${created.id}`,
+    expires_at: created.expires_at,
+  });
+});
+
+// GET /api/external/:entityType/:id  (ownership-gated, for skill resume/edit)
+router.get('/:entityType/:id', requireApiKey, externalApiLimiter, resolveType, async (req, res) => {
+  const [entity] = await db.select().from(externalEntities)
+    .where(and(eq(externalEntities.id, req.params.id), eq(externalEntities.entity_type, req.entityType)))
+    .limit(1);
+
+  if (!entity) return res.status(404).json({ error: 'Not found or expired' });
+  if (entity.api_key_id !== req.apiKey.id) {
+    return res.status(403).json({ error: 'This API key does not own this entity' });
+  }
+
+  res.json({ id: entity.id, data: entity.data, expires_at: entity.expires_at });
+});
+
+// PATCH /api/external/:entityType/:id  (ownership-gated, in-session refinement)
+router.patch('/:entityType/:id', requireApiKey, externalApiLimiter, resolveType, async (req, res) => {
+  const [existing] = await db.select().from(externalEntities)
+    .where(and(eq(externalEntities.id, req.params.id), eq(externalEntities.entity_type, req.entityType)))
+    .limit(1);
+
+  if (!existing) return res.status(404).json({ error: 'Not found or expired' });
+  if (existing.api_key_id !== req.apiKey.id) {
+    return res.status(403).json({ error: 'This API key does not own this entity' });
+  }
+
+  const { data } = req.body || {};
+  const schema = getSchemaForType(req.entityType);
+  const { valid, errors } = validateAgainstSchema(data, schema);
+  if (!valid) return res.status(422).json({ error: 'Failed validation', details: errors });
+
+  const [updated] = await db.update(externalEntities)
+    .set({ data, updated_at: new Date() })
+    .where(eq(externalEntities.id, req.params.id))
+    .returning();
+
+  res.json({ id: updated.id, url: `${PUBLIC_APP_URL}/${req.params.entityType}/${updated.id}`, expires_at: updated.expires_at });
+});
+
+module.exports = router;
+```
+
+Mount at:
+
+```js
+app.use('/api/external', externalEntitiesRouter);
+```
+
+### Generic expiry job (one job, both types)
+
+```js
+// jobs/expireEntities.js
+async function expireAnonymousEntities() {
+  const { rowCount } = await db
+    .delete(externalEntities)
+    .where(lt(externalEntities.expires_at, new Date()));
+
+  if (rowCount > 0) console.log(`Expired ${rowCount} anonymous entit${rowCount === 1 ? 'y' : 'ies'}`);
+}
+setInterval(expireAnonymousEntities, 60 * 60 * 1000);
+```
+
+### Generic claim endpoint
+
+```js
+// POST /api/entities/claim  (session-authed, not API-key)
+router.post('/claim', requireLoggedInSession, async (req, res) => {
+  const { externalEntityId } = req.body;
+
+  const [source] = await db.select().from(externalEntities)
+    .where(eq(externalEntities.id, externalEntityId)).limit(1);
+
+  if (!source) return res.status(404).json({ error: 'Not found or already expired' });
+
+  let created;
+  if (source.entity_type === 'workflow') {
+    const native = transformExternalWorkflowToNative(source.data); // auto-layout, per earlier spec
+    [created] = await db.insert(workflows).values({
+      user_id: req.session.userId,
+      title: native.title,
+      data: native,
+      source: 'claimed-external',
+      source_external_id: source.id,
+    }).returning();
+    return res.json({ id: created.id, editUrl: `${PUBLIC_APP_URL}/app/workflows/${created.id}` });
+  }
+
+  if (source.entity_type === 'design') {
+    const native = transformExternalDesignToNative(source.data); // mostly pass-through, see Part 2
+    [created] = await db.insert(designs).values({
+      user_id: req.session.userId,
+      title: native.title,
+      data: native,
+      source: 'claimed-external',
+      source_external_id: source.id,
+    }).returning();
+    return res.json({ id: created.id, editUrl: `${PUBLIC_APP_URL}/app/designs/${created.id}` });
+  }
+
+  res.status(400).json({ error: 'Unknown entity type' });
+});
+```
+
+Same copy-not-transfer semantics as before: claiming never mutates or
+deletes `source`, so it can be independently claimed by others, and it
+still expires on schedule regardless of claim status.
+
+### Backward compatibility note
+
+Your currently-deployed skill scripts call `/api/external/workflows/*`
+directly (not `/api/external/workflows` as an `:entityType` param). Keep
+a thin redirect/alias so nothing breaks:
+
+```js
+app.use('/api/external/workflows', (req, res, next) => {
+  req.url = `/workflows${req.url}`; // re-route into the generic handler
+  next();
+}, externalEntitiesRouter);
+```
+
+Or simpler: just update the skill’s scripts to hit `/api/external/workflows/...`
+which already matches the new generic route shape (`:entityType = "workflows"`)
+— no alias needed if the URL structure lines up, which it does above.
+
+-----
+
+## Part 2: Max component limit on the design canvas
+
+### Where to enforce it (three layers, not just one)
+
+**1. Schema validation (server-side, authoritative)**
+
+```js
+// lib/designSchema.js
+const DESIGN_JSON_SCHEMA = {
+  type: 'object',
+  required: ['components'],
+  properties: {
+    title: { type: 'string' },
+    components: {
+      type: 'array',
+      maxItems: 150, // hard ceiling — tune based on real perf testing
+      items: {
+        type: 'object',
+        required: ['id', 'astryxComponent', 'x', 'y'],
+        properties: {
+          id: { type: 'string' },
+          astryxComponent: { type: 'string' },
+          x: { type: 'number' },
+          y: { type: 'number' },
+          props: { type: 'object' }, // Astryx prop overrides
+        },
+      },
+    },
+  },
+};
+module.exports = { DESIGN_JSON_SCHEMA };
+```
+
+`maxItems` on the array is the actual hard limit — anything submitted over
+it (from the skill path or the in-app path) gets a 422, same error path as
+any other schema violation. This is the backstop that matters most, since
+it’s the one path that can’t be bypassed by a client-side bug.
+
+**2. In-app canvas UI (soft warning + hard stop)**
+
+- At ~80% of the limit (120 of 150): show a subtle badge — “120/150 components — approaching the limit.”
+- At the limit: disable further drag-from-panel actions, tooltip: “Component limit reached (150). Remove a component to add more, or split into multiple frames.”
+- This is UX, not enforcement — someone could still hit the API directly, which is why layer 1 exists.
+
+**3. Skill-side guidance (SKILL.md)**
+Add to the design-generation skill instructions: “If a requested UI would reasonably need more than ~100 components, propose splitting it into multiple frames/screens rather than generating a single oversized canvas. If Kiteframe rejects a submission for exceeding the component limit, tell the user directly and offer to split the design.”
+
+### Why 150 as a starting number (adjust after real testing)
+
+Reasoning, not a hard rule: dnd-kit’s collision detection and iframe-based
+rendering (per your existing Workbench pattern) both scale roughly linearly
+with node count, and drag responsiveness on a grid-snap canvas tends to
+become noticeably laggy well before 200+ interactive elements, especially
+on lower-end hardware. 150 gives headroom for a genuinely complex screen
+(a dense settings page, a multi-column dashboard) without inviting
+performance complaints. Treat this as a starting point to validate with
+your own hardware and a stress-test canvas, not a number to trust blindly —
+worth a quick manual test (generate a 150-component canvas, drag things
+around, see how it feels) before shipping the number as final.
+
+-----
+
+## Summary of what to build
+
+**Generic expiry/claim:**
+
+1. New `external_entities` table + migration from `external_workflows`
+1. Generic `getSchemaForType` / `getPromptTemplateForType` dispatch functions
+1. Parameterized routes (`/:entityType/prompt-template`, POST/GET/PATCH `/:entityType/:id`)
+1. One expiry cron job for both types
+1. One claim endpoint, branching only on `entity_type` for the transform step
+
+**Design component limit:**
+6. `maxItems: 150` in `DESIGN_JSON_SCHEMA` (authoritative)
+7. In-app soft warning + hard stop at the limit
+8. Skill instruction to propose splitting large designs rather than erroring silently
