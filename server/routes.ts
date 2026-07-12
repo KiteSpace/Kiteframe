@@ -1101,8 +1101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Claim an external workflow into the authenticated user's account.
-  // Source external_workflow row is NOT deleted — multiple users may claim independently.
+  // Claim an external entity (workflow or design) into the authenticated user's account.
+  // Source entity row is NOT deleted — multiple users may claim independently.
   app.post('/api/workflows/claim', projectRateLimiter, isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);
@@ -1117,14 +1117,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'externalWorkflowId is required' });
       }
 
-      const externalWorkflow = await storage.getExternalWorkflow(externalWorkflowId);
-      if (!externalWorkflow) {
+      const entity = await storage.getExternalEntity(externalWorkflowId);
+      if (!entity) {
         return res.status(404).json({ error: 'External workflow not found or has expired' });
       }
 
-      // Reject expired workflows even if the async cleanup job hasn't run yet
-      if (externalWorkflow.expiresAt && externalWorkflow.expiresAt < new Date()) {
+      // Reject expired entities even if the async cleanup job hasn't run yet
+      if (entity.expiresAt && entity.expiresAt < new Date()) {
         return res.status(404).json({ error: 'External workflow has expired' });
+      }
+
+      if (entity.entityType === 'design') {
+        return res.status(501).json({ error: 'Design claim coming soon' });
       }
 
       const projectLimit = await checkProjectLimit(userId, user?.subscriptionTier);
@@ -1137,15 +1141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const entityData = entity.data as { nodes: unknown; edges: unknown; title?: string | null };
       const workflowData = {
-        nodes: externalWorkflow.nodes,
-        edges: externalWorkflow.edges,
+        nodes: entityData.nodes,
+        edges: entityData.edges,
         canvasObjects: [],
         viewport: { x: 0, y: 0, zoom: 1 },
       };
 
       const sanitizedWorkflowData = sanitizeWorkflowContent(workflowData);
-      const sanitizedName = sanitizeNodeLabel(externalWorkflow.title) || 'Claimed Workflow';
+      const sanitizedName = sanitizeNodeLabel(entityData.title) || 'Claimed Workflow';
 
       const project = await storage.createSavedProject({
         userId,
@@ -1160,7 +1165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const editUrl = `/project/${project.projectUuid}`;
       return res.status(201).json({ id: project.id, projectUuid: project.projectUuid, editUrl });
     } catch (error) {
-      console.error('[claim] Error claiming external workflow:', error);
+      console.error('[claim] Error claiming external entity:', error);
       return res.status(500).json({ error: 'Failed to claim workflow' });
     }
   });

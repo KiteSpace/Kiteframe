@@ -150,21 +150,21 @@ initStripe()
   .then(() => WebhookHandlers.fixMismatchedTiers())
   .catch((err) => console.error('Background Stripe init failed:', err));
 
-// Hourly job: delete external_workflows rows whose expires_at is in the past.
+// Hourly job: delete external_entities rows whose expires_at is in the past.
 // Run once eagerly on startup (to clear any rows that expired while the server
 // was down), then repeat every hour.
-async function runExternalWorkflowExpiry() {
+async function runExternalEntityExpiry() {
   try {
-    const deleted = await storage.deleteExpiredExternalWorkflows();
+    const deleted = await storage.deleteExpiredExternalEntities();
     if (deleted > 0) {
-      log(`[expiry] Deleted ${deleted} expired external workflow(s)`);
+      log(`[expiry] Deleted ${deleted} expired external entit${deleted === 1 ? 'y' : 'ies'}`);
     }
   } catch (err) {
-    console.error('[expiry] Failed to delete expired external workflows:', err);
+    console.error('[expiry] Failed to delete expired external entities:', err);
   }
 }
-runExternalWorkflowExpiry();
-setInterval(runExternalWorkflowExpiry, 60 * 60 * 1000);
+runExternalEntityExpiry();
+setInterval(runExternalEntityExpiry, 60 * 60 * 1000);
 
 app.post(
   '/api/stripe/webhook/:uuid',

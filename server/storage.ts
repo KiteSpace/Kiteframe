@@ -16,8 +16,8 @@ import {
   type CommentWithAuthor,
   type ExternalApiKey,
   type InsertExternalApiKey,
-  type ExternalWorkflow,
-  type InsertExternalWorkflow,
+  type ExternalEntity,
+  type InsertExternalEntity,
   users,
   savedProjects,
   projectFolders,
@@ -32,7 +32,7 @@ import {
   workflowComments,
   bannedEmails,
   externalApiKeys,
-  externalWorkflows,
+  externalEntities,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, inArray, isNotNull, sql, lt } from "drizzle-orm";
@@ -83,11 +83,11 @@ export interface IStorage {
   getExternalApiKeyByHash(keyHash: string): Promise<ExternalApiKey | undefined>;
   createExternalApiKey(data: InsertExternalApiKey): Promise<ExternalApiKey>;
   touchExternalApiKeyLastUsed(id: string): Promise<void>;
-  // External workflows (submitted via external API)
-  createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow>;
-  getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined>;
-  updateExternalWorkflow(id: string, data: { nodes: unknown; edges: unknown; title?: string | null }): Promise<ExternalWorkflow | undefined>;
-  deleteExpiredExternalWorkflows(): Promise<number>;
+  // External entities (workflows, designs — submitted via external API)
+  createExternalEntity(data: InsertExternalEntity): Promise<ExternalEntity>;
+  getExternalEntity(id: string, entityType?: string): Promise<ExternalEntity | undefined>;
+  updateExternalEntity(id: string, entityType: string, data: { data: unknown }): Promise<ExternalEntity | undefined>;
+  deleteExpiredExternalEntities(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -541,45 +541,44 @@ export class DatabaseStorage implements IStorage {
       .where(eq(externalApiKeys.id, id));
   }
 
-  // External workflows
-  async createExternalWorkflow(data: InsertExternalWorkflow): Promise<ExternalWorkflow> {
-    const serialized = {
-      ...data,
-      nodes: JSON.parse(JSON.stringify(data.nodes)),
-      edges: JSON.parse(JSON.stringify(data.edges)),
-    };
-    const [row] = await db.insert(externalWorkflows).values(serialized).returning();
-    return row;
-  }
-
-  async getExternalWorkflow(id: string): Promise<ExternalWorkflow | undefined> {
+  // External entities (workflows, designs)
+  async createExternalEntity(data: InsertExternalEntity): Promise<ExternalEntity> {
     const [row] = await db
-      .select()
-      .from(externalWorkflows)
-      .where(eq(externalWorkflows.id, id))
-      .limit(1);
-    return row;
-  }
-
-  async updateExternalWorkflow(id: string, data: { nodes: unknown; edges: unknown; title?: string | null }): Promise<ExternalWorkflow | undefined> {
-    const [row] = await db
-      .update(externalWorkflows)
-      .set({
-        nodes: JSON.parse(JSON.stringify(data.nodes)) as any,
-        edges: JSON.parse(JSON.stringify(data.edges)) as any,
-        title: data.title ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(externalWorkflows.id, id))
+      .insert(externalEntities)
+      .values({ ...data, data: JSON.parse(JSON.stringify(data.data)) })
       .returning();
     return row;
   }
 
-  async deleteExpiredExternalWorkflows(): Promise<number> {
+  async getExternalEntity(id: string, entityType?: string): Promise<ExternalEntity | undefined> {
+    const conditions = entityType
+      ? and(eq(externalEntities.id, id), eq(externalEntities.entityType, entityType))
+      : eq(externalEntities.id, id);
+    const [row] = await db
+      .select()
+      .from(externalEntities)
+      .where(conditions)
+      .limit(1);
+    return row;
+  }
+
+  async updateExternalEntity(id: string, entityType: string, data: { data: unknown }): Promise<ExternalEntity | undefined> {
+    const [row] = await db
+      .update(externalEntities)
+      .set({
+        data: JSON.parse(JSON.stringify(data.data)) as any,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(externalEntities.id, id), eq(externalEntities.entityType, entityType)))
+      .returning();
+    return row;
+  }
+
+  async deleteExpiredExternalEntities(): Promise<number> {
     const result = await db
-      .delete(externalWorkflows)
-      .where(lt(externalWorkflows.expiresAt, sql`now()`))
-      .returning({ id: externalWorkflows.id });
+      .delete(externalEntities)
+      .where(lt(externalEntities.expiresAt, sql`now()`))
+      .returning({ id: externalEntities.id });
     return result.length;
   }
 }

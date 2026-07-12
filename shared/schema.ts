@@ -745,26 +745,27 @@ export type InsertExternalApiKey = typeof externalApiKeys.$inferInsert;
 // Workflows submitted via the external API (e.g. from the Claude Code skill).
 // Rendered read-only at /workflows/:id — intentionally separate from
 // savedProjects/shareLinks since there's no owning user or PRD/notes data.
-export const externalWorkflows = pgTable("external_workflows", {
+export const externalEntities = pgTable("external_entities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: text("entity_type").notNull(), // 'workflow' | 'design'
   apiKeyId: varchar("api_key_id").references(() => externalApiKeys.id).notNull(),
-  title: varchar("title"),
-  nodes: jsonb("nodes").notNull(),
-  edges: jsonb("edges").notNull(),
+  data: jsonb("data").notNull(),
+  sourceEntityId: varchar("source_entity_id"), // nullable UUID informal ref
   createdAt: timestamp("created_at").defaultNow(),
-  expiresAt: timestamp("expires_at").notNull().default(sql`now() + interval '24 hours'`),
   updatedAt: timestamp("updated_at").defaultNow(),
+  expiresAt: timestamp("expires_at").notNull().default(sql`now() + interval '24 hours'`),
 }, (table) => [
-  index("IDX_external_workflows_api_key").on(table.apiKeyId),
-  index("IDX_external_workflows_expires_at").on(table.expiresAt),
+  index("IDX_external_entities_api_key").on(table.apiKeyId),
+  index("IDX_external_entities_expires_at").on(table.expiresAt),
+  index("IDX_external_entities_type").on(table.entityType),
 ]);
 
-export const insertExternalWorkflowSchema = createInsertSchema(externalWorkflows).omit({
+export const insertExternalEntitySchema = createInsertSchema(externalEntities).omit({
   id: true,
   createdAt: true,
   expiresAt: true,
   updatedAt: true,
 });
 
-export type ExternalWorkflow = typeof externalWorkflows.$inferSelect;
-export type InsertExternalWorkflow = z.infer<typeof insertExternalWorkflowSchema>;
+export type ExternalEntity = typeof externalEntities.$inferSelect;
+export type InsertExternalEntity = z.infer<typeof insertExternalEntitySchema>;

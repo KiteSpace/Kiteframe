@@ -1,4 +1,4 @@
-# Kiteframe External Workflow Skill
+# Kiteframe External API Skill
 
 This skill lets you create, update, and resume visual workflow diagrams on
 [Kiteframe](https://kiteframe.space) directly from Claude Code (or any tool
@@ -24,19 +24,19 @@ that describe the exact JSON shape for nodes and edges.
 curl -s -X POST https://kiteframe.space/api/external/workflows \
   -H "Authorization: Bearer $KITEFRAME_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "title": "My workflow", "nodes": [...], "edges": [...] }'
+  -d '{ "data": { "title": "My workflow", "nodes": [...], "edges": [...] } }'
 ```
 
-Response: `{ "id": "<uuid>", "diagram_url": "https://kiteframe.space/workflows/<uuid>" }`
+Response: `{ "id": "<uuid>", "url": "https://kiteframe.space/workflows/<uuid>", "expires_at": "<iso8601>" }`
 
 **Save the `id`** — you will need it to resume or update the workflow later.
 
 ### 3 — View the diagram
 
-Open `diagram_url` in any browser. No login required. The link is valid for
+Open `url` in any browser. No login required. The link is valid for
 **24 hours**; after that the workflow is deleted automatically.
 
-**Always share the `diagram_url` with the user** so they can open it directly:
+**Always share the `url` with the user** so they can open it directly:
 
 ```
 Workflow created: https://kiteframe.space/workflows/<uuid>
@@ -46,7 +46,7 @@ Open the link above to view and interact with your diagram.
 ### 4 — Saving the workflow permanently (claim flow)
 
 External workflows expire after 24 hours. If the user wants to keep the
-workflow permanently, they can **claim it** by visiting the `diagram_url` and
+workflow permanently, they can **claim it** by visiting the `url` and
 clicking the **"Save to my account"** button that appears at the top of the
 page.
 
@@ -58,7 +58,7 @@ Claiming requires a free Kiteframe account. Once claimed:
 **When to mention this:** Whenever you create or update a workflow, tell the
 user they can save it permanently:
 
-> "Your diagram is ready at `<diagram_url>`. Visit the link and click
+> "Your diagram is ready at `<url>`. Visit the link and click
 > **'Save to my account'** to keep it permanently — external diagrams expire
 > after 24 hours."
 
@@ -66,7 +66,7 @@ user they can save it permanently:
 
 ## Resuming a workflow in a new conversation (resume-by-URL)
 
-If you have the `diagram_url` or the workflow `id` from a previous session,
+If you have the `url` or the workflow `id` from a previous session,
 use `fetch_workflow.py` to reload the full diagram:
 
 ```bash
@@ -92,10 +92,10 @@ conversation where the user says "update my workflow", "continue my diagram",
 curl -s -X PATCH https://kiteframe.space/api/external/workflows/<id> \
   -H "Authorization: Bearer $KITEFRAME_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "title": "Updated title", "nodes": [...], "edges": [...] }'
+  -d '{ "data": { "title": "Updated title", "nodes": [...], "edges": [...] } }'
 ```
 
-Response: `{ "id": "<uuid>", "diagram_url": "...", "expires_at": "<iso8601>" }`
+Response: `{ "id": "<uuid>", "url": "...", "expires_at": "<iso8601>" }`
 
 The PATCH replaces the entire nodes/edges set. Validate against the same
 schema as POST before sending.
@@ -116,22 +116,67 @@ and use the in-memory `id` directly.
 
 ---
 
+## API reference
+
+### Base URL pattern
+
+```
+/api/external/:entityType
+```
+
+Supported entity types: `workflows`, `designs`
+
+### Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/external/:entityType/prompt-template` | API key | Get system prompt + schema |
+| `POST` | `/api/external/:entityType` | API key | Create a new entity |
+| `GET` | `/api/external/:entityType/:id` | API key | Fetch entity (ownership-gated) |
+| `PATCH` | `/api/external/:entityType/:id` | API key | Update entity (ownership-gated) |
+
+### Request body shape
+
+All POST and PATCH requests wrap the entity payload in a `data` field:
+
+```json
+{
+  "data": {
+    "title": "...",
+    "nodes": [...],
+    "edges": [...]
+  }
+}
+```
+
+### Response shape
+
+```json
+{
+  "id": "<uuid>",
+  "url": "https://kiteframe.space/workflows/<uuid>",
+  "expires_at": "2026-07-13T20:00:00.000Z"
+}
+```
+
+---
+
 ## Error handling
 
 | Status | Meaning | What to do |
 |--------|---------|------------|
+| `400`  | Missing `data` field in body | Wrap payload in `{ "data": {...} }` |
 | `401`  | Invalid or missing API key | Check `KITEFRAME_API_KEY` |
-| `403`  | Your key didn't create this workflow | You cannot read or modify it; create a new workflow instead |
-| `404`  | Workflow not found or expired | The workflow was deleted (24h TTL); create a new one |
-| `422`  | Schema validation failed | Fix the nodes/edges shape; re-fetch the prompt template |
+| `403`  | Your key didn't create this entity | You cannot read or modify it; create a new one |
+| `404`  | Entity not found or expired | The entity was deleted (24h TTL); create a new one |
+| `422`  | Schema validation failed | Fix the payload shape; re-fetch the prompt template |
 | `429`  | Rate limited | Wait 60 s then retry |
 | `5xx`  | Server error | Retry once; if it persists, report to the user |
 
 ### 403 handling
 
-A `403` means the workflow was created by a **different API key**. This can
-happen when a user shares a URL from a session that used a different key. You
-cannot resume or update that workflow. Tell the user:
+A `403` means the entity was created by a **different API key**. You
+cannot resume or update it. Tell the user:
 
 > "I can view the diagram at the URL, but I can't modify it because it was
 > created by a different API key. I can create a new workflow based on the
@@ -139,7 +184,7 @@ cannot resume or update that workflow. Tell the user:
 
 ### 404 handling
 
-A `404` means the workflow has **expired** (>24 h old) or the ID is wrong.
+A `404` means the entity has **expired** (>24 h old) or the ID is wrong.
 Tell the user:
 
 > "The workflow has expired — external workflows are automatically deleted

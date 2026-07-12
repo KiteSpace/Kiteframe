@@ -67,7 +67,7 @@ export default function ExternalWorkflowViewer() {
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
 
   const { data, isLoading, error } = useQuery<ExternalWorkflowData>({
-    queryKey: ['/api/public/workflows', id],
+    queryKey: ['/api/public/entities/workflows', id],
     enabled: !!id,
     refetchOnWindowFocus: false,
   });
