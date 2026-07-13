@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, type ReactNode } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { Trash2, MousePointer2 } from "lucide-react";
 import {
@@ -14,12 +14,13 @@ import {
 // ─── SaveWatcher ─────────────────────────────────────────────────────────────
 
 function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
-  const { query, subscribe } = useEditor(() => ({}));
+  const { query, store } = useEditor(() => ({}));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedOnce = useRef(false);
 
   useEffect(() => {
-    const unsub = subscribe(() => {
+    // craft.js exposes a redux-like store — subscribe to all state changes
+    const unsub = (store as unknown as { subscribe: (cb: () => void) => () => void }).subscribe(() => {
       if (!savedOnce.current) { savedOnce.current = true; return; }
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
@@ -27,7 +28,7 @@ function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
       }, 800);
     });
     return () => { unsub(); if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [query, subscribe, onSave]);
+  }, [query, store, onSave]);
 
   return null;
 }
@@ -67,7 +68,7 @@ function Toolbox() {
 
 // ─── Settings panel helpers ────────────────────────────────────────────────────
 
-function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
+function PropRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</label>
