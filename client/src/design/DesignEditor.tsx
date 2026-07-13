@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import {
@@ -25,6 +25,58 @@ import {
   AstryxIcon,
   createEmptyCraftState,
 } from "./resolver";
+import {
+  AstryxButton as AstryxButtonBase,
+  AstryxCard as AstryxCardBase,
+  AstryxText as AstryxTextBase,
+  AstryxHeading as AstryxHeadingBase,
+  AstryxTextInput as AstryxTextInputBase,
+  AstryxBadge as AstryxBadgeBase,
+  AstryxAvatar as AstryxAvatarBase,
+  AstryxSpinner as AstryxSpinnerBase,
+  AstryxDivider as AstryxDividerBase,
+  AstryxProgressBar as AstryxProgressBarBase,
+  AstryxStatusDot as AstryxStatusDotBase,
+  AstryxSkeleton as AstryxSkeletonBase,
+  AstryxBanner as AstryxBannerBase,
+  AstryxEmptyState as AstryxEmptyStateBase,
+  AstryxChatMessage as AstryxChatMessageBase,
+  AstryxToken as AstryxTokenBase,
+  AstryxIcon as AstryxIconBase,
+} from "@/components/astryx";
+
+// ─── Preview error boundary ────────────────────────────────────────────────────
+
+class PreviewErrorBoundary extends Component<{ name: string; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(_e: Error, _i: ErrorInfo) { /* silent */ }
+  render() {
+    if (this.state.failed) {
+      return (
+        <span className="text-[9px] text-muted-foreground/60 italic">{this.props.name}</span>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── Preview thumbnail wrapper ────────────────────────────────────────────────
+
+function PreviewThumbnail({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <PreviewErrorBoundary name={name}>
+      <div
+        className="w-full h-10 overflow-hidden flex items-center justify-center bg-muted/30 rounded-sm mb-1.5"
+        style={{ pointerEvents: "none", userSelect: "none" }}
+      >
+        <div style={{ transform: "scale(0.65)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {children}
+        </div>
+      </div>
+    </PreviewErrorBoundary>
+  );
+}
 
 // ─── SaveWatcher ──────────────────────────────────────────────────────────────
 
@@ -53,6 +105,7 @@ interface ToolboxItem {
   name: string;
   description: string;
   getElement: () => JSX.Element;
+  preview: JSX.Element;
 }
 
 interface ToolboxCategory {
@@ -64,51 +117,164 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
   {
     name: "Layout",
     items: [
-      { name: "Section",  description: "Flex container",     getElement: () => <AstryxSection direction="column" gap={16} padding={16} /> },
-      { name: "Stack",    description: "Vertical stack",     getElement: () => <AstryxStack gap={8} /> },
-      { name: "HStack",   description: "Horizontal stack",   getElement: () => <AstryxHStack gap={8} /> },
+      {
+        name: "Section",  description: "Flex container",
+        getElement: () => <AstryxSection direction="column" gap={16} padding={16} />,
+        preview: (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 110, padding: 6, border: "1px dashed #d1d5db", borderRadius: 6, background: "#f9fafb" }}>
+            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
+          </div>
+        ),
+      },
+      {
+        name: "Stack",    description: "Vertical stack",
+        getElement: () => <AstryxStack gap={8} />,
+        preview: (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 80 }}>
+            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
+          </div>
+        ),
+      },
+      {
+        name: "HStack",   description: "Horizontal stack",
+        getElement: () => <AstryxHStack gap={8} />,
+        preview: (
+          <div style={{ display: "flex", flexDirection: "row", gap: 4, alignItems: "center" }}>
+            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
+          </div>
+        ),
+      },
     ],
   },
   {
     name: "Typography",
     items: [
-      { name: "Heading",  description: "Bold heading",       getElement: () => <AstryxHeading size="lg">Heading</AstryxHeading> },
-      { name: "Text",     description: "Body copy",          getElement: () => <AstryxText size="md">Text</AstryxText> },
+      {
+        name: "Heading",  description: "Bold heading",
+        getElement: () => <AstryxHeading size="lg">Heading</AstryxHeading>,
+        preview: <AstryxHeadingBase size="lg">Heading</AstryxHeadingBase>,
+      },
+      {
+        name: "Text",     description: "Body copy",
+        getElement: () => <AstryxText size="md">Text</AstryxText>,
+        preview: <AstryxTextBase size="md">Sample text</AstryxTextBase>,
+      },
     ],
   },
   {
     name: "Controls",
     items: [
-      { name: "Button",    description: "Action button",     getElement: () => <AstryxButton variant="primary" size="md">Button</AstryxButton> },
-      { name: "TextInput", description: "Input field",       getElement: () => <AstryxTextInput placeholder="Enter text…" /> },
+      {
+        name: "Button",    description: "Action button",
+        getElement: () => <AstryxButton variant="primary" size="md">Button</AstryxButton>,
+        preview: <AstryxButtonBase variant="primary" size="md">Button</AstryxButtonBase>,
+      },
+      {
+        name: "TextInput", description: "Input field",
+        getElement: () => <AstryxTextInput placeholder="Enter text…" />,
+        preview: <AstryxTextInputBase placeholder="Enter text…" />,
+      },
     ],
   },
   {
     name: "Display",
     items: [
-      { name: "Card",        description: "Elevated box",    getElement: () => <AstryxCard variant="elevated" /> },
-      { name: "Badge",       description: "Colour label",    getElement: () => <AstryxBadge color="blue">Badge</AstryxBadge> },
-      { name: "Avatar",      description: "User avatar",     getElement: () => <AstryxAvatar name="AB" size="md" /> },
-      { name: "ProgressBar", description: "Progress bar",    getElement: () => <AstryxProgressBar value={50} color="blue" /> },
-      { name: "StatusDot",   description: "Status indicator",getElement: () => <AstryxStatusDot status="online" /> },
-      { name: "Skeleton",    description: "Loading skeleton",getElement: () => <AstryxSkeleton width={120} height={16} /> },
+      {
+        name: "Card",        description: "Elevated box",
+        getElement: () => <AstryxCard variant="elevated" />,
+        preview: (
+          <div style={{ width: 100, padding: "8px 10px", background: "#fff", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.12)", border: "1px solid #f3f4f6" }}>
+            <div style={{ height: 7, width: "70%", background: "#e5e7eb", borderRadius: 3, marginBottom: 5 }} />
+            <div style={{ height: 5, width: "90%", background: "#f3f4f6", borderRadius: 3 }} />
+          </div>
+        ),
+      },
+      {
+        name: "Badge",       description: "Colour label",
+        getElement: () => <AstryxBadge color="blue">Badge</AstryxBadge>,
+        preview: <AstryxBadgeBase color="blue">Badge</AstryxBadgeBase>,
+      },
+      {
+        name: "Avatar",      description: "User avatar",
+        getElement: () => <AstryxAvatar name="AB" size="md" />,
+        preview: <AstryxAvatarBase name="AB" size="md" />,
+      },
+      {
+        name: "ProgressBar", description: "Progress bar",
+        getElement: () => <AstryxProgressBar value={50} color="blue" />,
+        preview: <AstryxProgressBarBase value={60} color="blue" />,
+      },
+      {
+        name: "StatusDot",   description: "Status indicator",
+        getElement: () => <AstryxStatusDot status="online" />,
+        preview: (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <AstryxStatusDotBase status="online" />
+            <span style={{ fontSize: 11, color: "#6b7280" }}>Online</span>
+          </div>
+        ),
+      },
+      {
+        name: "Skeleton",    description: "Loading skeleton",
+        getElement: () => <AstryxSkeleton width={120} height={16} />,
+        preview: (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <AstryxSkeletonBase width={90} height={10} />
+            <AstryxSkeletonBase width={60} height={10} />
+          </div>
+        ),
+      },
     ],
   },
   {
     name: "Feedback",
     items: [
-      { name: "Banner",     description: "Alert banner",     getElement: () => <AstryxBanner variant="info">Message</AstryxBanner> },
-      { name: "Spinner",    description: "Loading spinner",  getElement: () => <AstryxSpinner size="md" /> },
-      { name: "EmptyState", description: "Empty state",      getElement: () => <AstryxEmptyState title="Nothing here" /> },
+      {
+        name: "Banner",     description: "Alert banner",
+        getElement: () => <AstryxBanner variant="info">Message</AstryxBanner>,
+        preview: <AstryxBannerBase variant="info">Info banner</AstryxBannerBase>,
+      },
+      {
+        name: "Spinner",    description: "Loading spinner",
+        getElement: () => <AstryxSpinner size="md" />,
+        preview: <AstryxSpinnerBase size="md" />,
+      },
+      {
+        name: "EmptyState", description: "Empty state",
+        getElement: () => <AstryxEmptyState title="Nothing here" />,
+        preview: <AstryxEmptyStateBase title="Nothing here" />,
+      },
     ],
   },
   {
     name: "Content",
     items: [
-      { name: "Divider",     description: "Horizontal rule", getElement: () => <AstryxDivider /> },
-      { name: "ChatMessage", description: "Chat bubble",     getElement: () => <AstryxChatMessage sender="User">Hello!</AstryxChatMessage> },
-      { name: "Token",       description: "Tag / chip",      getElement: () => <AstryxToken>Tag</AstryxToken> },
-      { name: "Icon",        description: "Icon placeholder",getElement: () => <AstryxIcon size="md" /> },
+      {
+        name: "Divider",     description: "Horizontal rule",
+        getElement: () => <AstryxDivider />,
+        preview: <AstryxDividerBase />,
+      },
+      {
+        name: "ChatMessage", description: "Chat bubble",
+        getElement: () => <AstryxChatMessage sender="User">Hello!</AstryxChatMessage>,
+        preview: <AstryxChatMessageBase sender="User">Hello!</AstryxChatMessageBase>,
+      },
+      {
+        name: "Token",       description: "Tag / chip",
+        getElement: () => <AstryxToken>Tag</AstryxToken>,
+        preview: <AstryxTokenBase>Tag</AstryxTokenBase>,
+      },
+      {
+        name: "Icon",        description: "Icon placeholder",
+        getElement: () => <AstryxIcon size="md" />,
+        preview: <AstryxIconBase size="md" />,
+      },
     ],
   },
 ];
@@ -119,8 +285,11 @@ function DraggableItem({ item, connectors }: { item: ToolboxItem; connectors: an
   return (
     <div
       ref={(ref) => { if (ref) connectors.create(ref, item.getElement()); }}
-      className="flex flex-col px-2.5 py-2 rounded-md border border-border bg-background cursor-grab active:cursor-grabbing hover:border-primary/60 hover:bg-primary/5 transition-colors select-none"
+      className="flex flex-col px-2 pt-2 pb-1.5 rounded-md border border-border bg-background cursor-grab active:cursor-grabbing hover:border-primary/60 hover:bg-primary/5 transition-colors select-none"
     >
+      <PreviewThumbnail name={item.name}>
+        {item.preview}
+      </PreviewThumbnail>
       <span className="font-medium text-foreground text-[11px] leading-tight">{item.name}</span>
       <span className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{item.description}</span>
     </div>
