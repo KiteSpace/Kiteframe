@@ -1,0 +1,350 @@
+# Kiteframe Design Canvas — craft.js + Astryx Implementation Guide
+
+## Context and goal
+
+Replace the current throwaway design pipeline (flat JSON spec →
+read-only `DesignCanvasViewer`) with a real, composable UI builder:
+
+- **Engine**: `craft.js` — a separate engine from `WorkflowCanvas`. No
+  shared code path, no regression risk to the existing workflow product.
+- **Component palette**: the existing Astryx component set
+  (`AstryxCard`, `AstryxButton`, etc.) — reused, not rewritten.
+- **Editability model**: one canvas, one renderer. A single
+  `claimed_by_user_id` field controls whether craft.js's built-in
+  `enabled` flag is on or off. Skill-generated (unclaimed) designs
+  render read-only; claiming a design into a user's account makes the
+  identical component tree editable. No separate viewer component.
+- **Generation sources**: both a human (dragging on the canvas) and the
+  AI (via the Claude Code skill) produce the same data shape —
+  craft.js's serialized JSON. No intermediate format.
+
+This is a genuinely separate product surface from workflows, unified
+only at the ownership/claim layer, not at the rendering layer.
+
+---
+
+## Phase 0 — Decisions to lock before starting
+
+Confirm these with Replit before any code lands, since they affect
+schema and scope:
+
+1. **New `designs` table**, separate from `saved_projects`/
+   `external_entities` — recommended, since designs and workflows are
+   now explicitly different products with different data shapes.
+2. **Starter component scope**: build against 4-5 Astryx components
+   first (`Card`, `Button`, `Text`, `Input`, `Section`/container), not
+   the full 20-type registry. Expand once the loop is proven.
+3. **Old pipeline**: `DesignCanvasViewer` and the flat `astryxComponent`/
+   `x`/`y` JSON format are deprecated once this ships — not maintained
+   in parallel. Existing records generated under the old format won't
+   be automatically migrated (see Phase 5 for what to do with them).
+
+---
+
+## Phase 1 — Schema
+
+```sql
+create table designs (
+  id uuid primary key default gen_random_uuid(),
+  claimed_by_user_id uuid references users(id),   -- null = unclaimed
+  source text not null default 'native',           -- 'native' | 'skill'
+  api_key_id uuid references external_api_keys(id), -- set only if source = 'skill'
+  craft_state jsonb not null,                       -- craft.js serialized tree, single source of truth
+  title text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index designs_claimed_by_user_id_idx on designs (claimed_by_user_id);
+```
+
+Notes:
+- `craft_state` is the *only* representation of the design — no
+  duplicate JSON format to keep in sync.
+- `source` + `api_key_id` preserve provenance (useful later for
+  analytics on skill usage, and for the retention/cleanup policy from
+  earlier in this project).
+- `claimed_by_user_id` is the single field the whole editability model
+  hinges on.
+
+---
+
+## Phase 2 — Install and configure craft.js
+
+```bash
+npm install @craftjs/core @craftjs/layers
+```
+
+Create the editor shell:
+
+```tsx
+// client/src/design/DesignEditor.tsx
+import { Editor, Frame, Element } from '@craftjs/core';
+import { resolver } from './resolver';
+
+interface DesignEditorProps {
+  craftState: string;      // serialized JSON from the `designs` row
+  editable: boolean;       // = !!design.claimed_by_user_id && isOwner
+}
+
+export function DesignEditor({ craftState, editable }: DesignEditorProps) {
+  return (
+    <Editor resolver={resolver} enabled={editable}>
+      <Frame data={craftState}>
+        {/* root container -- craft.js hydrates the tree from craftState */}
+      </Frame>
+    </Editor>
+  );
+}
+```
+
+This single component serves both the "skill-generated, read-only"
+case and the "claimed, editable" case — `editable` is the only branch.
+
+---
+
+## Phase 3 — Wrap existing Astryx components as craft.js nodes
+
+Do this for the Phase-0-scoped starter set only (Card, Button, Text,
+Input, Section). Each existing component gets a thin wrapper — the
+component implementation itself is untouched.
+
+```tsx
+// client/src/design/resolver.tsx
+import { useNode } from '@craftjs/core';
+import { AstryxCard, AstryxButton, AstryxText, AstryxInput, AstryxSection } from '@/components/astryx';
+
+function withCraftNode(Component, displayName, defaultProps) {
+  function Wrapped({ children, ...props }) {
+    const { connectors: { connect, drag } } = useNode();
+    return (
+      <div ref={(ref) => ref && connect(drag(ref))}>
+        <Component {...props}>{children}</Component>
+      </div>
+    );
+  }
+  Wrapped.craft = {
+    displayName,
+    props: defaultProps,
+    rules: {
+      // Section accepts children (container); leaf components don't
+      canMoveIn: () => displayName === 'AstryxSection',
+    },
+  };
+  return Wrapped;
+}
+
+export const CraftAstryxCard = withCraftNode(AstryxCard, 'AstryxCard', { title: '', body: '' });
+export const CraftAstryxButton = withCraftNode(AstryxButton, 'AstryxButton', { label: 'Button' });
+export const CraftAstryxText = withCraftNode(AstryxText, 'AstryxText', { content: '' });
+export const CraftAstryxInput = withCraftNode(AstryxInput, 'AstryxInput', { placeholder: '' });
+export const CraftAstryxSection = withCraftNode(AstryxSection, 'AstryxSection', {});
+
+export const resolver = {
+  AstryxCard: CraftAstryxCard,
+  AstryxButton: CraftAstryxButton,
+  AstryxText: CraftAstryxText,
+  AstryxInput: CraftAstryxInput,
+  AstryxSection: CraftAstryxSection,
+};
+```
+
+**Validation step before moving on:** manually build a small tree in
+the editor (drag a Section, drop a Card and Button into it), call
+`editor.query.serialize()`, confirm the JSON shape, then
+`deserialize()` it back and confirm it re-renders identically. This
+round-trip is the core mechanic everything else depends on — don't
+proceed to Phase 4 until this works cleanly.
+
+---
+
+## Phase 4 — Routes: create, fetch, update, claim
+
+```ts
+// POST /api/designs  -- create a new design (native authoring, from the in-app "+" flow)
+router.post('/', requireAuth, async (req, res) => {
+  const { craft_state, title } = req.body;
+  const [design] = await db.insert(designs).values({
+    claimed_by_user_id: req.user.id,
+    source: 'native',
+    craft_state,
+    title,
+  }).returning();
+  res.json(design);
+});
+
+// PATCH /api/designs/:id  -- save edits (native authoring only, must be owner)
+router.patch('/:id', requireAuth, async (req, res) => {
+  const { craft_state } = req.body;
+  const [existing] = await db.select().from(designs).where(eq(designs.id, req.params.id));
+  if (!existing) return res.status(404).json({ error: 'Design not found' });
+  if (existing.claimed_by_user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Not authorized to edit this design' });
+  }
+  const [updated] = await db.update(designs)
+    .set({ craft_state, updated_at: new Date() })
+    .where(eq(designs.id, req.params.id))
+    .returning();
+  res.json(updated);
+});
+
+// GET /api/designs/:id  -- fetch for viewing (public, works whether claimed or not)
+router.get('/:id', async (req, res) => {
+  const [design] = await db.select().from(designs).where(eq(designs.id, req.params.id));
+  if (!design) return res.status(404).json({ error: 'Design not found' });
+  res.json(design);
+});
+
+// POST /api/designs/:id/claim  -- attach an unclaimed (skill-generated) design to the logged-in user
+router.post('/:id/claim', requireAuth, async (req, res) => {
+  const [design] = await db.select().from(designs).where(eq(designs.id, req.params.id));
+  if (!design) return res.status(404).json({ error: 'Design not found' });
+  if (design.claimed_by_user_id) {
+    return res.status(409).json({ error: 'Design is already claimed' });
+  }
+  const [claimed] = await db.update(designs)
+    .set({ claimed_by_user_id: req.user.id })
+    .where(eq(designs.id, req.params.id))
+    .returning();
+  res.json(claimed);
+});
+```
+
+External (skill-facing) creation route, parallel to the workflow one
+already built:
+
+```ts
+// POST /api/external/designs  -- skill-generated design, no owner yet
+router.post('/', requireApiKey, externalApiLimiter, async (req, res) => {
+  const { craft_state, title } = req.body;
+  // validate craft_state shape here -- see Phase 6
+  const [design] = await db.insert(designs).values({
+    claimed_by_user_id: null,
+    source: 'skill',
+    api_key_id: req.apiKey.id,
+    craft_state,
+    title,
+  }).returning();
+  res.json({ id: design.id, view_url: `${PUBLIC_APP_URL}/designs/${design.id}` });
+});
+```
+
+---
+
+## Phase 5 — Frontend: viewing and claiming
+
+- `/designs/:id` page: fetches the design, renders `<DesignEditor
+  craftState={design.craft_state} editable={isOwnerAndLoggedIn}
+  />`. If unclaimed (or claimed by someone else), renders with
+  `editable={false}` and shows a "Save to my account" button that
+  calls the claim route.
+- After claiming, redirect/refresh so the same page now renders with
+  `editable={true}` — same component, no page change needed beyond
+  re-fetching the (now-claimed) record.
+
+**Old-pipeline cleanup:** once this ships, decide what happens to
+existing rows created under the old `external_entities`/`saved_projects`
+flat-JSON format:
+- Simplest: leave them as-is, read-only, served by the old
+  `DesignCanvasViewer` component indefinitely (it still works for what
+  it is, just isn't the path for new designs).
+- Cleaner: write a one-time migration script that converts old flat
+  `{astryxComponent, x, y, props}` records into an equivalent flat
+  (non-nested) craft.js tree, so old links keep working through the new
+  `DesignEditor` too. Not required for launch — worth doing only if
+  there are enough old records worth preserving.
+
+---
+
+## Phase 6 — AI generation: target craft.js's format directly
+
+This is the piece that changes most from the old approach. The system
+prompt needs to produce craft.js's actual serialized shape — a flat
+map of node IDs to `{ type, props, parent, nodes (children) }` — not
+the old `{astryxComponent, x, y, props}` list.
+
+```js
+// lib/designPrompt.js
+const DESIGN_SYSTEM_PROMPT = `
+You are generating a UI design as a craft.js component tree for
+Kiteframe's design canvas. Available component types: AstryxCard,
+AstryxButton, AstryxText, AstryxInput, AstryxSection. AstryxSection is
+the only container type -- components must be nested inside a Section
+via the "nodes" array, not given raw x/y coordinates. Output a flat
+map keyed by node id, where "ROOT" is always the top-level Section.
+Each node has: type, props (matching that component's expected
+fields), parent (the id of its containing node), and nodes (child
+node ids, in order). Do not invent component types outside the
+provided list. Do not include positioning coordinates -- layout is
+determined by nesting order and the Section's flex direction, not by
+pixel placement.
+`.trim();
+```
+
+Validate the output against a schema **before** insert — same pattern
+as the workflow skill's `ajv` validation:
+
+```js
+// lib/validateDesign.js
+// Confirm: ROOT exists, every node's "type" is in the allowed list,
+// every "parent" reference points to an existing node id, no cycles.
+```
+
+**Important scope note:** getting the model to reliably produce valid
+nested tree JSON (vs. the old flat list) is likely to take real
+iteration — plan for several rounds of prompt refinement and
+few-shot examples, the same way the workflow skill's prompt needed
+tuning. Don't expect first-pass output to be clean; build the
+validation step expecting to catch and reject bad output early rather
+than assuming the model gets the tree structure right immediately.
+
+---
+
+## Phase 7 — Claude Code skill changes (parallel to workflow skill)
+
+If/when a design-generation skill is built (separate from the existing
+workflow-brainstorm skill), it follows the same fetch-template →
+reason → validate → submit pattern already proven for workflows:
+
+1. `GET /api/external/designs/prompt-template` -> returns
+   `DESIGN_SYSTEM_PROMPT`, the output schema, few-shot examples
+2. Claude reasons through the requested UI and drafts the tree JSON
+3. Local validation against the schema before submitting
+4. `POST /api/external/designs` -> returns `id` + `view_url`
+
+This is a new skill, not an extension of `kiteframe-brainstorm` — a
+different artifact type (UI layout vs. workflow diagram), same
+architecture pattern reused.
+
+---
+
+## Suggested build order (sequential, each step testable before the next)
+
+1. Schema: `designs` table (Phase 1)
+2. craft.js installed, `DesignEditor` shell renders an empty `Frame` (Phase 2)
+3. Wrap the 5 starter Astryx components as craft nodes (Phase 3)
+4. **Manual test**: build a tree by hand in the editor, verify
+   serialize/deserialize round-trips correctly — do not proceed until
+   this works
+5. Native create/save routes (`POST`/`PATCH /api/designs`) wired to a
+   real "New Design" flow in the app (Phase 4, native half)
+6. **Manual test**: create a design natively, reload the page, confirm
+   it re-hydrates correctly from the DB
+7. External create route + claim route (Phase 4, skill half)
+8. `/designs/:id` public view page with claim button (Phase 5)
+9. **Manual test**: hit the external route directly with a hand-crafted
+   valid tree JSON (via curl, like the workflow API test earlier),
+   confirm it renders read-only, then claim it and confirm it becomes
+   editable
+10. AI prompt + schema targeting the real tree format (Phase 6)
+11. **Manual test**: generate via the prompt template a few times, check
+    how often output validates cleanly vs. needs prompt iteration
+12. Design-generation Claude Code skill, mirroring the workflow skill's
+    structure (Phase 7)
+13. Decide on old-pipeline cleanup (Phase 5 note) — low priority, can
+    trail behind everything else
+
+Steps 1-9 get you a working, editable, claimable design canvas with
+zero AI involvement — worth treating that as a complete milestone on
+its own before touching the generation side in step 10 onward, since
+it's the harder and more foundational half of this work.

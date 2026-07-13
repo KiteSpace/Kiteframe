@@ -1,0 +1,16 @@
+On what's actually generating this output
+
+When I select "Design" and it generates a UI, what's the actual pipeline — is a model generating React/JSX code directly, or is it generating a structured JSON spec that then gets rendered by a canvas engine?
+Is the "Card content" text hardcoded placeholder from a component template/scaffold that's supposed to be overwritten with real content, and if so, why is it still rendering underneath the generated content instead of being replaced?
+Is this the Astryx/StyleX-based UI Design file feature we scoped, or is this output coming from a different/older code path that predates that work?
+
+On the canvas/editing surface
+4. Is there a UI-builder-specific canvas component that exists in the codebase at all yet, or does "select Design" currently just route to the same workflow canvas component with different generated content dropped into it?
+5. If the UI canvas doesn't exist yet as its own component, what's actually different between clicking "Design" vs the default workflow project today — is it purely the AI prompt/system message that changes, with everything downstream (canvas, rendering, interactions) identical?
+6. What was actually built so far against the original Astryx/StyleX spec — is it just the prompt/generation side, or did any canvas/editor work happen, or neither?
+On the layout/positioning bug specifically
+7. Are generated components being positioned with explicit x/y coordinates (absolute positioning) rather than a layout system (flex/grid), and is that why cards overlap instead of stacking?
+8. Is there any collision detection or auto-layout pass after generation, or does the model's output get rendered exactly as generated with no post-processing?
+On project/state model
+9. Is "Design" currently a distinct project type in the schema (with its own data model), or is it the same workflow project type with a flag/tag that doesn't actually branch any logic yet?
+10. What's the gap between the current state and "user can drag/resize/edit these generated components on a real canvas" — is that entirely unbuilt, partially built, or built but not wired to this generation flow?
