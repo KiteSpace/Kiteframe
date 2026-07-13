@@ -33,16 +33,45 @@ RULES:
 - All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
-- The 5 supported resolvedName values: AstryxSection, AstryxCard, AstryxButton, AstryxText, AstryxTextInput.
-- AstryxSection is the ONLY container (isCanvas=true). All others are leaves (isCanvas=false, nodes=[]).
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
+- LEAVES (isCanvas=false, nodes=[]): all other 17 components.
+- Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
+- Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
 
 COMPONENT QUICK-REFERENCE:
-- AstryxSection: flex container, props: { direction: "row"|"column", gap: number, padding: number }
-- AstryxCard: elevated box, props: { variant: "elevated"|"outlined"|"ghost" }
-- AstryxButton: action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg" }
-- AstryxText: body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
-- AstryxTextInput: input field, props: { placeholder: string, label: string }`;
+
+— CONTAINERS —
+- AstryxSection: top-level flex container, props: { direction: "row"|"column", gap: number, padding: number }
+- AstryxStack:   vertical stack, props: { gap: number }
+- AstryxHStack:  horizontal row, props: { gap: number, align: "start"|"center"|"end" }
+
+— TYPOGRAPHY —
+- AstryxHeading: title/headline, props: { children: string, size: "sm"|"md"|"lg"|"xl"|"2xl" }
+- AstryxText:    body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
+
+— INPUTS & ACTIONS —
+- AstryxButton:    action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
+- AstryxTextInput: text field, props: { placeholder: string, label: string, disabled: boolean }
+
+— STATUS & FEEDBACK —
+- AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
+- AstryxBanner:      alert bar, props: { children: string, variant: "info"|"success"|"warning"|"error" }
+- AstryxProgressBar: progress track, props: { value: number (0-100), color: "blue"|"green"|"amber"|"red" }
+- AstryxStatusDot:   presence dot, props: { status: "online"|"offline"|"busy"|"away" }
+- AstryxSpinner:     loading spinner, props: { size: "sm"|"md"|"lg" }
+- AstryxSkeleton:    loading placeholder, props: { width: number, height: number }
+
+— MEDIA & IDENTITY —
+- AstryxAvatar: user avatar, props: { name: string, src: string (optional), size: "xs"|"sm"|"md"|"lg" }
+- AstryxIcon:   icon glyph, props: { name: string, size: "sm"|"md"|"lg" }
+
+— CONTENT —
+- AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost" }
+- AstryxChatMessage: chat bubble, props: { children: string, sender: string, timestamp: string (optional), isOwn: boolean }
+- AstryxEmptyState:  empty placeholder, props: { title: string, description: string (optional), action: string (optional) }
+- AstryxToken:       removable tag chip, props: { children: string }
+- AstryxDivider:     horizontal rule, props: { label: string (optional) }`;
 
 // ─── craft.js types ────────────────────────────────────────────────────────────
 
