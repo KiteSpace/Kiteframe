@@ -40,6 +40,7 @@ import {
   externalApiKeys,
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
+import { validateCraftState } from "./lib/designSchema";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -6820,6 +6821,108 @@ jane@example.com,Jane,Smith,pro,GroupC
     } catch (err) {
       console.error('[designs/generate] Failed to create design entity:', err);
       res.status(500).json({ error: 'Failed to save design.' });
+    }
+  });
+
+  // ─── Designs — craft.js canvas ──────────────────────────────────────────────
+  // Empty craft state used for blank-canvas creates
+  const EMPTY_CRAFT_STATE = {
+    ROOT: {
+      type: { resolvedName: "AstryxSection" },
+      isCanvas: true,
+      props: { direction: "column", gap: 16, padding: 16 },
+      displayName: "AstryxSection",
+      custom: {},
+      parent: null,
+      hidden: false,
+      nodes: [],
+      linkedNodes: {},
+    },
+  };
+
+  // POST /api/designs — create a new craft.js design (auth required)
+  app.post('/api/designs', isAuthenticated, projectRateLimiter, async (req: any, res) => {
+    try {
+      const userId = req.user?.id as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const { craftState, title, source } = req.body ?? {};
+      let state: unknown = craftState ?? EMPTY_CRAFT_STATE;
+      if (typeof state === 'string') {
+        try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
+      }
+      const { valid, errors } = validateCraftState(state);
+      if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
+      const design = await storage.createDesign({
+        claimedByUserId: userId,
+        source: typeof source === 'string' ? source : 'native',
+        craftState: state as any,
+        title: typeof title === 'string' ? title : null,
+      });
+      res.status(201).json({ id: design.id, url: `/designs/${design.id}` });
+    } catch (err) {
+      console.error('[designs] POST failed:', err);
+      res.status(500).json({ error: 'Failed to create design.' });
+    }
+  });
+
+  // GET /api/designs/:id — fetch a design (public)
+  app.get('/api/designs/:designId', async (req, res) => {
+    try {
+      const design = await storage.getDesign(req.params.designId);
+      if (!design) return res.status(404).json({ error: 'Design not found.' });
+      res.json(design);
+    } catch (err) {
+      console.error('[designs] GET failed:', err);
+      res.status(500).json({ error: 'Failed to fetch design.' });
+    }
+  });
+
+  // PATCH /api/designs/:id — update craft state / title (auth + ownership required)
+  app.patch('/api/designs/:designId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id as string | undefined;
+      const design = await storage.getDesign(req.params.designId);
+      if (!design) return res.status(404).json({ error: 'Design not found.' });
+      if (design.claimedByUserId && design.claimedByUserId !== userId) {
+        return res.status(403).json({ error: 'You do not own this design.' });
+      }
+      const { craftState, title } = req.body ?? {};
+      const payload: { craftState?: unknown; title?: string | null } = {};
+      if (craftState !== undefined) {
+        let state: unknown = craftState;
+        if (typeof state === 'string') {
+          try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
+        }
+        const { valid, errors } = validateCraftState(state);
+        if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
+        payload.craftState = state;
+      }
+      if (title !== undefined) payload.title = typeof title === 'string' ? title : null;
+      const updated = await storage.updateDesign(req.params.designId, payload as any);
+      res.json(updated);
+    } catch (err) {
+      console.error('[designs] PATCH failed:', err);
+      res.status(500).json({ error: 'Failed to update design.' });
+    }
+  });
+
+  // POST /api/designs/:id/claim — claim an unclaimed design (auth required)
+  app.post('/api/designs/:designId/claim', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const design = await storage.getDesign(req.params.designId);
+      if (!design) return res.status(404).json({ error: 'Design not found.' });
+      if (design.claimedByUserId === userId) return res.json(design); // idempotent
+      if (design.claimedByUserId && design.claimedByUserId !== userId) {
+        return res.status(409).json({ error: 'This design has already been claimed.' });
+      }
+      const claimed = await storage.claimDesign(req.params.designId, userId);
+      if (!claimed) return res.status(409).json({ error: 'Design was claimed by another user.' });
+      res.json(claimed);
+    } catch (err) {
+      console.error('[designs] claim failed:', err);
+      res.status(500).json({ error: 'Failed to claim design.' });
     }
   });
 

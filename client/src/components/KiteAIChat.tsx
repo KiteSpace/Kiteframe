@@ -28,7 +28,7 @@ import {
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { ChatSendButton, ChatMessageList } from '@/components/chat';
 import { getRouter, extractJSON } from '@/ai/router';
-import { DESIGN_SYSTEM_PROMPT_CLIENT, isDesignJson } from '@/lib/designGeneration';
+import { DESIGN_SYSTEM_PROMPT_CLIENT, isCraftJsDesignState } from '@/lib/designGeneration';
 import { 
   MessageCircle, 
   Paperclip, 
@@ -1246,16 +1246,17 @@ export function KiteAIChatBrain({
         hasEdges: rawJson?.includes('"edges"') ?? false,
         responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
       });
-      // Design mode: detect design JSON and POST to /api/designs/generate
+      // Design mode: detect craft.js design state and POST to /api/designs
       const isDesignModeResponse = generationMode === 'design';
       if (isDesignModeResponse && rawJson) {
         try {
           const parsed = JSON.parse(rawJson);
-          if (isDesignJson(parsed)) {
-            const resp = await fetch('/api/designs/generate', {
+          if (isCraftJsDesignState(parsed)) {
+            const resp = await fetch('/api/designs', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: parsed }),
+              credentials: 'include',
+              body: JSON.stringify({ craftState: parsed, source: 'ai' }),
             });
             if (resp.ok) {
               const { id } = await resp.json();

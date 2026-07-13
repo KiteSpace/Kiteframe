@@ -1,5 +1,7 @@
 import Ajv, { type ValidateFunction } from "ajv";
 
+// ─── Legacy flat-JSON schema (external_entities, old /api/designs/generate) ──
+
 export const DESIGN_MAX_COMPONENTS = 150;
 
 export const designJsonSchema = {
@@ -49,6 +51,88 @@ export function validateExternalDesign(data: unknown): DesignValidationResult {
         }
         return `${path} ${e.message}`;
       });
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ─── craft.js state schema (new designs table) ────────────────────────────────
+// Allowed component resolvedName values — must stay in sync with client/src/design/resolver.tsx
+
+export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
+  "AstryxSection",
+  "AstryxCard",
+  "AstryxButton",
+  "AstryxText",
+  "AstryxTextInput",
+] as const;
+
+export const CRAFT_STATE_SCHEMA = {
+  $id: "craft-js-design-state",
+  type: "object",
+  minProperties: 1,
+  additionalProperties: {
+    type: "object",
+    required: ["type", "props", "parent", "nodes", "linkedNodes"],
+    properties: {
+      type: {
+        type: "object",
+        required: ["resolvedName"],
+        properties: {
+          resolvedName: {
+            type: "string",
+            enum: [...SERVER_ALLOWED_CRAFT_COMPONENTS],
+          },
+        },
+      },
+      isCanvas: { type: "boolean" },
+      props: { type: "object" },
+      displayName: { type: "string" },
+      custom: { type: "object" },
+      parent: { type: ["string", "null"] },
+      hidden: { type: "boolean" },
+      nodes: { type: "array", items: { type: "string" } },
+      linkedNodes: { type: "object" },
+    },
+  },
+} as const;
+
+const craftAjv = new Ajv({ allErrors: true, strict: false });
+const craftValidateFn: ValidateFunction = craftAjv.compile(CRAFT_STATE_SCHEMA as any);
+
+export function validateCraftState(data: unknown): DesignValidationResult {
+  if (!data || typeof data !== "object") {
+    return { valid: false, errors: ["craft_state must be an object"] };
+  }
+
+  const map = data as Record<string, any>;
+
+  if (!map["ROOT"]) {
+    return { valid: false, errors: ["craft_state must have a ROOT node"] };
+  }
+
+  const schemaValid = craftValidateFn(data);
+  const errors: string[] = schemaValid
+    ? []
+    : (craftValidateFn.errors || []).map((e) => {
+        const path = e.instancePath || "(root)";
+        return `${path} ${e.message}`;
+      });
+
+  // Additional cross-node reference integrity checks
+  const nodeIds = new Set(Object.keys(map));
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    if (nodeId !== "ROOT" && node.parent && !nodeIds.has(node.parent)) {
+      errors.push(`Node "${nodeId}" references non-existent parent: "${node.parent}"`);
+    }
+    if (Array.isArray(node.nodes)) {
+      for (const childId of node.nodes) {
+        if (!nodeIds.has(childId)) {
+          errors.push(`Node "${nodeId}" references non-existent child: "${childId}"`);
+        }
+      }
+    }
+  }
 
   return { valid: errors.length === 0, errors };
 }

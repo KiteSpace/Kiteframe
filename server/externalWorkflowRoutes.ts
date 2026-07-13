@@ -10,6 +10,7 @@ import {
   type UrlEntityType,
   type DbEntityType,
 } from "./lib/entitySchemas";
+import { validateCraftState } from "./lib/designSchema";
 import { getPublicAppUrl } from "./lib/publicAppUrl";
 
 function resolveType(urlType: string): DbEntityType | null {
@@ -59,6 +60,22 @@ export function registerExternalEntityRoutes(app: Express) {
         } catch (err: any) {
           return res.status(err.status || 500).json({ error: err.message });
         }
+        // For 'design' entity type, write to the new designs table (craft.js state) instead of external_entities
+        if (dbType === "design") {
+          const { valid: craftValid, errors: craftErrors } = validateCraftState(data);
+          if (!craftValid) {
+            return res.status(422).json({ error: "Entity failed schema validation.", details: craftErrors });
+          }
+          const design = await storage.createDesign({
+            source: "skill",
+            apiKeyId: req.apiKey!.id,
+            craftState: data as any,
+            title: typeof req.body.title === "string" ? req.body.title : null,
+          });
+          const entityUrl = `${getPublicAppUrl()}/designs/${design.id}`;
+          return res.status(201).json({ id: design.id, url: entityUrl });
+        }
+
         const { valid, errors } = validate(data);
         if (!valid) {
           return res.status(422).json({ error: "Entity failed schema validation.", details: errors });

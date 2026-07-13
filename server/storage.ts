@@ -18,6 +18,8 @@ import {
   type InsertExternalApiKey,
   type ExternalEntity,
   type InsertExternalEntity,
+  type Design,
+  type InsertDesign,
   users,
   savedProjects,
   projectFolders,
@@ -33,6 +35,7 @@ import {
   bannedEmails,
   externalApiKeys,
   externalEntities,
+  designs,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, inArray, isNotNull, sql, lt } from "drizzle-orm";
@@ -88,6 +91,11 @@ export interface IStorage {
   getExternalEntity(id: string, entityType?: string): Promise<ExternalEntity | undefined>;
   updateExternalEntity(id: string, entityType: string, data: { data: unknown }): Promise<ExternalEntity | undefined>;
   deleteExpiredExternalEntities(): Promise<number>;
+  // Designs — craft.js canvas designs
+  createDesign(data: InsertDesign): Promise<Design>;
+  getDesign(id: string): Promise<Design | undefined>;
+  updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined>;
+  claimDesign(id: string, userId: string): Promise<Design | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -580,6 +588,44 @@ export class DatabaseStorage implements IStorage {
       .where(lt(externalEntities.expiresAt, sql`now()`))
       .returning({ id: externalEntities.id });
     return result.length;
+  }
+
+  // Designs — craft.js canvas designs
+  async createDesign(data: InsertDesign): Promise<Design> {
+    const [row] = await db.insert(designs).values({
+      ...data,
+      craftState: typeof data.craftState === "string"
+        ? JSON.parse(data.craftState as string)
+        : data.craftState,
+    }).returning();
+    return row;
+  }
+
+  async getDesign(id: string): Promise<Design | undefined> {
+    const [row] = await db.select().from(designs).where(eq(designs.id, id)).limit(1);
+    return row;
+  }
+
+  async updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined> {
+    const payload: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.craftState !== undefined) {
+      payload.craftState = typeof data.craftState === "string"
+        ? JSON.parse(data.craftState as string)
+        : data.craftState;
+    }
+    if (data.title !== undefined) payload.title = data.title;
+    const [row] = await db.update(designs).set(payload).where(eq(designs.id, id)).returning();
+    return row;
+  }
+
+  async claimDesign(id: string, userId: string): Promise<Design | undefined> {
+    // Only claim if unclaimed — prevents overwriting an existing owner
+    const [row] = await db
+      .update(designs)
+      .set({ claimedByUserId: userId, updatedAt: new Date() })
+      .where(and(eq(designs.id, id), sql`claimed_by_user_id IS NULL`))
+      .returning();
+    return row;
   }
 }
 

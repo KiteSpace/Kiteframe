@@ -771,3 +771,29 @@ export const insertExternalEntitySchema = createInsertSchema(externalEntities).o
 
 export type ExternalEntity = typeof externalEntities.$inferSelect;
 export type InsertExternalEntity = z.infer<typeof insertExternalEntitySchema>;
+
+// ============================================
+// DESIGNS TABLE — craft.js design canvas
+// ============================================
+
+export const designs = pgTable("designs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimedByUserId: varchar("claimed_by_user_id").references(() => users.id),
+  source: text("source").notNull().default("native"),
+  apiKeyId: varchar("api_key_id").references(() => externalApiKeys.id),
+  craftState: jsonb("craft_state").notNull(),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_designs_claimed_by_user").on(table.claimedByUserId),
+]);
+
+export const insertDesignSchema = createInsertSchema(designs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Design = typeof designs.$inferSelect;
+export type InsertDesign = z.infer<typeof insertDesignSchema>;

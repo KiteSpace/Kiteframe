@@ -1,59 +1,85 @@
-export const DESIGN_SYSTEM_PROMPT_CLIENT = `You are laying out a UI screen using Astryx design-system components. ONLY return JSON. No text before or after, no markdown code fences.
+// ─── craft.js prompt (for KiteAI design generation) ─────────────────────────
 
-Output schema:
+export const DESIGN_SYSTEM_PROMPT_CLIENT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences.
+
+Format:
 {
-  "title": "Screen title",
-  "components": [
-    {
-      "id": "comp-1",
-      "astryxComponent": "Heading",
-      "x": 24,
-      "y": 24,
-      "props": { "children": "Dashboard", "size": "xl" }
-    },
-    {
-      "id": "comp-2",
-      "astryxComponent": "Card",
-      "x": 24,
-      "y": 80,
-      "props": { "children": "Card content here", "variant": "elevated" }
-    }
-  ]
+  "ROOT": {
+    "type": { "resolvedName": "AstryxSection" },
+    "isCanvas": true,
+    "props": { "direction": "column", "gap": 16, "padding": 24 },
+    "displayName": "AstryxSection",
+    "custom": {},
+    "parent": null,
+    "hidden": false,
+    "nodes": ["node-1", "node-2"],
+    "linkedNodes": {}
+  },
+  "node-1": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "elevated" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
 }
 
 RULES:
-- Coordinate system: (0,0) is top-left. x increases right, y increases down. Use pixel values.
-- Keep components within a 1200×900 canvas area where possible.
-- Supported astryxComponent values: Button, Card, Badge, Text, Heading, Avatar, Spinner, Divider, ProgressBar, StatusDot, Skeleton, Banner, EmptyState, ChatMessage, Token, TextInput, Stack, HStack, VStack, Icon.
-- Each component MUST have a unique "id" string.
-- "props" is optional but recommended; use "children" for visible text content.
-- Maximum 150 components per canvas. If a design would exceed ~100 components, propose splitting into multiple screens.
-- Group related components visually: align elements on a consistent grid (multiples of 8px or 16px).
-- For lists, repeat the same component type with incrementing y coordinates.
-- Do NOT invent astryxComponent names outside the supported list — use the closest available component instead.
+- ROOT MUST always be AstryxSection. It is the only valid root.
+- All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
+- "parent" is null only for ROOT. Every other node must reference an existing parent.
+- "nodes" lists child IDs in order. Leaf components always have nodes=[].
+- The 5 supported resolvedName values: AstryxSection, AstryxCard, AstryxButton, AstryxText, AstryxTextInput.
+- AstryxSection is the ONLY container (isCanvas=true). All others are leaves (isCanvas=false, nodes=[]).
+- Keep node count under 40.
 
 COMPONENT QUICK-REFERENCE:
-- Button: clickable button, props: { children, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled }
-- Card: container box, props: { children, variant: "elevated"|"outlined"|"ghost" }
-- Badge: small label pill, props: { children, color: "blue"|"green"|"amber"|"red"|"gray" }
-- Text: body copy, props: { children, size: "xs"|"sm"|"md"|"lg", muted }
-- Heading: title text, props: { children, size: "sm"|"md"|"lg"|"xl"|"2xl" }
-- Avatar: user avatar circle, props: { name, src, size: "xs"|"sm"|"md"|"lg" }
-- Spinner: loading indicator, props: { size: "sm"|"md"|"lg" }
-- Divider: horizontal line separator, props: { label }
-- ProgressBar: progress indicator, props: { value: 0-100, color: "blue"|"green"|"amber"|"red" }
-- StatusDot: small colored dot, props: { status: "online"|"offline"|"busy"|"away" }
-- Skeleton: loading placeholder, props: { width, height }
-- Banner: notification banner, props: { children, variant: "info"|"success"|"warning"|"error" }
-- EmptyState: empty-list placeholder, props: { title, description, action }
-- ChatMessage: chat bubble, props: { children, sender, timestamp, isOwn }
-- Token: removable tag chip, props: { children }
-- TextInput: text field, props: { placeholder, label, value, disabled }
-- Stack: vertical stack layout, props: { gap: 4|8|12|16 }
-- HStack: horizontal stack layout, props: { gap: 4|8|12|16, align: "start"|"center"|"end" }
-- VStack: vertical stack layout alias, props: { gap: 4|8|12|16 }
-- Icon: icon glyph, props: { name, size: "sm"|"md"|"lg" }`;
+- AstryxSection: flex container, props: { direction: "row"|"column", gap: number, padding: number }
+- AstryxCard: elevated box, props: { variant: "elevated"|"outlined"|"ghost" }
+- AstryxButton: action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg" }
+- AstryxText: body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
+- AstryxTextInput: input field, props: { placeholder: string, label: string }`;
 
+// ─── craft.js types ────────────────────────────────────────────────────────────
+
+export interface CraftNodeType {
+  resolvedName: string;
+}
+
+export interface CraftNode {
+  type: CraftNodeType;
+  isCanvas?: boolean;
+  props: Record<string, unknown>;
+  displayName?: string;
+  custom?: Record<string, unknown>;
+  parent: string | null;
+  hidden?: boolean;
+  nodes: string[];
+  linkedNodes?: Record<string, string>;
+}
+
+export interface CraftJsState {
+  ROOT: CraftNode;
+  [nodeId: string]: CraftNode;
+}
+
+// ─── Type guards ──────────────────────────────────────────────────────────────
+
+export function isCraftJsDesignState(obj: unknown): obj is CraftJsState {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  if (!o['ROOT'] || typeof o['ROOT'] !== 'object') return false;
+  const root = o['ROOT'] as Record<string, unknown>;
+  if (!root['type'] || typeof root['type'] !== 'object') return false;
+  const rootType = root['type'] as Record<string, unknown>;
+  return typeof rootType['resolvedName'] === 'string';
+}
+
+// Kept for backward compatibility with old external_entities flat-JSON designs
 export interface DesignComponent {
   id: string;
   astryxComponent: string;
