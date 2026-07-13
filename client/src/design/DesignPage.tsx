@@ -51,9 +51,9 @@ function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
   const qc = useQueryClient();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
 
-  const isOwner = currentUserId && design.claimedByUserId === currentUserId;
+  const isOwner = !!(currentUserId && design.claimedByUserId === currentUserId);
   const isUnclaimed = !design.claimedByUserId;
-  const canEdit = !!(isOwner || isUnclaimed);
+  const canEdit = isOwner;
 
   const patchMutation = useMutation({
     mutationFn: async (craftState: string) => {

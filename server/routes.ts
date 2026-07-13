@@ -6883,8 +6883,9 @@ jane@example.com,Jane,Smith,pro,GroupC
       const userId = req.user?.id as string | undefined;
       const design = await storage.getDesign(req.params.designId);
       if (!design) return res.status(404).json({ error: 'Design not found.' });
-      if (design.claimedByUserId && design.claimedByUserId !== userId) {
-        return res.status(403).json({ error: 'You do not own this design.' });
+      // Strict ownership: unclaimed OR claimed-by-another are both rejected
+      if (!design.claimedByUserId || design.claimedByUserId !== userId) {
+        return res.status(403).json({ error: 'You do not own this design. Claim it first.' });
       }
       const { craftState, title } = req.body ?? {};
       const payload: { craftState?: unknown; title?: string | null } = {};

@@ -134,5 +134,27 @@ export function validateCraftState(data: unknown): DesignValidationResult {
     }
   }
 
+  // Cycle detection via DFS from ROOT over the nodes[] (parent→child) links
+  const adjacency = new Map<string, string[]>();
+  for (const [id, node] of Object.entries(map)) {
+    adjacency.set(id, Array.isArray(node?.nodes) ? (node.nodes as string[]) : []);
+  }
+  const visited = new Set<string>();
+  const inStack = new Set<string>();
+  function dfs(id: string): boolean {
+    if (inStack.has(id)) return true; // cycle
+    if (visited.has(id)) return false;
+    visited.add(id);
+    inStack.add(id);
+    for (const child of adjacency.get(id) ?? []) {
+      if (dfs(child)) return true;
+    }
+    inStack.delete(id);
+    return false;
+  }
+  if (dfs("ROOT")) {
+    errors.push("craft_state contains a cycle in the node tree");
+  }
+
   return { valid: errors.length === 0, errors };
 }
