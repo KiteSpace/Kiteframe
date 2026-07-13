@@ -28,6 +28,7 @@ import {
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { ChatSendButton, ChatMessageList } from '@/components/chat';
 import { getRouter, extractJSON } from '@/ai/router';
+import { DESIGN_SYSTEM_PROMPT_CLIENT, isDesignJson } from '@/lib/designGeneration';
 import { 
   MessageCircle, 
   Paperclip, 
@@ -235,6 +236,7 @@ interface KiteAIChatBrainProps {
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
   onCreateWorkflow?: (draft: WorkflowDraft) => void;
+  generationMode?: 'workflow' | 'design';
 }
 
 const WORKFLOW_GENERATION_SIGNALS = [
@@ -256,7 +258,8 @@ export function KiteAIChatBrain({
   mode,
   initialPrompt,
   onInitialPromptConsumed,
-  onCreateWorkflow
+  onCreateWorkflow,
+  generationMode = 'workflow',
 }: KiteAIChatBrainProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -1116,7 +1119,12 @@ export function KiteAIChatBrain({
       );
       
       let enhancedPrompt = kiteAIContext.systemPrompt;
-      if (!hasCanvasContext) {
+
+      // Design mode: override with design system prompt when in fullscreen
+      const isDesignMode = generationMode === 'design' && mode === 'fullscreen';
+      if (isDesignMode) {
+        enhancedPrompt = DESIGN_SYSTEM_PROMPT_CLIENT;
+      } else if (!hasCanvasContext) {
         enhancedPrompt += `\n\nIMPORTANT: The canvas is empty. Help the user build their first workflow. Do NOT ask "What are you building?" - instead, help them create nodes based on their request.`;
       } else if (!hasSemanticData) {
         enhancedPrompt += `\n\nNOTE: Nodes exist but lack labels/descriptions. Help refine them rather than asking foundational questions.`;
@@ -1238,6 +1246,42 @@ export function KiteAIChatBrain({
         hasEdges: rawJson?.includes('"edges"') ?? false,
         responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
       });
+      // Design mode: detect design JSON and POST to /api/designs/generate
+      const isDesignModeResponse = generationMode === 'design' && mode === 'fullscreen';
+      if (isDesignModeResponse && rawJson) {
+        try {
+          const parsed = JSON.parse(rawJson);
+          if (isDesignJson(parsed)) {
+            const resp = await fetch('/api/designs/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: parsed }),
+            });
+            if (resp.ok) {
+              const { id } = await resp.json();
+              setMessages(prev => [...prev, {
+                id: `design-ready-${Date.now()}`,
+                role: 'assistant' as const,
+                content: `Your interface design is ready! [View Design →](/designs/${id})`,
+                timestamp: new Date(),
+              }]);
+              setTimeout(() => { window.location.href = `/designs/${id}`; }, 1200);
+            } else {
+              setMessages(prev => [...prev, {
+                id: `design-err-${Date.now()}`,
+                role: 'assistant' as const,
+                content: response.text,
+                timestamp: new Date(),
+              }]);
+            }
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // not valid JSON or not a design — fall through to workflow handler
+        }
+      }
+
       const jsonMatch = rawJson && rawJson.includes('"nodes"') && rawJson.includes('"edges"') ? [rawJson] : null;
       if (jsonMatch) {
         try {

@@ -37,7 +37,9 @@ import {
   announcementDismissals,
   bannedEmails,
   insertWorkflowCommentSchema,
+  externalApiKeys,
 } from "@shared/schema";
+import { getValidatorForType } from "./lib/entitySchemas";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -6775,6 +6777,51 @@ jane@example.com,Jane,Smith,pro,GroupC
       return null;
     }
   }
+
+  // POST /api/designs/generate — authenticated users create a design entity from AI-generated JSON
+  // Uses a lazy "system" API key so the entity FK constraint is satisfied without an external key.
+  const SYS_DESIGN_KEY_ID = 'sys-internal-design';
+  async function getOrCreateSystemDesignKey(): Promise<string> {
+    const existing = await db.select({ id: externalApiKeys.id })
+      .from(externalApiKeys).where(eq(externalApiKeys.id, SYS_DESIGN_KEY_ID)).limit(1);
+    if (existing.length > 0) return SYS_DESIGN_KEY_ID;
+    await db.insert(externalApiKeys).values({
+      id: SYS_DESIGN_KEY_ID,
+      name: 'Internal system key – AI-generated designs',
+      keyHash: crypto.createHash('sha256').update('sys-internal-kiteframe-designs').digest('hex'),
+    });
+    return SYS_DESIGN_KEY_ID;
+  }
+
+  app.post('/api/designs/generate', isAuthenticated, projectRateLimiter, async (req: any, res) => {
+    try {
+      const { data } = req.body || {};
+      if (!data || typeof data !== 'object') {
+        return res.status(400).json({ error: "Request body must include a 'data' field." });
+      }
+      let validate: ReturnType<typeof getValidatorForType>;
+      try {
+        validate = getValidatorForType('design');
+      } catch (err: any) {
+        return res.status(500).json({ error: err.message });
+      }
+      const { valid, errors } = validate(data);
+      if (!valid) {
+        return res.status(422).json({ error: 'Design failed schema validation.', details: errors });
+      }
+      const apiKeyId = await getOrCreateSystemDesignKey();
+      const created = await storage.createExternalEntity({
+        entityType: 'design',
+        apiKeyId,
+        data: data as any,
+        sourceEntityId: null,
+      });
+      res.status(201).json({ id: created.id, url: `/designs/${created.id}`, expires_at: created.expiresAt });
+    } catch (err) {
+      console.error('[designs/generate] Failed to create design entity:', err);
+      res.status(500).json({ error: 'Failed to save design.' });
+    }
+  });
 
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   

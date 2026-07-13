@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { BlankCanvasState } from "@/components/BlankCanvasState";
+import { NewTabTypePicker } from "@/components/NewTabTypePicker";
 import {
   PluginProvider,
   layoutPlugin,
@@ -2077,6 +2078,8 @@ function WorkflowEditorContent({
 
   // Check if we're on the home screen
   const isOnHomeTab = activeTabId === "home" && !isReadOnly;
+  // Check if we're on the new-tab type-selection screen
+  const isOnNewTab = activeTabId === "new" && !isReadOnly;
 
   // Initial prompt for KiteAI Chat - set when user submits Home Prompt
   // This is passed through ProjectPanel to KiteAIChat where it's consumed
@@ -7995,9 +7998,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             {!effectiveReadOnly && (
               <button
                 className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
-                onClick={createNewTab}
+                onClick={() => setActiveTabId("new")}
                 data-testid="button-new-tab"
-                title="New Workflow Tab"
+                title="New Tab"
               >
                 <Plus size={16} />
               </button>
@@ -8015,8 +8018,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Home Screen */}
-        {isOnHomeTab ? (
+        {/* New Tab Type Picker */}
+        {isOnNewTab ? (
+          <NewTabTypePicker
+            onSelectWorkflow={() => { createNewTab(); }}
+            onSelectDesign={() => { setLocation("/app/chat?mode=design"); }}
+            onCancel={() => {
+              const prevTab = tabs[tabs.length - 1];
+              setActiveTabId(prevTab?.id ?? "home");
+            }}
+          />
+        ) : isOnHomeTab ? (
           <>
           <HomeScreen
             recentProjects={[

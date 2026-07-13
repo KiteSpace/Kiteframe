@@ -41,10 +41,13 @@ export default function FullScreenChat() {
   
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const [promptConsumed, setPromptConsumed] = useState(false);
+  const [generationMode, setGenerationMode] = useState<"workflow" | "design">("workflow");
   
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const prompt = params.get('prompt');
+    const mode = params.get('mode');
+    if (mode === 'design') setGenerationMode('design');
     // Set initialPrompt even if empty string - attachments-only case handled in KiteAIChat
     // Only skip if prompt is null (no param at all) or already consumed
     if (prompt !== null && !promptConsumed) {
@@ -98,6 +101,7 @@ export default function FullScreenChat() {
             initialPrompt={initialPrompt || undefined}
             onInitialPromptConsumed={handleInitialPromptConsumed}
             onCreateWorkflow={handleCreateWorkflow}
+            generationMode={generationMode}
           />
         </AiProvider>
       </main>

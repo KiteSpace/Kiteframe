@@ -194,6 +194,7 @@ export function HomeScreen({
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [copiedTooltip, setCopiedTooltip] = useState<{ projectId: string; x: number; y: number } | null>(null);
+  const [generationMode, setGenerationMode] = useState<"workflow" | "design">("workflow");
 
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
 
@@ -237,7 +238,8 @@ export function HomeScreen({
       // Project is only created when user clicks "Create Workflow" in the chat
       // SPA navigation preserves PromptContextStore state for attachments
       const encodedPrompt = encodeURIComponent(prompt);
-      navigate(`/app/chat?prompt=${encodedPrompt}`);
+      const modeParam = generationMode === "design" ? "&mode=design" : "";
+      navigate(`/app/chat?prompt=${encodedPrompt}${modeParam}`);
     },
     [
       isOutOfCredits,
@@ -245,6 +247,7 @@ export function HomeScreen({
       openSignup,
       openCreditsDialog,
       navigate,
+      generationMode,
     ],
   );
 
@@ -577,6 +580,8 @@ export function HomeScreen({
           isGenerating={isGenerating}
           isDisabled={isOutOfCredits}
           isImageLocked={!canUploadImage}
+          generationMode={generationMode}
+          onGenerationModeChange={setGenerationMode}
         />
 
         {/* Recent Projects Section */}
