@@ -107,15 +107,13 @@ function Toolbox() {
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
   if (craftState) {
-    return (
-      <Frame data={craftState}>
-        <div />
-      </Frame>
-    );
+    return <Frame data={craftState} />;
   }
   return (
     <Frame>
-      <Element canvas is={AstryxSection} direction="column" gap={16} padding={16} />
+      <Element canvas is={AstryxSection} direction="column" gap={16} padding={16}>
+        {null}
+      </Element>
     </Frame>
   );
 }
