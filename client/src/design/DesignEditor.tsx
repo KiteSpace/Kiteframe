@@ -24,6 +24,7 @@ import {
   AstryxToken,
   AstryxIcon,
   createEmptyCraftState,
+  sanitizeCraftState,
 } from "./resolver";
 import {
   AstryxButton as AstryxButtonBase,
@@ -684,7 +685,7 @@ function SettingsPanel() {
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
   if (craftState) {
-    return <Frame data={craftState} />;
+    return <Frame data={sanitizeCraftState(craftState)} />;
   }
   return (
     <Frame>

@@ -20,6 +20,7 @@ import {
   AstryxStack as AstryxStackBase,
   AstryxHStack as AstryxHStackBase,
   AstryxIcon as AstryxIconBase,
+  AstryxUnknown as AstryxUnknownBase,
 } from "@/components/astryx";
 
 type AstryxProps = Record<string, any>;
@@ -204,6 +205,16 @@ export function AstryxIcon(props: AstryxProps) {
 }
 (AstryxIcon as any).craft = { displayName: "AstryxIcon", rules: { canMoveIn: () => false } };
 
+export function AstryxUnknown(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxUnknownBase astryxComponent={props.astryxComponent ?? "Unknown"} />
+    </div>
+  );
+}
+(AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
+
 // ─── Container components ─────────────────────────────────────────────────────
 // canMoveIn: true — children can be dropped in.
 
@@ -264,6 +275,7 @@ export const resolver = {
   AstryxChatMessage,
   AstryxToken,
   AstryxIcon,
+  AstryxUnknown,
   AstryxSection,
   AstryxStack,
   AstryxHStack,
@@ -321,7 +333,7 @@ export function validateCraftState(state: unknown): CraftStateValidationResult {
     if (!resolvedName) {
       errors.push(`Node "${nodeId}" missing type.resolvedName`);
     } else if (!ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
-      errors.push(`Node "${nodeId}" has unknown component type: "${resolvedName}". Allowed: ${ALLOWED_CRAFT_COMPONENTS.join(", ")}`);
+      console.warn(`[validateCraftState] Node "${nodeId}" has unknown component type: "${resolvedName}" — will be rendered as AstryxUnknown`);
     }
 
     if (nodeId !== "ROOT" && node.parent && !nodeIds.has(node.parent)) {
@@ -338,4 +350,39 @@ export function validateCraftState(state: unknown): CraftStateValidationResult {
   }
 
   return { valid: errors.length === 0, errors };
+}
+
+// ─── State sanitizer ──────────────────────────────────────────────────────────
+// Replaces any resolvedName not in the resolver with "AstryxUnknown" and
+// preserves the original name in props.astryxComponent so the placeholder
+// can display it. Call this before passing a craft state string to <Frame>.
+
+export function sanitizeCraftState(craftStateJson: string): string {
+  let map: Record<string, any>;
+  try {
+    map = JSON.parse(craftStateJson);
+  } catch {
+    return craftStateJson;
+  }
+
+  if (!map || typeof map !== "object") return craftStateJson;
+
+  let changed = false;
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const resolvedName = node.type?.resolvedName;
+    if (resolvedName && resolvedName !== "AstryxUnknown" && !ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
+      console.warn(`[sanitizeCraftState] Replacing unknown component "${resolvedName}" on node "${nodeId}" with AstryxUnknown`);
+      map[nodeId] = {
+        ...node,
+        type: { resolvedName: "AstryxUnknown" },
+        displayName: "AstryxUnknown",
+        props: { ...node.props, astryxComponent: resolvedName },
+        isCanvas: false,
+      };
+      changed = true;
+    }
+  }
+
+  return changed ? JSON.stringify(map) : craftStateJson;
 }
