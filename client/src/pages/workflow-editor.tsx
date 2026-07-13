@@ -2248,6 +2248,8 @@ function WorkflowEditorContent({
   // Insights system for workflow analysis (opt-in via Test Flight)
   const [focusedInsightId, setFocusedInsightId] = useState<string | null>(null);
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
+  const [designModeTabIds, setDesignModeTabIds] = useState<Set<string>>(new Set());
+  const [previousTabId, setPreviousTabId] = useState<string | null>(null);
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
@@ -3119,6 +3121,14 @@ function WorkflowEditorContent({
     const newTab = createBlankTab();
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
+  }, [createBlankTab]);
+
+  const createNewDesignTab = useCallback(() => {
+    const newTab = createBlankTab();
+    setTabs((prev) => [...prev, newTab]);
+    setDesignModeTabIds((prev) => new Set([...prev, newTab.id]));
+    setActiveTabId(newTab.id);
+    setForcePanelTab("kite-ai");
   }, [createBlankTab]);
 
   const closeTab = useCallback(
@@ -7998,7 +8008,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             {!effectiveReadOnly && (
               <button
                 className="flex items-center justify-center w-8 h-8 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
-                onClick={() => setActiveTabId("new")}
+                onClick={() => { setPreviousTabId(activeTabId); setActiveTabId("new"); }}
                 data-testid="button-new-tab"
                 title="New Tab"
               >
@@ -8022,10 +8032,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {isOnNewTab ? (
           <NewTabTypePicker
             onSelectWorkflow={() => { createNewTab(); }}
-            onSelectDesign={() => { setLocation("/app/chat?mode=design"); }}
+            onSelectDesign={() => { createNewDesignTab(); }}
             onCancel={() => {
-              const prevTab = tabs[tabs.length - 1];
-              setActiveTabId(prevTab?.id ?? "home");
+              setActiveTabId(previousTabId ?? tabs.find((t) => t.id !== "new")?.id ?? "home");
+              setPreviousTabId(null);
             }}
           />
         ) : isOnHomeTab ? (
@@ -13973,6 +13983,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 onInsightNavigateToNode={focusOnNode}
                 focusedInsightId={focusedInsightId}
                 forceTab={forcePanelTab}
+                generationMode={designModeTabIds.has(activeTabId) ? "design" : "workflow"}
                 initialPrompt={pendingChatPrompt || undefined}
                 onInitialPromptConsumed={handleChatPromptConsumed}
                 onProposeSolution={handleProposeSolution}

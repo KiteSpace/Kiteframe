@@ -1120,8 +1120,8 @@ export function KiteAIChatBrain({
       
       let enhancedPrompt = kiteAIContext.systemPrompt;
 
-      // Design mode: override with design system prompt when in fullscreen
-      const isDesignMode = generationMode === 'design' && mode === 'fullscreen';
+      // Design mode: override with design system prompt (works in both panel and fullscreen)
+      const isDesignMode = generationMode === 'design';
       if (isDesignMode) {
         enhancedPrompt = DESIGN_SYSTEM_PROMPT_CLIENT;
       } else if (!hasCanvasContext) {
@@ -1247,7 +1247,7 @@ export function KiteAIChatBrain({
         responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
       });
       // Design mode: detect design JSON and POST to /api/designs/generate
-      const isDesignModeResponse = generationMode === 'design' && mode === 'fullscreen';
+      const isDesignModeResponse = generationMode === 'design';
       if (isDesignModeResponse && rawJson) {
         try {
           const parsed = JSON.parse(rawJson);
@@ -1265,7 +1265,10 @@ export function KiteAIChatBrain({
                 content: `Your interface design is ready! [View Design →](/designs/${id})`,
                 timestamp: new Date(),
               }]);
-              setTimeout(() => { window.location.href = `/designs/${id}`; }, 1200);
+              // Auto-navigate only in fullscreen; in panel mode the user clicks the link
+              if (mode === 'fullscreen') {
+                setTimeout(() => { window.location.href = `/designs/${id}`; }, 1200);
+              }
             } else {
               setMessages(prev => [...prev, {
                 id: `design-err-${Date.now()}`,
@@ -3210,6 +3213,7 @@ interface KiteAIChatPanelProps {
   onPreviewWorkflow?: (workflow: { nodes: Node[]; edges: Edge[] } | null) => void;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
+  generationMode?: 'workflow' | 'design';
 }
 
 export function KiteAIChatPanel({
@@ -3221,7 +3225,8 @@ export function KiteAIChatPanel({
   onReplaceWorkflow,
   onPreviewWorkflow,
   initialPrompt,
-  onInitialPromptConsumed
+  onInitialPromptConsumed,
+  generationMode = 'workflow',
 }: KiteAIChatPanelProps) {
   return (
     <div className="flex h-full w-full flex-col">
@@ -3236,6 +3241,7 @@ export function KiteAIChatPanel({
         onPreviewWorkflow={onPreviewWorkflow}
         initialPrompt={initialPrompt}
         onInitialPromptConsumed={onInitialPromptConsumed}
+        generationMode={generationMode}
       />
     </div>
   );

@@ -13,6 +13,7 @@ interface KiteAITabProps {
   isReadOnly?: boolean;
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
+  generationMode?: 'workflow' | 'design';
 }
 
 export function KiteAITab({ 
@@ -25,7 +26,8 @@ export function KiteAITab({
   onPreviewWorkflow,
   isReadOnly = false,
   initialPrompt,
-  onInitialPromptConsumed
+  onInitialPromptConsumed,
+  generationMode = 'workflow',
 }: KiteAITabProps) {
   if (isReadOnly) {
     return (
@@ -52,6 +54,7 @@ export function KiteAITab({
         onPreviewWorkflow={onPreviewWorkflow}
         initialPrompt={initialPrompt}
         onInitialPromptConsumed={onInitialPromptConsumed}
+        generationMode={generationMode}
       />
     </div>
   );

@@ -65,6 +65,7 @@ interface ProjectPanelProps {
   onStartExperiment?: (insight: Insight) => void;
   hasActiveExperiment?: boolean;
   generatingExperimentInsightId?: string | null;
+  generationMode?: 'workflow' | 'design';
 }
 
 const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
@@ -117,6 +118,7 @@ export function ProjectPanel({
   onStartExperiment,
   hasActiveExperiment = false,
   generatingExperimentInsightId = null,
+  generationMode = 'workflow',
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -344,6 +346,7 @@ export function ProjectPanel({
             isReadOnly={isReadOnly}
             initialPrompt={initialPrompt}
             onInitialPromptConsumed={onInitialPromptConsumed}
+            generationMode={generationMode}
           />
         </TabsContent>
         
