@@ -6845,7 +6845,7 @@ jane@example.com,Jane,Smith,pro,GroupC
     try {
       const userId = req.user?.id as string | undefined;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-      const { craftState, title, source } = req.body ?? {};
+      const { craftState, title } = req.body ?? {};
       let state: unknown = craftState ?? EMPTY_CRAFT_STATE;
       if (typeof state === 'string') {
         try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
@@ -6854,7 +6854,7 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
       const design = await storage.createDesign({
         claimedByUserId: userId,
-        source: typeof source === 'string' ? source : 'native',
+        source: 'native',
         craftState: state as any,
         title: typeof title === 'string' ? title : null,
       });

@@ -1256,7 +1256,7 @@ export function KiteAIChatBrain({
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
-              body: JSON.stringify({ craftState: parsed, source: 'ai' }),
+              body: JSON.stringify({ craftState: parsed }),
             });
             if (resp.ok) {
               const { id } = await resp.json();

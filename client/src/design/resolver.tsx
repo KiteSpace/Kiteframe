@@ -23,7 +23,7 @@ export function AstryxButton(props: AstryxProps) {
 }
 (AstryxButton as any).craft = {
   displayName: "AstryxButton",
-  canMoveIn: () => false,
+  rules: { canMoveIn: () => false },
 };
 
 export function AstryxCard(props: AstryxProps) {
@@ -36,7 +36,7 @@ export function AstryxCard(props: AstryxProps) {
 }
 (AstryxCard as any).craft = {
   displayName: "AstryxCard",
-  canMoveIn: () => false,
+  rules: { canMoveIn: () => false },
 };
 
 export function AstryxText(props: AstryxProps) {
@@ -49,7 +49,7 @@ export function AstryxText(props: AstryxProps) {
 }
 (AstryxText as any).craft = {
   displayName: "AstryxText",
-  canMoveIn: () => false,
+  rules: { canMoveIn: () => false },
 };
 
 export function AstryxTextInput(props: AstryxProps) {
@@ -62,7 +62,7 @@ export function AstryxTextInput(props: AstryxProps) {
 }
 (AstryxTextInput as any).craft = {
   displayName: "AstryxTextInput",
-  canMoveIn: () => false,
+  rules: { canMoveIn: () => false },
 };
 
 // ─── Container component ──────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 }
 (AstryxSection as any).craft = {
   displayName: "AstryxSection",
-  canMoveIn: () => true,
+  rules: { canMoveIn: () => true },
 };
 
 // ─── Resolver map ─────────────────────────────────────────────────────────────
