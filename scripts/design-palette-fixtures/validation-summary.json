@@ -1,0 +1,92 @@
+{
+  "generatedAt": "2026-07-13T21:22:21.946Z",
+  "results": [
+    {
+      "prompt": "A user analytics dashboard with an avatar, large heading, colored status badges, and a progress bar showing project completion.",
+      "parsed": true,
+      "valid": true,
+      "errors": [],
+      "components": [
+        "AstryxSection",
+        "AstryxStack",
+        "AstryxHStack",
+        "AstryxAvatar",
+        "AstryxText",
+        "AstryxStatusDot",
+        "AstryxHeading",
+        "AstryxCard",
+        "AstryxBadge",
+        "AstryxProgressBar"
+      ],
+      "extendedComponents": [
+        "AstryxStack",
+        "AstryxHStack",
+        "AstryxAvatar",
+        "AstryxStatusDot",
+        "AstryxHeading",
+        "AstryxBadge",
+        "AstryxProgressBar"
+      ],
+      "fixtureFile": "/home/runner/workspace/scripts/design-palette-fixtures/prompt-01.json"
+    },
+    {
+      "prompt": "A chat interface showing messages from two users with send timestamps and a text input reply area.",
+      "parsed": true,
+      "valid": true,
+      "errors": [],
+      "components": [
+        "AstryxSection",
+        "AstryxStack",
+        "AstryxChatMessage",
+        "AstryxHStack",
+        "AstryxTextInput",
+        "AstryxButton"
+      ],
+      "extendedComponents": [
+        "AstryxStack",
+        "AstryxChatMessage",
+        "AstryxHStack"
+      ],
+      "fixtureFile": "/home/runner/workspace/scripts/design-palette-fixtures/prompt-02.json"
+    },
+    {
+      "prompt": "A loading screen with a centered spinner and skeleton placeholder rows for a data table.",
+      "parsed": true,
+      "valid": true,
+      "errors": [],
+      "components": [
+        "AstryxSection",
+        "AstryxStack",
+        "AstryxSpinner",
+        "AstryxText",
+        "AstryxHStack",
+        "AstryxSkeleton"
+      ],
+      "extendedComponents": [
+        "AstryxStack",
+        "AstryxSpinner",
+        "AstryxHStack",
+        "AstryxSkeleton"
+      ],
+      "fixtureFile": "/home/runner/workspace/scripts/design-palette-fixtures/prompt-03.json"
+    },
+    {
+      "prompt": "An empty inbox state with a descriptive text block and a primary call-to-action button.",
+      "parsed": true,
+      "valid": true,
+      "errors": [],
+      "components": [
+        "AstryxSection",
+        "AstryxCard",
+        "AstryxStack",
+        "AstryxEmptyState",
+        "AstryxButton"
+      ],
+      "extendedComponents": [
+        "AstryxStack",
+        "AstryxEmptyState"
+      ],
+      "fixtureFile": "/home/runner/workspace/scripts/design-palette-fixtures/prompt-04.json"
+    }
+  ]
+}

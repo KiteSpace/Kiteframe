@@ -1,5 +1,12 @@
 import { useNode } from "@craftjs/core";
 import {
+  ALLOWED_CRAFT_COMPONENTS,
+  validateCraftState,
+  sanitizeCraftState,
+} from "./craftValidator";
+export type { CraftStateValidationResult } from "./craftValidator";
+export { ALLOWED_CRAFT_COMPONENTS, validateCraftState, sanitizeCraftState };
+import {
   AstryxButton as AstryxButtonBase,
   AstryxCard as AstryxCardBase,
   AstryxText as AstryxTextBase,
@@ -281,7 +288,22 @@ export const resolver = {
   AstryxHStack,
 };
 
-export const ALLOWED_CRAFT_COMPONENTS = Object.keys(resolver);
+// ─── Alignment guard ──────────────────────────────────────────────────────────
+// Detects drift between craftValidator.ts (ALLOWED_CRAFT_COMPONENTS) and the
+// resolver map. Logs an error at module-init time so mismatches surface
+// immediately in development builds and in tests that import this module.
+
+{
+  const resolverKeys = Object.keys(resolver);
+  const missingFromResolver = ALLOWED_CRAFT_COMPONENTS.filter((k) => !resolverKeys.includes(k));
+  const missingFromValidator = resolverKeys.filter((k) => !ALLOWED_CRAFT_COMPONENTS.includes(k));
+  if (missingFromResolver.length || missingFromValidator.length) {
+    console.error(
+      "[Astryx] ALLOWED_CRAFT_COMPONENTS ↔ resolver MISMATCH — update both files together!",
+      { missingFromResolver, missingFromValidator },
+    );
+  }
+}
 
 // ─── Empty state factory ──────────────────────────────────────────────────────
 
@@ -301,88 +323,3 @@ export function createEmptyCraftState(): string {
   });
 }
 
-// ─── State validator ──────────────────────────────────────────────────────────
-
-export interface CraftStateValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-export function validateCraftState(state: unknown): CraftStateValidationResult {
-  const errors: string[] = [];
-
-  if (!state || typeof state !== "object") {
-    return { valid: false, errors: ["craft_state must be an object"] };
-  }
-
-  const map = state as Record<string, any>;
-
-  if (!map["ROOT"]) {
-    errors.push("craft_state must have a ROOT node");
-  }
-
-  const nodeIds = new Set(Object.keys(map));
-
-  for (const [nodeId, node] of Object.entries(map)) {
-    if (!node || typeof node !== "object") {
-      errors.push(`Node "${nodeId}" is not an object`);
-      continue;
-    }
-
-    const resolvedName = node.type?.resolvedName;
-    if (!resolvedName) {
-      errors.push(`Node "${nodeId}" missing type.resolvedName`);
-    } else if (!ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
-      console.warn(`[validateCraftState] Node "${nodeId}" has unknown component type: "${resolvedName}" — will be rendered as AstryxUnknown`);
-    }
-
-    if (nodeId !== "ROOT" && node.parent && !nodeIds.has(node.parent)) {
-      errors.push(`Node "${nodeId}" references non-existent parent: "${node.parent}"`);
-    }
-
-    if (Array.isArray(node.nodes)) {
-      for (const childId of node.nodes) {
-        if (!nodeIds.has(childId)) {
-          errors.push(`Node "${nodeId}" references non-existent child: "${childId}"`);
-        }
-      }
-    }
-  }
-
-  return { valid: errors.length === 0, errors };
-}
-
-// ─── State sanitizer ──────────────────────────────────────────────────────────
-// Replaces any resolvedName not in the resolver with "AstryxUnknown" and
-// preserves the original name in props.astryxComponent so the placeholder
-// can display it. Call this before passing a craft state string to <Frame>.
-
-export function sanitizeCraftState(craftStateJson: string): string {
-  let map: Record<string, any>;
-  try {
-    map = JSON.parse(craftStateJson);
-  } catch {
-    return craftStateJson;
-  }
-
-  if (!map || typeof map !== "object") return craftStateJson;
-
-  let changed = false;
-  for (const [nodeId, node] of Object.entries(map)) {
-    if (!node || typeof node !== "object") continue;
-    const resolvedName = node.type?.resolvedName;
-    if (resolvedName && resolvedName !== "AstryxUnknown" && !ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
-      console.warn(`[sanitizeCraftState] Replacing unknown component "${resolvedName}" on node "${nodeId}" with AstryxUnknown`);
-      map[nodeId] = {
-        ...node,
-        type: { resolvedName: "AstryxUnknown" },
-        displayName: "AstryxUnknown",
-        props: { ...node.props, astryxComponent: resolvedName },
-        isCanvas: false,
-      };
-      changed = true;
-    }
-  }
-
-  return changed ? JSON.stringify(map) : craftStateJson;
-}
