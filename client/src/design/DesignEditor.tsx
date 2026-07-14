@@ -1404,6 +1404,33 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
   );
 }
 
+// ─── Delete key handler ───────────────────────────────────────────────────────
+
+function DeleteKeyHandler() {
+  const { actions, selectedId } = useEditor((state) => {
+    const sel = state.events.selected;
+    const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
+    return { selectedId: id };
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable) return;
+      if (!selectedId || selectedId === "ROOT") return;
+      e.preventDefault();
+      actions.delete(selectedId);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId, actions]);
+
+  return null;
+}
+
 // ─── Canvas selection hints (shown over the canvas) ──────────────────────────
 
 function CanvasHints() {
@@ -1805,6 +1832,7 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
           {editable && <AIDrawer />}
         </div>
         {editable && onSave && <SaveWatcher onSave={stableSave} />}
+        {editable && <DeleteKeyHandler />}
       </Editor>
     </LeftRailModeContext.Provider>
   );
