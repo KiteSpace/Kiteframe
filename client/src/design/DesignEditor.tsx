@@ -744,81 +744,125 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             {selected.isRoot ? "root" : "element"}
           </span>
         </div>
-        {!selected.isRoot && (
-          <button
-            title="Delete element"
-            onClick={() => actions.delete(selected.id)}
-            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 ml-1"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <button
+          title="Close inspect panel"
+          onClick={() => actions.selectNode(undefined as any)}
+          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-1 text-base leading-none"
+        >
+          ×
+        </button>
       </div>
 
       {/* ── Color ────────────────────────────────────────────────── */}
-      {(HAS_COLOR_PROP.has(dn) || HAS_VARIANT_DISPLAY.has(dn)) && (
-        <section className="px-3 py-3 border-b border-border">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
-          {HAS_COLOR_PROP.has(dn) && (
-            <div className="flex gap-1.5 flex-wrap">
-              {Object.entries(COLOR_SWATCHES_MAP).map(([name, hex]) => (
-                <button
-                  key={name}
-                  onClick={() => setProp("color", name)}
-                  title={name}
-                  style={{
-                    background: hex,
-                    boxShadow: selected.props.color === name
-                      ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                      : undefined,
-                  }}
-                  className="w-6 h-6 rounded-lg border border-black/10 transition-all hover:scale-110"
-                />
-              ))}
-            </div>
-          )}
-          {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
-            <div className="grid grid-cols-2 gap-1.5">
-              {["primary","secondary","outline","ghost"].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setProp("variant", v)}
-                  className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
-                    selected.props.variant === v
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          )}
-          {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
-            <div className="grid grid-cols-2 gap-1.5">
-              {["info","success","warning","error"].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setProp("variant", v)}
-                  className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
-                    selected.props.variant === v
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      <section className="px-3 py-3 border-b border-border">
+        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
+
+        {/* Background swatches — universal */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">BG</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {["#ffffff","#f8fafc","#1e293b","#000000","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
+              <button
+                key={hex}
+                onClick={() => setProp("backgroundColor", hex)}
+                title={hex}
+                style={{
+                  background: hex,
+                  boxShadow: selected.props.backgroundColor === hex
+                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                    : undefined,
+                }}
+                className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Text swatches — universal */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">Text</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {["#000000","#1e293b","#64748b","#ffffff","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
+              <button
+                key={hex}
+                onClick={() => setProp("textColor", hex)}
+                title={hex}
+                style={{
+                  background: hex,
+                  boxShadow: selected.props.textColor === hex
+                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                    : undefined,
+                }}
+                className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Component-specific: `color` token (Badge, ProgressBar) */}
+        {HAS_COLOR_PROP.has(dn) && (
+          <div className="flex gap-1.5 flex-wrap mt-2.5 pt-2.5 border-t border-border">
+            {Object.entries(COLOR_SWATCHES_MAP).map(([name, hex]) => (
+              <button
+                key={name}
+                onClick={() => setProp("color", name)}
+                title={name}
+                style={{
+                  background: hex,
+                  boxShadow: selected.props.color === name
+                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                    : undefined,
+                }}
+                className="w-6 h-6 rounded-lg border border-black/10 transition-all hover:scale-110"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Component-specific: `variant` color (Button, Banner) */}
+        {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
+          <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
+            {["primary","secondary","outline","ghost"].map((v) => (
+              <button
+                key={v}
+                onClick={() => setProp("variant", v)}
+                className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
+                  selected.props.variant === v
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+        {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
+          <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
+            {["info","success","warning","error"].map((v) => (
+              <button
+                key={v}
+                onClick={() => setProp("variant", v)}
+                className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
+                  selected.props.variant === v
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* ── Size & Shape ─────────────────────────────────────────── */}
-      {hasSizeProp && (
-        <section className="px-3 py-3 border-b border-border">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Size & Shape</div>
-          <div className="flex items-center gap-2">
+      <section className="px-3 py-3 border-b border-border">
+        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Size & Shape</div>
+
+        {/* Size token row — for components that have a `size` prop */}
+        {hasSizeProp && (
+          <div className="flex items-center gap-2 mb-2">
             <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Size</span>
             <div className="flex gap-1 flex-wrap">
               {(dn === "AstryxText" ? ["xs","sm","md","lg"] :
@@ -839,8 +883,28 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
               ))}
             </div>
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Border radius token row — universal */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Radius</span>
+          <div className="flex gap-1 flex-wrap">
+            {(["None","S","M","L","Full"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setProp("borderRadius", r)}
+                className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
+                  (selected.props.borderRadius ?? "M") === r
+                    ? "bg-foreground border-foreground text-background shadow-sm"
+                    : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ── Spacing (containers only) ────────────────────────────── */}
       {isContainer && (
@@ -872,38 +936,29 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       <section className="px-3 py-3 border-b border-border">
         <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Layout</div>
 
-        {/* Artboard width */}
-        {dn === "AstryxArtboard" && (
-          <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5 mb-2.5">
-            <span className="text-[9.5px] text-muted-foreground font-medium w-3">W</span>
-            <input
-              type="number"
-              value={selected.props.width ?? 390}
-              onChange={(e) => setProp("width", Number(e.target.value))}
-              className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
-            />
-            <span className="text-[9px] text-muted-foreground/50">px</span>
-          </div>
-        )}
+        {/* W / H — always exposed */}
+        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+          {[
+            ["W", "width",  dn === "AstryxArtboard" ? 390 : dn === "AstryxSkeleton" ? 120 : "auto"],
+            ["H", "height", dn === "AstryxSkeleton" ? 16 : "auto"],
+          ].map(([label, key, def]) => (
+            <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+              <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+              <input
+                type={def === "auto" ? "text" : "number"}
+                value={selected.props[key as string] ?? def}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setProp(key as string, v === "auto" || v === "" ? "auto" : Number(v));
+                }}
+                placeholder="auto"
+                className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
+              />
+            </div>
+          ))}
+        </div>
 
-        {/* Skeleton W/H */}
-        {dn === "AstryxSkeleton" && (
-          <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-            {[["W","width",120],["H","height",16]].map(([label, key, def]) => (
-              <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-                <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-                <input
-                  type="number"
-                  value={selected.props[key as string] ?? def}
-                  onChange={(e) => setProp(key as string, Number(e.target.value))}
-                  className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Position & coordinates */}
+        {/* X / Y + position mode */}
         {!selected.isRoot && dn !== "AstryxArtboard" && (
           <>
             <div className="mb-2">
@@ -915,21 +970,20 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
                 />
               </PropRow>
             </div>
-            {selected.props.position === "absolute" && (
-              <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-                {[["X","x",0],["Y","y",0]].map(([label, key, def]) => (
-                  <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-                    <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-                    <input
-                      type="number"
-                      value={selected.props[key as string] ?? def}
-                      onChange={(e) => setProp(key as string, Number(e.target.value))}
-                      className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+              {[["X","x",0],["Y","y",0]].map(([label, key, def]) => (
+                <div key={label as string} className={`flex items-center gap-1.5 bg-muted/50 border rounded-lg px-2 py-1.5 transition-opacity ${selected.props.position !== "absolute" ? "opacity-40 border-border" : "border-border"}`}>
+                  <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+                  <input
+                    type="number"
+                    value={selected.props[key as string] ?? def}
+                    onChange={(e) => setProp(key as string, Number(e.target.value))}
+                    disabled={selected.props.position !== "absolute"}
+                    className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground disabled:opacity-50"
+                  />
+                </div>
+              ))}
+            </div>
           </>
         )}
 
@@ -1524,7 +1578,7 @@ function AIDrawer() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
-                placeholder={activeTab === "Generate" ? "Describe a UI to generate…" : "Ask KiteAI anything…"}
+                placeholder={activeTab === "Suggest" ? "Describe a change to suggest…" : "Ask KiteAI anything…"}
                 disabled={status === "loading"}
                 className="flex-1 text-[10px] bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
               />
