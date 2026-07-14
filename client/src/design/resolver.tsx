@@ -536,7 +536,12 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
     </div>
   );
 }
-(AstryxSection as any).craft = { displayName: "AstryxSection", rules: { canMoveIn: () => true } };
+(AstryxSection as any).craft = {
+  displayName: "AstryxSection",
+  rules: {
+    canMoveIn: (incomingNode: any) => incomingNode?.data?.displayName === "AstryxArtboard",
+  },
+};
 
 export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
   const { connectRef, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronDown, StickyNote } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -1425,7 +1425,7 @@ function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
 
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
 
-function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void }) {
+function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onFitView: () => void }) {
   const { actions, query } = useEditor(() => ({}));
   const { mode, setMode } = useContext(LeftRailModeContext);
   const { notesOpen, setNotesOpen } = useContext(NotesContext);
@@ -1437,7 +1437,9 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
       <Element canvas is={AstryxArtboard} label={`Screen ${count}`} width={390} direction="column" gap={16} padding={24} />
     ).toNodeTree();
     actions.addNodeTree(nodeTree, "ROOT");
-  }, [actions, query]);
+    // Trigger fit-to-view so the new artboard becomes visible
+    setTimeout(onFitView, 50);
+  }, [actions, query, onFitView]);
 
   return (
     <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
@@ -1553,7 +1555,7 @@ function CanvasHints() {
 
 // ─── Infinite canvas (pan + zoom) ────────────────────────────────────────────
 
-function InfiniteCanvas({ children, zoom, onZoom }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void }) {
+function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void; fitTrigger?: number }) {
   const [pan, setPan] = useState({ x: 80, y: 80 });
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
@@ -1610,15 +1612,20 @@ function InfiniteCanvas({ children, zoom, onZoom }: { children: ReactNode; zoom:
 
   const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
 
-  const resetView = () => { setPan({ x: 80, y: 80 }); onZoom(() => 1); };
+  const resetView = useCallback(() => { setPan({ x: 80, y: 80 }); onZoom(() => 0.75); }, [onZoom]);
+
+  // Reset view whenever a new artboard is added (fitTrigger increments)
+  useEffect(() => {
+    if (fitTrigger && fitTrigger > 0) resetView();
+  }, [fitTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
       className="flex-1 relative overflow-hidden"
       style={{
-        backgroundImage: "radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)",
+        backgroundImage: "radial-gradient(circle, hsl(var(--foreground) / 0.15) 1.5px, transparent 1.5px)",
         backgroundSize: "20px 20px",
-        backgroundColor: "hsl(var(--muted) / 0.4)",
+        backgroundColor: "hsl(var(--muted) / 0.35)",
       }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
@@ -1781,26 +1788,21 @@ function AIDrawer() {
 
   return (
     <div
-      className={`relative flex-shrink-0 border-l border-border bg-background flex flex-col transition-all duration-200 ease-in-out ${open ? "w-[252px]" : "w-12"}`}
+      className={`flex-shrink-0 border-l border-border bg-background flex flex-col transition-all duration-200 ease-in-out ${open ? "w-[252px]" : "w-12"}`}
     >
-      {/* Toggle tab on left edge */}
-      <button
-        onClick={toggleOpen}
-        className="absolute -left-3.5 top-16 w-7 h-9 bg-background border border-border rounded-l-xl flex items-center justify-center shadow-sm hover:bg-primary/5 hover:border-primary/40 hover:text-primary text-muted-foreground z-20 transition-all text-xs font-bold"
-        title={open ? "Collapse AI panel" : "Open AI panel"}
-      >
-        {open ? "›" : "‹"}
-      </button>
-
       {!open ? (
-        // Collapsed icon strip
-        <div className="flex flex-col items-center pt-4 gap-3 px-2">
+        // Collapsed icon strip — click anywhere to expand
+        <button
+          onClick={toggleOpen}
+          className="flex flex-col items-center pt-4 gap-3 px-2 w-full h-full hover:bg-accent/50 transition-colors"
+          title="Open AI panel"
+        >
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-[9px] font-bold shadow-md">
             AI
           </div>
           <div className="w-2 h-2 rounded-full bg-green-400 shadow-sm" />
-          <Sparkles className="w-4 h-4 text-muted-foreground/40 mt-1" />
-        </div>
+          <ChevronLeft className="w-4 h-4 text-muted-foreground/50 mt-1" />
+        </button>
       ) : (
         <div className="flex flex-col h-full min-h-0">
           {/* Header */}
@@ -1815,6 +1817,14 @@ function AIDrawer() {
             <div className="flex-1" />
             {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
             {status === "error" && <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
+            {/* Collapse button — lives inside the header, never overflows parent */}
+            <button
+              onClick={toggleOpen}
+              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors ml-1"
+              title="Collapse AI panel"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Messages */}
@@ -1904,6 +1914,7 @@ export interface DesignEditorProps {
 
 export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onNotesChange }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
+  const [fitTrigger, setFitTrigger] = useState(0);
   const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>("components");
   const [notesOpenInternal, setNotesOpenInternal] = useState(false);
 
@@ -1912,6 +1923,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(2, z * 1.15)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z / 1.15)), []);
+  const fitView = useCallback(() => setFitTrigger((t) => t + 1), []);
 
   const stableSave = useCallback(
     (state: string) => { onSave?.(state); },
@@ -1925,9 +1937,9 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           <div className="flex h-full w-full" style={{ overflow: "clip" }}>
             {editable && <LeftRail />}
             <div className="flex flex-col flex-1 min-w-0">
-              {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
+              {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitView={fitView} />}
               <div className="relative flex-1 min-h-0">
-                <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
+                <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
                   <CanvasArea craftState={craftState} />
                 </InfiniteCanvas>
                 <NotesPanel
