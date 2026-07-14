@@ -1,5 +1,5 @@
 import { useNode } from "@craftjs/core";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useContext, useCallback, createContext, type CSSProperties } from "react";
 import {
   ALLOWED_CRAFT_COMPONENTS,
   validateCraftState,
@@ -42,6 +42,10 @@ import {
   AstryxResizable as AstryxResizableBase,
 } from "@/components/astryx";
 
+// Canvas zoom context — InfiniteCanvas provides the current scale so that
+// absolutely-positioned nodes can convert raw mouse-delta pixels to canvas units.
+export const CanvasZoomContext = createContext(1);
+
 type AstryxProps = Record<string, any>;
 
 // ─── Shared visual constants ──────────────────────────────────────────────────
@@ -77,20 +81,127 @@ function absPositionStyle(position: string, x: number, y: number): CSSProperties
 // leaf (non-canvas) components from a single hook.
 
 function useLeafNode() {
-  const { connectors: { connect, drag }, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
+  const zoom = useContext(CanvasZoomContext);
+  const { connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
     nodeY: (node.data.props?.y as number) ?? 0,
   }));
 
+  const isAbsolute = nodePosition === "absolute";
+  const elementRef = useRef<HTMLElement | null>(null);
+  const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
+  const stateRef = useRef({ x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp });
+  stateRef.current = { x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp };
+
+  // Attach a single native mousedown listener on mount so we don't need to
+  // touch every individual leaf component's JSX.
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+    const handle = (e: MouseEvent) => {
+      if (!stateRef.current.isAbsolute) return;
+      const { x: sx, y: sy } = stateRef.current;
+      dragStartRef.current = { mx: e.clientX, my: e.clientY, sx, sy };
+      const onMove = (ev: MouseEvent) => {
+        if (!dragStartRef.current) return;
+        const { zoom: z, setProp } = stateRef.current;
+        const rawDx = ev.clientX - dragStartRef.current.mx;
+        const rawDy = ev.clientY - dragStartRef.current.my;
+        if (Math.hypot(rawDx, rawDy) < 3) return;
+        const dx = rawDx / z;
+        const dy = rawDy / z;
+        setProp((p: any) => {
+          p.x = Math.round(dragStartRef.current!.sx + dx);
+          p.y = Math.round(dragStartRef.current!.sy + dy);
+        });
+      };
+      const onUp = () => {
+        dragStartRef.current = null;
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    el.addEventListener("mousedown", handle);
+    return () => el.removeEventListener("mousedown", handle);
+  }, []); // register once on mount
+
   const extraStyle: CSSProperties = {
     ...absPositionStyle(nodePosition, nodeX, nodeY),
     ...(selected ? SELECTION_RING : {}),
+    ...(isAbsolute ? { cursor: "grab" } : {}),
   };
 
-  const connectRef = (r: HTMLElement | null) => { if (r) connect(drag(r)); };
+  // For absolute nodes we skip craft.js `drag` so no snap/alignment indicators
+  // appear. Selection still works via `connect`.
+  const connectRef = (r: HTMLElement | null) => {
+    elementRef.current = r;
+    if (!r) return;
+    connect(r);
+    if (!isAbsolute) drag(r);
+  };
   return { connectRef, extraStyle };
+}
+
+// ─── Container node hook ──────────────────────────────────────────────────────
+// Shared logic for Section / Stack / HStack — provides grey fill, blue
+// selected treatment, and free-drag when position === "absolute".
+
+function useContainerNode(position: string, x: number, y: number) {
+  const zoom = useContext(CanvasZoomContext);
+  const { connectors: { connect, drag }, id, actions, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
+
+  const isAbsolute = position === "absolute";
+  const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
+  const stateRef = useRef({ x, y, zoom, isAbsolute, setProp: actions.setProp });
+  stateRef.current = { x, y, zoom, isAbsolute, setProp: actions.setProp };
+
+  const onMouseDown = useCallback((e: { clientX: number; clientY: number }) => {
+    if (!stateRef.current.isAbsolute) return;
+    const { x: sx, y: sy } = stateRef.current;
+    dragStartRef.current = { mx: e.clientX, my: e.clientY, sx, sy };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const { zoom: z, setProp } = stateRef.current;
+      const rawDx = ev.clientX - dragStartRef.current.mx;
+      const rawDy = ev.clientY - dragStartRef.current.my;
+      if (Math.hypot(rawDx, rawDy) < 3) return;
+      const dx = rawDx / z;
+      const dy = rawDy / z;
+      setProp((p: any) => {
+        p.x = Math.round(dragStartRef.current!.sx + dx);
+        p.y = Math.round(dragStartRef.current!.sy + dy);
+      });
+    };
+    const onUp = () => {
+      dragStartRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []); // stable — reads from stateRef
+
+  const connectRef = (r: HTMLElement | null) => {
+    if (!r) return;
+    connect(r);
+    if (!isAbsolute) drag(r);
+  };
+
+  // Default: very light grey fill + subtle dashed outline (makes containers
+  // visible on the canvas without being visually heavy).
+  // Selected: blue tint + solid blue border (clear selection indicator).
+  const containerVisual: CSSProperties = selected
+    ? { background: "rgba(59,130,246,0.06)", border: "1.5px solid #3b82f6", borderRadius: 4 }
+    : { background: "rgba(0,0,0,0.025)", border: "1px dashed rgba(100,100,100,0.15)", borderRadius: 4 };
+
+  return { connectRef, id, isEmpty, selected, isAbsolute, containerVisual, onMouseDown };
 }
 
 // ─── Leaf components ──────────────────────────────────────────────────────────
@@ -388,14 +499,12 @@ const JUSTIFY_MAP: Record<string, string> = {
 };
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectors: { connect, drag }, id, isEmpty, selected } = useNode((node) => ({
-    isEmpty: node.data.nodes.length === 0,
-    selected: node.events.selected,
-  }));
+  const { connectRef, id, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
   const isRoot = id === "ROOT";
   return (
     <div
-      ref={(r) => { if (r) connect(drag(r)); }}
+      ref={connectRef}
+      onMouseDown={onMouseDown}
       style={{
         display: "flex",
         flexDirection: direction as "row" | "column",
@@ -404,12 +513,12 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         gap,
         padding,
         minHeight: isRoot ? 480 : 48,
-        width: isRoot ? "100%" : "100%",
-        background: isRoot ? undefined : undefined,
+        width: "100%",
         position: "relative",
         boxSizing: "border-box",
+        ...(!isRoot ? containerVisual : {}),
         ...(!isRoot ? absPositionStyle(position, x, y) : {}),
-        ...(!isRoot && selected ? SELECTION_RING : {}),
+        ...(isAbsolute && !isRoot ? { cursor: "grab" } : {}),
       }}
     >
       {!isRoot && isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
@@ -419,13 +528,11 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 (AstryxSection as any).craft = { displayName: "AstryxSection", rules: { canMoveIn: () => true } };
 
 export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
-    isEmpty: node.data.nodes.length === 0,
-    selected: node.events.selected,
-  }));
+  const { connectRef, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
   return (
     <div
-      ref={(r) => { if (r) connect(drag(r)); }}
+      ref={connectRef}
+      onMouseDown={onMouseDown}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -435,8 +542,10 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
         minHeight: 32,
         width: "100%",
         position: "relative",
+        boxSizing: "border-box",
+        ...containerVisual,
         ...absPositionStyle(position, x, y),
-        ...(selected ? SELECTION_RING : {}),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
       }}
     >
       {isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
@@ -446,13 +555,11 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
 export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
-    isEmpty: node.data.nodes.length === 0,
-    selected: node.events.selected,
-  }));
+  const { connectRef, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
   return (
     <div
-      ref={(r) => { if (r) connect(drag(r)); }}
+      ref={connectRef}
+      onMouseDown={onMouseDown}
       style={{
         display: "flex",
         flexDirection: "row",
@@ -462,8 +569,10 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
         minHeight: 32,
         width: "100%",
         position: "relative",
+        boxSizing: "border-box",
+        ...containerVisual,
         ...absPositionStyle(position, x, y),
-        ...(selected ? SELECTION_RING : {}),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
       }}
     >
       {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 32 }}>drop here</div> : children}
@@ -473,17 +582,17 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
 export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
-    isEmpty: node.data.nodes.length === 0,
-    selected: node.events.selected,
-  }));
+  const { connectRef, isEmpty, selected, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
   return (
     <div
-      ref={(r) => { if (r) connect(drag(r)); }}
+      ref={connectRef}
+      onMouseDown={onMouseDown}
       style={{
         position: "relative",
         ...absPositionStyle(position, x, y),
-        ...(selected ? SELECTION_RING : {}),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        // Card keeps its own card visual; use an outline ring for selection
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2, borderRadius: 4 } : {}),
       }}
     >
       <AstryxCardBase variant={variant}>

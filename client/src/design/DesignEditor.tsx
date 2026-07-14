@@ -37,6 +37,7 @@ import {
   AstryxResizable,
   createEmptyCraftState,
   sanitizeCraftState,
+  CanvasZoomContext,
 } from "./resolver";
 import {
   AstryxButton as AstryxButtonBase,
@@ -989,7 +990,9 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
           transformOrigin: "0 0",
         }}
       >
-        {children}
+        <CanvasZoomContext.Provider value={zoom}>
+          {children}
+        </CanvasZoomContext.Provider>
       </div>
 
       {/* Zoom controls */}
