@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X, Sparkles, Loader2, Check, AlertCircle, ZoomIn, ZoomOut, Maximize2, Plus } from "lucide-react";
+import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, Plus, ArrowUp } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -92,7 +92,7 @@ function PreviewThumbnail({ name, children }: { name: string; children: ReactNod
   return (
     <PreviewErrorBoundary name={name}>
       <div
-        className="w-full h-10 overflow-hidden flex items-center justify-center bg-muted/30 rounded-sm mb-1.5"
+        className="w-full h-[52px] overflow-hidden flex items-center justify-center"
         style={{ pointerEvents: "none", userSelect: "none" }}
       >
         <div style={{ transform: "scale(0.65)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -364,128 +364,26 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
   },
 ];
 
-// ─── Toolbox ──────────────────────────────────────────────────────────────────
+// ─── Draggable tile ───────────────────────────────────────────────────────────
 
 function DraggableItem({ item, connectors }: { item: ToolboxItem; connectors: any }) {
   return (
     <div
       ref={(ref) => { if (ref) connectors.create(ref, item.getElement()); }}
-      className="flex flex-col px-2 pt-2 pb-1.5 rounded-md border border-border bg-background cursor-grab active:cursor-grabbing hover:border-primary/60 hover:bg-primary/5 transition-colors select-none"
+      title={item.description}
+      className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-background hover:bg-primary/5 border border-border hover:border-primary/30 cursor-grab active:cursor-grabbing transition-all group shadow-sm hover:shadow-md select-none"
     >
-      <PreviewThumbnail name={item.name}>
-        {item.preview}
-      </PreviewThumbnail>
-      <span className="font-medium text-foreground text-[11px] leading-tight">{item.name}</span>
-      <span className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{item.description}</span>
+      <div className="w-full rounded-lg border border-border group-hover:border-primary/20 overflow-hidden bg-muted/20">
+        <PreviewThumbnail name={item.name}>
+          {item.preview}
+        </PreviewThumbnail>
+      </div>
+      <span className="text-[9.5px] text-muted-foreground group-hover:text-primary font-medium leading-none">{item.name}</span>
     </div>
   );
 }
 
-function Toolbox() {
-  const { connectors } = useEditor(() => ({}));
-  const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
-  const toggleCategory = (name: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-  };
-
-  const trimmed = query.trim().toLowerCase();
-
-  // Filtered flat list for search mode
-  const searchResults: ToolboxItem[] = trimmed
-    ? TOOLBOX_CATEGORIES.flatMap((cat) =>
-        cat.items.filter(
-          (item) =>
-            item.name.toLowerCase().includes(trimmed) ||
-            item.description.toLowerCase().includes(trimmed),
-        ),
-      )
-    : [];
-
-  return (
-    <div className="w-56 shrink-0 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-3 pt-3 pb-2 shrink-0">
-        <p className="text-xs font-bold text-foreground tracking-wide mb-2">
-          Components
-        </p>
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
-            className="w-full pl-6 pr-6 py-1 text-[11px] rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Scrollable list */}
-      <div className="flex-1 overflow-y-auto pb-3 px-2">
-        {trimmed ? (
-          // ── Search results ───────────────────────────────────────────────
-          searchResults.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground text-center py-6">No matches</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-1 pt-1">
-              {searchResults.map((item) => (
-                <DraggableItem key={item.name} item={item} connectors={connectors} />
-              ))}
-            </div>
-          )
-        ) : (
-          // ── Category list ────────────────────────────────────────────────
-          TOOLBOX_CATEGORIES.map((cat) => {
-            const isOpen = !collapsed.has(cat.name);
-            return (
-              <div key={cat.name} className="mb-2">
-                <button
-                  onClick={() => toggleCategory(cat.name)}
-                  className="w-full flex items-center justify-between px-1 py-1.5 rounded hover:bg-accent transition-colors group"
-                >
-                  <span className="text-[11px] font-bold text-foreground/80 uppercase tracking-wider group-hover:text-foreground transition-colors">
-                    {cat.name}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px] text-muted-foreground/60 tabular-nums">
-                      {cat.items.length}
-                    </span>
-                    {isOpen
-                      ? <ChevronDown className="w-3 h-3 text-muted-foreground/60" />
-                      : <ChevronRight className="w-3 h-3 text-muted-foreground/60" />}
-                  </div>
-                </button>
-                {isOpen && (
-                  <div className="grid grid-cols-2 gap-1 mt-0.5 mb-1">
-                    {cat.items.map((item) => (
-                      <DraggableItem key={item.name} item={item} connectors={connectors} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Settings panel helpers ───────────────────────────────────────────────────
+// ─── Prop helpers ─────────────────────────────────────────────────────────────
 
 function PropRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -542,8 +440,9 @@ function ToggleProp({ value, onChange }: { value: boolean; onChange: (v: boolean
   );
 }
 
+// ─── Component-specific props ─────────────────────────────────────────────────
+
 function ComponentProps({ displayName, props, setProp }: { displayName: string; props: Record<string, any>; setProp: (k: string, v: any) => void }) {
-  // ── Layout ──────────────────────────────────────────────────────────────
   if (displayName === "AstryxSection") return (
     <>
       <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
@@ -570,7 +469,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Typography ────────────────────────────────────────────────────────────
   if (displayName === "AstryxHeading") return (
     <>
       <PropRow label="Content"><TextProp value={props.children ?? "Heading"} onChange={(v) => setProp("children", v)} /></PropRow>
@@ -591,7 +489,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Controls ──────────────────────────────────────────────────────────────
   if (displayName === "AstryxButton") return (
     <>
       <PropRow label="Label"><TextProp value={props.children ?? "Button"} onChange={(v) => setProp("children", v)} /></PropRow>
@@ -619,7 +516,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Display ───────────────────────────────────────────────────────────────
   if (displayName === "AstryxCard") return (
     <PropRow label="Variant"><SelectProp value={props.variant ?? "elevated"} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
   );
@@ -656,7 +552,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Feedback ──────────────────────────────────────────────────────────────
   if (displayName === "AstryxBanner") return (
     <>
       <PropRow label="Message"><TextProp value={props.children ?? "Banner message"} onChange={(v) => setProp("children", v)} /></PropRow>
@@ -676,7 +571,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Content ───────────────────────────────────────────────────────────────
   if (displayName === "AstryxDivider") return (
     <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
   );
@@ -706,7 +600,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Form Controls ─────────────────────────────────────────────────────────
   if (displayName === "AstryxSelect") return (
     <>
       <PropRow label="Placeholder"><TextProp value={props.placeholder ?? "Select…"} onChange={(v) => setProp("placeholder", v)} /></PropRow>
@@ -741,7 +634,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  // ── Data Display ──────────────────────────────────────────────────────────
   if (displayName === "AstryxTable") return (
     <>
       <PropRow label="Rows"><NumberProp value={props.rows ?? 3} onChange={(v) => setProp("rows", v)} min={1} max={10} /></PropRow>
@@ -794,10 +686,88 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
   return <p className="text-xs text-muted-foreground">No editable properties.</p>;
 }
 
-// ─── Settings panel ───────────────────────────────────────────────────────────
+// ─── Inspect panel (rendered inside left rail when element is selected) ────────
 
-function SettingsPanel() {
-  const { selected, actions } = useEditor((state) => {
+interface SelectedNode {
+  id: string;
+  displayName: string;
+  props: Record<string, any>;
+  isRoot: boolean;
+}
+
+function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
+  const setProp = useCallback(
+    (key: string, value: any) => {
+      actions.setProp(selected.id, (p: any) => { p[key] = value; });
+    },
+    [selected.id, actions],
+  );
+
+  const shortName = selected.displayName.replace("Astryx", "");
+
+  return (
+    <div className="flex flex-col overflow-y-auto h-full">
+      {/* Element header */}
+      <div className="sticky top-0 bg-background z-10 flex items-center justify-between px-3 py-2.5 border-b border-border">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+          <span className="text-[11.5px] font-semibold text-foreground truncate">{shortName}</span>
+          <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
+            {selected.isRoot ? "root" : "element"}
+          </span>
+        </div>
+        {!selected.isRoot && (
+          <button
+            title="Delete element"
+            onClick={() => actions.delete(selected.id)}
+            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 ml-1"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Properties section */}
+      <section className="px-3 py-3 border-b border-border">
+        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Properties</div>
+        <div className="flex flex-col gap-3">
+          <ComponentProps
+            displayName={selected.displayName}
+            props={selected.props}
+            setProp={setProp}
+          />
+        </div>
+      </section>
+
+      {/* Position section */}
+      {!selected.isRoot && selected.displayName !== "AstryxArtboard" && (
+        <section className="px-3 py-3">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Position</div>
+          <div className="flex flex-col gap-3">
+            <PropRow label="Mode">
+              <SelectProp
+                value={selected.props.position ?? "flow"}
+                options={["flow", "absolute"]}
+                onChange={(v) => setProp("position", v)}
+              />
+            </PropRow>
+            {selected.props.position === "absolute" && (
+              <>
+                <PropRow label="X (px)"><NumberProp value={selected.props.x ?? 0} onChange={(v) => setProp("x", v)} /></PropRow>
+                <PropRow label="Y (px)"><NumberProp value={selected.props.y ?? 0} onChange={(v) => setProp("y", v)} /></PropRow>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ─── Left rail: Components + Inspect swap ─────────────────────────────────────
+
+function LeftRail() {
+  const { connectors, actions, selected } = useEditor((state) => {
     const selectedIds = state.events.selected;
     if (!selectedIds || selectedIds.size === 0) return { selected: null };
     const [nodeId] = Array.from(selectedIds);
@@ -809,75 +779,134 @@ function SettingsPanel() {
         displayName: node.data.displayName as string,
         props: { ...node.data.props } as Record<string, any>,
         isRoot: nodeId === "ROOT",
-      },
+      } as SelectedNode,
     };
   });
 
-  const setProp = useCallback(
-    (key: string, value: any) => {
-      if (!selected) return;
-      actions.setProp(selected.id, (p: any) => { p[key] = value; });
-    },
-    [selected, actions],
-  );
+  const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // When user explicitly hits "← Back", force components view even if selection is active
+  const [forceComponents, setForceComponents] = useState(false);
+
+  // Auto-show inspect panel whenever a new element is selected
+  useEffect(() => {
+    if (selected) setForceComponents(false);
+  }, [selected?.id]);
+
+  const showInspect = !!selected && !forceComponents;
+
+  const toggleCategory = (name: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
+  const trimmed = query.trim().toLowerCase();
+  const searchResults = trimmed
+    ? TOOLBOX_CATEGORIES.flatMap((cat) =>
+        cat.items.filter(
+          (item) =>
+            item.name.toLowerCase().includes(trimmed) ||
+            item.description.toLowerCase().includes(trimmed),
+        ),
+      )
+    : [];
 
   return (
-    <div className="w-52 shrink-0 border-l border-border bg-muted/30 flex flex-col overflow-y-auto">
-      {!selected ? (
-        <div className="flex flex-col items-center justify-center h-full gap-2 px-4 py-8 text-center">
-          <MousePointer2 className="w-5 h-5 text-muted-foreground/50" />
-          <p className="text-[11px] text-muted-foreground leading-tight">Click a component to edit its properties</p>
+    <div
+      className="w-[296px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
+      style={{ boxShadow: "1px 0 0 hsl(var(--border))" }}
+    >
+      {/* Header */}
+      <div className="px-3 py-2.5 border-b border-border shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[12px] font-semibold text-foreground">
+            {showInspect ? "Inspect" : "Components"}
+          </span>
+          {showInspect ? (
+            <button
+              onClick={() => setForceComponents(true)}
+              className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
+            >
+              ← Back
+            </button>
+          ) : (
+            <button className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground text-sm" title="Grid view">⊞</button>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="px-3 pt-3 pb-2 flex items-center justify-between border-b border-border shrink-0">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest truncate">
-              {selected.displayName.replace("Astryx", "")}
-            </p>
-            {!selected.isRoot && (
+        {!showInspect && (
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full pl-7 pr-6 py-1.5 text-[10px] rounded-xl border border-border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
+            />
+            {query && (
               <button
-                title="Delete"
-                onClick={() => actions.delete(selected.id)}
-                className="text-destructive/70 hover:text-destructive transition-colors ml-2 shrink-0"
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-3 px-3 py-3">
-            <ComponentProps
-              displayName={selected.displayName}
-              props={selected.props}
-              setProp={setProp}
-            />
-            {!selected.isRoot && selected.displayName !== "AstryxArtboard" && (
-              <>
-                <div className="h-px bg-border my-1" />
-                <PropRow label="Position">
-                  <SelectProp
-                    value={selected.props.position ?? "flow"}
-                    options={["flow", "absolute"]}
-                    onChange={(v) => setProp("position", v)}
-                  />
-                </PropRow>
-                {selected.props.position === "absolute" && (
-                  <>
-                    <PropRow label="X (px)"><NumberProp value={selected.props.x ?? 0} onChange={(v) => setProp("x", v)} /></PropRow>
-                    <PropRow label="Y (px)"><NumberProp value={selected.props.y ?? 0} onChange={(v) => setProp("y", v)} /></PropRow>
-                  </>
-                )}
-              </>
-            )}
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto">
+        {showInspect ? (
+          <InspectPanel selected={selected!} actions={actions} />
+        ) : trimmed ? (
+          // Search results
+          searchResults.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground text-center py-8">No matches</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5 p-2.5 pt-2">
+              {searchResults.map((item) => (
+                <DraggableItem key={item.name} item={item} connectors={connectors} />
+              ))}
+            </div>
+          )
+        ) : (
+          // Category list
+          <div className="p-2.5 space-y-3.5">
+            {TOOLBOX_CATEGORIES.map((cat) => {
+              const isOpen = !collapsed.has(cat.name);
+              return (
+                <div key={cat.name}>
+                  <button
+                    onClick={() => toggleCategory(cat.name)}
+                    className="w-full flex items-center gap-2 mb-1.5 px-0.5 hover:opacity-70 transition-opacity"
+                  >
+                    <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{cat.name}</span>
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[8px] text-muted-foreground/50">{isOpen ? "▴" : "▾"}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {cat.items.map((item) => (
+                        <DraggableItem key={item.name} item={item} connectors={connectors} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
 
-function CanvasToolbar() {
+function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void }) {
   const { actions, query } = useEditor(() => ({}));
 
   const addArtboard = useCallback(() => {
@@ -890,24 +919,50 @@ function CanvasToolbar() {
   }, [actions, query]);
 
   return (
-    <div className="shrink-0 border-b border-border bg-background/80 px-2 py-1 flex items-center gap-1">
+    <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
       <button
         onClick={addArtboard}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
         title="Add artboard"
       >
-        <Plus className="w-3.5 h-3.5" />
-        Add artboard
+        <Plus className="w-3 h-3" />
+        Artboard
       </button>
+      <div className="w-px h-4 bg-border mx-0.5" />
+      {["Layers", "Notes"].map((tab) => (
+        <button
+          key={tab}
+          className="text-[10px] text-muted-foreground/60 hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors"
+        >
+          {tab}
+        </button>
+      ))}
+      <div className="flex-1" />
+      <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
+        <button
+          onClick={onZoomOut}
+          className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
+          title="Zoom out"
+        >
+          −
+        </button>
+        <span className="w-10 text-center font-medium tabular-nums">{Math.round(zoom * 100)}%</span>
+        <button
+          onClick={onZoomIn}
+          className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
+          title="Zoom in"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
 
 // ─── Infinite canvas (pan + zoom) ────────────────────────────────────────────
 
-function InfiniteCanvas({ children }: { children: ReactNode }) {
+function InfiniteCanvas({ children, zoom, onZoom }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void }) {
   const [pan, setPan] = useState({ x: 80, y: 80 });
-  const [zoom, setZoom] = useState(1);
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const spaceDown = useRef(false);
@@ -937,17 +992,14 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     if (e.ctrlKey) {
-      // Ctrl+scroll or pinch-to-zoom → zoom
       const factor = e.deltaY < 0 ? 1.08 : 0.92;
-      setZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
+      onZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
     } else {
-      // Two-finger trackpad scroll → pan
       setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
     }
-  }, []);
+  }, [onZoom]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Left-click on the canvas background (not artboard content), middle-click, or space+drag all pan
     const clickedBackground = e.target === e.currentTarget;
     if (e.button === 1 || spaceDown.current || (e.button === 0 && clickedBackground)) {
       e.preventDefault();
@@ -966,7 +1018,7 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
 
   const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
 
-  const resetView = () => { setPan({ x: 80, y: 80 }); setZoom(1); };
+  const resetView = () => { setPan({ x: 80, y: 80 }); onZoom(() => 1); };
 
   return (
     <div
@@ -982,7 +1034,6 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* Infinite canvas — craft.js Frame renders directly on the grid */}
       <div
         style={{
           position: "absolute",
@@ -995,60 +1046,85 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
         </CanvasZoomContext.Provider>
       </div>
 
-      {/* Zoom controls */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-0.5 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-sm overflow-hidden z-10">
+      {/* Stacked zoom FABs */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-10">
         <button
-          onClick={() => setZoom((z) => Math.min(2, z * 1.15))}
-          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          onClick={() => onZoom((z) => Math.min(2, z * 1.15))}
+          className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all"
           title="Zoom in"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={resetView}
-          className="px-2 py-1 text-[11px] tabular-nums text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-w-[44px] text-center"
-          title="Reset view"
-        >
-          {Math.round(zoom * 100)}%
-        </button>
-        <button
-          onClick={() => setZoom((z) => Math.max(0.15, z / 1.15))}
-          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          onClick={() => onZoom((z) => Math.max(0.15, z / 1.15))}
+          className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all"
           title="Zoom out"
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={resetView}
-          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border-l border-border"
-          title="Fit to view"
+          className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all"
+          title="Fit view"
         >
           <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={resetView}
+          className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all text-xs"
+          title="Reset view"
+        >
+          ⤢
         </button>
       </div>
 
       {/* Pan hint */}
-      <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-10">
-        Two-finger scroll to pan · Ctrl+scroll or pinch to zoom · Space+drag to pan
+      <div className="absolute bottom-4 left-4 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-10">
+        Two-finger scroll to pan · Ctrl+scroll to zoom · Space+drag to pan
       </div>
     </div>
   );
 }
 
-// ─── Design AI panel ──────────────────────────────────────────────────────────
+// ─── AI drawer (right rail, collapsible) ─────────────────────────────────────
 
-function DesignAIPanel() {
+interface AIMessage { role: "ai" | "user"; text: string; }
+
+const INITIAL_MESSAGES: AIMessage[] = [
+  { role: "ai", text: "I can help you design this screen. Describe what you'd like to create or modify." },
+];
+
+function AIDrawer() {
   const { actions } = useEditor(() => ({}));
-  const [isOpen, setIsOpen] = useState(true);
+
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem("design-ai-drawer-open") !== "false"; } catch { return true; }
+  });
+  const [messages, setMessages] = useState<AIMessage[]>(INITIAL_MESSAGES);
   const [prompt, setPrompt] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "applied" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [activeTab, setActiveTab] = useState<"Chat" | "Generate" | "History">("Chat");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const toggleOpen = () => {
+    setOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("design-ai-drawer-open", String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
     if (!trimmed || status === "loading") return;
+    const userMsg: AIMessage = { role: "user", text: trimmed };
+    setMessages((prev) => [...prev, userMsg]);
+    setPrompt("");
     setStatus("loading");
-    setErrorMsg("");
     try {
       const res = await fetch("/api/ai/design", {
         method: "POST",
@@ -1059,76 +1135,127 @@ function DesignAIPanel() {
       if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
       const sanitized = sanitizeCraftState(data.craftState);
       actions.deserialize(sanitized);
-      setStatus("applied");
-      setPrompt("");
-      setTimeout(() => setStatus("idle"), 2500);
+      setMessages((prev) => [...prev, { role: "ai", text: "Design applied! I've updated the canvas with your requested layout." }]);
+      setStatus("idle");
     } catch (e: any) {
       setStatus("error");
-      setErrorMsg(e.message || "Unknown error");
-      setTimeout(() => setStatus("idle"), 4000);
+      setMessages((prev) => [...prev, { role: "ai", text: `Something went wrong: ${e.message?.slice(0, 80) ?? "Unknown error"}` }]);
+      setTimeout(() => setStatus("idle"), 3000);
     }
   };
 
-  if (!isOpen) {
-    return (
-      <div className="shrink-0 border-t border-border bg-background/95 px-3 py-1.5 flex items-center gap-1.5">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AI Generate</span>
-          <ChevronRight className="w-3 h-3" />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="shrink-0 border-t border-border bg-background/95 px-3 py-2 flex items-center gap-2">
+    <div
+      className={`relative flex-shrink-0 border-l border-border bg-background flex flex-col transition-all duration-200 ease-in-out ${open ? "w-[252px]" : "w-12"}`}
+    >
+      {/* Toggle tab on left edge */}
       <button
-        onClick={() => setIsOpen(false)}
-        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        title="Collapse AI panel"
+        onClick={toggleOpen}
+        className="absolute -left-3.5 top-16 w-7 h-9 bg-background border border-border rounded-l-xl flex items-center justify-center shadow-sm hover:bg-primary/5 hover:border-primary/40 hover:text-primary text-muted-foreground z-20 transition-all text-xs font-bold"
+        title={open ? "Collapse AI panel" : "Open AI panel"}
       >
-        <ChevronDown className="w-3.5 h-3.5" />
+        {open ? "›" : "‹"}
       </button>
-      <Sparkles className="w-3.5 h-3.5 text-primary/60 shrink-0" />
-      <input
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleGenerate(); }}
-        placeholder="Describe a UI to generate…"
-        disabled={status === "loading"}
-        className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/40 disabled:opacity-50"
-      />
-      {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
-      {status === "applied" && (
-        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 shrink-0">
-          <Check className="w-3 h-3" /> Design applied ✓
-        </span>
+
+      {!open ? (
+        // Collapsed icon strip
+        <div className="flex flex-col items-center pt-4 gap-3 px-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-[9px] font-bold shadow-md">
+            AI
+          </div>
+          <div className="w-2 h-2 rounded-full bg-green-400 shadow-sm" />
+          <Sparkles className="w-4 h-4 text-muted-foreground/40 mt-1" />
+        </div>
+      ) : (
+        <div className="flex flex-col h-full min-h-0">
+          {/* Header */}
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+            <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-[9px] font-bold shadow-sm">
+              AI
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-foreground leading-none">KiteAI</div>
+              <div className="text-[9px] text-green-500 font-medium leading-none mt-0.5">● Active</div>
+            </div>
+            <div className="flex-1" />
+            {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
+            {status === "error" && <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
+          </div>
+
+          {/* Mode tabs */}
+          <div className="flex border-b border-border px-2 pt-1.5 gap-0.5 shrink-0">
+            {(["Chat", "Generate", "History"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`text-[9.5px] px-2 py-1 rounded-t-lg font-medium transition-colors ${
+                  activeTab === tab
+                    ? "text-primary border-b-2 border-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 min-h-0">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex gap-1.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "ai" && (
+                  <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex-shrink-0 mt-0.5 shadow-sm" />
+                )}
+                <div className={`max-w-[85%] px-2.5 py-2 text-[10px] leading-snug rounded-2xl ${
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
+                    : "bg-muted text-foreground rounded-bl-sm"
+                }`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {status === "loading" && (
+              <div className="flex gap-1.5 justify-start">
+                <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex-shrink-0 mt-0.5 opacity-50" />
+                <div className="bg-muted px-3 py-2 rounded-2xl rounded-bl-sm flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input bar */}
+          <div className="px-2.5 py-2.5 border-t border-border shrink-0">
+            <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-xl px-2.5 py-1.5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+              <input
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
+                placeholder={activeTab === "Generate" ? "Describe a UI to generate…" : "Ask KiteAI anything…"}
+                disabled={status === "loading"}
+                className="flex-1 text-[10px] bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={!prompt.trim() || status === "loading"}
+                className="w-6 h-6 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground flex items-center justify-center transition-colors flex-shrink-0"
+                title="Send"
+              >
+                <ArrowUp className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      {status === "error" && (
-        <span className="flex items-center gap-1 text-xs text-destructive shrink-0" title={errorMsg}>
-          <AlertCircle className="w-3 h-3" /> {errorMsg ? errorMsg.slice(0, 40) : "Error"}
-        </span>
-      )}
-      <button
-        onClick={handleGenerate}
-        disabled={!prompt.trim() || status === "loading"}
-        className="shrink-0 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
-      >
-        Generate
-      </button>
     </div>
   );
 }
 
 // ─── Canvas drop area ─────────────────────────────────────────────────────────
-// sanitizeCraftState is called here for ALL renders — editable (enabled=true)
-// AND view-only (enabled=false) — so unknown component names never produce a
-// blank canvas in either mode.  DesignPage.tsx also sanitizes upstream as a
-// belt-and-suspenders measure.
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
   if (craftState) {
@@ -1154,6 +1281,11 @@ export interface DesignEditorProps {
 }
 
 export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps) {
+  const [zoom, setZoom] = useState(1);
+
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(2, z * 1.15)), []);
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z / 1.15)), []);
+
   const stableSave = useCallback(
     (state: string) => { onSave?.(state); },
     [onSave],
@@ -1161,18 +1293,15 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
 
   return (
     <Editor resolver={resolver} enabled={editable}>
-      {/* overflow: clip clips visually without creating a scroll container,
-          so craft.js pointer events are not blocked by the layout boundary */}
       <div className="flex h-full w-full" style={{ overflow: "clip" }}>
-        {editable && <Toolbox />}
+        {editable && <LeftRail />}
         <div className="flex flex-col flex-1 min-w-0">
-          {editable && <CanvasToolbar />}
-          <InfiniteCanvas>
+          {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
+          <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
             <CanvasArea craftState={craftState} />
           </InfiniteCanvas>
-          {editable && <DesignAIPanel />}
         </div>
-        {editable && <SettingsPanel />}
+        {editable && <AIDrawer />}
       </div>
       {editable && onSave && <SaveWatcher onSave={stableSave} />}
     </Editor>
