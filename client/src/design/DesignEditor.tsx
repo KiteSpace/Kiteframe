@@ -122,10 +122,10 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Section",  description: "Flex container",
         getElement: () => <AstryxSection direction="column" gap={16} padding={16} />,
         preview: (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 110, padding: 6, border: "1px dashed #d1d5db", borderRadius: 6, background: "#f9fafb" }}>
-            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ height: 8, background: "#e5e7eb", borderRadius: 3 }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 110, padding: 6, border: "1px dashed hsl(var(--border))", borderRadius: 6, background: "hsl(var(--muted))" }}>
+            <div style={{ height: 8, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 8, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 8, background: "hsl(var(--border))", borderRadius: 3 }} />
           </div>
         ),
       },
@@ -134,9 +134,9 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         getElement: () => <AstryxStack gap={8} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 80 }}>
-            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ height: 9, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ height: 9, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 9, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 9, background: "hsl(var(--border))", borderRadius: 3 }} />
           </div>
         ),
       },
@@ -145,9 +145,9 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         getElement: () => <AstryxHStack gap={8} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "row", gap: 4, alignItems: "center" }}>
-            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
-            <div style={{ width: 32, height: 12, background: "#e5e7eb", borderRadius: 3 }} />
+            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
           </div>
         ),
       },
@@ -190,9 +190,9 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Card",        description: "Elevated box",
         getElement: () => <AstryxCard variant="elevated" />,
         preview: (
-          <div style={{ width: 100, padding: "8px 10px", background: "#fff", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.12)", border: "1px solid #f3f4f6" }}>
-            <div style={{ height: 7, width: "70%", background: "#e5e7eb", borderRadius: 3, marginBottom: 5 }} />
-            <div style={{ height: 5, width: "90%", background: "#f3f4f6", borderRadius: 3 }} />
+          <div style={{ width: 100, padding: "8px 10px", background: "hsl(var(--card))", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.12)", border: "1px solid hsl(var(--border))" }}>
+            <div style={{ height: 7, width: "70%", background: "hsl(var(--border))", borderRadius: 3, marginBottom: 5 }} />
+            <div style={{ height: 5, width: "90%", background: "hsl(var(--muted))", borderRadius: 3 }} />
           </div>
         ),
       },
