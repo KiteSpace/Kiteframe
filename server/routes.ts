@@ -2229,7 +2229,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       const result = await executeAiChat({
         provider: 'anthropic',
         model: 'claude-sonnet-4-5-20250929',
-        maxTokens: 8192,
+        maxTokens: 16000,
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
@@ -2239,6 +2239,12 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
       }
+      // Detect truncation: if the model hit its token limit the JSON is cut off
+      const stopReason = result.json?.stop_reason;
+      if (stopReason === 'max_tokens') {
+        console.error('[design] response truncated by max_tokens limit');
+        return res.status(500).json({ error: 'Design was too complex — try a simpler prompt with fewer components' });
+      }
       // Reconstruct: prefill started with '{', model continues from there
       const raw = ('{' + (result.text || '')).trim();
       const jsonEnd = raw.lastIndexOf('}');
@@ -2246,21 +2252,22 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         return res.status(500).json({ error: 'AI returned incomplete response — try rephrasing your prompt' });
       }
       const jsonStr = raw.slice(0, jsonEnd + 1);
+      let finalJson = jsonStr;
       try {
         JSON.parse(jsonStr);
       } catch {
         // Repair common AI JSON issues: trailing commas before } or ]
         const repaired = jsonStr
-          .replace(/,\s*}/g, '}')
-          .replace(/,\s*]/g, ']');
+          .replace(/,(\s*[}\]])/g, '$1');
         try {
           JSON.parse(repaired);
-          return res.json({ craftState: repaired });
-        } catch {
+          finalJson = repaired;
+        } catch (parseErr2) {
+          console.error('[design] parse failed after repair. First 800 chars:', jsonStr.slice(0, 800));
           return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
         }
       }
-      return res.json({ craftState: jsonStr });
+      return res.json({ craftState: finalJson });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });

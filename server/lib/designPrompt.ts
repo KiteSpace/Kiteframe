@@ -1,6 +1,6 @@
 export { CRAFT_STATE_SCHEMA as DESIGN_JSON_SCHEMA } from "./designSchema";
 
-export const DESIGN_SYSTEM_PROMPT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences.
+export const DESIGN_SYSTEM_PROMPT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences. No code comments. All string values must be short (under 80 chars) and must NOT contain unescaped quotes or newline characters.
 
 Format (example: user profile card with nested containers):
 {
@@ -118,7 +118,7 @@ RULES:
 - CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
 - LEAVES (isCanvas=false, nodes=[]): all other 17 components.
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
-- Keep node count under 40.
+- Keep total node count under 20. Prefer fewer, well-chosen nodes over many redundant ones.
 - Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
 
 COMPONENT QUICK-REFERENCE:
