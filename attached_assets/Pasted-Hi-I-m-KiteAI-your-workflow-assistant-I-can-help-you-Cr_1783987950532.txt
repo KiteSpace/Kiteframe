@@ -1,0 +1,257 @@
+Hi! I'm KiteAI, your workflow assistant. I can help you:
+
+• Create new workflows from descriptions • Analyze and improve existing workflows • Import workflows from images or .kiteframe files • Answer questions about workflow design
+
+This feature uses AI tokens. Need more? Contact info@kiteframe.space
+
+How can I help you today?
+
+05:09 PM
+Admin dashboaord for user management
+
+05:09 PM
+{
+  "ROOT": {
+    "type": { "resolvedName": "AstryxSection" },
+    "isCanvas": true,
+    "props": { "direction": "column", "gap": 24, "padding": 32 },
+    "displayName": "AstryxSection",
+    "custom": {},
+    "parent": null,
+    "hidden": false,
+    "nodes": ["header", "stats-row", "content-section"],
+    "linkedNodes": {}
+  },
+  "header": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 16, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["header-left", "header-right"],
+    "linkedNodes": {}
+  },
+  "header-left": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 4 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "header",
+    "hidden": false,
+    "nodes": ["page-title", "page-subtitle"],
+    "linkedNodes": {}
+  },
+  "page-title": {
+    "type": { "resolvedName": "AstryxHeading" },
+    "isCanvas": false,
+    "props": { "children": "User Management", "size": "2xl" },
+    "displayName": "AstryxHeading",
+    "custom": {},
+    "parent": "header-left",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "page-subtitle": {
+    "type": { "resolvedName": "AstryxText" },
+    "isCanvas": false,
+    "props": { "children": "Manage users, permissions, and access control", "size": "sm", "muted": true },
+    "displayName": "AstryxText",
+    "custom": {},
+    "parent": "header-left",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "header-right": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Add User", "variant": "primary", "size": "md", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "header",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "stats-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 16, "align": "start" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["stat-card-1", "stat-card-2", "stat-card-3", "stat-card-4"],
+    "linkedNodes": {}
+  },
+  "stat-card-1": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "elevated" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "stats-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "stat-card-2": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "elevated" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "stats-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "stat-card-3": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "elevated" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "stats-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "stat-card-4": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "elevated" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "stats-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "content-section": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 16 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["toolbar", "user-list"],
+    "linkedNodes": {}
+  },
+  "toolbar": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 12, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "content-section",
+    "hidden": false,
+    "nodes": ["search-input", "filter-badge-1", "filter-badge-2"],
+    "linkedNodes": {}
+  },
+  "search-input": {
+    "type": { "resolvedName": "AstryxTextInput" },
+    "isCanvas": false,
+    "props": { "placeholder": "Search users...", "label": "", "disabled": false },
+    "displayName": "AstryxTextInput",
+    "custom": {},
+    "parent": "toolbar",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "filter-badge-1": {
+    "type": { "resolvedName": "AstryxBadge" },
+    "isCanvas": false,
+    "props": { "children": "Active", "color": "green" },
+    "displayName": "AstryxBadge",
+    "custom": {},
+    "parent": "toolbar",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "filter-badge-2": {
+    "type": { "resolvedName": "AstryxBadge" },
+    "isCanvas": false,
+    "props": { "children": "Admin", "color": "blue" },
+    "displayName": "AstryxBadge",
+    "custom": {},
+    "parent": "toolbar",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-list": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 12 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "content-section",
+    "hidden": false,
+    "nodes": ["user-row-1", "user-row-2", "user-row-3", "divider-1", "user-row-4"],
+    "linkedNodes": {}
+  },
+  "user-row-1": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "outlined" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "user-list",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-row-2": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "outlined" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "user-list",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-row-3": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "outlined" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "user-list",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "divider-1": {
+    "type": { "resolvedName": "AstryxDivider" },
+    "isCanvas": false,
+    "props": { "label": "Inactive Users" },
+    "displayName": "AstryxDivider",
+    "custom": {},
+    "parent": "user-list",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-row-4": {
+    "type": { "resolvedName": "AstryxCard" },
+    "isCanvas": false,
+    "props": { "variant": "outlined" },
+    "displayName": "AstryxCard",
+    "custom": {},
+    "parent": "user-list",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}
+05:10 PM
