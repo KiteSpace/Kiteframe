@@ -201,6 +201,21 @@ export function HomeScreen({
   const [isDesignGenerating, setIsDesignGenerating] = useState(false);
   const [designError, setDesignError] = useState<string | null>(null);
 
+  const {
+    credits,
+    isOutOfCredits,
+    isAuthenticated,
+    isServerAuthenticated,
+    ctaMessage,
+    ctaAction,
+    ctaButtonText,
+    openSignup,
+    openCreditsDialog,
+  } = useCreditsGate();
+
+  const { user: firebaseUser } = useAuth();
+  const { isAdvanced, isAdmin } = useSubscription();
+
   const modeStorageKey = `${HOME_MODE_STORAGE_KEY}:${firebaseUser?.uid ?? "anon"}`;
 
   useEffect(() => {
@@ -216,21 +231,6 @@ export function HomeScreen({
   }, [modeStorageKey]);
 
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
-
-  const {
-    credits,
-    isOutOfCredits,
-    isAuthenticated,
-    isServerAuthenticated,
-    ctaMessage,
-    ctaAction,
-    ctaButtonText,
-    openSignup,
-    openCreditsDialog,
-  } = useCreditsGate();
-
-  const { user: firebaseUser } = useAuth();
-  const { isAdvanced, isAdmin } = useSubscription();
   const canUploadImage = isAdvanced || isAdmin;
 
   // User is considered authenticated if either Firebase or server session auth is present
