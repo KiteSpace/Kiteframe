@@ -364,8 +364,11 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
         padding,
-        minHeight: isRoot ? "100%" : 48,
-        width: "100%",
+        minHeight: isRoot ? 480 : 48,
+        width: isRoot ? 900 : "100%",
+        background: isRoot ? "hsl(var(--card))" : undefined,
+        borderRadius: isRoot ? 12 : undefined,
+        boxShadow: isRoot ? "0 4px 24px rgba(0,0,0,0.10)" : undefined,
         boxSizing: "border-box",
       }}
     >
