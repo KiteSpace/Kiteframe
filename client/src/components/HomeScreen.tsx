@@ -47,6 +47,7 @@ import {
 import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import { HomeHero } from "./HomeHero";
+import { useAuth } from "@/hooks/useAuth";
 
 interface RecentProject {
   id: string;
@@ -200,17 +201,19 @@ export function HomeScreen({
   const [isDesignGenerating, setIsDesignGenerating] = useState(false);
   const [designError, setDesignError] = useState<string | null>(null);
 
+  const modeStorageKey = `${HOME_MODE_STORAGE_KEY}:${firebaseUser?.uid ?? "anon"}`;
+
   useEffect(() => {
-    const saved = localStorage.getItem(HOME_MODE_STORAGE_KEY);
+    const saved = localStorage.getItem(modeStorageKey);
     if (saved === "workflow" || saved === "design") {
       setGenerationMode(saved);
     }
-  }, []);
+  }, [modeStorageKey]);
 
   const handleGenerationModeChange = useCallback((mode: "workflow" | "design") => {
     setGenerationMode(mode);
-    localStorage.setItem(HOME_MODE_STORAGE_KEY, mode);
-  }, []);
+    localStorage.setItem(modeStorageKey, mode);
+  }, [modeStorageKey]);
 
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
 
@@ -226,6 +229,7 @@ export function HomeScreen({
     openCreditsDialog,
   } = useCreditsGate();
 
+  const { user: firebaseUser } = useAuth();
   const { isAdvanced, isAdmin } = useSubscription();
   const canUploadImage = isAdvanced || isAdmin;
 
@@ -628,6 +632,7 @@ export function HomeScreen({
           isImageLocked={!canUploadImage}
           generationMode={generationMode}
           onGenerationModeChange={handleGenerationModeChange}
+          isInterfaceGenerating={isDesignGenerating}
         />
         {designError && (
           <div className="mt-3 flex items-center gap-2 text-sm text-destructive px-1">

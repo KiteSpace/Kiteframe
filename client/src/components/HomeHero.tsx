@@ -24,6 +24,7 @@ interface HomeHeroProps {
   isImageLocked?: boolean;
   generationMode?: "workflow" | "design";
   onGenerationModeChange?: (mode: "workflow" | "design") => void;
+  isInterfaceGenerating?: boolean;
 }
 
 export function HomeHero({
@@ -36,6 +37,7 @@ export function HomeHero({
   isImageLocked = false,
   generationMode = "workflow",
   onGenerationModeChange,
+  isInterfaceGenerating = false,
 }: HomeHeroProps) {
   const {
     context,
@@ -171,6 +173,12 @@ export function HomeHero({
           className={`relative w-full max-w-4xl bg-white dark:bg-card rounded-2xl shadow-xl border border-border/50 ${isDisabled ? "opacity-60" : ""}`}
           style={{ minHeight: "280px" }}
         >
+          {isInterfaceGenerating && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-background/80 backdrop-blur-sm">
+              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground font-medium">Generating your interface…</p>
+            </div>
+          )}
           <div className="p-6 pb-20">
             <h1 className="text-2xl font-bold text-foreground mb-2">
               What are we working on today?
