@@ -1,7 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Check, AlertCircle, BookmarkPlus } from "lucide-react";
+import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
@@ -52,6 +52,7 @@ interface CraftDesignViewProps {
 function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps) {
   const qc = useQueryClient();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const isOwner = !!(currentUserId && design.claimedByUserId === currentUserId);
   const isUnclaimed = !design.claimedByUserId;
@@ -70,6 +71,12 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
     },
   });
 
+  const notesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      await apiRequest("PATCH", `/api/designs/${design.id}`, { notes });
+    },
+  });
+
   const claimMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/designs/${design.id}/claim`, {});
@@ -84,6 +91,10 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
     saveStatusRef.current = "saving";
     patchMutation.mutate(state);
   }, [patchMutation]);
+
+  const handleNotesChange = useCallback((notes: string) => {
+    notesMutation.mutate(notes);
+  }, [notesMutation]);
 
   // Sanitize before reaching DesignEditor so both editable and view-only
   // paths are protected regardless of how the editor renders the state.
@@ -105,9 +116,23 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
             {!canEdit && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                View only
-              </span>
+              <>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  View only
+                </span>
+                <button
+                  onClick={() => setNotesOpen((v) => !v)}
+                  className={`flex items-center gap-1 text-[10px] rounded-lg px-2 py-1 transition-colors border ${
+                    notesOpen
+                      ? "text-primary bg-primary/10 border-primary/20"
+                      : "text-muted-foreground border-border hover:bg-accent"
+                  }`}
+                  title="Toggle notes"
+                >
+                  <StickyNote className="w-3 h-3" />
+                  Notes
+                </button>
+              </>
             )}
             {isUnclaimed && currentUserId && (
               <Button
@@ -135,9 +160,23 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
             {!canEdit && (
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                View only
-              </span>
+              <>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  View only
+                </span>
+                <button
+                  onClick={() => setNotesOpen((v) => !v)}
+                  className={`flex items-center gap-1 text-[10px] rounded-lg px-2 py-1 transition-colors border ${
+                    notesOpen
+                      ? "text-primary bg-primary/10 border-primary/20"
+                      : "text-muted-foreground border-border hover:bg-accent"
+                  }`}
+                  title="Toggle notes"
+                >
+                  <StickyNote className="w-3 h-3" />
+                  Notes
+                </button>
+              </>
             )}
             {isUnclaimed && currentUserId && (
               <Button
@@ -162,7 +201,11 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
         <DesignEditor
           editable={canEdit}
           craftState={craftStateJson}
+          notes={design.notes}
+          notesOpen={notesOpen}
+          onSetNotesOpen={setNotesOpen}
           onSave={canEdit ? handleSave : undefined}
+          onNotesChange={canEdit ? handleNotesChange : undefined}
         />
       </div>
     </div>

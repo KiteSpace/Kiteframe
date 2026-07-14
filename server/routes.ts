@@ -6989,8 +6989,8 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!design.claimedByUserId || design.claimedByUserId !== userId) {
         return res.status(403).json({ error: 'You do not own this design. Claim it first.' });
       }
-      const { craftState, title } = req.body ?? {};
-      const payload: { craftState?: unknown; title?: string | null } = {};
+      const { craftState, title, notes } = req.body ?? {};
+      const payload: { craftState?: unknown; title?: string | null; notes?: string | null } = {};
       if (craftState !== undefined) {
         let state: unknown = craftState;
         if (typeof state === 'string') {
@@ -7001,6 +7001,7 @@ jane@example.com,Jane,Smith,pro,GroupC
         payload.craftState = state;
       }
       if (title !== undefined) payload.title = typeof title === 'string' ? title : null;
+      if (notes !== undefined) payload.notes = typeof notes === 'string' ? notes : null;
       const updated = await storage.updateDesign(req.params.designId, payload as any);
       res.json(updated);
     } catch (err) {

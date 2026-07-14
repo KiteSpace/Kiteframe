@@ -783,6 +783,7 @@ export const designs = pgTable("designs", {
   apiKeyId: varchar("api_key_id").references(() => externalApiKeys.id),
   craftState: jsonb("craft_state").notNull(),
   title: text("title"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

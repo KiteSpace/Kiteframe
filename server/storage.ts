@@ -614,6 +614,7 @@ export class DatabaseStorage implements IStorage {
         : data.craftState;
     }
     if (data.title !== undefined) payload.title = data.title;
+    if (data.notes !== undefined) payload.notes = data.notes;
     const [row] = await db.update(designs).set(payload).where(eq(designs.id, id)).returning();
     return row;
   }

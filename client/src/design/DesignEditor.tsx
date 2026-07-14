@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronDown, StickyNote } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -1345,11 +1345,90 @@ function LeftRail() {
   );
 }
 
+// ─── Notes context ────────────────────────────────────────────────────────────
+
+interface NotesContextValue {
+  notesOpen: boolean;
+  setNotesOpen: (open: boolean) => void;
+}
+const NotesContext = createContext<NotesContextValue>({ notesOpen: false, setNotesOpen: () => {} });
+
+// ─── Notes panel ─────────────────────────────────────────────────────────────
+
+interface NotesPanelProps {
+  notes: string;
+  editable: boolean;
+  onNotesChange?: (notes: string) => void;
+}
+
+function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
+  const { notesOpen, setNotesOpen } = useContext(NotesContext);
+  const [localNotes, setLocalNotes] = useState(notes);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep local state in sync when the prop changes (e.g. on initial load)
+  useEffect(() => { setLocalNotes(notes); }, [notes]);
+
+  const handleChange = (value: string) => {
+    setLocalNotes(value);
+    if (!onNotesChange) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { onNotesChange(value); }, 600);
+  };
+
+  if (!notesOpen) return null;
+
+  return (
+    <div className="absolute inset-y-0 right-0 w-[300px] z-30 flex flex-col bg-background border-l border-border shadow-xl">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+        <StickyNote className="w-3.5 h-3.5 text-primary" />
+        <span className="text-[12px] font-semibold text-foreground flex-1">Notes</span>
+        <button
+          onClick={() => setNotesOpen(false)}
+          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          title="Close notes"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 flex flex-col p-3 min-h-0">
+        {editable ? (
+          <textarea
+            value={localNotes}
+            onChange={(e) => handleChange(e.target.value)}
+            placeholder="Add design notes, decisions, or handoff context here…"
+            className="flex-1 w-full text-[12px] leading-relaxed bg-transparent resize-none border-none outline-none text-foreground placeholder:text-muted-foreground/50"
+            spellCheck
+          />
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            {localNotes ? (
+              <p className="text-[12px] leading-relaxed text-foreground whitespace-pre-wrap">{localNotes}</p>
+            ) : (
+              <p className="text-[12px] text-muted-foreground/50 italic">No notes have been added to this design.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {editable && (
+        <div className="px-3 py-2 border-t border-border shrink-0">
+          <p className="text-[10px] text-muted-foreground/50">Notes save automatically as you type.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
 
 function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void }) {
   const { actions, query } = useEditor(() => ({}));
   const { mode, setMode } = useContext(LeftRailModeContext);
+  const { notesOpen, setNotesOpen } = useContext(NotesContext);
 
   const addArtboard = useCallback(() => {
     const rootNode = query.node("ROOT").get();
@@ -1381,6 +1460,19 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
       >
         <Layers className="w-3 h-3" />
         Layers
+      </button>
+      <div className="w-px h-4 bg-border mx-0.5" />
+      <button
+        onClick={() => setNotesOpen(!notesOpen)}
+        className={`flex items-center gap-1 text-[10px] rounded-lg px-2 py-1 transition-colors ${
+          notesOpen
+            ? "text-primary bg-primary/10 hover:bg-primary/15"
+            : "text-muted-foreground/60 hover:text-foreground hover:bg-accent"
+        }`}
+        title="Toggle notes panel"
+      >
+        <StickyNote className="w-3 h-3" />
+        Notes
       </button>
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
@@ -1803,12 +1895,20 @@ function CanvasArea({ craftState }: { craftState: string | null }) {
 export interface DesignEditorProps {
   editable: boolean;
   craftState: string | null;
+  notes?: string | null;
+  notesOpen?: boolean;
+  onSetNotesOpen?: (open: boolean) => void;
   onSave?: (state: string) => void;
+  onNotesChange?: (notes: string) => void;
 }
 
-export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps) {
+export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onNotesChange }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>("components");
+  const [notesOpenInternal, setNotesOpenInternal] = useState(false);
+
+  const notesOpen = notesOpenProp !== undefined ? notesOpenProp : notesOpenInternal;
+  const setNotesOpen = onSetNotesOpen ?? setNotesOpenInternal;
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(2, z * 1.15)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z / 1.15)), []);
@@ -1819,22 +1919,31 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
   );
 
   return (
-    <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
-      <Editor resolver={resolver} enabled={editable}>
-        <div className="flex h-full w-full" style={{ overflow: "clip" }}>
-          {editable && <LeftRail />}
-          <div className="flex flex-col flex-1 min-w-0">
-            {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
-            <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
-              <CanvasArea craftState={craftState} />
-            </InfiniteCanvas>
+    <NotesContext.Provider value={{ notesOpen, setNotesOpen }}>
+      <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
+        <Editor resolver={resolver} enabled={editable}>
+          <div className="flex h-full w-full" style={{ overflow: "clip" }}>
+            {editable && <LeftRail />}
+            <div className="flex flex-col flex-1 min-w-0">
+              {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
+              <div className="relative flex-1 min-h-0">
+                <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
+                  <CanvasArea craftState={craftState} />
+                </InfiniteCanvas>
+                <NotesPanel
+                  notes={notes ?? ""}
+                  editable={editable}
+                  onNotesChange={onNotesChange}
+                />
+              </div>
+            </div>
+            {editable && <AIDrawer />}
           </div>
-          {editable && <AIDrawer />}
-        </div>
-        {editable && onSave && <SaveWatcher onSave={stableSave} />}
-        {editable && <DeleteKeyHandler />}
-      </Editor>
-    </LeftRailModeContext.Provider>
+          {editable && onSave && <SaveWatcher onSave={stableSave} />}
+          {editable && <DeleteKeyHandler />}
+        </Editor>
+      </LeftRailModeContext.Provider>
+    </NotesContext.Provider>
   );
 }
 
