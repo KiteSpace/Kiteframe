@@ -141,25 +141,34 @@ function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
 export default function DesignPage() {
   const { id } = useParams<{ id: string }>();
 
-  // Try new designs table first
-  const { data: design, isLoading, isError } = useQuery<Design>({
+  // Fetch design and current user in parallel so ownership is resolved before
+  // the editor mounts. Without this, the user query would only start after the
+  // design loaded, causing a window where canEdit=false and the Editor would
+  // initialise in read-only mode before correcting itself.
+  const { data: design, isLoading: isDesignLoading, isError } = useQuery<Design>({
     queryKey: ['/api/designs', id],
     enabled: !!id,
     retry: false,
   });
 
-  // Get current user (for ownership check)
-  const { data: user } = useQuery<{ id: string } | null>({
+  // Always run in parallel — do NOT gate on !!design.
+  const { data: user, isLoading: isUserLoading } = useQuery<{ id: string } | null>({
     queryKey: ['/api/auth/user'],
     retry: false,
-    enabled: !!design,
   });
+
+  // Show loading until both are ready (design found path only waits for user
+  // when a craft.js design actually exists, to avoid unnecessary delay on the
+  // legacy-viewer fallback path).
+  const isLoading = isDesignLoading || (!!design && isUserLoading);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // New craft.js design found
+  // New craft.js design found — both design and user are resolved at this point,
+  // so canEdit is stable on first render and the Editor never initialises
+  // in the wrong mode.
   if (design) {
     return (
       <CraftDesignView

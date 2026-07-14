@@ -6884,8 +6884,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   // POST /api/designs — create a new craft.js design (auth required)
   app.post('/api/designs', isAuthenticated, projectRateLimiter, async (req: any, res) => {
     try {
-      const userId = req.user?.id as string | undefined;
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const userId = getUserIdFromRequest(req.user);
       const { craftState, title, source } = req.body ?? {};
       let state: unknown = craftState ?? EMPTY_CRAFT_STATE;
       if (typeof state === 'string') {
@@ -6923,7 +6922,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   // PATCH /api/designs/:id — update craft state / title (auth + ownership required)
   app.patch('/api/designs/:designId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id as string | undefined;
+      const userId = getUserIdFromRequest(req.user);
       const design = await storage.getDesign(req.params.designId);
       if (!design) return res.status(404).json({ error: 'Design not found.' });
       // Strict ownership: unclaimed OR claimed-by-another are both rejected
@@ -6953,8 +6952,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   // POST /api/designs/:id/claim — claim an unclaimed design (auth required)
   app.post('/api/designs/:designId/claim', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id as string | undefined;
-      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const userId = getUserIdFromRequest(req.user);
       const design = await storage.getDesign(req.params.designId);
       if (!design) return res.status(404).json({ error: 'Design not found.' });
       if (design.claimedByUserId === userId) return res.json(design); // idempotent
