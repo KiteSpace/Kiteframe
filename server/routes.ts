@@ -2223,6 +2223,9 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         return res.status(400).json({ error: 'prompt is required (1–2000 chars)' });
       }
       const { prompt } = parsed.data;
+      // Use Anthropic assistant-prefill to force JSON output: the assistant message
+      // starts with '{' so Claude is constrained to continue with the JSON body.
+      // We then prepend '{' to the returned text to reconstruct the full object.
       const result = await executeAiChat({
         provider: 'anthropic',
         model: 'claude-sonnet-4-5-20250929',
@@ -2230,26 +2233,32 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
+          { role: 'assistant', content: '{' },
         ],
       });
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
       }
-      // Strip markdown fences if present (```json ... ``` or ``` ... ```)
-      let raw = (result.text || '').trim();
-      raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      const jsonStart = raw.indexOf('{');
+      // Reconstruct: prefill started with '{', model continues from there
+      const raw = ('{' + (result.text || '')).trim();
       const jsonEnd = raw.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) {
-        console.error('[design] non-JSON response (first 300 chars):', raw.slice(0, 300));
-        return res.status(500).json({ error: 'AI returned non-JSON response' });
+      if (jsonEnd === -1) {
+        return res.status(500).json({ error: 'AI returned incomplete response — try rephrasing your prompt' });
       }
-      const jsonStr = raw.slice(jsonStart, jsonEnd + 1);
+      const jsonStr = raw.slice(0, jsonEnd + 1);
       try {
         JSON.parse(jsonStr);
-      } catch (parseErr) {
-        console.error('[design] JSON parse failed (first 500 chars):', jsonStr.slice(0, 500));
-        return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
+      } catch {
+        // Repair common AI JSON issues: trailing commas before } or ]
+        const repaired = jsonStr
+          .replace(/,\s*}/g, '}')
+          .replace(/,\s*]/g, ']');
+        try {
+          JSON.parse(repaired);
+          return res.json({ craftState: repaired });
+        } catch {
+          return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
+        }
       }
       return res.json({ craftState: jsonStr });
     } catch (err: any) {
