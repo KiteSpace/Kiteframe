@@ -2,7 +2,7 @@
 
 export const DESIGN_SYSTEM_PROMPT_CLIENT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences.
 
-Format:
+Format (example: user profile card with nested containers):
 {
   "ROOT": {
     "type": { "resolvedName": "AstryxSection" },
@@ -12,21 +12,104 @@ Format:
     "custom": {},
     "parent": null,
     "hidden": false,
-    "nodes": ["node-1", "node-2"],
+    "nodes": ["identity-row", "actions-row"],
     "linkedNodes": {}
   },
-  "node-1": {
-    "type": { "resolvedName": "AstryxCard" },
-    "isCanvas": false,
-    "props": { "variant": "elevated" },
-    "displayName": "AstryxCard",
+  "identity-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 12, "align": "center" },
+    "displayName": "AstryxHStack",
     "custom": {},
     "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["user-avatar", "user-info"],
+    "linkedNodes": {}
+  },
+  "user-avatar": {
+    "type": { "resolvedName": "AstryxAvatar" },
+    "isCanvas": false,
+    "props": { "name": "Jane Smith", "size": "md" },
+    "displayName": "AstryxAvatar",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-info": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 4 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": ["user-name", "user-role"],
+    "linkedNodes": {}
+  },
+  "user-name": {
+    "type": { "resolvedName": "AstryxHeading" },
+    "isCanvas": false,
+    "props": { "children": "Jane Smith", "size": "md" },
+    "displayName": "AstryxHeading",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-role": {
+    "type": { "resolvedName": "AstryxText" },
+    "isCanvas": false,
+    "props": { "children": "Product Designer", "size": "sm", "muted": true },
+    "displayName": "AstryxText",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "actions-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 8, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["btn-follow", "btn-message"],
+    "linkedNodes": {}
+  },
+  "btn-follow": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Follow", "variant": "primary", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "btn-message": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Message", "variant": "outline", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   }
 }
+
+Key nesting patterns shown above:
+- AstryxHStack ("identity-row") holds both a leaf (AstryxAvatar) and a container (AstryxStack "user-info")
+- AstryxStack ("user-info") holds two leaves (AstryxHeading + AstryxText) — nested inside an HStack
+- AstryxHStack ("actions-row") holds two leaf buttons side-by-side
+- Always set "isCanvas": true on AstryxStack/AstryxHStack so they accept children
 
 RULES:
 - ROOT MUST always be AstryxSection. It is the only valid root.
