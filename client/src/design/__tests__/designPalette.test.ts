@@ -40,11 +40,18 @@ const DOCUMENTED_COMPONENTS = [
   'AstryxHeading', 'AstryxText',
   // Inputs & actions
   'AstryxButton', 'AstryxTextInput',
+  // Form controls
+  'AstryxSelect', 'AstryxCheckbox', 'AstryxRadioGroup', 'AstryxSlider',
   // Status & feedback
   'AstryxBadge', 'AstryxBanner', 'AstryxProgressBar', 'AstryxStatusDot',
   'AstryxSpinner', 'AstryxSkeleton',
   // Media & identity
   'AstryxAvatar', 'AstryxIcon',
+  // Data display
+  'AstryxTable', 'AstryxTabs', 'AstryxAccordion', 'AstryxCalendar',
+  'AstryxCommand', 'AstryxCarousel',
+  // Layout
+  'AstryxResizable',
   // Content
   'AstryxCard', 'AstryxChatMessage', 'AstryxEmptyState', 'AstryxToken',
   'AstryxDivider',
@@ -352,7 +359,7 @@ function extractCraftState(raw: string): unknown {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('DESIGN_SYSTEM_PROMPT_CLIENT — full palette coverage', () => {
-  it('mentions every one of the 20 documented Astryx components', () => {
+  it('mentions every documented Astryx component', () => {
     const missing = DOCUMENTED_COMPONENTS.filter(
       (name) => !DESIGN_SYSTEM_PROMPT_CLIENT.includes(name),
     );
@@ -376,7 +383,7 @@ describe('DESIGN_SYSTEM_PROMPT_CLIENT — full palette coverage', () => {
 });
 
 describe('ALLOWED_CRAFT_COMPONENTS — alignment with expected palette', () => {
-  it('includes all 20 documented components', () => {
+  it('includes all documented components', () => {
     const missing = DOCUMENTED_COMPONENTS.filter(
       (name) => !ALLOWED_CRAFT_COMPONENTS.includes(name),
     );
@@ -387,7 +394,7 @@ describe('ALLOWED_CRAFT_COMPONENTS — alignment with expected palette', () => {
     expect(ALLOWED_CRAFT_COMPONENTS).toContain('AstryxUnknown');
   });
 
-  it('contains exactly the expected 21 component names (no extras, no missing)', () => {
+  it('contains exactly the expected component names (no extras, no missing)', () => {
     const extra = [...ALLOWED_CRAFT_COMPONENTS].filter(
       (name) => !(FULL_RESOLVER_SET as readonly string[]).includes(name),
     );

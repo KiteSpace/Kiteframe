@@ -23,6 +23,17 @@ import {
   AstryxChatMessage,
   AstryxToken,
   AstryxIcon,
+  AstryxTable,
+  AstryxTabs,
+  AstryxAccordion,
+  AstryxSelect,
+  AstryxCheckbox,
+  AstryxRadioGroup,
+  AstryxSlider,
+  AstryxCalendar,
+  AstryxCommand,
+  AstryxCarousel,
+  AstryxResizable,
   createEmptyCraftState,
   sanitizeCraftState,
 } from "./resolver";
@@ -44,6 +55,17 @@ import {
   AstryxChatMessage as AstryxChatMessageBase,
   AstryxToken as AstryxTokenBase,
   AstryxIcon as AstryxIconBase,
+  AstryxTable as AstryxTableBase,
+  AstryxTabs as AstryxTabsBase,
+  AstryxAccordion as AstryxAccordionBase,
+  AstryxSelect as AstryxSelectBase,
+  AstryxCheckbox as AstryxCheckboxBase,
+  AstryxRadioGroup as AstryxRadioGroupBase,
+  AstryxSlider as AstryxSliderBase,
+  AstryxCalendar as AstryxCalendarBase,
+  AstryxCommand as AstryxCommandBase,
+  AstryxCarousel as AstryxCarouselBase,
+  AstryxResizable as AstryxResizableBase,
 } from "@/components/astryx";
 
 // ─── Preview error boundary ────────────────────────────────────────────────────
@@ -145,11 +167,16 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         getElement: () => <AstryxHStack gap={8} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "row", gap: 4, alignItems: "center" }}>
-            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
-            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
-            <div style={{ width: 32, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ width: 28, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ width: 28, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ width: 28, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
           </div>
         ),
+      },
+      {
+        name: "Resizable", description: "Split panels",
+        getElement: () => <AstryxResizable direction="horizontal" />,
+        preview: <AstryxResizableBase direction="horizontal" />,
       },
     ],
   },
@@ -172,14 +199,69 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
     name: "Controls",
     items: [
       {
-        name: "Button",    description: "Action button",
+        name: "Button",     description: "Action button",
         getElement: () => <AstryxButton variant="primary" size="md">Button</AstryxButton>,
         preview: <AstryxButtonBase variant="primary" size="md">Button</AstryxButtonBase>,
       },
       {
-        name: "TextInput", description: "Input field",
+        name: "TextInput",  description: "Input field",
         getElement: () => <AstryxTextInput placeholder="Enter text…" />,
         preview: <AstryxTextInputBase placeholder="Enter text…" />,
+      },
+      {
+        name: "Select",     description: "Dropdown",
+        getElement: () => <AstryxSelect placeholder="Select…" />,
+        preview: <AstryxSelectBase placeholder="Select…" />,
+      },
+      {
+        name: "Checkbox",   description: "Checkbox",
+        getElement: () => <AstryxCheckbox label="Option" />,
+        preview: <AstryxCheckboxBase label="Option" />,
+      },
+      {
+        name: "RadioGroup", description: "Radio buttons",
+        getElement: () => <AstryxRadioGroup options="A,B,C" selected="A" />,
+        preview: <AstryxRadioGroupBase options="A,B" selected="A" />,
+      },
+      {
+        name: "Slider",     description: "Range slider",
+        getElement: () => <AstryxSlider value={50} />,
+        preview: <AstryxSliderBase value={50} />,
+      },
+    ],
+  },
+  {
+    name: "Data",
+    items: [
+      {
+        name: "Table",     description: "Data table",
+        getElement: () => <AstryxTable rows={3} columns={3} />,
+        preview: <AstryxTableBase rows={2} columns={3} />,
+      },
+      {
+        name: "Tabs",      description: "Tab bar",
+        getElement: () => <AstryxTabs tabs="Tab 1,Tab 2,Tab 3" active="Tab 1" />,
+        preview: <AstryxTabsBase tabs="Tab 1,Tab 2" active="Tab 1" />,
+      },
+      {
+        name: "Accordion", description: "Collapsible",
+        getElement: () => <AstryxAccordion items="Section 1,Section 2,Section 3" open="Section 1" />,
+        preview: <AstryxAccordionBase items="Section 1,Section 2" open="Section 1" />,
+      },
+      {
+        name: "Calendar",  description: "Date picker",
+        getElement: () => <AstryxCalendar month="July 2026" />,
+        preview: <AstryxCalendarBase month="July 2026" />,
+      },
+      {
+        name: "Command",   description: "Search palette",
+        getElement: () => <AstryxCommand placeholder="Search commands…" />,
+        preview: <AstryxCommandBase placeholder="Search…" />,
+      },
+      {
+        name: "Carousel",  description: "Slide viewer",
+        getElement: () => <AstryxCarousel slides="Slide 1,Slide 2,Slide 3" />,
+        preview: <AstryxCarouselBase slides="Slide 1,Slide 2" />,
       },
     ],
   },
@@ -324,10 +406,10 @@ function Toolbox() {
     : [];
 
   return (
-    <div className="w-48 shrink-0 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
+    <div className="w-56 shrink-0 border-r border-border bg-muted/30 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-3 pt-3 pb-2 shrink-0">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+        <p className="text-xs font-bold text-foreground tracking-wide mb-2">
           Components
         </p>
         {/* Search */}
@@ -357,7 +439,7 @@ function Toolbox() {
           searchResults.length === 0 ? (
             <p className="text-[11px] text-muted-foreground text-center py-6">No matches</p>
           ) : (
-            <div className="flex flex-col gap-1 pt-1">
+            <div className="grid grid-cols-2 gap-1 pt-1">
               {searchResults.map((item) => (
                 <DraggableItem key={item.name} item={item} connectors={connectors} />
               ))}
@@ -368,12 +450,12 @@ function Toolbox() {
           TOOLBOX_CATEGORIES.map((cat) => {
             const isOpen = !collapsed.has(cat.name);
             return (
-              <div key={cat.name} className="mb-1">
+              <div key={cat.name} className="mb-2">
                 <button
                   onClick={() => toggleCategory(cat.name)}
                   className="w-full flex items-center justify-between px-1 py-1.5 rounded hover:bg-accent transition-colors group"
                 >
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest group-hover:text-foreground transition-colors">
+                  <span className="text-[11px] font-bold text-foreground/80 uppercase tracking-wider group-hover:text-foreground transition-colors">
                     {cat.name}
                   </span>
                   <div className="flex items-center gap-1">
@@ -386,7 +468,7 @@ function Toolbox() {
                   </div>
                 </button>
                 {isOpen && (
-                  <div className="flex flex-col gap-1 mt-0.5 mb-1">
+                  <div className="grid grid-cols-2 gap-1 mt-0.5 mb-1">
                     {cat.items.map((item) => (
                       <DraggableItem key={item.name} item={item} connectors={connectors} />
                     ))}
@@ -615,6 +697,79 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
+  // ── Form Controls ─────────────────────────────────────────────────────────
+  if (displayName === "AstryxSelect") return (
+    <>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? "Select…"} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? "Option A,Option B"} onChange={(v) => setProp("options", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxCheckbox") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? "Checkbox"} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Checked">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.checked} onChange={(v) => setProp("checked", v)} />
+          <span className="text-xs text-muted-foreground">{props.checked ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxRadioGroup") return (
+    <>
+      <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? "Option A,Option B"} onChange={(v) => setProp("options", v)} /></PropRow>
+      <PropRow label="Selected"><TextProp value={props.selected ?? ""} onChange={(v) => setProp("selected", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxSlider") return (
+    <>
+      <PropRow label="Value"><NumberProp value={props.value ?? 50} onChange={(v) => setProp("value", v)} min={0} max={100} /></PropRow>
+      <PropRow label="Min"><NumberProp value={props.min ?? 0} onChange={(v) => setProp("min", v)} min={0} /></PropRow>
+      <PropRow label="Max"><NumberProp value={props.max ?? 100} onChange={(v) => setProp("max", v)} min={1} /></PropRow>
+    </>
+  );
+
+  // ── Data Display ──────────────────────────────────────────────────────────
+  if (displayName === "AstryxTable") return (
+    <>
+      <PropRow label="Rows"><NumberProp value={props.rows ?? 3} onChange={(v) => setProp("rows", v)} min={1} max={10} /></PropRow>
+      <PropRow label="Columns"><NumberProp value={props.columns ?? 3} onChange={(v) => setProp("columns", v)} min={1} max={6} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxTabs") return (
+    <>
+      <PropRow label="Tabs (comma-sep)"><TextProp value={props.tabs ?? "Tab 1,Tab 2,Tab 3"} onChange={(v) => setProp("tabs", v)} /></PropRow>
+      <PropRow label="Active tab"><TextProp value={props.active ?? "Tab 1"} onChange={(v) => setProp("active", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxAccordion") return (
+    <>
+      <PropRow label="Items (comma-sep)"><TextProp value={props.items ?? "Section A,Section B"} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Open item"><TextProp value={props.open ?? "Section A"} onChange={(v) => setProp("open", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxCalendar") return (
+    <PropRow label="Month"><TextProp value={props.month ?? "July 2026"} onChange={(v) => setProp("month", v)} /></PropRow>
+  );
+
+  if (displayName === "AstryxCommand") return (
+    <PropRow label="Placeholder"><TextProp value={props.placeholder ?? "Search…"} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+  );
+
+  if (displayName === "AstryxCarousel") return (
+    <PropRow label="Slides (comma-sep)"><TextProp value={props.slides ?? "Slide 1,Slide 2,Slide 3"} onChange={(v) => setProp("slides", v)} /></PropRow>
+  );
+
+  if (displayName === "AstryxResizable") return (
+    <PropRow label="Direction"><SelectProp value={props.direction ?? "horizontal"} options={["horizontal","vertical"]} onChange={(v) => setProp("direction", v)} /></PropRow>
+  );
+
   return <p className="text-xs text-muted-foreground">No editable properties.</p>;
 }
 
@@ -714,8 +869,14 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.08 : 0.92;
-    setZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
+    if (e.ctrlKey) {
+      // Ctrl+scroll or pinch-to-zoom → zoom
+      const factor = e.deltaY < 0 ? 1.08 : 0.92;
+      setZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
+    } else {
+      // Two-finger trackpad scroll → pan
+      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    }
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -802,7 +963,7 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
 
       {/* Pan hint */}
       <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-10">
-        Scroll to zoom · Space+drag or middle-click to pan
+        Two-finger scroll to pan · Ctrl+scroll or pinch to zoom · Space+drag to pan
       </div>
     </div>
   );

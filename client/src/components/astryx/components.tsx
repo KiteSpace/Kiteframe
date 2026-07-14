@@ -1,6 +1,5 @@
 type AstryxProps = Record<string, any>;
 
-// Helper so TypeScript doesn't choke when indexing a literal-object with an `any` key.
 function pick<T>(map: Record<string, T>, key: any, fallback: T): T {
   return (map[key as string] ?? fallback) as T;
 }
@@ -170,6 +169,228 @@ export function AstryxUnknown({ astryxComponent }: { astryxComponent: string }) 
   );
 }
 
+// ─── New components ────────────────────────────────────────────────────────────
+
+export function AstryxTable({ rows = 3, columns = 3 }: AstryxProps) {
+  const headers = ["Name", "Status", "Value"].slice(0, Math.min(Number(columns), 3));
+  const data = [
+    ["Alice", "Active", "$120"],
+    ["Bob", "Pending", "$80"],
+    ["Carol", "Inactive", "$200"],
+  ].slice(0, Math.min(Number(rows), 3));
+  return (
+    <div className="rounded-md border border-gray-200 overflow-hidden w-full">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 bg-gray-50">
+            {headers.map((h) => (
+              <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, i) => (
+            <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+              {row.slice(0, Math.min(Number(columns), 3)).map((cell, j) => (
+                <td key={j} className="px-3 py-2 text-gray-700">{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function AstryxTabs({ tabs = "Tab 1,Tab 2,Tab 3", active = "Tab 1" }: AstryxProps) {
+  const tabList = String(tabs).split(",").map((t) => t.trim()).filter(Boolean);
+  return (
+    <div className="w-full">
+      <div className="inline-flex h-9 items-center rounded-lg bg-gray-100 p-1 gap-0.5">
+        {tabList.map((tab) => (
+          <div
+            key={tab}
+            className={`px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-colors ${tab === active ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            {tab}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxAccordion({ items = "Section 1,Section 2,Section 3", open = "Section 1" }: AstryxProps) {
+  const itemList = String(items).split(",").map((t) => t.trim()).filter(Boolean);
+  return (
+    <div className="w-full divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
+      {itemList.map((item) => (
+        <div key={item}>
+          <div className="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-800 bg-white cursor-pointer hover:bg-gray-50">
+            {item}
+            <span className="text-gray-400 text-xs">{item === open ? "▲" : "▼"}</span>
+          </div>
+          {item === open && (
+            <div className="px-4 py-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-100">
+              Content for {item}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3" }: AstryxProps) {
+  return (
+    <div className="flex h-9 w-44 items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-500 cursor-pointer hover:border-gray-400">
+      <span>{placeholder}</span>
+      <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
+export function AstryxCheckbox({ label = "Checkbox label", checked = false }: AstryxProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+        {checked && (
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </div>
+      <span className="text-sm text-gray-700">{label}</span>
+    </div>
+  );
+}
+
+export function AstryxRadioGroup({ options = "Option A,Option B,Option C", selected = "Option A" }: AstryxProps) {
+  const optionList = String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  return (
+    <div className="flex flex-col gap-2">
+      {optionList.map((opt) => (
+        <div key={opt} className="flex items-center gap-2">
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${opt === selected ? "border-blue-600" : "border-gray-300"}`}>
+            {opt === selected && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+          </div>
+          <span className="text-sm text-gray-700">{opt}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxSlider({ value = 50, min = 0, max = 100 }: AstryxProps) {
+  const pct = Math.max(0, Math.min(100, ((Number(value) - Number(min)) / (Number(max) - Number(min))) * 100));
+  return (
+    <div className="w-40 flex flex-col gap-1.5">
+      <div className="relative h-1.5 w-full rounded-full bg-gray-200">
+        <div className="absolute h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border border-blue-400 bg-white shadow"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-gray-400">
+        <span>{min}</span>
+        <span>{value}</span>
+        <span>{max}</span>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCalendar({ month = "July 2026" }: AstryxProps) {
+  const days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const dates = [
+    null, null, 1, 2, 3, 4, 5,
+    6, 7, 8, 9, 10, 11, 12,
+    13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26,
+    27, 28, 29, 30, 31, null, null,
+  ];
+  return (
+    <div className="rounded-md border border-gray-200 bg-white p-3 w-56 text-sm">
+      <div className="flex items-center justify-between mb-2">
+        <button className="text-gray-400 hover:text-gray-600 px-1 text-xs">◀</button>
+        <span className="font-medium text-gray-800 text-xs">{month}</span>
+        <button className="text-gray-400 hover:text-gray-600 px-1 text-xs">▶</button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((d) => (
+          <div key={d} className="text-center text-[10px] text-gray-400 py-0.5">{d}</div>
+        ))}
+        {dates.map((d, i) => (
+          <div
+            key={i}
+            className={`text-center text-[11px] py-0.5 rounded ${d === 14 ? "bg-blue-600 text-white" : d ? "text-gray-700 hover:bg-gray-100 cursor-pointer" : ""}`}
+          >
+            {d ?? ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCommand({ placeholder = "Search commands…" }: AstryxProps) {
+  return (
+    <div className="w-56 rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden">
+      <div className="flex items-center px-3 py-2 border-b border-gray-100">
+        <svg className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <span className="text-sm text-gray-400">{placeholder}</span>
+      </div>
+      <div className="py-1">
+        {["New Document", "Open File", "Save As…", "Export PDF"].map((item) => (
+          <div key={item} className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">{item}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxProps) {
+  const slideList = String(slides).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <div className="relative w-56 overflow-hidden rounded-lg border border-gray-200">
+      <div className="flex items-center justify-center h-24 bg-gradient-to-br from-blue-50 to-blue-100">
+        <span className="text-sm text-blue-600 font-medium">{slideList[0]}</span>
+      </div>
+      <div className="absolute inset-y-0 left-1 flex items-center">
+        <button className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center">◀</button>
+      </div>
+      <div className="absolute inset-y-0 right-1 flex items-center">
+        <button className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center">▶</button>
+      </div>
+      <div className="flex justify-center gap-1 py-1.5 bg-white border-t border-gray-100">
+        {slideList.map((_, i) => (
+          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-blue-600" : "bg-gray-300"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxResizable({ direction = "horizontal" }: AstryxProps) {
+  const isH = direction === "horizontal";
+  return (
+    <div className={`flex ${isH ? "flex-row" : "flex-col"} w-56 h-20 rounded-md border border-gray-200 overflow-hidden`}>
+      <div className="flex-1 bg-white flex items-center justify-center">
+        <span className="text-xs text-gray-400">Panel 1</span>
+      </div>
+      <div className={`${isH ? "w-0.5 cursor-col-resize" : "h-0.5 cursor-row-resize"} bg-gray-200 hover:bg-blue-400 transition-colors`} />
+      <div className="flex-1 bg-gray-50 flex items-center justify-center">
+        <span className="text-xs text-gray-400">Panel 2</span>
+      </div>
+    </div>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -191,4 +412,15 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   HStack:      AstryxHStack,
   VStack:      AstryxStack,
   Icon:        AstryxIcon,
+  Table:       AstryxTable,
+  Tabs:        AstryxTabs,
+  Accordion:   AstryxAccordion,
+  Select:      AstryxSelect,
+  Checkbox:    AstryxCheckbox,
+  RadioGroup:  AstryxRadioGroup,
+  Slider:      AstryxSlider,
+  Calendar:    AstryxCalendar,
+  Command:     AstryxCommand,
+  Carousel:    AstryxCarousel,
+  Resizable:   AstryxResizable,
 };

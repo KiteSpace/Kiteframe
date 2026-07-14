@@ -117,7 +117,7 @@ RULES:
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
 - CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
-- LEAVES (isCanvas=false, nodes=[]): all other 17 components.
+- LEAVES (isCanvas=false, nodes=[]): all other 28 components.
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
 - Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
@@ -137,6 +137,12 @@ COMPONENT QUICK-REFERENCE:
 - AstryxButton:    action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
 - AstryxTextInput: text field, props: { placeholder: string, label: string, disabled: boolean }
 
+— FORM CONTROLS —
+- AstryxSelect:     dropdown selector, props: { placeholder: string, options: string (comma-separated) }
+- AstryxCheckbox:   checkbox with label, props: { label: string, checked: boolean }
+- AstryxRadioGroup: radio button group, props: { options: string (comma-separated), selected: string }
+- AstryxSlider:     range slider, props: { value: number, min: number, max: number }
+
 — STATUS & FEEDBACK —
 - AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
 - AstryxBanner:      alert bar, props: { children: string, variant: "info"|"success"|"warning"|"error" }
@@ -148,6 +154,17 @@ COMPONENT QUICK-REFERENCE:
 — MEDIA & IDENTITY —
 - AstryxAvatar: user avatar, props: { name: string, src: string (optional), size: "xs"|"sm"|"md"|"lg" }
 - AstryxIcon:   icon glyph, props: { name: string, size: "sm"|"md"|"lg" }
+
+— DATA DISPLAY —
+- AstryxTable:     data table, props: { rows: number (1-3), columns: number (1-3) }
+- AstryxTabs:      tab navigation bar, props: { tabs: string (comma-separated), active: string }
+- AstryxAccordion: collapsible sections, props: { items: string (comma-separated), open: string }
+- AstryxCalendar:  date picker, props: { month: string }
+- AstryxCommand:   search/command palette, props: { placeholder: string }
+- AstryxCarousel:  image/slide carousel, props: { slides: string (comma-separated) }
+
+— LAYOUT —
+- AstryxResizable: split panel layout, props: { direction: "horizontal"|"vertical" }
 
 — CONTENT —
 - AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost" }

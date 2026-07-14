@@ -23,6 +23,11 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   // Inputs & actions
   "AstryxButton",
   "AstryxTextInput",
+  // Form controls
+  "AstryxSelect",
+  "AstryxCheckbox",
+  "AstryxRadioGroup",
+  "AstryxSlider",
   // Status & feedback
   "AstryxBadge",
   "AstryxBanner",
@@ -33,12 +38,22 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   // Media & identity
   "AstryxAvatar",
   "AstryxIcon",
+  // Data display
+  "AstryxTable",
+  "AstryxTabs",
+  "AstryxAccordion",
   // Content
   "AstryxCard",
   "AstryxChatMessage",
   "AstryxEmptyState",
   "AstryxToken",
   "AstryxDivider",
+  // Media & navigation
+  "AstryxCalendar",
+  "AstryxCommand",
+  "AstryxCarousel",
+  // Layout
+  "AstryxResizable",
   // Fallback for unknown components (not in prompt; used by sanitizeCraftState)
   "AstryxUnknown",
 ];

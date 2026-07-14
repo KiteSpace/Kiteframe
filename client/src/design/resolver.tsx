@@ -28,6 +28,17 @@ import {
   AstryxHStack as AstryxHStackBase,
   AstryxIcon as AstryxIconBase,
   AstryxUnknown as AstryxUnknownBase,
+  AstryxTable as AstryxTableBase,
+  AstryxTabs as AstryxTabsBase,
+  AstryxAccordion as AstryxAccordionBase,
+  AstryxSelect as AstryxSelectBase,
+  AstryxCheckbox as AstryxCheckboxBase,
+  AstryxRadioGroup as AstryxRadioGroupBase,
+  AstryxSlider as AstryxSliderBase,
+  AstryxCalendar as AstryxCalendarBase,
+  AstryxCommand as AstryxCommandBase,
+  AstryxCarousel as AstryxCarouselBase,
+  AstryxResizable as AstryxResizableBase,
 } from "@/components/astryx";
 
 type AstryxProps = Record<string, any>;
@@ -222,6 +233,118 @@ export function AstryxUnknown(props: AstryxProps) {
 }
 (AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
 
+// ─── New leaf components ───────────────────────────────────────────────────────
+
+export function AstryxTable(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxTableBase {...props} />
+    </div>
+  );
+}
+(AstryxTable as any).craft = { displayName: "AstryxTable", rules: { canMoveIn: () => false } };
+
+export function AstryxTabs(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxTabsBase {...props} />
+    </div>
+  );
+}
+(AstryxTabs as any).craft = { displayName: "AstryxTabs", rules: { canMoveIn: () => false } };
+
+export function AstryxAccordion(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxAccordionBase {...props} />
+    </div>
+  );
+}
+(AstryxAccordion as any).craft = { displayName: "AstryxAccordion", rules: { canMoveIn: () => false } };
+
+export function AstryxSelect(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxSelectBase {...props} />
+    </div>
+  );
+}
+(AstryxSelect as any).craft = { displayName: "AstryxSelect", rules: { canMoveIn: () => false } };
+
+export function AstryxCheckbox(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+      <AstryxCheckboxBase {...props} />
+    </div>
+  );
+}
+(AstryxCheckbox as any).craft = { displayName: "AstryxCheckbox", rules: { canMoveIn: () => false } };
+
+export function AstryxRadioGroup(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxRadioGroupBase {...props} />
+    </div>
+  );
+}
+(AstryxRadioGroup as any).craft = { displayName: "AstryxRadioGroup", rules: { canMoveIn: () => false } };
+
+export function AstryxSlider(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxSliderBase {...props} />
+    </div>
+  );
+}
+(AstryxSlider as any).craft = { displayName: "AstryxSlider", rules: { canMoveIn: () => false } };
+
+export function AstryxCalendar(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxCalendarBase {...props} />
+    </div>
+  );
+}
+(AstryxCalendar as any).craft = { displayName: "AstryxCalendar", rules: { canMoveIn: () => false } };
+
+export function AstryxCommand(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxCommandBase {...props} />
+    </div>
+  );
+}
+(AstryxCommand as any).craft = { displayName: "AstryxCommand", rules: { canMoveIn: () => false } };
+
+export function AstryxCarousel(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxCarouselBase {...props} />
+    </div>
+  );
+}
+(AstryxCarousel as any).craft = { displayName: "AstryxCarousel", rules: { canMoveIn: () => false } };
+
+export function AstryxResizable(props: AstryxProps) {
+  const { connectors: { connect, drag } } = useNode();
+  return (
+    <div ref={(r) => leafRef(r, connect, drag)}>
+      <AstryxResizableBase {...props} />
+    </div>
+  );
+}
+(AstryxResizable as any).craft = { displayName: "AstryxResizable", rules: { canMoveIn: () => false } };
+
 // ─── Container components ─────────────────────────────────────────────────────
 // canMoveIn: true — children can be dropped in.
 
@@ -295,6 +418,17 @@ export const resolver = {
   AstryxSection,
   AstryxStack,
   AstryxHStack,
+  AstryxTable,
+  AstryxTabs,
+  AstryxAccordion,
+  AstryxSelect,
+  AstryxCheckbox,
+  AstryxRadioGroup,
+  AstryxSlider,
+  AstryxCalendar,
+  AstryxCommand,
+  AstryxCarousel,
+  AstryxResizable,
 };
 
 // ─── Alignment guard ──────────────────────────────────────────────────────────
@@ -331,4 +465,3 @@ export function createEmptyCraftState(): string {
     },
   });
 }
-
