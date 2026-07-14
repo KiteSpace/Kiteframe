@@ -54,6 +54,8 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   "AstryxCarousel",
   // Layout
   "AstryxResizable",
+  // Artboard (named canvas frame for multi-screen editing)
+  "AstryxArtboard",
   // Fallback for unknown components (not in prompt; used by sanitizeCraftState)
   "AstryxUnknown",
 ];

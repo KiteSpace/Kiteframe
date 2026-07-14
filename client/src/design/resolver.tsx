@@ -1,4 +1,5 @@
 import { useNode } from "@craftjs/core";
+import type { CSSProperties } from "react";
 import {
   ALLOWED_CRAFT_COMPONENTS,
   validateCraftState,
@@ -43,40 +44,71 @@ import {
 
 type AstryxProps = Record<string, any>;
 
-// ─── Helper — leaf connector ──────────────────────────────────────────────────
-// All leaf wrappers are identical except for the wrapped component.
-// canMoveIn: false prevents craft.js from silently accepting drops into leaves.
+// ─── Shared visual constants ──────────────────────────────────────────────────
 
-function leafRef(ref: HTMLElement | null, connect: (el: HTMLElement) => HTMLElement, drag: (el: HTMLElement) => HTMLElement) {
-  if (ref) connect(drag(ref));
+const EMPTY_DROP_STYLE: CSSProperties = {
+  flex: 1,
+  minHeight: 40,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1.5px dashed #93c5fd",
+  borderRadius: 6,
+  background: "rgba(219,234,254,0.45)",
+  fontSize: 11,
+  color: "#3b82f6",
+  opacity: 0.7,
+  userSelect: "none",
+  pointerEvents: "none",
+};
+
+const SELECTION_RING: CSSProperties = {
+  outline: "2px solid #3b82f6",
+  outlineOffset: 2,
+};
+
+function absPositionStyle(position: string, x: number, y: number): CSSProperties {
+  if (position !== "absolute") return {};
+  return { position: "absolute", left: x, top: y, zIndex: 10 };
+}
+
+// ─── Leaf node hook ───────────────────────────────────────────────────────────
+// Provides drag/connect ref, selection ring, and absolute positioning for all
+// leaf (non-canvas) components from a single hook.
+
+function useLeafNode() {
+  const { connectors: { connect, drag }, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
+    selected: node.events.selected,
+    nodePosition: (node.data.props?.position as string) ?? "flow",
+    nodeX: (node.data.props?.x as number) ?? 0,
+    nodeY: (node.data.props?.y as number) ?? 0,
+  }));
+
+  const extraStyle: CSSProperties = {
+    ...absPositionStyle(nodePosition, nodeX, nodeY),
+    ...(selected ? SELECTION_RING : {}),
+  };
+
+  const connectRef = (r: HTMLElement | null) => { if (r) connect(drag(r)); };
+  return { connectRef, extraStyle };
 }
 
 // ─── Leaf components ──────────────────────────────────────────────────────────
 
 export function AstryxButton(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxButtonBase {...props} />
     </div>
   );
 }
 (AstryxButton as any).craft = { displayName: "AstryxButton", rules: { canMoveIn: () => false } };
 
-export function AstryxCard(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
-  return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
-      <AstryxCardBase {...props} />
-    </div>
-  );
-}
-(AstryxCard as any).craft = { displayName: "AstryxCard", rules: { canMoveIn: () => false } };
-
 export function AstryxText(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxTextBase {...props} />
     </div>
   );
@@ -84,9 +116,9 @@ export function AstryxText(props: AstryxProps) {
 (AstryxText as any).craft = { displayName: "AstryxText", rules: { canMoveIn: () => false } };
 
 export function AstryxHeading(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxHeadingBase {...props} />
     </div>
   );
@@ -94,9 +126,9 @@ export function AstryxHeading(props: AstryxProps) {
 (AstryxHeading as any).craft = { displayName: "AstryxHeading", rules: { canMoveIn: () => false } };
 
 export function AstryxTextInput(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxTextInputBase {...props} />
     </div>
   );
@@ -104,19 +136,19 @@ export function AstryxTextInput(props: AstryxProps) {
 (AstryxTextInput as any).craft = { displayName: "AstryxTextInput", rules: { canMoveIn: () => false } };
 
 export function AstryxBadge(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <span ref={(r) => { if (r) leafRef(r as unknown as HTMLElement, connect, drag); }} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxBadgeBase {...props} />
-    </span>
+    </div>
   );
 }
 (AstryxBadge as any).craft = { displayName: "AstryxBadge", rules: { canMoveIn: () => false } };
 
 export function AstryxAvatar(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxAvatarBase {...props} />
     </div>
   );
@@ -124,9 +156,9 @@ export function AstryxAvatar(props: AstryxProps) {
 (AstryxAvatar as any).craft = { displayName: "AstryxAvatar", rules: { canMoveIn: () => false } };
 
 export function AstryxSpinner(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxSpinnerBase {...props} />
     </div>
   );
@@ -134,9 +166,9 @@ export function AstryxSpinner(props: AstryxProps) {
 (AstryxSpinner as any).craft = { displayName: "AstryxSpinner", rules: { canMoveIn: () => false } };
 
 export function AstryxDivider(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxDividerBase {...props} />
     </div>
   );
@@ -144,9 +176,9 @@ export function AstryxDivider(props: AstryxProps) {
 (AstryxDivider as any).craft = { displayName: "AstryxDivider", rules: { canMoveIn: () => false } };
 
 export function AstryxProgressBar(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxProgressBarBase {...props} />
     </div>
   );
@@ -154,9 +186,9 @@ export function AstryxProgressBar(props: AstryxProps) {
 (AstryxProgressBar as any).craft = { displayName: "AstryxProgressBar", rules: { canMoveIn: () => false } };
 
 export function AstryxStatusDot(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxStatusDotBase {...props} />
     </div>
   );
@@ -164,9 +196,9 @@ export function AstryxStatusDot(props: AstryxProps) {
 (AstryxStatusDot as any).craft = { displayName: "AstryxStatusDot", rules: { canMoveIn: () => false } };
 
 export function AstryxSkeleton(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxSkeletonBase {...props} />
     </div>
   );
@@ -174,9 +206,9 @@ export function AstryxSkeleton(props: AstryxProps) {
 (AstryxSkeleton as any).craft = { displayName: "AstryxSkeleton", rules: { canMoveIn: () => false } };
 
 export function AstryxBanner(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxBannerBase {...props} />
     </div>
   );
@@ -184,9 +216,9 @@ export function AstryxBanner(props: AstryxProps) {
 (AstryxBanner as any).craft = { displayName: "AstryxBanner", rules: { canMoveIn: () => false } };
 
 export function AstryxEmptyState(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxEmptyStateBase {...props} />
     </div>
   );
@@ -194,9 +226,9 @@ export function AstryxEmptyState(props: AstryxProps) {
 (AstryxEmptyState as any).craft = { displayName: "AstryxEmptyState", rules: { canMoveIn: () => false } };
 
 export function AstryxChatMessage(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxChatMessageBase {...props} />
     </div>
   );
@@ -204,41 +236,39 @@ export function AstryxChatMessage(props: AstryxProps) {
 (AstryxChatMessage as any).craft = { displayName: "AstryxChatMessage", rules: { canMoveIn: () => false } };
 
 export function AstryxToken(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <span ref={(r) => { if (r) leafRef(r as unknown as HTMLElement, connect, drag); }} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxTokenBase {...props} />
-    </span>
+    </div>
   );
 }
 (AstryxToken as any).craft = { displayName: "AstryxToken", rules: { canMoveIn: () => false } };
 
 export function AstryxIcon(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <span ref={(r) => { if (r) leafRef(r as unknown as HTMLElement, connect, drag); }} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxIconBase {...props} />
-    </span>
+    </div>
   );
 }
 (AstryxIcon as any).craft = { displayName: "AstryxIcon", rules: { canMoveIn: () => false } };
 
 export function AstryxUnknown(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxUnknownBase astryxComponent={props.astryxComponent ?? "Unknown"} />
     </div>
   );
 }
 (AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
 
-// ─── New leaf components ───────────────────────────────────────────────────────
-
 export function AstryxTable(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxTableBase {...props} />
     </div>
   );
@@ -246,9 +276,9 @@ export function AstryxTable(props: AstryxProps) {
 (AstryxTable as any).craft = { displayName: "AstryxTable", rules: { canMoveIn: () => false } };
 
 export function AstryxTabs(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxTabsBase {...props} />
     </div>
   );
@@ -256,9 +286,9 @@ export function AstryxTabs(props: AstryxProps) {
 (AstryxTabs as any).craft = { displayName: "AstryxTabs", rules: { canMoveIn: () => false } };
 
 export function AstryxAccordion(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxAccordionBase {...props} />
     </div>
   );
@@ -266,9 +296,9 @@ export function AstryxAccordion(props: AstryxProps) {
 (AstryxAccordion as any).craft = { displayName: "AstryxAccordion", rules: { canMoveIn: () => false } };
 
 export function AstryxSelect(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxSelectBase {...props} />
     </div>
   );
@@ -276,9 +306,9 @@ export function AstryxSelect(props: AstryxProps) {
 (AstryxSelect as any).craft = { displayName: "AstryxSelect", rules: { canMoveIn: () => false } };
 
 export function AstryxCheckbox(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)} style={{ display: "inline-block" }}>
+    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
       <AstryxCheckboxBase {...props} />
     </div>
   );
@@ -286,9 +316,9 @@ export function AstryxCheckbox(props: AstryxProps) {
 (AstryxCheckbox as any).craft = { displayName: "AstryxCheckbox", rules: { canMoveIn: () => false } };
 
 export function AstryxRadioGroup(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxRadioGroupBase {...props} />
     </div>
   );
@@ -296,9 +326,9 @@ export function AstryxRadioGroup(props: AstryxProps) {
 (AstryxRadioGroup as any).craft = { displayName: "AstryxRadioGroup", rules: { canMoveIn: () => false } };
 
 export function AstryxSlider(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxSliderBase {...props} />
     </div>
   );
@@ -306,9 +336,9 @@ export function AstryxSlider(props: AstryxProps) {
 (AstryxSlider as any).craft = { displayName: "AstryxSlider", rules: { canMoveIn: () => false } };
 
 export function AstryxCalendar(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxCalendarBase {...props} />
     </div>
   );
@@ -316,9 +346,9 @@ export function AstryxCalendar(props: AstryxProps) {
 (AstryxCalendar as any).craft = { displayName: "AstryxCalendar", rules: { canMoveIn: () => false } };
 
 export function AstryxCommand(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxCommandBase {...props} />
     </div>
   );
@@ -326,9 +356,9 @@ export function AstryxCommand(props: AstryxProps) {
 (AstryxCommand as any).craft = { displayName: "AstryxCommand", rules: { canMoveIn: () => false } };
 
 export function AstryxCarousel(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxCarouselBase {...props} />
     </div>
   );
@@ -336,9 +366,9 @@ export function AstryxCarousel(props: AstryxProps) {
 (AstryxCarousel as any).craft = { displayName: "AstryxCarousel", rules: { canMoveIn: () => false } };
 
 export function AstryxResizable(props: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectRef, extraStyle } = useLeafNode();
   return (
-    <div ref={(r) => leafRef(r, connect, drag)}>
+    <div ref={connectRef} style={extraStyle}>
       <AstryxResizableBase {...props} />
     </div>
   );
@@ -347,12 +377,21 @@ export function AstryxResizable(props: AstryxProps) {
 
 // ─── Container components ─────────────────────────────────────────────────────
 // canMoveIn: true — children can be dropped in.
+// All containers show a blue dashed drop zone when empty,
+// a selection ring when selected, and support absolute positioning.
 
-const ALIGN_MAP: Record<string, string> = { start: "flex-start", center: "center", end: "flex-end", stretch: "stretch" };
-const JUSTIFY_MAP: Record<string, string> = { start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around" };
+const ALIGN_MAP: Record<string, string> = {
+  start: "flex-start", center: "center", end: "flex-end", stretch: "stretch",
+};
+const JUSTIFY_MAP: Record<string, string> = {
+  start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around",
+};
 
-export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start" }: AstryxProps) {
-  const { connectors: { connect, drag }, id } = useNode();
+export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
+  const { connectors: { connect, drag }, id, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
   const isRoot = id === "ROOT";
   return (
     <div
@@ -365,21 +404,25 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         gap,
         padding,
         minHeight: isRoot ? 480 : 48,
-        width: isRoot ? 900 : "100%",
-        background: isRoot ? "hsl(var(--card))" : undefined,
-        borderRadius: isRoot ? 12 : undefined,
-        boxShadow: isRoot ? "0 4px 24px rgba(0,0,0,0.10)" : undefined,
+        width: isRoot ? "100%" : "100%",
+        background: isRoot ? undefined : undefined,
+        position: "relative",
         boxSizing: "border-box",
+        ...(!isRoot ? absPositionStyle(position, x, y) : {}),
+        ...(!isRoot && selected ? SELECTION_RING : {}),
       }}
     >
-      {children}
+      {!isRoot && isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
     </div>
   );
 }
 (AstryxSection as any).craft = { displayName: "AstryxSection", rules: { canMoveIn: () => true } };
 
-export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start" }: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
+  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
   return (
     <div
       ref={(r) => { if (r) connect(drag(r)); }}
@@ -391,16 +434,22 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
         gap,
         minHeight: 32,
         width: "100%",
+        position: "relative",
+        ...absPositionStyle(position, x, y),
+        ...(selected ? SELECTION_RING : {}),
       }}
     >
-      {children}
+      {isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
     </div>
   );
 }
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
-export function AstryxHStack({ children, gap = 8, align = "center", justify = "start" }: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
+  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
   return (
     <div
       ref={(r) => { if (r) connect(drag(r)); }}
@@ -412,15 +461,93 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
         gap,
         minHeight: 32,
         width: "100%",
+        position: "relative",
+        ...absPositionStyle(position, x, y),
+        ...(selected ? SELECTION_RING : {}),
       }}
     >
-      {children}
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 32 }}>drop here</div> : children}
     </div>
   );
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
-// ─── Resolver map ─────────────────────────────────────────────────────────────
+export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0 }: AstryxProps) {
+  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
+  return (
+    <div
+      ref={(r) => { if (r) connect(drag(r)); }}
+      style={{
+        position: "relative",
+        ...absPositionStyle(position, x, y),
+        ...(selected ? SELECTION_RING : {}),
+      }}
+    >
+      <AstryxCardBase variant={variant}>
+        {isEmpty
+          ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div>
+          : children}
+      </AstryxCardBase>
+    </div>
+  );
+}
+(AstryxCard as any).craft = { displayName: "AstryxCard", rules: { canMoveIn: () => true } };
+
+// ─── Artboard ─────────────────────────────────────────────────────────────────
+// Named canvas frame — the top-level screen container in the design editor.
+// Multiple artboards sit side-by-side inside the ROOT section.
+
+export function AstryxArtboard({ children, label = "Artboard", width = 390, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start" }: AstryxProps) {
+  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
+    isEmpty: node.data.nodes.length === 0,
+    selected: node.events.selected,
+  }));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{
+        fontSize: 11,
+        fontWeight: 500,
+        color: selected ? "#3b82f6" : "hsl(var(--muted-foreground))",
+        marginBottom: 6,
+        paddingLeft: 2,
+        userSelect: "none",
+        letterSpacing: "0.01em",
+        transition: "color 0.15s",
+      }}>
+        {label}
+      </div>
+      <div
+        ref={(r) => { if (r) connect(drag(r)); }}
+        style={{
+          display: "flex",
+          flexDirection: direction as "row" | "column",
+          alignItems: ALIGN_MAP[align] ?? "stretch",
+          justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
+          gap,
+          padding,
+          width,
+          minHeight: 480,
+          background: "hsl(var(--card))",
+          borderRadius: 12,
+          boxShadow: selected
+            ? "0 0 0 2px #3b82f6, 0 4px 24px rgba(0,0,0,0.10)"
+            : "0 4px 24px rgba(0,0,0,0.10)",
+          position: "relative",
+          boxSizing: "border-box",
+          transition: "box-shadow 0.15s",
+        }}
+      >
+        {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, margin: 8 }}>drop here</div> : children}
+      </div>
+    </div>
+  );
+}
+(AstryxArtboard as any).craft = { displayName: "AstryxArtboard", rules: { canMoveIn: () => true } };
+
+// ─── Resolver map ──────────────────────────────────────────────────────────────
 
 export const resolver = {
   AstryxButton,
@@ -444,6 +571,7 @@ export const resolver = {
   AstryxSection,
   AstryxStack,
   AstryxHStack,
+  AstryxArtboard,
   AstryxTable,
   AstryxTabs,
   AstryxAccordion,
@@ -457,10 +585,8 @@ export const resolver = {
   AstryxResizable,
 };
 
-// ─── Alignment guard ──────────────────────────────────────────────────────────
-// Detects drift between craftValidator.ts (ALLOWED_CRAFT_COMPONENTS) and the
-// resolver map. Logs an error at module-init time so mismatches surface
-// immediately in development builds and in tests that import this module.
+// ─── Alignment guard ───────────────────────────────────────────────────────────
+// Detects drift between craftValidator.ts and the resolver map at module load.
 
 {
   const resolverKeys = Object.keys(resolver);
@@ -468,23 +594,36 @@ export const resolver = {
   const missingFromValidator = resolverKeys.filter((k) => !ALLOWED_CRAFT_COMPONENTS.includes(k));
   if (missingFromResolver.length || missingFromValidator.length) {
     console.error(
-      "[Astryx] ALLOWED_CRAFT_COMPONENTS ↔ resolver MISMATCH — update both files together!",
+      "[Astryx] ALLOWED_CRAFT_COMPONENTS ↔ resolver MISMATCH",
       { missingFromResolver, missingFromValidator },
     );
   }
 }
 
-// ─── Empty state factory ──────────────────────────────────────────────────────
+// ─── Empty state factory ───────────────────────────────────────────────────────
+// Default craft state: a transparent ROOT row-flex wrapper containing one
+// AstryxArtboard ("Screen 1") at 390 px wide — matching a standard mobile frame.
 
 export function createEmptyCraftState(): string {
   return JSON.stringify({
     ROOT: {
       type: { resolvedName: "AstryxSection" },
       isCanvas: true,
-      props: { direction: "column", gap: 16, padding: 16 },
+      props: { direction: "row", gap: 80, padding: 40, align: "start", justify: "start" },
       displayName: "AstryxSection",
       custom: {},
       parent: null,
+      hidden: false,
+      nodes: ["artboard-1"],
+      linkedNodes: {},
+    },
+    "artboard-1": {
+      type: { resolvedName: "AstryxArtboard" },
+      isCanvas: true,
+      props: { label: "Screen 1", width: 390, direction: "column", gap: 16, padding: 24 },
+      displayName: "AstryxArtboard",
+      custom: {},
+      parent: "ROOT",
       hidden: false,
       nodes: [],
       linkedNodes: {},

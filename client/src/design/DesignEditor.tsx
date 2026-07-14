@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X, Sparkles, Loader2, Check, AlertCircle, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X, Sparkles, Loader2, Check, AlertCircle, ZoomIn, ZoomOut, Maximize2, Plus } from "lucide-react";
 import {
   resolver,
   AstryxSection,
   AstryxStack,
   AstryxHStack,
+  AstryxArtboard,
   AstryxButton,
   AstryxCard,
   AstryxText,
@@ -142,7 +143,7 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
     items: [
       {
         name: "Section",  description: "Flex container",
-        getElement: () => <AstryxSection direction="column" gap={16} padding={16} />,
+        getElement: () => <Element canvas is={AstryxSection} direction="column" gap={16} padding={16} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 110, padding: 6, border: "1px dashed hsl(var(--border))", borderRadius: 6, background: "hsl(var(--muted))" }}>
             <div style={{ height: 8, background: "hsl(var(--border))", borderRadius: 3 }} />
@@ -153,7 +154,7 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
       },
       {
         name: "Stack",    description: "Vertical stack",
-        getElement: () => <AstryxStack gap={8} />,
+        getElement: () => <Element canvas is={AstryxStack} gap={8} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 80 }}>
             <div style={{ height: 9, background: "hsl(var(--border))", borderRadius: 3 }} />
@@ -164,7 +165,7 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
       },
       {
         name: "HStack",   description: "Horizontal stack",
-        getElement: () => <AstryxHStack gap={8} />,
+        getElement: () => <Element canvas is={AstryxHStack} gap={8} />,
         preview: (
           <div style={{ display: "flex", flexDirection: "row", gap: 4, alignItems: "center" }}>
             <div style={{ width: 28, height: 12, background: "hsl(var(--border))", borderRadius: 3 }} />
@@ -270,7 +271,7 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
     items: [
       {
         name: "Card",        description: "Elevated box",
-        getElement: () => <AstryxCard variant="elevated" />,
+        getElement: () => <Element canvas is={AstryxCard} variant="elevated" />,
         preview: (
           <div style={{ width: 100, padding: "8px 10px", background: "hsl(var(--card))", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.12)", border: "1px solid hsl(var(--border))" }}>
             <div style={{ height: 7, width: "70%", background: "hsl(var(--border))", borderRadius: 3, marginBottom: 5 }} />
@@ -777,6 +778,18 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <PropRow label="Direction"><SelectProp value={props.direction ?? "horizontal"} options={["horizontal","vertical"]} onChange={(v) => setProp("direction", v)} /></PropRow>
   );
 
+  if (displayName === "AstryxArtboard") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Width (px)"><NumberProp value={props.width ?? 390} onChange={(v) => setProp("width", v)} min={100} /></PropRow>
+      <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
+      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
+      <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 24} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
+    </>
+  );
+
   return <p className="text-xs text-muted-foreground">No editable properties.</p>;
 }
 
@@ -836,9 +849,55 @@ function SettingsPanel() {
               props={selected.props}
               setProp={setProp}
             />
+            {!selected.isRoot && selected.displayName !== "AstryxArtboard" && (
+              <>
+                <div className="h-px bg-border my-1" />
+                <PropRow label="Position">
+                  <SelectProp
+                    value={selected.props.position ?? "flow"}
+                    options={["flow", "absolute"]}
+                    onChange={(v) => setProp("position", v)}
+                  />
+                </PropRow>
+                {selected.props.position === "absolute" && (
+                  <>
+                    <PropRow label="X (px)"><NumberProp value={selected.props.x ?? 0} onChange={(v) => setProp("x", v)} /></PropRow>
+                    <PropRow label="Y (px)"><NumberProp value={selected.props.y ?? 0} onChange={(v) => setProp("y", v)} /></PropRow>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Canvas toolbar ───────────────────────────────────────────────────────────
+
+function CanvasToolbar() {
+  const { actions, query } = useEditor(() => ({}));
+
+  const addArtboard = useCallback(() => {
+    const rootNode = query.node("ROOT").get();
+    const count = (rootNode?.data?.nodes?.length ?? 0) + 1;
+    const nodeTree = query.parseReactElement(
+      <Element canvas is={AstryxArtboard} label={`Screen ${count}`} width={390} direction="column" gap={16} padding={24} />
+    ).toNodeTree();
+    actions.addNodeTree(nodeTree, "ROOT");
+  }, [actions, query]);
+
+  return (
+    <div className="shrink-0 border-b border-border bg-background/80 px-2 py-1 flex items-center gap-1">
+      <button
+        onClick={addArtboard}
+        className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        title="Add artboard"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Add artboard
+      </button>
     </div>
   );
 }
@@ -1074,8 +1133,10 @@ function CanvasArea({ craftState }: { craftState: string | null }) {
   }
   return (
     <Frame>
-      <Element canvas is={AstryxSection} direction="column" gap={16} padding={24}>
-        {null}
+      <Element canvas is={AstryxSection} direction="row" gap={80} padding={40} align="start" justify="start">
+        <Element canvas is={AstryxArtboard} label="Screen 1" width={390} direction="column" gap={16} padding={24}>
+          {null}
+        </Element>
       </Element>
     </Frame>
   );
@@ -1102,6 +1163,7 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
       <div className="flex h-full w-full" style={{ overflow: "clip" }}>
         {editable && <Toolbox />}
         <div className="flex flex-col flex-1 min-w-0">
+          {editable && <CanvasToolbar />}
           <InfiniteCanvas>
             <CanvasArea craftState={craftState} />
           </InfiniteCanvas>

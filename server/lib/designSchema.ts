@@ -59,11 +59,50 @@ export function validateExternalDesign(data: unknown): DesignValidationResult {
 // Allowed component resolvedName values — must stay in sync with client/src/design/resolver.tsx
 
 export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
+  // Containers
   "AstryxSection",
-  "AstryxCard",
-  "AstryxButton",
+  "AstryxStack",
+  "AstryxHStack",
+  "AstryxArtboard",
+  // Typography
+  "AstryxHeading",
   "AstryxText",
+  // Inputs & actions
+  "AstryxButton",
   "AstryxTextInput",
+  // Form controls
+  "AstryxSelect",
+  "AstryxCheckbox",
+  "AstryxRadioGroup",
+  "AstryxSlider",
+  // Status & feedback
+  "AstryxBadge",
+  "AstryxBanner",
+  "AstryxProgressBar",
+  "AstryxStatusDot",
+  "AstryxSpinner",
+  "AstryxSkeleton",
+  // Media & identity
+  "AstryxAvatar",
+  "AstryxIcon",
+  // Data display
+  "AstryxTable",
+  "AstryxTabs",
+  "AstryxAccordion",
+  // Content
+  "AstryxCard",
+  "AstryxChatMessage",
+  "AstryxEmptyState",
+  "AstryxToken",
+  "AstryxDivider",
+  // Media & navigation
+  "AstryxCalendar",
+  "AstryxCommand",
+  "AstryxCarousel",
+  // Layout
+  "AstryxResizable",
+  // Fallback
+  "AstryxUnknown",
 ] as const;
 
 export const CRAFT_STATE_SCHEMA = {
