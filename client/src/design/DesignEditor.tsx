@@ -544,20 +544,27 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
   // ── Layout ──────────────────────────────────────────────────────────────
   if (displayName === "AstryxSection") return (
     <>
-      <PropRow label="Direction"><SelectProp value={props.direction} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
+      <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
+      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
       <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
       <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 16} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
     </>
   );
 
   if (displayName === "AstryxStack") return (
-    <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 8} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
+    <>
+      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 8} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
+    </>
   );
 
   if (displayName === "AstryxHStack") return (
     <>
+      <PropRow label="Align items"><SelectProp value={props.align ?? "center"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
       <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 8} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
-      <PropRow label="Align"><SelectProp value={props.align ?? "center"} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
     </>
   );
 

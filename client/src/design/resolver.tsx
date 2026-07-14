@@ -348,7 +348,10 @@ export function AstryxResizable(props: AstryxProps) {
 // ─── Container components ─────────────────────────────────────────────────────
 // canMoveIn: true — children can be dropped in.
 
-export function AstryxSection({ children, direction = "column", gap = 16, padding = 16 }: AstryxProps) {
+const ALIGN_MAP: Record<string, string> = { start: "flex-start", center: "center", end: "flex-end", stretch: "stretch" };
+const JUSTIFY_MAP: Record<string, string> = { start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around" };
+
+export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start" }: AstryxProps) {
   const { connectors: { connect, drag }, id } = useNode();
   const isRoot = id === "ROOT";
   return (
@@ -357,9 +360,11 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
       style={{
         display: "flex",
         flexDirection: direction as "row" | "column",
+        alignItems: ALIGN_MAP[align] ?? "stretch",
+        justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
         padding,
-        minHeight: isRoot ? 600 : 48,
+        minHeight: isRoot ? "100%" : 48,
         width: "100%",
         boxSizing: "border-box",
       }}
@@ -370,23 +375,41 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 }
 (AstryxSection as any).craft = { displayName: "AstryxSection", rules: { canMoveIn: () => true } };
 
-export function AstryxStack({ children, gap = 8 }: AstryxProps) {
+export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start" }: AstryxProps) {
   const { connectors: { connect, drag } } = useNode();
   return (
-    <div ref={(r) => { if (r) connect(drag(r)); }} style={{ display: "flex", flexDirection: "column", gap, minHeight: 32, width: "100%" }}>
+    <div
+      ref={(r) => { if (r) connect(drag(r)); }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: ALIGN_MAP[align] ?? "stretch",
+        justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
+        gap,
+        minHeight: 32,
+        width: "100%",
+      }}
+    >
       {children}
     </div>
   );
 }
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
-export function AstryxHStack({ children, gap = 8, align = "center" }: AstryxProps) {
-  const alignMap: Record<string, string> = { start: "flex-start", center: "center", end: "flex-end" };
+export function AstryxHStack({ children, gap = 8, align = "center", justify = "start" }: AstryxProps) {
   const { connectors: { connect, drag } } = useNode();
   return (
     <div
       ref={(r) => { if (r) connect(drag(r)); }}
-      style={{ display: "flex", flexDirection: "row", gap, alignItems: alignMap[align] ?? "center", minHeight: 32, width: "100%" }}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: ALIGN_MAP[align] ?? "center",
+        justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
+        gap,
+        minHeight: 32,
+        width: "100%",
+      }}
     >
       {children}
     </div>
