@@ -5,6 +5,7 @@ import { Loader2, Check, AlertCircle, BookmarkPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
+import { sanitizeCraftState } from "./resolver";
 import type { Design } from "@shared/schema";
 
 // Lazy-load the legacy viewer — only used for old external_entities records
@@ -83,8 +84,13 @@ function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
     patchMutation.mutate(state);
   }, [patchMutation]);
 
-  const craftStateJson = design.craftState
+  // Sanitize before reaching DesignEditor so both editable and view-only
+  // paths are protected regardless of how the editor renders the state.
+  const rawCraftStateJson = design.craftState
     ? JSON.stringify(design.craftState)
+    : null;
+  const craftStateJson = rawCraftStateJson
+    ? sanitizeCraftState(rawCraftStateJson)
     : null;
 
   return (

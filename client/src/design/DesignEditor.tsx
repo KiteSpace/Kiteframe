@@ -898,6 +898,10 @@ function DesignAIPanel() {
 }
 
 // ─── Canvas drop area ─────────────────────────────────────────────────────────
+// sanitizeCraftState is called here for ALL renders — editable (enabled=true)
+// AND view-only (enabled=false) — so unknown component names never produce a
+// blank canvas in either mode.  DesignPage.tsx also sanitizes upstream as a
+// belt-and-suspenders measure.
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
   if (craftState) {
