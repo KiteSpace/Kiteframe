@@ -715,11 +715,13 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.08 : 0.92;
-    setZoom((z) => Math.min(2, Math.max(0.15, z * factor)));
+    setZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 1 || spaceDown.current) {
+    // Left-click on the canvas background (not artboard content), middle-click, or space+drag all pan
+    const clickedBackground = e.target === e.currentTarget;
+    if (e.button === 1 || spaceDown.current || (e.button === 0 && clickedBackground)) {
       e.preventDefault();
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
@@ -810,6 +812,7 @@ function InfiniteCanvas({ children }: { children: ReactNode }) {
 
 function DesignAIPanel() {
   const { actions } = useEditor(() => ({}));
+  const [isOpen, setIsOpen] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "applied" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -839,8 +842,30 @@ function DesignAIPanel() {
     }
   };
 
+  if (!isOpen) {
+    return (
+      <div className="shrink-0 border-t border-border bg-background/95 px-3 py-1.5 flex items-center gap-1.5">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>AI Generate</span>
+          <ChevronRight className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="shrink-0 border-t border-border bg-background/95 px-3 py-2 flex items-center gap-2">
+      <button
+        onClick={() => setIsOpen(false)}
+        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        title="Collapse AI panel"
+      >
+        <ChevronDown className="w-3.5 h-3.5" />
+      </button>
       <Sparkles className="w-3.5 h-3.5 text-primary/60 shrink-0" />
       <input
         value={prompt}
@@ -853,7 +878,7 @@ function DesignAIPanel() {
       {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
       {status === "applied" && (
         <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 shrink-0">
-          <Check className="w-3 h-3" /> Applied
+          <Check className="w-3 h-3" /> Design applied ✓
         </span>
       )}
       {status === "error" && (

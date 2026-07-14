@@ -226,11 +226,20 @@ export function AstryxUnknown(props: AstryxProps) {
 // canMoveIn: true — children can be dropped in.
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16 }: AstryxProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const { connectors: { connect, drag }, id } = useNode();
+  const isRoot = id === "ROOT";
   return (
     <div
       ref={(r) => { if (r) connect(drag(r)); }}
-      style={{ display: "flex", flexDirection: direction as "row" | "column", gap, padding, minHeight: 48, width: "100%", boxSizing: "border-box" }}
+      style={{
+        display: "flex",
+        flexDirection: direction as "row" | "column",
+        gap,
+        padding,
+        minHeight: isRoot ? 600 : 48,
+        width: "100%",
+        boxSizing: "border-box",
+      }}
     >
       {children}
     </div>
