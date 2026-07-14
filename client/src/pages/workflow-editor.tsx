@@ -148,8 +148,6 @@ import {
   Share2,
   Eye,
   RotateCcw,
-  Cloud,
-  CloudOff,
   Rocket,
 } from "lucide-react";
 import { SiFigma } from "react-icons/si";
@@ -7981,26 +7979,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       />
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        {tab.cloudProjectId &&
-                          (isCloudConnected ? (
-                            <span title="Synced to cloud">
-                              <Cloud
-                                size={12}
-                                className="text-green-500 flex-shrink-0"
-                                data-testid={`icon-cloud-connected-${tab.id}`}
-                              />
-                            </span>
-                          ) : (
-                            <span
-                              title={lastSyncError || "Not connected to cloud"}
-                            >
-                              <CloudOff
-                                size={12}
-                                className="text-amber-500 flex-shrink-0"
-                                data-testid={`icon-cloud-disconnected-${tab.id}`}
-                              />
-                            </span>
-                          ))}
+                        {tab.designId ? (
+                          <span className="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0" title="Design">
+                            <Layers size={9} className="text-white" />
+                          </span>
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0" title="Workflow">
+                            <GitBranch size={9} className="text-white" />
+                          </span>
+                        )}
                         <span
                           className="truncate text-sm font-medium max-w-[240px]"
                           onDoubleClick={(e) => {
