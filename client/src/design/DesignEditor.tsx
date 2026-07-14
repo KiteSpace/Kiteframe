@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp } from "lucide-react";
+import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronDown } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -1077,6 +1077,122 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
   );
 }
 
+// ─── Left rail mode context ───────────────────────────────────────────────────
+
+type LeftRailMode = "components" | "layers";
+interface LeftRailModeCtx { mode: LeftRailMode; setMode: (m: LeftRailMode) => void; }
+const LeftRailModeContext = createContext<LeftRailModeCtx>({ mode: "components", setMode: () => {} });
+
+// ─── Node type → display icon mapping ────────────────────────────────────────
+
+function layerIcon(displayName: string) {
+  if (displayName === "AstryxArtboard") return <LayoutTemplate className="w-3 h-3 text-blue-500 shrink-0" />;
+  if (displayName === "AstryxSection")  return <Square className="w-3 h-3 text-purple-400 shrink-0" />;
+  if (displayName === "AstryxStack")    return <AlignLeft className="w-3 h-3 text-purple-400 shrink-0" />;
+  if (displayName === "AstryxHStack")   return <AlignLeft className="w-3 h-3 text-purple-400 shrink-0" style={{ transform: "rotate(90deg)" }} />;
+  if (displayName === "AstryxCard")     return <Square className="w-3 h-3 text-amber-400 shrink-0" />;
+  if (displayName === "AstryxText" || displayName === "AstryxHeading") return <Type className="w-3 h-3 text-green-500 shrink-0" />;
+  if (displayName === "AstryxButton")   return <ToggleLeft className="w-3 h-3 text-orange-400 shrink-0" />;
+  if (displayName === "AstryxDivider")  return <Minus className="w-3 h-3 text-gray-400 shrink-0" />;
+  return <Square className="w-3 h-3 text-muted-foreground shrink-0" />;
+}
+
+function layerLabel(displayName: string, props: Record<string, any>): string {
+  if (props?.label) return props.label as string;
+  if (props?.text) return String(props.text).slice(0, 24);
+  if (props?.content) return String(props.content).slice(0, 24);
+  return displayName.replace(/^Astryx/, "");
+}
+
+// ─── Layers tree view ─────────────────────────────────────────────────────────
+
+function LayersView() {
+  const { nodes, selectedIds, actions } = useEditor((state) => ({
+    nodes: state.nodes,
+    selectedIds: state.events.selected,
+  }));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(["ROOT"]));
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectNode = (id: string) => {
+    actions.selectNode(id);
+  };
+
+  function renderNode(id: string, depth: number): ReactNode {
+    const node = nodes[id];
+    if (!node) return null;
+    const dn = node.data.displayName as string;
+    const props = (node.data.props ?? {}) as Record<string, any>;
+    const childIds: string[] = node.data.nodes ?? [];
+    const isSelected = selectedIds?.has(id) ?? false;
+    const hasChildren = childIds.length > 0;
+    const isExpanded = expanded.has(id);
+
+    return (
+      <div key={id}>
+        <button
+          onClick={() => selectNode(id)}
+          className={`w-full flex items-center gap-1 text-left rounded-md px-1 py-[3px] transition-colors group
+            ${isSelected
+              ? "bg-primary/15 text-primary"
+              : "hover:bg-accent text-foreground"
+            }`}
+          style={{ paddingLeft: depth * 12 + 4 }}
+        >
+          <span
+            className="w-4 h-4 flex items-center justify-center shrink-0"
+            onClick={hasChildren ? (e) => toggleExpand(id, e) : undefined}
+          >
+            {hasChildren
+              ? (isExpanded
+                  ? <ChevronDown className="w-2.5 h-2.5 text-muted-foreground" />
+                  : <ChevronRight className="w-2.5 h-2.5 text-muted-foreground" />)
+              : null}
+          </span>
+          {layerIcon(dn)}
+          <span className="text-[10.5px] truncate leading-none ml-0.5 flex-1 min-w-0">
+            {layerLabel(dn, props)}
+          </span>
+        </button>
+        {hasChildren && isExpanded && childIds.map((cid) => renderNode(cid, depth + 1))}
+      </div>
+    );
+  }
+
+  const rootNode = nodes["ROOT"];
+  if (!rootNode) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-[11px] text-muted-foreground text-center px-4">No elements yet. Add an artboard to get started.</p>
+      </div>
+    );
+  }
+
+  const topLevel: string[] = rootNode.data.nodes ?? [];
+
+  if (topLevel.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-[11px] text-muted-foreground text-center px-4">Canvas is empty</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      {topLevel.map((id) => renderNode(id, 0))}
+    </div>
+  );
+}
+
 // ─── Left rail: Components + Inspect swap ─────────────────────────────────────
 
 function LeftRail() {
@@ -1096,17 +1212,20 @@ function LeftRail() {
     };
   });
 
+  const { mode, setMode } = useContext(LeftRailModeContext);
+  const isLayersMode = mode === "layers";
+
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // When user explicitly hits "← Back", force components view even if selection is active
   const [forceComponents, setForceComponents] = useState(false);
 
-  // Auto-show inspect panel whenever a new element is selected
+  // Auto-show inspect panel whenever a new element is selected (only in components mode)
   useEffect(() => {
-    if (selected) setForceComponents(false);
-  }, [selected?.id]);
+    if (selected && !isLayersMode) setForceComponents(false);
+  }, [selected?.id, isLayersMode]);
 
-  const showInspect = !!selected && !forceComponents;
+  const showInspect = !!selected && !forceComponents && !isLayersMode;
 
   const toggleCategory = (name: string) => {
     setCollapsed((prev) => {
@@ -1127,6 +1246,8 @@ function LeftRail() {
       )
     : [];
 
+  const panelTitle = isLayersMode ? "Layers" : showInspect ? "Inspect" : "Components";
+
   return (
     <div
       className="w-[296px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
@@ -1135,10 +1256,15 @@ function LeftRail() {
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-semibold text-foreground">
-            {showInspect ? "Inspect" : "Components"}
-          </span>
-          {showInspect ? (
+          <span className="text-[12px] font-semibold text-foreground">{panelTitle}</span>
+          {isLayersMode ? (
+            <button
+              onClick={() => setMode("components")}
+              className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
+            >
+              ← Components
+            </button>
+          ) : showInspect ? (
             <button
               onClick={() => setForceComponents(true)}
               className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
@@ -1149,7 +1275,7 @@ function LeftRail() {
             <button className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground text-sm" title="Grid view">⊞</button>
           )}
         </div>
-        {!showInspect && (
+        {!showInspect && !isLayersMode && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
             <input
@@ -1171,8 +1297,10 @@ function LeftRail() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
-        {showInspect ? (
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        {isLayersMode ? (
+          <LayersView />
+        ) : showInspect ? (
           <InspectPanel selected={selected!} actions={actions} />
         ) : trimmed ? (
           // Search results
@@ -1221,6 +1349,7 @@ function LeftRail() {
 
 function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void }) {
   const { actions, query } = useEditor(() => ({}));
+  const { mode, setMode } = useContext(LeftRailModeContext);
 
   const addArtboard = useCallback(() => {
     const rootNode = query.node("ROOT").get();
@@ -1241,14 +1370,18 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
         + Artboard
       </button>
       <div className="w-px h-4 bg-border mx-0.5" />
-      {["Layers", "Notes"].map((tab) => (
-        <button
-          key={tab}
-          className="text-[10px] text-muted-foreground/60 hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors"
-        >
-          {tab}
-        </button>
-      ))}
+      <button
+        onClick={() => setMode(mode === "layers" ? "components" : "layers")}
+        className={`flex items-center gap-1 text-[10px] rounded-lg px-2 py-1 transition-colors ${
+          mode === "layers"
+            ? "text-primary bg-primary/10 hover:bg-primary/15"
+            : "text-muted-foreground/60 hover:text-foreground hover:bg-accent"
+        }`}
+        title="Toggle layers panel"
+      >
+        <Layers className="w-3 h-3" />
+        Layers
+      </button>
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
         <button
@@ -1648,6 +1781,7 @@ export interface DesignEditorProps {
 
 export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
+  const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>("components");
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(2, z * 1.15)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z / 1.15)), []);
@@ -1658,19 +1792,21 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
   );
 
   return (
-    <Editor resolver={resolver} enabled={editable}>
-      <div className="flex h-full w-full" style={{ overflow: "clip" }}>
-        {editable && <LeftRail />}
-        <div className="flex flex-col flex-1 min-w-0">
-          {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
-          <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
-            <CanvasArea craftState={craftState} />
-          </InfiniteCanvas>
+    <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
+      <Editor resolver={resolver} enabled={editable}>
+        <div className="flex h-full w-full" style={{ overflow: "clip" }}>
+          {editable && <LeftRail />}
+          <div className="flex flex-col flex-1 min-w-0">
+            {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} />}
+            <InfiniteCanvas zoom={zoom} onZoom={setZoom}>
+              <CanvasArea craftState={craftState} />
+            </InfiniteCanvas>
+          </div>
+          {editable && <AIDrawer />}
         </div>
-        {editable && <AIDrawer />}
-      </div>
-      {editable && onSave && <SaveWatcher onSave={stableSave} />}
-    </Editor>
+        {editable && onSave && <SaveWatcher onSave={stableSave} />}
+      </Editor>
+    </LeftRailModeContext.Provider>
   );
 }
 
