@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, Plus, ArrowUp } from "lucide-react";
+import { Trash2, Search, X, Sparkles, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -695,6 +695,24 @@ interface SelectedNode {
   isRoot: boolean;
 }
 
+const COLOR_SWATCHES_MAP: Record<string, string> = {
+  blue: "#3b82f6", green: "#10b981", amber: "#f59e0b",
+  red: "#ef4444", purple: "#8b5cf6", gray: "#6b7280",
+};
+
+const SPACING_PRESETS = [
+  { label: "Compact",     sub: "gap 4 · pad 8",   gap: 4,  padding: 8  },
+  { label: "Default",     sub: "gap 8 · pad 12",  gap: 8,  padding: 12 },
+  { label: "Comfortable", sub: "gap 12 · pad 16", gap: 12, padding: 16 },
+  { label: "Spacious",    sub: "gap 20 · pad 24", gap: 20, padding: 24 },
+];
+
+const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
+const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);
+const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","AstryxText","AstryxHeading","AstryxSpinner","AstryxStatusDot","AstryxIcon","AstryxToken","AstryxSelect","AstryxSkeleton"]);
+const IS_CONTAINER = new Set(["AstryxSection","AstryxStack","AstryxHStack","AstryxArtboard"]);
+const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
+
 function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
   const setProp = useCallback(
     (key: string, value: any) => {
@@ -703,11 +721,21 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
     [selected.id, actions],
   );
 
-  const shortName = selected.displayName.replace("Astryx", "");
+  const dn = selected.displayName;
+  const shortName = dn.replace("Astryx", "");
+  const isContainer = IS_CONTAINER.has(dn);
+  const hasSizeProp = HAS_SIZE_PROP.has(dn);
+  const hasTypography = HAS_TYPOGRAPHY.has(dn);
+
+  // Determine active spacing preset for containers
+  const activeSpacing = SPACING_PRESETS.find(
+    (p) => p.gap === (selected.props.gap ?? 8) && p.padding === (selected.props.padding ?? 12),
+  );
 
   return (
     <div className="flex flex-col overflow-y-auto h-full">
-      {/* Element header */}
+
+      {/* ── Header ───────────────────────────────────────────────── */}
       <div className="sticky top-0 bg-background z-10 flex items-center justify-between px-3 py-2.5 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
@@ -727,39 +755,270 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         )}
       </div>
 
-      {/* Properties section */}
-      <section className="px-3 py-3 border-b border-border">
-        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Properties</div>
-        <div className="flex flex-col gap-3">
-          <ComponentProps
-            displayName={selected.displayName}
-            props={selected.props}
-            setProp={setProp}
-          />
-        </div>
-      </section>
+      {/* ── Color ────────────────────────────────────────────────── */}
+      {(HAS_COLOR_PROP.has(dn) || HAS_VARIANT_DISPLAY.has(dn)) && (
+        <section className="px-3 py-3 border-b border-border">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
+          {HAS_COLOR_PROP.has(dn) && (
+            <div className="flex gap-1.5 flex-wrap">
+              {Object.entries(COLOR_SWATCHES_MAP).map(([name, hex]) => (
+                <button
+                  key={name}
+                  onClick={() => setProp("color", name)}
+                  title={name}
+                  style={{
+                    background: hex,
+                    boxShadow: selected.props.color === name
+                      ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                      : undefined,
+                  }}
+                  className="w-6 h-6 rounded-lg border border-black/10 transition-all hover:scale-110"
+                />
+              ))}
+            </div>
+          )}
+          {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {["primary","secondary","outline","ghost"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setProp("variant", v)}
+                  className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
+                    selected.props.variant === v
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
+          {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {["info","success","warning","error"].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setProp("variant", v)}
+                  className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
+                    selected.props.variant === v
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
-      {/* Position section */}
-      {!selected.isRoot && selected.displayName !== "AstryxArtboard" && (
-        <section className="px-3 py-3">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Position</div>
-          <div className="flex flex-col gap-3">
-            <PropRow label="Mode">
-              <SelectProp
-                value={selected.props.position ?? "flow"}
-                options={["flow", "absolute"]}
-                onChange={(v) => setProp("position", v)}
-              />
-            </PropRow>
-            {selected.props.position === "absolute" && (
-              <>
-                <PropRow label="X (px)"><NumberProp value={selected.props.x ?? 0} onChange={(v) => setProp("x", v)} /></PropRow>
-                <PropRow label="Y (px)"><NumberProp value={selected.props.y ?? 0} onChange={(v) => setProp("y", v)} /></PropRow>
-              </>
-            )}
+      {/* ── Size & Shape ─────────────────────────────────────────── */}
+      {hasSizeProp && (
+        <section className="px-3 py-3 border-b border-border">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Size & Shape</div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Size</span>
+            <div className="flex gap-1 flex-wrap">
+              {(dn === "AstryxText" ? ["xs","sm","md","lg"] :
+                dn === "AstryxHeading" ? ["sm","md","lg","xl","2xl"] :
+                ["xs","sm","md","lg","xl"]
+              ).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setProp("size", s)}
+                  className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
+                    selected.props.size === s
+                      ? "bg-foreground border-foreground text-background shadow-sm"
+                      : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       )}
+
+      {/* ── Spacing (containers only) ────────────────────────────── */}
+      {isContainer && (
+        <section className="px-3 py-3 border-b border-border">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Spacing</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {SPACING_PRESETS.map((p) => {
+              const isActive = activeSpacing?.label === p.label;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => { setProp("gap", p.gap); setProp("padding", p.padding); }}
+                  className={`py-2 px-2 rounded-lg border text-left transition-all ${
+                    isActive
+                      ? "bg-foreground border-foreground shadow-sm"
+                      : "border-border hover:border-muted-foreground hover:bg-accent bg-background"
+                  }`}
+                >
+                  <div className={`text-[10px] font-semibold mb-0.5 ${isActive ? "text-background" : "text-foreground"}`}>{p.label}</div>
+                  <div className={`text-[9px] ${isActive ? "text-background/60" : "text-muted-foreground"}`}>{p.sub}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── Layout ───────────────────────────────────────────────── */}
+      <section className="px-3 py-3 border-b border-border">
+        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Layout</div>
+
+        {/* Artboard width */}
+        {dn === "AstryxArtboard" && (
+          <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5 mb-2.5">
+            <span className="text-[9.5px] text-muted-foreground font-medium w-3">W</span>
+            <input
+              type="number"
+              value={selected.props.width ?? 390}
+              onChange={(e) => setProp("width", Number(e.target.value))}
+              className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
+            />
+            <span className="text-[9px] text-muted-foreground/50">px</span>
+          </div>
+        )}
+
+        {/* Skeleton W/H */}
+        {dn === "AstryxSkeleton" && (
+          <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+            {[["W","width",120],["H","height",16]].map(([label, key, def]) => (
+              <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+                <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+                <input
+                  type="number"
+                  value={selected.props[key as string] ?? def}
+                  onChange={(e) => setProp(key as string, Number(e.target.value))}
+                  className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Position & coordinates */}
+        {!selected.isRoot && dn !== "AstryxArtboard" && (
+          <>
+            <div className="mb-2">
+              <PropRow label="Position">
+                <SelectProp
+                  value={selected.props.position ?? "flow"}
+                  options={["flow","absolute"]}
+                  onChange={(v) => setProp("position", v)}
+                />
+              </PropRow>
+            </div>
+            {selected.props.position === "absolute" && (
+              <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                {[["X","x",0],["Y","y",0]].map(([label, key, def]) => (
+                  <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+                    <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+                    <input
+                      type="number"
+                      value={selected.props[key as string] ?? def}
+                      onChange={(e) => setProp(key as string, Number(e.target.value))}
+                      className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Flex alignment buttons for containers */}
+        {isContainer && (
+          <div>
+            <span className="text-[10px] text-muted-foreground block mb-1.5">Align items</span>
+            <div className="flex gap-1">
+              {[["⇤","start"],["⇔","center"],["⇥","end"],["↕","stretch"]].map(([icon, a]) => (
+                <button
+                  key={a}
+                  onClick={() => setProp("align", a)}
+                  className={`flex-1 h-6 text-[11px] rounded-lg border transition-all ${
+                    selected.props.align === a
+                      ? "bg-foreground border-foreground text-background"
+                      : "border-border text-muted-foreground hover:border-muted-foreground"
+                  }`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── Typography ───────────────────────────────────────────── */}
+      {hasTypography && (
+        <section className="px-3 py-3 border-b border-border">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Typography</div>
+
+          {/* Content editable */}
+          {(dn === "AstryxText" || dn === "AstryxHeading" || dn === "AstryxButton") && (
+            <div className="mb-2.5">
+              <PropRow label="Content">
+                <TextProp value={selected.props.children ?? ""} onChange={(v) => setProp("children", v)} />
+              </PropRow>
+            </div>
+          )}
+
+          {/* Size token row for text/heading */}
+          {(dn === "AstryxText" || dn === "AstryxHeading") && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Size</span>
+              <div className="flex gap-1">
+                {(dn === "AstryxText" ? ["xs","sm","md","lg"] : ["sm","md","lg","xl","2xl"]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setProp("size", s)}
+                    className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
+                      selected.props.size === s
+                        ? "bg-foreground border-foreground text-background shadow-sm"
+                        : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Font + B/I/U */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+              <span className="text-[10px] text-muted-foreground">Inter</span>
+              <span className="text-muted-foreground/40 text-[10px]">▾</span>
+            </div>
+            <div className="flex gap-0.5">
+              {[["B","font-bold"],["I","italic"],["U","underline"]].map(([l, c]) => (
+                <button
+                  key={l}
+                  className={`w-6 h-7 text-[10px] ${c} border border-border rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Properties (component-specific catch-all) ─────────────── */}
+      <section className="px-3 py-3">
+        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Properties</div>
+        <div className="flex flex-col gap-3">
+          <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -925,8 +1184,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
         className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
         title="Add artboard"
       >
-        <Plus className="w-3 h-3" />
-        Artboard
+        + Artboard
       </button>
       <div className="w-px h-4 bg-border mx-0.5" />
       {["Layers", "Notes"].map((tab) => (
@@ -954,6 +1212,34 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut }: { zoom: number; onZoomIn: 
         >
           +
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Canvas selection hints (shown over the canvas) ──────────────────────────
+
+function CanvasHints() {
+  const { hasSelection } = useEditor((state) => {
+    const sel = state.events.selected;
+    return { hasSelection: !!(sel && sel.size > 0) };
+  });
+
+  if (hasSelection) {
+    return (
+      <div className="absolute bottom-14 left-4 z-10 pointer-events-none">
+        <div className="flex items-center gap-2 bg-primary text-primary-foreground text-[9.5px] px-3 py-1.5 rounded-full shadow-lg shadow-primary/20 font-medium">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 animate-pulse" />
+          Properties visible in left panel
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 pointer-events-none">
+      <div className="bg-foreground/80 backdrop-blur-sm text-background text-[10px] px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
+        <span>👆</span> Click any element on the canvas to inspect it
       </div>
     </div>
   );
@@ -1046,6 +1332,9 @@ function InfiniteCanvas({ children, zoom, onZoom }: { children: ReactNode; zoom:
         </CanvasZoomContext.Provider>
       </div>
 
+      {/* Canvas selection hints */}
+      <CanvasHints />
+
       {/* Stacked zoom FABs */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-10">
         <button
@@ -1103,7 +1392,7 @@ function AIDrawer() {
   const [messages, setMessages] = useState<AIMessage[]>(INITIAL_MESSAGES);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [activeTab, setActiveTab] = useState<"Chat" | "Generate" | "History">("Chat");
+  const [activeTab, setActiveTab] = useState<"Chat" | "Suggest" | "History">("Chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const toggleOpen = () => {
@@ -1184,7 +1473,7 @@ function AIDrawer() {
 
           {/* Mode tabs */}
           <div className="flex border-b border-border px-2 pt-1.5 gap-0.5 shrink-0">
-            {(["Chat", "Generate", "History"] as const).map((tab) => (
+            {(["Chat", "Suggest", "History"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
