@@ -1,6 +1,7 @@
 export { CRAFT_STATE_SCHEMA as DESIGN_JSON_SCHEMA } from "./designSchema";
 
 export const ASTRYX_COMPONENT_LIST = [
+  "AstryxArtboard",
   "AstryxSection",
   "AstryxStack",
   "AstryxHStack",
@@ -62,9 +63,10 @@ Do NOT re-emit unchanged nodes. Generate node IDs that don't clash with existing
 These are the ONLY valid resolvedName values. If the user asks for anything else, use TYPE 1.
 
 — CONTAINERS (isCanvas: true, can hold children in "nodes") —
-• AstryxSection  top-level flex container  props: { direction:"row"|"column", gap:number, padding:number }
-• AstryxStack    vertical stack            props: { gap:number }
-• AstryxHStack   horizontal row            props: { gap:number, align:"start"|"center"|"end" }
+• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number }
+• AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number }
+• AstryxStack    vertical stack           props: { gap:number }
+• AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end" }
 
 — TYPOGRAPHY —
 • AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl" }
@@ -114,29 +116,33 @@ Every node (whether in craftState or a patch) must follow this shape:
 }
 
 NESTING RULES:
-• ROOT must always be AstryxSection (parent: null). Present in "craftState"; in a "patch" only include ROOT if you're adding direct children to it.
-• Containers (isCanvas:true): AstryxSection, AstryxStack, AstryxHStack. All others are leaves (isCanvas:false, nodes:[]).
+• ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
+• AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
+• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack. All others are leaves (isCanvas:false, nodes:[]).
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.
-• For patch: if adding to ROOT, include ROOT with its full updated "nodes" array.
+• For patch:
+  - When adding content to "Screen 1", target that AstryxArtboard node — include it in the patch with its updated "nodes" array.
+  - Only include ROOT in the patch if you're adding a new AstryxArtboard (new screen) directly to it.
+  - Do NOT re-emit unchanged nodes from other artboards.
 • Keep total node count under 20 for any single generation.
 
-━━━ EXAMPLE — patch adding a search row to an existing canvas ━━━
-User canvas has: ROOT → ["hero-section"]
-User says: "Add a search bar below the hero"
+━━━ EXAMPLE — patch adding a search row to Screen 1 ━━━
+User canvas has: ROOT(AstryxSection) → ["screen-1"(AstryxArtboard, label:"Screen 1", nodes:["hero-heading"])]
+User says: "Add a search bar to Screen 1"
 
-Correct patch response:
+Correct patch response — target the AstryxArtboard node, NOT ROOT:
 {
   "type": "patch",
   "nodes": {
-    "ROOT": {
-      "type": { "resolvedName": "AstryxSection" },
+    "screen-1": {
+      "type": { "resolvedName": "AstryxArtboard" },
       "isCanvas": true,
-      "props": { "direction": "column", "gap": 16, "padding": 24 },
-      "displayName": "AstryxSection",
+      "props": { "label": "Screen 1", "width": 390, "direction": "column", "gap": 16, "padding": 24 },
+      "displayName": "AstryxArtboard",
       "custom": {},
-      "parent": null,
+      "parent": "ROOT",
       "hidden": false,
-      "nodes": ["hero-section", "b3k-search-row"],
+      "nodes": ["hero-heading", "b3k-search-row"],
       "linkedNodes": {}
     },
     "b3k-search-row": {
@@ -145,7 +151,7 @@ Correct patch response:
       "props": { "gap": 8, "align": "center" },
       "displayName": "AstryxHStack",
       "custom": {},
-      "parent": "ROOT",
+      "parent": "screen-1",
       "hidden": false,
       "nodes": ["b3k-search-input", "b3k-search-btn"],
       "linkedNodes": {}
