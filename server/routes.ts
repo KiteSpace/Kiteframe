@@ -2217,12 +2217,27 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Design generation endpoint — converts a text prompt into a craft.js state JSON
   app.post('/api/ai/design', aiRateLimiter, async (req: any, res) => {
     try {
-      const schema = z.object({ prompt: z.string().min(1).max(2000) });
+      const schema = z.object({
+        prompt: z.string().min(1).max(2000),
+        currentCraftState: z.string().max(40000).optional(),
+        targetArtboardLabel: z.string().max(200).optional(),
+      });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: 'prompt is required (1–2000 chars)' });
       }
-      const { prompt } = parsed.data;
+      const { prompt, currentCraftState, targetArtboardLabel } = parsed.data;
+
+      // Build a context-aware user message. Include the current canvas state so the
+      // model knows what already exists and can patch rather than replace.
+      let userMessage = prompt;
+      if (currentCraftState && currentCraftState.trim().length > 2) {
+        userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState.slice(0, 12000)}\n</CURRENT_CANVAS>`;
+        if (targetArtboardLabel) {
+          userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
+        }
+      }
+
       // Use Anthropic assistant-prefill to force JSON output: the assistant message
       // starts with '{' so Claude is constrained to continue with the JSON body.
       // We then prepend '{' to the returned text to reconstruct the full object.
@@ -2232,7 +2247,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         maxTokens: 16000,
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
+          { role: 'user', content: userMessage },
           { role: 'assistant', content: '{' },
         ],
       });
@@ -2252,22 +2267,44 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         return res.status(500).json({ error: 'AI returned incomplete response — try rephrasing your prompt' });
       }
       const jsonStr = raw.slice(0, jsonEnd + 1);
-      let finalJson = jsonStr;
+      let parsedResponse: any;
       try {
-        JSON.parse(jsonStr);
+        parsedResponse = JSON.parse(jsonStr);
       } catch {
         // Repair common AI JSON issues: trailing commas before } or ]
-        const repaired = jsonStr
-          .replace(/,(\s*[}\]])/g, '$1');
+        const repaired = jsonStr.replace(/,(\s*[}\]])/g, '$1');
         try {
-          JSON.parse(repaired);
-          finalJson = repaired;
+          parsedResponse = JSON.parse(repaired);
         } catch (parseErr2) {
           console.error('[design] parse failed after repair. First 800 chars:', jsonStr.slice(0, 800));
           return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
         }
       }
-      return res.json({ craftState: finalJson });
+
+      // Route based on response type
+      const responseType = parsedResponse?.type;
+
+      if (responseType === 'message') {
+        // Plain text reply — no canvas change
+        const text = typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.';
+        return res.json({ type: 'message', text });
+      }
+
+      if (responseType === 'patch') {
+        // Additive patch — return only the changed/new nodes
+        const nodes = parsedResponse.nodes;
+        if (!nodes || typeof nodes !== 'object') {
+          return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
+        }
+        return res.json({ type: 'patch', nodes: JSON.stringify(nodes) });
+      }
+
+      // Default: full state replacement (type === 'state' or legacy format without type)
+      const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
+      if (!craftStateObj || typeof craftStateObj !== 'object') {
+        return res.status(500).json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj) });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });

@@ -1434,11 +1434,14 @@ function InfiniteCanvas({ children, zoom, onZoom }: { children: ReactNode; zoom:
 interface AIMessage { role: "ai" | "user"; text: string; }
 
 const INITIAL_MESSAGES: AIMessage[] = [
-  { role: "ai", text: "I can help you design this screen. Describe what you'd like to create or modify." },
+  {
+    role: "ai",
+    text: "Hi! I can add components to your artboards or modify existing ones — just describe what you want. If you ask for something outside the Astryx component library I'll let you know and suggest an alternative.",
+  },
 ];
 
 function AIDrawer() {
-  const { actions } = useEditor(() => ({}));
+  const { actions, query } = useEditor(() => ({}));
 
   const [open, setOpen] = useState(() => {
     try { return localStorage.getItem("design-ai-drawer-open") !== "false"; } catch { return true; }
@@ -1446,7 +1449,6 @@ function AIDrawer() {
   const [messages, setMessages] = useState<AIMessage[]>(INITIAL_MESSAGES);
   const [prompt, setPrompt] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [activeTab, setActiveTab] = useState<"Chat" | "Suggest" | "History">("Chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const toggleOpen = () => {
@@ -1464,25 +1466,63 @@ function AIDrawer() {
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
     if (!trimmed || status === "loading") return;
-    const userMsg: AIMessage = { role: "user", text: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setPrompt("");
     setStatus("loading");
     try {
+      // Capture the current canvas state so KiteAI can patch rather than replace
+      let currentCraftState: string | undefined;
+      try {
+        const serialized = query.serialize();
+        // Only send if there's meaningful content (more than an empty object)
+        if (serialized && serialized.length > 10) currentCraftState = serialized;
+      } catch { /* ignore if serialize fails */ }
+
       const res = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: trimmed }),
+        body: JSON.stringify({ prompt: trimmed, currentCraftState }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
-      const sanitized = sanitizeCraftState(data.craftState);
-      actions.deserialize(sanitized);
-      setMessages((prev) => [...prev, { role: "ai", text: "Design applied! I've updated the canvas with your requested layout." }]);
+
+      if (data.type === "message") {
+        // KiteAI replied with a conversational message — no canvas change
+        setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+      } else if (data.type === "patch") {
+        // Additive patch: merge new/changed nodes into the existing canvas state
+        const patchNodes: Record<string, unknown> = JSON.parse(data.nodes);
+        let existingState: Record<string, unknown> = {};
+        try {
+          existingState = JSON.parse(query.serialize());
+        } catch { /* start from empty if serialize fails */ }
+        const merged = { ...existingState, ...patchNodes };
+        const sanitized = sanitizeCraftState(JSON.stringify(merged));
+        actions.deserialize(sanitized);
+        const addedCount = Object.keys(patchNodes).length;
+        setMessages((prev) => [
+          ...prev,
+          { role: "ai", text: `Done! Added ${addedCount} element${addedCount !== 1 ? "s" : ""} to your canvas.` },
+        ]);
+      } else {
+        // Full state replacement (type === "state" or legacy response without type)
+        const craftStateStr = data.craftState ?? data;
+        const sanitized = sanitizeCraftState(
+          typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr)
+        );
+        actions.deserialize(sanitized);
+        setMessages((prev) => [
+          ...prev,
+          { role: "ai", text: "Design created! I've built the layout on your canvas." },
+        ]);
+      }
       setStatus("idle");
     } catch (e: any) {
       setStatus("error");
-      setMessages((prev) => [...prev, { role: "ai", text: `Something went wrong: ${e.message?.slice(0, 80) ?? "Unknown error"}` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", text: `Something went wrong: ${e.message?.slice(0, 120) ?? "Unknown error"}` },
+      ]);
       setTimeout(() => setStatus("idle"), 3000);
     }
   };
@@ -1525,23 +1565,6 @@ function AIDrawer() {
             {status === "error" && <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
           </div>
 
-          {/* Mode tabs */}
-          <div className="flex border-b border-border px-2 pt-1.5 gap-0.5 shrink-0">
-            {(["Chat", "Suggest", "History"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-[9.5px] px-2 py-1 rounded-t-lg font-medium transition-colors ${
-                  activeTab === tab
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 min-h-0">
             {messages.map((m, i) => (
@@ -1578,7 +1601,7 @@ function AIDrawer() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
-                placeholder={activeTab === "Suggest" ? "Describe a change to suggest…" : "Ask KiteAI anything…"}
+                placeholder="Ask KiteAI to add or change something…"
                 disabled={status === "loading"}
                 className="flex-1 text-[10px] bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
               />
