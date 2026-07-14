@@ -149,6 +149,7 @@ import {
   Eye,
   RotateCcw,
   Rocket,
+  GitBranch,
 } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
@@ -7979,7 +7980,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       />
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        {tab.designId ? (
+                        {(designModeTabIds.has(tab.id) || !!tab.designId) ? (
                           <span className="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0" title="Design">
                             <Layers size={9} className="text-white" />
                           </span>
