@@ -160,23 +160,27 @@ function PropertiesPanelB({ onClose }: { onClose: () => void }) {
         </div>
       </section>
 
-      {/* Preview chip */}
-      <section className="px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
-        <div className="flex items-center justify-center py-1">
-          <div className={`h-8 px-5 text-[11px] font-semibold flex items-center rounded-lg transition-all`}
-            style={{ background: bg, color: textColor, borderRadius: radius === "None" ? 0 : radius === "S" ? 4 : radius === "M" ? 8 : radius === "L" ? 12 : 9999 }}>
-            Preview
-          </div>
-        </div>
-      </section>
-
       {/* Tokens */}
       <section className="px-3 py-3 border-b border-gray-100">
         <div className="text-[9.5px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Size & Shape</div>
         <div className="space-y-2">
           <TokenRow label="Element" tokens={SIZE_TOKENS} active={size} onSelect={setSize} />
           <TokenRow label="Radius" tokens={BORDER_RADIUS_TOKENS} active={radius} onSelect={setRadius} />
-          <TokenRow label="Spacing" tokens={SPACING_TOKENS} active={spacing} onSelect={setSpacing} />
+        </div>
+        <div className="text-[10px] text-gray-500 mt-3 mb-1.5">Spacing</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[
+            { label: "Compact",     sub: "gap 4 · pad 8"  },
+            { label: "Default",     sub: "gap 8 · pad 12" },
+            { label: "Comfortable", sub: "gap 12 · pad 16" },
+            { label: "Spacious",    sub: "gap 20 · pad 24" },
+          ].map(p => (
+            <button key={p.label} onClick={() => setSpacing(p.label)}
+              className={`py-2 px-2 rounded-lg border text-left transition-all ${spacing === p.label ? "bg-gray-900 border-gray-900 shadow-sm" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 bg-white"}`}>
+              <div className={`text-[10px] font-semibold mb-0.5 ${spacing === p.label ? "text-white" : "text-gray-700"}`}>{p.label}</div>
+              <div className={`text-[9px] ${spacing === p.label ? "text-gray-300" : "text-gray-400"}`}>{p.sub}</div>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -372,14 +376,6 @@ export function VariantB() {
           </div>
         </div>
 
-        {/* Bottom AI bar */}
-        <div className="h-12 bg-white border-t border-gray-200 flex items-center px-3 gap-2 flex-shrink-0">
-          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex-shrink-0" />
-          <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 hover:border-blue-300 transition-colors cursor-text">
-            <span className="text-[10px] text-gray-400">✦ Describe changes or generate a new design…</span>
-          </div>
-          <button className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm flex items-center justify-center shadow-sm transition-colors">↑</button>
-        </div>
       </div>
 
       {/* ─── Right Rail: Chat drawer ─────────────────────────── */}
