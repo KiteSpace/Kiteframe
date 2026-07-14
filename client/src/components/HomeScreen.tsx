@@ -259,6 +259,18 @@ export function HomeScreen({
           openSignup();
           return;
         }
+
+        // Pre-flight: confirm the session is still live before burning AI credits
+        try {
+          const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
+          if (sessionRes.status === 401) {
+            openSignup();
+            return;
+          }
+        } catch {
+          // Network error — let the main flow handle it
+        }
+
         setDesignError(null);
         setIsDesignGenerating(true);
         try {
@@ -277,6 +289,10 @@ export function HomeScreen({
             credentials: "include",
             body: JSON.stringify({ craftState: genData.craftState, source: "home-ai" }),
           });
+          if (createRes.status === 401) {
+            openSignup();
+            return;
+          }
           const createData = await createRes.json();
           if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
 
