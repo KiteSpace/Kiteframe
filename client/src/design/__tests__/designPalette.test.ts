@@ -437,6 +437,43 @@ describe('Simulated AI responses — validateCraftState (production validator)',
     expect(validateCraftState('{}').valid).toBe(false);
     expect(validateCraftState(42).valid).toBe(false);
   });
+
+  it('unknown resolvedName emits a warning but does not add to errors (graceful-degradation contract)', () => {
+    const warnings: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(String(args[0]));
+    try {
+      const stateWithUnknown = {
+        ROOT: {
+          type: { resolvedName: 'AstryxSection' },
+          isCanvas: true,
+          props: {},
+          parent: null,
+          nodes: ['widget'],
+          linkedNodes: {},
+        },
+        widget: {
+          type: { resolvedName: 'AstryxFutureWidget' },
+          isCanvas: false,
+          props: {},
+          displayName: 'AstryxFutureWidget',
+          custom: {},
+          parent: 'ROOT',
+          nodes: [],
+          linkedNodes: {},
+        },
+      };
+      const result = validateCraftState(stateWithUnknown);
+      expect(result.errors, 'Unknown component must not produce a validation error').toEqual([]);
+      expect(result.valid).toBe(true);
+      expect(
+        warnings.some((w) => w.includes('AstryxFutureWidget')),
+        'validateCraftState must warn about the unknown component',
+      ).toBe(true);
+    } finally {
+      console.warn = origWarn;
+    }
+  });
 });
 
 describe('isCraftJsDesignState — type guard', () => {
