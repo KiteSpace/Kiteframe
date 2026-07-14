@@ -1,4 +1,4 @@
-import { useNode } from "@craftjs/core";
+import { useNode, useEditor } from "@craftjs/core";
 import { useEffect, useRef, useContext, useCallback, createContext, type CSSProperties } from "react";
 import {
   ALLOWED_CRAFT_COMPONENTS,
@@ -9,7 +9,7 @@ export type { CraftStateValidationResult } from "./craftValidator";
 export { ALLOWED_CRAFT_COMPONENTS, validateCraftState, sanitizeCraftState };
 import {
   AstryxButton as AstryxButtonBase,
-  AstryxCard as AstryxCardBase,
+
   AstryxText as AstryxTextBase,
   AstryxTextInput as AstryxTextInputBase,
   AstryxSection as AstryxSectionBase,
@@ -147,15 +147,24 @@ function useLeafNode() {
 }
 
 // ─── Container node hook ──────────────────────────────────────────────────────
-// Shared logic for Section / Stack / HStack — provides grey fill, blue
-// selected treatment, and free-drag when position === "absolute".
+// Shared logic for Section / Stack / HStack / Card — provides grey fill, blue
+// selected treatment, drag-over highlight, and free-drag when position === "absolute".
 
 function useContainerNode(position: string, x: number, y: number) {
   const zoom = useContext(CanvasZoomContext);
-  const { connectors: { connect, drag }, id, actions, isEmpty, selected } = useNode((node) => ({
+  const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
+    hovered: node.events.hovered,
   }));
+
+  // Detect whether any node is currently being dragged in the editor.
+  const { isDragging } = useEditor((state) => ({
+    isDragging: state.events.dragged.size > 0,
+  }));
+
+  // True when the user is dragging something over this container.
+  const isDragOver = isDragging && hovered;
 
   const isAbsolute = position === "absolute";
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
@@ -194,14 +203,16 @@ function useContainerNode(position: string, x: number, y: number) {
     if (!isAbsolute) drag(r);
   };
 
-  // Default: very light grey fill + subtle dashed outline (makes containers
-  // visible on the canvas without being visually heavy).
-  // Selected: blue tint + solid blue border (clear selection indicator).
+  // Light grey fill — clearly visible without being visually heavy.
+  // Selected: blue tint + solid blue border.
+  // Drag-over: brighter blue dashed border to signal "drop here".
   const containerVisual: CSSProperties = selected
     ? { background: "rgba(59,130,246,0.06)", border: "1.5px solid #3b82f6", borderRadius: 4 }
-    : { background: "rgba(0,0,0,0.025)", border: "1px dashed rgba(100,100,100,0.15)", borderRadius: 4 };
+    : isDragOver
+    ? { background: "rgba(59,130,246,0.07)", border: "1.5px dashed #3b82f6", borderRadius: 4 }
+    : { background: "#f4f4f5", border: "1px dashed rgba(100,100,100,0.25)", borderRadius: 4 };
 
-  return { connectRef, id, isEmpty, selected, isAbsolute, containerVisual, onMouseDown };
+  return { connectRef, id, isEmpty, selected, isDragOver, isAbsolute, containerVisual, onMouseDown };
 }
 
 // ─── Leaf components ──────────────────────────────────────────────────────────
@@ -582,24 +593,31 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
 export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectRef, isEmpty, selected, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
+  const variantClass =
+    variant === "outlined" ? "bg-white border border-gray-300" :
+    variant === "ghost"    ? "bg-gray-50" :
+                             "bg-white shadow-md border border-gray-100";
+  // Apply connectRef directly to the card visual so Craft.js children are
+  // nested inside the connected element — required for correct drop targeting.
   return (
     <div
       ref={connectRef}
       onMouseDown={onMouseDown}
+      className={`rounded-lg p-4 ${variantClass}`}
       style={{
         position: "relative",
+        minHeight: 56,
+        boxSizing: "border-box",
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
-        // Card keeps its own card visual; use an outline ring for selection
-        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2, borderRadius: 4 } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
       }}
     >
-      <AstryxCardBase variant={variant}>
-        {isEmpty
-          ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div>
-          : children}
-      </AstryxCardBase>
+      {isEmpty
+        ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div>
+        : children}
     </div>
   );
 }
