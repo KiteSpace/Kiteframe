@@ -2224,15 +2224,18 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'prompt is required (1–2000 chars)' });
+        const firstIssue = parsed.error.issues[0];
+        const field = firstIssue?.path.join('.') || 'request';
+        return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
       const { prompt, currentCraftState, targetArtboardLabel } = parsed.data;
 
-      // Build a context-aware user message. Include the current canvas state so the
-      // model knows what already exists and can patch rather than replace.
+      // Build a context-aware user message. Include the FULL current canvas state so the
+      // model knows every existing node and can patch without dropping any existing children.
+      // Do NOT truncate — a partial parent nodes[] list causes the patch to silently drop children.
       let userMessage = prompt;
       if (currentCraftState && currentCraftState.trim().length > 2) {
-        userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState.slice(0, 12000)}\n</CURRENT_CANVAS>`;
+        userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>`;
         if (targetArtboardLabel) {
           userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
         }
