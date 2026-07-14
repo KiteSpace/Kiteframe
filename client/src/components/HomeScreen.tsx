@@ -255,6 +255,10 @@ export function HomeScreen({
       }
 
       if (generationMode === "design") {
+        if (!isUserAuthenticated) {
+          openSignup();
+          return;
+        }
         setDesignError(null);
         setIsDesignGenerating(true);
         try {
@@ -293,6 +297,7 @@ export function HomeScreen({
     },
     [
       isOutOfCredits,
+      isUserAuthenticated,
       ctaAction,
       openSignup,
       openCreditsDialog,
