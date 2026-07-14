@@ -3133,10 +3133,10 @@ function WorkflowEditorContent({
     setForcePanelTab("kite-ai");
   }, [createBlankTab]);
 
-  const openDesignTab = useCallback((designId: string) => {
+  const openDesignTab = useCallback((designId: string, title?: string) => {
     const newTab: WorkflowTab = {
       id: generateTabId(),
-      name: "Untitled Design",
+      name: title ?? "Untitled Design",
       nodes: [],
       edges: [],
       canvasObjects: [],
@@ -8057,8 +8057,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         {isOnNewTab ? (
           <NewTabTypePicker
             onSelectWorkflow={() => { createNewTab(); }}
-            onSelectDesign={() => { createNewDesignTab(); }}
-            onOpenDesignById={(designId) => { openDesignTab(designId); }}
+            onOpenDesignById={(designId, title) => { openDesignTab(designId, title); }}
             onCancel={() => {
               setActiveTabId(previousTabId ?? tabs.find((t) => t.id !== "new")?.id ?? "home");
               setPreviousTabId(null);
@@ -8566,7 +8565,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           
           </>
         ) : activeTab?.designId ? (
-          <DesignTabView designId={activeTab.designId} />
+          <DesignTabView
+            designId={activeTab.designId}
+            onTitleLoaded={(title) => updateActiveTab({ name: title })}
+          />
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}

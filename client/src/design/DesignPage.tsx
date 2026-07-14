@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Check, AlertCircle, BookmarkPlus } from "lucide-react";
@@ -173,9 +173,10 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
 
 interface DesignTabViewProps {
   designId: string;
+  onTitleLoaded?: (title: string) => void;
 }
 
-export function DesignTabView({ designId }: DesignTabViewProps) {
+export function DesignTabView({ designId, onTitleLoaded }: DesignTabViewProps) {
   const { data: design, isLoading: isDesignLoading, isError } = useQuery<Design>({
     queryKey: ['/api/designs', designId],
     enabled: !!designId,
@@ -188,6 +189,15 @@ export function DesignTabView({ designId }: DesignTabViewProps) {
   });
 
   const isLoading = isDesignLoading || (!!design && isUserLoading);
+
+  // Propagate design title to the parent tab bar once it loads
+  const titleRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (design?.title && design.title !== titleRef.current) {
+      titleRef.current = design.title;
+      onTitleLoaded?.(design.title);
+    }
+  }, [design?.title, onTitleLoaded]);
 
   if (isLoading) {
     return <LoadingScreen inline />;

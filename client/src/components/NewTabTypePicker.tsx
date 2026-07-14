@@ -1,34 +1,45 @@
-import { useEffect, useState } from "react";
-import { GitBranch, Layers, X, Sparkles, PenTool, ArrowLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GitBranch, Layers, X, Sparkles, PenTool, ArrowLeft, Loader2 } from "lucide-react";
 
-type Step = "pick-type" | "pick-design-mode";
+type Step = "pick-type" | "pick-design-mode" | "generate-design";
 
 interface NewTabTypePickerProps {
   onSelectWorkflow: () => void;
-  onSelectDesign: () => void;
-  onOpenDesignById: (designId: string) => void;
+  onSelectDesign?: () => void;
+  onOpenDesignById: (designId: string, title?: string) => void;
   onCancel: () => void;
 }
 
 export function NewTabTypePicker({
   onSelectWorkflow,
-  onSelectDesign,
   onOpenDesignById,
   onCancel,
 }: NewTabTypePickerProps) {
   const [step, setStep] = useState<Step>("pick-type");
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (step === "pick-design-mode") setStep("pick-type");
+        if (step === "generate-design") setStep("pick-design-mode");
+        else if (step === "pick-design-mode") setStep("pick-type");
         else onCancel();
       }
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onCancel, step]);
+
+  // Auto-focus the prompt textarea when entering generate-design step
+  useEffect(() => {
+    if (step === "generate-design") {
+      setTimeout(() => promptRef.current?.focus(), 50);
+    }
+  }, [step]);
 
   const handleBlankCanvas = async () => {
     setIsCreatingBlank(true);
@@ -40,8 +51,8 @@ export function NewTabTypePicker({
         body: JSON.stringify({ source: "native" }),
       });
       if (resp.ok) {
-        const { id } = await resp.json();
-        onOpenDesignById(id);
+        const data = await resp.json();
+        onOpenDesignById(data.id, data.title ?? undefined);
       } else {
         console.error("[NewTabTypePicker] Failed to create blank design, status:", resp.status);
         setIsCreatingBlank(false);
@@ -49,6 +60,37 @@ export function NewTabTypePicker({
     } catch (err) {
       console.error("[NewTabTypePicker] Failed to create blank design:", err);
       setIsCreatingBlank(false);
+    }
+  };
+
+  const handleGenerateDesign = async () => {
+    if (!prompt.trim() || isGenerating) return;
+    setGenerateError(null);
+    setIsGenerating(true);
+    try {
+      const genRes = await fetch("/api/ai/design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt: prompt.trim() }),
+      });
+      const genData = await genRes.json();
+      if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+
+      const createRes = await fetch("/api/designs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ craftState: genData.craftState, source: "tab-ai" }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+
+      onOpenDesignById(createData.id, createData.title ?? prompt.trim());
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setGenerateError(msg || "Couldn't generate that layout — try rephrasing");
+      setIsGenerating(false);
     }
   };
 
@@ -111,7 +153,7 @@ export function NewTabTypePicker({
               </button>
             </div>
           </>
-        ) : (
+        ) : step === "pick-design-mode" ? (
           <>
             <div className="text-center mb-10">
               <h2 className="text-2xl font-bold text-foreground">How would you like to start?</h2>
@@ -120,7 +162,7 @@ export function NewTabTypePicker({
 
             <div className="flex gap-6">
               <button
-                onClick={onSelectDesign}
+                onClick={() => setStep("generate-design")}
                 className="group flex flex-col items-center gap-4 w-48 p-8 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left"
                 data-testid="button-new-tab-design-ai"
               >
@@ -159,6 +201,60 @@ export function NewTabTypePicker({
               Back
             </button>
           </>
+        ) : (
+          /* generate-design step */
+          <div className="flex flex-col items-center w-full max-w-md">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-foreground">Describe your design</h2>
+              <p className="text-muted-foreground mt-2 text-sm">KiteAI will build a component or screen from your description</p>
+            </div>
+
+            <div className="w-full space-y-3">
+              <textarea
+                ref={promptRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    handleGenerateDesign();
+                  }
+                }}
+                placeholder="e.g. A dashboard with a sidebar nav, KPI cards at the top, and a data table below"
+                rows={4}
+                disabled={isGenerating}
+                className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 resize-none disabled:opacity-60"
+              />
+
+              {generateError && (
+                <p className="text-sm text-destructive">{generateError}</p>
+              )}
+
+              <button
+                onClick={handleGenerateDesign}
+                disabled={!prompt.trim() || isGenerating}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-new-tab-design-generate"
+              >
+                {isGenerating ? (
+                  <><Loader2 size={14} className="animate-spin" />Generating…</>
+                ) : (
+                  <><Sparkles size={14} />Generate</>
+                )}
+              </button>
+
+              <p className="text-center text-[11px] text-muted-foreground">⌘ Enter to generate</p>
+            </div>
+
+            <button
+              onClick={() => { setStep("pick-design-mode"); setGenerateError(null); }}
+              className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isGenerating}
+            >
+              <ArrowLeft size={12} />
+              Back
+            </button>
+          </div>
         )}
       </div>
     </div>
