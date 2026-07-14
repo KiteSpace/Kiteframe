@@ -41,6 +41,7 @@ import {
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState } from "./lib/designSchema";
+import { DESIGN_SYSTEM_PROMPT } from "./lib/designPrompt";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -2210,6 +2211,46 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
     } catch (error: any) {
       console.error('Wireframe generation error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Design generation endpoint — converts a text prompt into a craft.js state JSON
+  app.post('/api/ai/design', aiRateLimiter, async (req: any, res) => {
+    try {
+      const schema = z.object({ prompt: z.string().min(1).max(2000) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'prompt is required (1–2000 chars)' });
+      }
+      const { prompt } = parsed.data;
+      const result = await executeAiChat({
+        provider: 'anthropic',
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 4096,
+        messages: [
+          { role: 'system', content: DESIGN_SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ],
+      });
+      if (!result.ok) {
+        return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
+      }
+      const raw = (result.text || '').trim();
+      const jsonStart = raw.indexOf('{');
+      const jsonEnd = raw.lastIndexOf('}');
+      if (jsonStart === -1 || jsonEnd === -1) {
+        return res.status(500).json({ error: 'AI returned non-JSON response' });
+      }
+      const jsonStr = raw.slice(jsonStart, jsonEnd + 1);
+      try {
+        JSON.parse(jsonStr);
+      } catch {
+        return res.status(500).json({ error: 'AI returned invalid JSON' });
+      }
+      return res.json({ craftState: jsonStr });
+    } catch (err: any) {
+      console.error('Design generation error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 

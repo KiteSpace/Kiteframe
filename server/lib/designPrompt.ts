@@ -1,19 +1,8 @@
 export { CRAFT_STATE_SCHEMA as DESIGN_JSON_SCHEMA } from "./designSchema";
 
-// Allowed component names for craft.js resolver
-export const ASTRYX_SUPPORTED_COMPONENTS = [
-  "AstryxSection",
-  "AstryxCard",
-  "AstryxButton",
-  "AstryxText",
-  "AstryxTextInput",
-] as const;
-
-export type AstryxComponentName = typeof ASTRYX_SUPPORTED_COMPONENTS[number];
-
 export const DESIGN_SYSTEM_PROMPT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences.
 
-Format:
+Format (example: user profile card with nested containers):
 {
   "ROOT": {
     "type": { "resolvedName": "AstryxSection" },
@@ -23,43 +12,152 @@ Format:
     "custom": {},
     "parent": null,
     "hidden": false,
-    "nodes": ["node-1", "node-2"],
+    "nodes": ["identity-row", "actions-row"],
     "linkedNodes": {}
   },
-  "node-1": {
-    "type": { "resolvedName": "AstryxCard" },
-    "isCanvas": false,
-    "props": { "variant": "elevated" },
-    "displayName": "AstryxCard",
+  "identity-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 12, "align": "center" },
+    "displayName": "AstryxHStack",
     "custom": {},
     "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["user-avatar", "user-info"],
+    "linkedNodes": {}
+  },
+  "user-avatar": {
+    "type": { "resolvedName": "AstryxAvatar" },
+    "isCanvas": false,
+    "props": { "name": "Jane Smith", "size": "md" },
+    "displayName": "AstryxAvatar",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-info": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 4 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": ["user-name", "user-role"],
+    "linkedNodes": {}
+  },
+  "user-name": {
+    "type": { "resolvedName": "AstryxHeading" },
+    "isCanvas": false,
+    "props": { "children": "Jane Smith", "size": "md" },
+    "displayName": "AstryxHeading",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-role": {
+    "type": { "resolvedName": "AstryxText" },
+    "isCanvas": false,
+    "props": { "children": "Product Designer", "size": "sm", "muted": true },
+    "displayName": "AstryxText",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "actions-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 8, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["btn-follow", "btn-message"],
+    "linkedNodes": {}
+  },
+  "btn-follow": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Follow", "variant": "primary", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "btn-message": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Message", "variant": "outline", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   }
 }
 
+Key nesting patterns:
+- AstryxHStack holds both leaves and containers (AstryxStack for vertical sub-groups)
+- AstryxStack holds leaves stacked vertically — nested inside an HStack for side-by-side columns
+- Always set "isCanvas": true on AstryxSection, AstryxStack, AstryxHStack so they accept children
+
 RULES:
-- ROOT MUST always be AstryxSection (the root canvas container). It is the only valid root.
-- All node IDs must be unique strings. Use descriptive IDs like "hero-card", "cta-button", or sequential "node-1", "node-2".
-- "parent" is the ID of the parent node — null only for ROOT. Every non-ROOT node must reference an existing parent.
-- "nodes" lists child node IDs in order. Leaf components always have nodes=[].
-- The 5 supported resolvedName values: AstryxSection, AstryxCard, AstryxButton, AstryxText, AstryxTextInput.
-- AstryxSection is the ONLY container (isCanvas=true). All others are leaves (isCanvas=false, nodes=[]).
-- AstryxSection can be nested inside another AstryxSection for multi-column or sub-section layouts.
-- Nesting order determines visual layout order — no pixel coordinates.
-- Keep node count reasonable (under 40 nodes per design).
+- ROOT MUST always be AstryxSection. It is the only valid root.
+- All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
+- "parent" is null only for ROOT. Every other node must reference an existing parent.
+- "nodes" lists child IDs in order. Leaf components always have nodes=[].
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
+- LEAVES (isCanvas=false, nodes=[]): all other 17 components.
+- Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
+- Keep node count under 40.
+- Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
 
 COMPONENT QUICK-REFERENCE:
-- AstryxSection: flex container, props: { direction: "row"|"column", gap: number, padding: number }
-- AstryxCard: elevated box, props: { variant: "elevated"|"outlined"|"ghost" }
-- AstryxButton: action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
-- AstryxText: body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
-- AstryxTextInput: input field, props: { placeholder: string, label: string, disabled: boolean }`;
+
+— CONTAINERS —
+- AstryxSection: top-level flex container, props: { direction: "row"|"column", gap: number, padding: number }
+- AstryxStack:   vertical stack, props: { gap: number }
+- AstryxHStack:  horizontal row, props: { gap: number, align: "start"|"center"|"end" }
+
+— TYPOGRAPHY —
+- AstryxHeading: title/headline, props: { children: string, size: "sm"|"md"|"lg"|"xl"|"2xl" }
+- AstryxText:    body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
+
+— INPUTS & ACTIONS —
+- AstryxButton:    action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
+- AstryxTextInput: text field, props: { placeholder: string, label: string, disabled: boolean }
+
+— STATUS & FEEDBACK —
+- AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
+- AstryxBanner:      alert bar, props: { children: string, variant: "info"|"success"|"warning"|"error" }
+- AstryxProgressBar: progress track, props: { value: number (0-100), color: "blue"|"green"|"amber"|"red" }
+- AstryxStatusDot:   presence dot, props: { status: "online"|"offline"|"busy"|"away" }
+- AstryxSpinner:     loading spinner, props: { size: "sm"|"md"|"lg" }
+- AstryxSkeleton:    loading placeholder, props: { width: number, height: number }
+
+— MEDIA & IDENTITY —
+- AstryxAvatar: user avatar, props: { name: string, src: string (optional), size: "xs"|"sm"|"md"|"lg" }
+- AstryxIcon:   icon glyph, props: { name: string, size: "sm"|"md"|"lg" }
+
+— CONTENT —
+- AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost" }
+- AstryxChatMessage: chat bubble, props: { children: string, sender: string, timestamp: string (optional), isOwn: boolean }
+- AstryxEmptyState:  empty placeholder, props: { title: string, description: string (optional), action: string (optional) }
+- AstryxToken:       removable tag chip, props: { children: string }
+- AstryxDivider:     horizontal rule, props: { label: string (optional) }`;
 
 export const DESIGN_FEW_SHOT_EXAMPLES = [
   {
-    input: "A user profile card showing an avatar placeholder, name, role, and a follow button.",
+    input: "A user profile card showing an avatar, name, role, and a follow button.",
     output: {
       ROOT: {
         type: { resolvedName: "AstryxSection" },
@@ -69,16 +167,60 @@ export const DESIGN_FEW_SHOT_EXAMPLES = [
         custom: {},
         parent: null,
         hidden: false,
-        nodes: ["profile-card", "follow-btn"],
+        nodes: ["id-row", "follow-btn"],
         linkedNodes: {},
       },
-      "profile-card": {
-        type: { resolvedName: "AstryxCard" },
-        isCanvas: false,
-        props: { variant: "elevated" },
-        displayName: "AstryxCard",
+      "id-row": {
+        type: { resolvedName: "AstryxHStack" },
+        isCanvas: true,
+        props: { gap: 12, align: "center" },
+        displayName: "AstryxHStack",
         custom: {},
         parent: "ROOT",
+        hidden: false,
+        nodes: ["avatar", "info"],
+        linkedNodes: {},
+      },
+      avatar: {
+        type: { resolvedName: "AstryxAvatar" },
+        isCanvas: false,
+        props: { name: "Jane Smith", size: "md" },
+        displayName: "AstryxAvatar",
+        custom: {},
+        parent: "id-row",
+        hidden: false,
+        nodes: [],
+        linkedNodes: {},
+      },
+      info: {
+        type: { resolvedName: "AstryxStack" },
+        isCanvas: true,
+        props: { gap: 4 },
+        displayName: "AstryxStack",
+        custom: {},
+        parent: "id-row",
+        hidden: false,
+        nodes: ["name", "role"],
+        linkedNodes: {},
+      },
+      name: {
+        type: { resolvedName: "AstryxHeading" },
+        isCanvas: false,
+        props: { children: "Jane Smith", size: "md" },
+        displayName: "AstryxHeading",
+        custom: {},
+        parent: "info",
+        hidden: false,
+        nodes: [],
+        linkedNodes: {},
+      },
+      role: {
+        type: { resolvedName: "AstryxText" },
+        isCanvas: false,
+        props: { children: "Product Designer", size: "sm", muted: true },
+        displayName: "AstryxText",
+        custom: {},
+        parent: "info",
         hidden: false,
         nodes: [],
         linkedNodes: {},
@@ -86,67 +228,7 @@ export const DESIGN_FEW_SHOT_EXAMPLES = [
       "follow-btn": {
         type: { resolvedName: "AstryxButton" },
         isCanvas: false,
-        props: { children: "Follow", variant: "primary", size: "sm" },
-        displayName: "AstryxButton",
-        custom: {},
-        parent: "ROOT",
-        hidden: false,
-        nodes: [],
-        linkedNodes: {},
-      },
-    },
-  },
-  {
-    input: "A simple login form with email and password fields plus a submit button.",
-    output: {
-      ROOT: {
-        type: { resolvedName: "AstryxSection" },
-        isCanvas: true,
-        props: { direction: "column", gap: 16, padding: 32 },
-        displayName: "AstryxSection",
-        custom: {},
-        parent: null,
-        hidden: false,
-        nodes: ["title", "email-field", "password-field", "submit-btn"],
-        linkedNodes: {},
-      },
-      title: {
-        type: { resolvedName: "AstryxText" },
-        isCanvas: false,
-        props: { children: "Sign In", size: "lg" },
-        displayName: "AstryxText",
-        custom: {},
-        parent: "ROOT",
-        hidden: false,
-        nodes: [],
-        linkedNodes: {},
-      },
-      "email-field": {
-        type: { resolvedName: "AstryxTextInput" },
-        isCanvas: false,
-        props: { label: "Email", placeholder: "you@example.com" },
-        displayName: "AstryxTextInput",
-        custom: {},
-        parent: "ROOT",
-        hidden: false,
-        nodes: [],
-        linkedNodes: {},
-      },
-      "password-field": {
-        type: { resolvedName: "AstryxTextInput" },
-        isCanvas: false,
-        props: { label: "Password", placeholder: "Enter password" },
-        displayName: "AstryxTextInput",
-        custom: {},
-        parent: "ROOT",
-        hidden: false,
-        nodes: [],
-        linkedNodes: {},
-      },
-      "submit-btn": {
-        type: { resolvedName: "AstryxButton" },
-        isCanvas: false,
-        props: { children: "Sign In", variant: "primary", size: "md" },
+        props: { children: "Follow", variant: "primary", size: "sm", disabled: false },
         displayName: "AstryxButton",
         custom: {},
         parent: "ROOT",

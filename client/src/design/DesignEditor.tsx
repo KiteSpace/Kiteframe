@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { Trash2, MousePointer2, ChevronDown, ChevronRight, Search, X, Sparkles, Loader2, Check, AlertCircle, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import {
   resolver,
   AstryxSection,
@@ -681,6 +681,197 @@ function SettingsPanel() {
   );
 }
 
+// ─── Infinite canvas (pan + zoom) ────────────────────────────────────────────
+
+function InfiniteCanvas({ children }: { children: ReactNode }) {
+  const [pan, setPan] = useState({ x: 80, y: 80 });
+  const [zoom, setZoom] = useState(1);
+  const isPanning = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+  const spaceDown = useRef(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.code === "Space" &&
+        !e.repeat &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
+        spaceDown.current = true;
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") spaceDown.current = false;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 0.92;
+    setZoom((z) => Math.min(2, Math.max(0.15, z * factor)));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || spaceDown.current) {
+      e.preventDefault();
+      isPanning.current = true;
+      lastPos.current = { x: e.clientX, y: e.clientY };
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning.current) return;
+    const dx = e.clientX - lastPos.current.x;
+    const dy = e.clientY - lastPos.current.y;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+  }, []);
+
+  const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
+
+  const resetView = () => { setPan({ x: 80, y: 80 }); setZoom(1); };
+
+  return (
+    <div
+      className="flex-1 relative overflow-hidden"
+      style={{
+        backgroundImage: "radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)",
+        backgroundSize: "20px 20px",
+        backgroundColor: "hsl(var(--muted) / 0.4)",
+      }}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      {/* Artboard — craft.js Frame lives inside the transform */}
+      <div
+        style={{
+          position: "absolute",
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: "0 0",
+          width: 1024,
+          minHeight: 640,
+        }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-border"
+      >
+        {children}
+      </div>
+
+      {/* Zoom controls */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-0.5 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-sm overflow-hidden z-10">
+        <button
+          onClick={() => setZoom((z) => Math.min(2, z * 1.15))}
+          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          title="Zoom in"
+        >
+          <ZoomIn className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={resetView}
+          className="px-2 py-1 text-[11px] tabular-nums text-muted-foreground hover:text-foreground hover:bg-accent transition-colors min-w-[44px] text-center"
+          title="Reset view"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(0.15, z / 1.15))}
+          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          title="Zoom out"
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={resetView}
+          className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border-l border-border"
+          title="Fit to view"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Pan hint */}
+      <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-10">
+        Scroll to zoom · Space+drag or middle-click to pan
+      </div>
+    </div>
+  );
+}
+
+// ─── Design AI panel ──────────────────────────────────────────────────────────
+
+function DesignAIPanel() {
+  const { actions } = useEditor(() => ({}));
+  const [prompt, setPrompt] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "applied" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleGenerate = async () => {
+    const trimmed = prompt.trim();
+    if (!trimmed || status === "loading") return;
+    setStatus("loading");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/ai/design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
+      const sanitized = sanitizeCraftState(data.craftState);
+      actions.deserialize(sanitized);
+      setStatus("applied");
+      setPrompt("");
+      setTimeout(() => setStatus("idle"), 2500);
+    } catch (e: any) {
+      setStatus("error");
+      setErrorMsg(e.message || "Unknown error");
+      setTimeout(() => setStatus("idle"), 4000);
+    }
+  };
+
+  return (
+    <div className="shrink-0 border-t border-border bg-background/95 px-3 py-2 flex items-center gap-2">
+      <Sparkles className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+      <input
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) handleGenerate(); }}
+        placeholder="Describe a UI to generate…"
+        disabled={status === "loading"}
+        className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/40 disabled:opacity-50"
+      />
+      {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
+      {status === "applied" && (
+        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 shrink-0">
+          <Check className="w-3 h-3" /> Applied
+        </span>
+      )}
+      {status === "error" && (
+        <span className="flex items-center gap-1 text-xs text-destructive shrink-0" title={errorMsg}>
+          <AlertCircle className="w-3 h-3" /> {errorMsg ? errorMsg.slice(0, 40) : "Error"}
+        </span>
+      )}
+      <button
+        onClick={handleGenerate}
+        disabled={!prompt.trim() || status === "loading"}
+        className="shrink-0 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
+      >
+        Generate
+      </button>
+    </div>
+  );
+}
+
 // ─── Canvas drop area ─────────────────────────────────────────────────────────
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
@@ -689,7 +880,7 @@ function CanvasArea({ craftState }: { craftState: string | null }) {
   }
   return (
     <Frame>
-      <Element canvas is={AstryxSection} direction="column" gap={16} padding={16}>
+      <Element canvas is={AstryxSection} direction="column" gap={16} padding={24}>
         {null}
       </Element>
     </Frame>
@@ -712,15 +903,15 @@ export function DesignEditor({ editable, craftState, onSave }: DesignEditorProps
 
   return (
     <Editor resolver={resolver} enabled={editable}>
-      <div className="flex h-full w-full overflow-hidden">
+      {/* overflow: clip clips visually without creating a scroll container,
+          so craft.js pointer events are not blocked by the layout boundary */}
+      <div className="flex h-full w-full" style={{ overflow: "clip" }}>
         {editable && <Toolbox />}
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 p-6">
-          <div
-            className="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-border min-h-[600px] min-w-[800px] w-full"
-            style={{ maxWidth: 1200 }}
-          >
+        <div className="flex flex-col flex-1 min-w-0">
+          <InfiniteCanvas>
             <CanvasArea craftState={craftState} />
-          </div>
+          </InfiniteCanvas>
+          {editable && <DesignAIPanel />}
         </div>
         {editable && <SettingsPanel />}
       </div>
