@@ -13,22 +13,22 @@ const LegacyViewer = lazy(() => import("@/pages/DesignCanvasViewer"));
 
 // ─── Loading / Error screens ──────────────────────────────────────────────────
 
-function LoadingScreen() {
+function LoadingScreen({ inline }: { inline?: boolean }) {
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-background">
+    <div className={`${inline ? "h-full w-full" : "h-screen w-screen"} flex items-center justify-center bg-background`}>
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
     </div>
   );
 }
 
-function ErrorScreen({ message }: { message?: string }) {
+function ErrorScreen({ message, inline }: { message?: string; inline?: boolean }) {
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-background">
+    <div className={`${inline ? "h-full w-full" : "h-screen w-screen"} flex items-center justify-center bg-background`}>
       <div className="flex flex-col items-center gap-4 text-center max-w-md">
         <AlertCircle className="w-12 h-12 text-destructive" />
         <h2 className="text-xl font-semibold">Design not found</h2>
         <p className="text-muted-foreground text-sm">{message ?? "This design may have been removed or never existed."}</p>
-        <Button onClick={() => window.location.href = "/"}>Go to Kiteframe</Button>
+        {!inline && <Button onClick={() => window.location.href = "/"}>Go to Kiteframe</Button>}
       </div>
     </div>
   );
@@ -46,9 +46,10 @@ function SaveStatusDot({ status }: { status: "idle" | "saving" | "saved" | "erro
 interface CraftDesignViewProps {
   design: Design;
   currentUserId: string | null;
+  inline?: boolean;
 }
 
-function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
+function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps) {
   const qc = useQueryClient();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -94,35 +95,67 @@ function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
     : null;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-      {/* Header */}
-      <div className="h-14 flex items-center gap-3 px-4 border-b border-border shrink-0">
-        <h1 className="text-sm font-medium truncate flex-1">
-          {design.title ?? "Untitled Design"}
-        </h1>
-        <div className="flex items-center gap-2">
-          {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
-          {!canEdit && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              View only
-            </span>
-          )}
-          {isUnclaimed && currentUserId && (
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => claimMutation.mutate()}
-              disabled={claimMutation.isPending}
-            >
-              {claimMutation.isPending ? (
-                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</>
-              ) : (
-                <><BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />Save to my account</>
-              )}
-            </Button>
-          )}
+    <div className={`${inline ? "h-full w-full" : "h-screen w-screen"} flex flex-col bg-background overflow-hidden`}>
+      {/* Header — only show when inline (tab mode) since standalone has its own chrome */}
+      {inline && (
+        <div className="h-10 flex items-center gap-3 px-4 border-b border-border shrink-0">
+          <h1 className="text-xs font-medium truncate flex-1 text-muted-foreground">
+            {design.title ?? "Untitled Design"}
+          </h1>
+          <div className="flex items-center gap-2">
+            {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
+            {!canEdit && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                View only
+              </span>
+            )}
+            {isUnclaimed && currentUserId && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => claimMutation.mutate()}
+                disabled={claimMutation.isPending}
+              >
+                {claimMutation.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</>
+                ) : (
+                  <><BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />Save to my account</>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      {/* Standalone header */}
+      {!inline && (
+        <div className="h-14 flex items-center gap-3 px-4 border-b border-border shrink-0">
+          <h1 className="text-sm font-medium truncate flex-1">
+            {design.title ?? "Untitled Design"}
+          </h1>
+          <div className="flex items-center gap-2">
+            {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
+            {!canEdit && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                View only
+              </span>
+            )}
+            {isUnclaimed && currentUserId && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => claimMutation.mutate()}
+                disabled={claimMutation.isPending}
+              >
+                {claimMutation.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</>
+                ) : (
+                  <><BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />Save to my account</>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Editor */}
       <div className="flex-1 overflow-hidden">
@@ -134,6 +167,51 @@ function CraftDesignView({ design, currentUserId }: CraftDesignViewProps) {
       </div>
     </div>
   );
+}
+
+// ─── DesignTabView — inline version for use inside WorkflowEditor tabs ─────────
+
+interface DesignTabViewProps {
+  designId: string;
+}
+
+export function DesignTabView({ designId }: DesignTabViewProps) {
+  const { data: design, isLoading: isDesignLoading, isError } = useQuery<Design>({
+    queryKey: ['/api/designs', designId],
+    enabled: !!designId,
+    retry: false,
+  });
+
+  const { data: user, isLoading: isUserLoading } = useQuery<{ id: string } | null>({
+    queryKey: ['/api/auth/user'],
+    retry: false,
+  });
+
+  const isLoading = isDesignLoading || (!!design && isUserLoading);
+
+  if (isLoading) {
+    return <LoadingScreen inline />;
+  }
+
+  if (design) {
+    return (
+      <CraftDesignView
+        design={design}
+        currentUserId={user?.id ?? null}
+        inline
+      />
+    );
+  }
+
+  if (isError) {
+    return (
+      <Suspense fallback={<LoadingScreen inline />}>
+        <LegacyViewer />
+      </Suspense>
+    );
+  }
+
+  return <ErrorScreen inline />;
 }
 
 // ─── DesignPage ───────────────────────────────────────────────────────────────

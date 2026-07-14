@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BlankCanvasState } from "@/components/BlankCanvasState";
 import { NewTabTypePicker } from "@/components/NewTabTypePicker";
+import { DesignTabView } from "@/design/DesignPage";
 import {
   PluginProvider,
   layoutPlugin,
@@ -290,6 +291,7 @@ interface WorkflowTab {
   shareUuid?: string | null;
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
   sketchStrokes?: import('@/components/SketchCanvas').SketchStroke[]; // World-space drawing annotations
+  designId?: string; // Set for design tabs — renders DesignTabView inline instead of workflow canvas
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -3130,6 +3132,29 @@ function WorkflowEditorContent({
     setActiveTabId(newTab.id);
     setForcePanelTab("kite-ai");
   }, [createBlankTab]);
+
+  const openDesignTab = useCallback((designId: string) => {
+    const newTab: WorkflowTab = {
+      id: generateTabId(),
+      name: "Untitled Design",
+      nodes: [],
+      edges: [],
+      canvasObjects: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      selectedNodeId: "",
+      selectedEdgeId: "",
+      history: [],
+      historyIndex: 0,
+      showImageModal: null,
+      metadata: { name: "Untitled Design", description: "", links: [], linksFormat: "text", categories: [] },
+      flowSettings: {},
+      sketchStrokes: [],
+      isOpen: true,
+      designId,
+    };
+    setTabs((prev) => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [generateTabId]);
 
   const closeTab = useCallback(
     (tabId: string) => {
@@ -8033,6 +8058,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <NewTabTypePicker
             onSelectWorkflow={() => { createNewTab(); }}
             onSelectDesign={() => { createNewDesignTab(); }}
+            onOpenDesignById={(designId) => { openDesignTab(designId); }}
             onCancel={() => {
               setActiveTabId(previousTabId ?? tabs.find((t) => t.id !== "new")?.id ?? "home");
               setPreviousTabId(null);
@@ -8533,11 +8559,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }
             }}
+            onOpenDesign={openDesignTab}
             isGenerating={generatingWireframe}
             hasCloudAccess={hasCloudAccess}
           />
           
           </>
+        ) : activeTab?.designId ? (
+          <DesignTabView designId={activeTab.designId} />
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}

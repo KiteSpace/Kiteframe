@@ -82,6 +82,7 @@ interface HomeScreenProps {
   onDownloadProject?: (projectId: string) => void;
   onDuplicateProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
+  onOpenDesign?: (designId: string) => void;
   isGenerating?: boolean;
   hasCloudAccess?: boolean;
 }
@@ -190,6 +191,7 @@ export function HomeScreen({
   onDownloadProject,
   onDuplicateProject,
   onDeleteProject,
+  onOpenDesign,
   isGenerating = false,
   hasCloudAccess = false,
 }: HomeScreenProps) {
@@ -296,7 +298,11 @@ export function HomeScreen({
           const createData = await createRes.json();
           if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
 
-          navigate(`/designs/${createData.id}`);
+          if (onOpenDesign) {
+            onOpenDesign(createData.id);
+          } else {
+            navigate(`/designs/${createData.id}`);
+          }
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : "Unknown error";
           setDesignError(msg || "Couldn't generate that layout — try rephrasing");

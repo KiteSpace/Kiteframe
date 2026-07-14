@@ -6,12 +6,14 @@ type Step = "pick-type" | "pick-design-mode";
 interface NewTabTypePickerProps {
   onSelectWorkflow: () => void;
   onSelectDesign: () => void;
+  onOpenDesignById: (designId: string) => void;
   onCancel: () => void;
 }
 
 export function NewTabTypePicker({
   onSelectWorkflow,
   onSelectDesign,
+  onOpenDesignById,
   onCancel,
 }: NewTabTypePickerProps) {
   const [step, setStep] = useState<Step>("pick-type");
@@ -39,7 +41,7 @@ export function NewTabTypePicker({
       });
       if (resp.ok) {
         const { id } = await resp.json();
-        window.location.href = `/designs/${id}`;
+        onOpenDesignById(id);
       } else {
         console.error("[NewTabTypePicker] Failed to create blank design, status:", resp.status);
         setIsCreatingBlank(false);
