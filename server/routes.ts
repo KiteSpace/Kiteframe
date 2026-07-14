@@ -2225,8 +2225,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       const { prompt } = parsed.data;
       const result = await executeAiChat({
         provider: 'anthropic',
-        model: 'claude-haiku-4-5-20251001',
-        maxTokens: 4096,
+        model: 'claude-sonnet-4-5-20250929',
+        maxTokens: 8192,
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
@@ -2235,17 +2235,21 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
       }
-      const raw = (result.text || '').trim();
+      // Strip markdown fences if present (```json ... ``` or ``` ... ```)
+      let raw = (result.text || '').trim();
+      raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
       const jsonStart = raw.indexOf('{');
       const jsonEnd = raw.lastIndexOf('}');
       if (jsonStart === -1 || jsonEnd === -1) {
+        console.error('[design] non-JSON response (first 300 chars):', raw.slice(0, 300));
         return res.status(500).json({ error: 'AI returned non-JSON response' });
       }
       const jsonStr = raw.slice(jsonStart, jsonEnd + 1);
       try {
         JSON.parse(jsonStr);
-      } catch {
-        return res.status(500).json({ error: 'AI returned invalid JSON' });
+      } catch (parseErr) {
+        console.error('[design] JSON parse failed (first 500 chars):', jsonStr.slice(0, 500));
+        return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
       }
       return res.json({ craftState: jsonStr });
     } catch (err: any) {
