@@ -28,7 +28,7 @@ import {
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { ChatSendButton, ChatMessageList } from '@/components/chat';
 import { getRouter, extractJSON } from '@/ai/router';
-import { DESIGN_SYSTEM_PROMPT_CLIENT, isCraftJsDesignState } from '@/lib/designGeneration';
+import { DESIGN_SYSTEM_PROMPT_CLIENT } from '@/lib/designGeneration';
 import { 
   MessageCircle, 
   Paperclip, 
@@ -1246,45 +1246,7 @@ export function KiteAIChatBrain({
         hasEdges: rawJson?.includes('"edges"') ?? false,
         responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
       });
-      // Design mode: detect craft.js design state and POST to /api/designs
-      const isDesignModeResponse = generationMode === 'design';
-      if (isDesignModeResponse && rawJson) {
-        try {
-          const parsed = JSON.parse(rawJson);
-          if (isCraftJsDesignState(parsed)) {
-            const resp = await fetch('/api/designs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ craftState: parsed }),
-            });
-            if (resp.ok) {
-              const { id } = await resp.json();
-              setMessages(prev => [...prev, {
-                id: `design-ready-${Date.now()}`,
-                role: 'assistant' as const,
-                content: `Your interface design is ready! [View Design →](/designs/${id})`,
-                timestamp: new Date(),
-              }]);
-              // Auto-navigate only in fullscreen; in panel mode the user clicks the link
-              if (mode === 'fullscreen') {
-                setTimeout(() => { window.location.href = `/designs/${id}`; }, 1200);
-              }
-            } else {
-              setMessages(prev => [...prev, {
-                id: `design-err-${Date.now()}`,
-                role: 'assistant' as const,
-                content: response.text,
-                timestamp: new Date(),
-              }]);
-            }
-            setIsLoading(false);
-            return;
-          }
-        } catch {
-          // not valid JSON or not a design — fall through to workflow handler
-        }
-      }
+
 
       const jsonMatch = rawJson && rawJson.includes('"nodes"') && rawJson.includes('"edges"') ? [rawJson] : null;
       if (jsonMatch) {

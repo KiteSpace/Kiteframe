@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SiteFooter } from "./SiteFooter";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -160,6 +160,8 @@ const categoryChipColors: Record<string, string> = {
   Engineering: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 
+const HOME_MODE_STORAGE_KEY = "kf_home_mode";
+
 function formatTimeAgo(date: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -195,6 +197,20 @@ export function HomeScreen({
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   const [copiedTooltip, setCopiedTooltip] = useState<{ projectId: string; x: number; y: number } | null>(null);
   const [generationMode, setGenerationMode] = useState<"workflow" | "design">("workflow");
+  const [isDesignGenerating, setIsDesignGenerating] = useState(false);
+  const [designError, setDesignError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(HOME_MODE_STORAGE_KEY);
+    if (saved === "workflow" || saved === "design") {
+      setGenerationMode(saved);
+    }
+  }, []);
+
+  const handleGenerationModeChange = useCallback((mode: "workflow" | "design") => {
+    setGenerationMode(mode);
+    localStorage.setItem(HOME_MODE_STORAGE_KEY, mode);
+  }, []);
 
   const projectToDelete = recentProjects.find((p) => p.id === deleteProjectId);
 
@@ -227,19 +243,49 @@ export function HomeScreen({
   );
 
   const handleStartDesigning = useCallback(
-    (prompt: string) => {
+    async (prompt: string) => {
       if (isOutOfCredits) {
         if (ctaAction === "signup") openSignup();
         else openCreditsDialog();
         return;
       }
 
-      // Navigate to full-screen chat using SPA navigation - NO project creation here
-      // Project is only created when user clicks "Create Workflow" in the chat
+      if (generationMode === "design") {
+        setDesignError(null);
+        setIsDesignGenerating(true);
+        try {
+          const genRes = await fetch("/api/ai/design", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ prompt }),
+          });
+          const genData = await genRes.json();
+          if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+
+          const createRes = await fetch("/api/designs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ craftState: genData.craftState, source: "home-ai" }),
+          });
+          const createData = await createRes.json();
+          if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+
+          navigate(`/designs/${createData.id}`);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Unknown error";
+          setDesignError(msg || "Couldn't generate that layout — try rephrasing");
+        } finally {
+          setIsDesignGenerating(false);
+        }
+        return;
+      }
+
+      // Workflow mode (existing behavior): navigate to full-screen chat
       // SPA navigation preserves PromptContextStore state for attachments
       const encodedPrompt = encodeURIComponent(prompt);
-      const modeParam = generationMode === "design" ? "&mode=design" : "";
-      navigate(`/app/chat?prompt=${encodedPrompt}${modeParam}`);
+      navigate(`/app/chat?prompt=${encodedPrompt}`);
     },
     [
       isOutOfCredits,
@@ -577,12 +623,18 @@ export function HomeScreen({
           onStartDesigning={handleStartDesigning}
           onImportFigma={undefined /* Intentionally disabled — restore `onImportFigma ? handleImportFigmaWithGate : undefined` to re-enable */}
           onUploadImage={handleUploadImageWithGate}
-          isGenerating={isGenerating}
+          isGenerating={isGenerating || isDesignGenerating}
           isDisabled={isOutOfCredits}
           isImageLocked={!canUploadImage}
           generationMode={generationMode}
-          onGenerationModeChange={setGenerationMode}
+          onGenerationModeChange={handleGenerationModeChange}
         />
+        {designError && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-destructive px-1">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{designError} — try rephrasing your prompt.</span>
+          </div>
+        )}
 
         {/* Recent Projects Section */}
         <div className="mb-10">
