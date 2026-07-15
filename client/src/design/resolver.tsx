@@ -54,6 +54,76 @@ export const SnapGuideContext = createContext<SnapGuideSetter>(() => {});
 
 type AstryxProps = Record<string, any>;
 
+// ─── Node element registry ────────────────────────────────────────────────────
+// Maps craft.js node IDs → their rendered DOM elements so the drag handlers
+// can measure sibling bounds without needing a separate DOM query.
+const nodeElementRegistry = new Map<string, HTMLElement>();
+
+// ─── Shared snap-guide helper ─────────────────────────────────────────────────
+// Computes snapped X/Y and guide-line positions for an absolute drag.
+// Returns canvas-coordinate guide positions (null = no guide active).
+const SNAP_THRESHOLD = 4;
+function computeSnapGuides(
+  nodeId: string,
+  newX: number,
+  newY: number,
+  elRect: DOMRect,
+  zoom: number,
+  nodes: Record<string, any>,
+): { snappedX: number; snappedY: number; vGuide: number | null; hGuide: number | null } {
+  const nodeWidth  = elRect.width  / zoom;
+  const nodeHeight = elRect.height / zoom;
+  const nodeCenterX = newX + nodeWidth  / 2;
+  const nodeCenterY = newY + nodeHeight / 2;
+
+  let snappedX = newX;
+  let snappedY = newY;
+  let vGuide: number | null = null; // vertical guide line at this canvas-X
+  let hGuide: number | null = null; // horizontal guide line at this canvas-Y
+
+  try {
+    const nodeData = nodes[nodeId];
+    const parentId = nodeData?.parent;
+
+    // 1. Artboard vertical centre (X axis)
+    const artboardWidth = (parentId ? (nodes[parentId]?.props?.width as number) : undefined) ?? 390;
+    const artboardCenterX = artboardWidth / 2;
+    if (Math.abs(nodeCenterX - artboardCenterX) < SNAP_THRESHOLD) {
+      snappedX = Math.round(artboardCenterX - nodeWidth / 2);
+      vGuide = artboardCenterX;
+    }
+
+    // 2. Sibling absolute nodes
+    if (parentId) {
+      const siblingIds = (nodes[parentId]?.nodes ?? []) as string[];
+      for (const sibId of siblingIds) {
+        if (sibId === nodeId) continue;
+        const sibProps = nodes[sibId]?.props;
+        if (sibProps?.position !== "absolute") continue;
+        const sibEl = nodeElementRegistry.get(sibId);
+        if (!sibEl) continue;
+        const sibRect = sibEl.getBoundingClientRect();
+        const sibWidth  = sibRect.width  / zoom;
+        const sibHeight = sibRect.height / zoom;
+        const sibX = (sibProps.x as number) ?? 0;
+        const sibY = (sibProps.y as number) ?? 0;
+        const sibCenterX = sibX + sibWidth  / 2;
+        const sibCenterY = sibY + sibHeight / 2;
+        if (vGuide === null && Math.abs(nodeCenterX - sibCenterX) < SNAP_THRESHOLD) {
+          snappedX = Math.round(sibCenterX - nodeWidth / 2);
+          vGuide = sibCenterX;
+        }
+        if (hGuide === null && Math.abs(nodeCenterY - sibCenterY) < SNAP_THRESHOLD) {
+          snappedY = Math.round(sibCenterY - nodeHeight / 2);
+          hGuide = sibCenterY;
+        }
+      }
+    }
+  } catch { /* ignore any craft.js or DOM errors */ }
+
+  return { snappedX, snappedY, vGuide, hGuide };
+}
+
 // ─── Shared visual constants ──────────────────────────────────────────────────
 
 const EMPTY_DROP_STYLE: CSSProperties = {
@@ -125,31 +195,21 @@ function useLeafNode() {
         if (Math.hypot(rawDx, rawDy) < 3) return;
         const dx = rawDx / z;
         const dy = rawDy / z;
-
-        let newX = Math.round(dragStartRef.current.sx + dx);
+        const newX = Math.round(dragStartRef.current.sx + dx);
         const newY = Math.round(dragStartRef.current.sy + dy);
 
-        // Snap guide: align to artboard vertical centre
-        let vGuide: number | null = null;
-        try {
+        const elRect = elementRef.current?.getBoundingClientRect();
+        if (elRect) {
           const nodes = queryRef.current.getSerializedNodes();
-          const parentId = nodes[nodeIdRef.current]?.parent;
-          const artboardWidth = (parentId ? (nodes[parentId]?.props?.width as number) : undefined) ?? 390;
-          const elRect = elementRef.current?.getBoundingClientRect();
-          const nodeWidth = elRect ? elRect.width / stateRef.current.zoom : 0;
-          const nodeCenterX = newX + nodeWidth / 2;
-          const artboardCenterX = artboardWidth / 2;
-          if (Math.abs(nodeCenterX - artboardCenterX) < 4) {
-            newX = Math.round(artboardCenterX - nodeWidth / 2);
-            vGuide = artboardCenterX;
-          }
-        } catch { /* ignore */ }
-
-        setGuidesRef.current(null, vGuide);
-        setProp((p: any) => {
-          p.x = newX;
-          p.y = newY;
-        });
+          const { snappedX, snappedY, vGuide, hGuide } = computeSnapGuides(
+            nodeIdRef.current, newX, newY, elRect, z, nodes,
+          );
+          setGuidesRef.current(hGuide, vGuide);
+          setProp((p: any) => { p.x = snappedX; p.y = snappedY; });
+        } else {
+          setGuidesRef.current(null, null);
+          setProp((p: any) => { p.x = newX; p.y = newY; });
+        }
       };
       const onUp = () => {
         dragStartRef.current = null;
@@ -174,9 +234,13 @@ function useLeafNode() {
   // appear. Selection still works via `connect`.
   const connectRef = (r: HTMLElement | null) => {
     elementRef.current = r;
-    if (!r) return;
-    connect(r);
-    if (!isAbsolute) drag(r);
+    if (r) {
+      nodeElementRegistry.set(nodeIdRef.current, r);
+      connect(r);
+      if (!isAbsolute) drag(r);
+    } else {
+      nodeElementRegistry.delete(nodeIdRef.current);
+    }
   };
   return { connectRef, extraStyle };
 }
@@ -187,6 +251,7 @@ function useLeafNode() {
 
 function useContainerNode(position: string, x: number, y: number) {
   const zoom = useContext(CanvasZoomContext);
+  const setGuides = useContext(SnapGuideContext);
   const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
@@ -194,7 +259,7 @@ function useContainerNode(position: string, x: number, y: number) {
   }));
 
   // Detect whether any node is currently being dragged in the editor.
-  const { isDragging } = useEditor((state) => ({
+  const { query, isDragging } = useEditor((state) => ({
     isDragging: state.events.dragged.size > 0,
   }));
 
@@ -202,9 +267,15 @@ function useContainerNode(position: string, x: number, y: number) {
   const isDragOver = isDragging && hovered;
 
   const isAbsolute = position === "absolute";
+  const elementRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
   const stateRef = useRef({ x, y, zoom, isAbsolute, setProp: actions.setProp });
   stateRef.current = { x, y, zoom, isAbsolute, setProp: actions.setProp };
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const setGuidesRef = useRef(setGuides);
+  setGuidesRef.current = setGuides;
+  const nodeIdRef = useRef(id);
 
   const onMouseDown = useCallback((e: { clientX: number; clientY: number }) => {
     if (!stateRef.current.isAbsolute) return;
@@ -218,24 +289,40 @@ function useContainerNode(position: string, x: number, y: number) {
       if (Math.hypot(rawDx, rawDy) < 3) return;
       const dx = rawDx / z;
       const dy = rawDy / z;
-      setProp((p: any) => {
-        p.x = Math.round(dragStartRef.current!.sx + dx);
-        p.y = Math.round(dragStartRef.current!.sy + dy);
-      });
+      const newX = Math.round(dragStartRef.current.sx + dx);
+      const newY = Math.round(dragStartRef.current.sy + dy);
+      const elRect = elementRef.current?.getBoundingClientRect();
+      if (elRect) {
+        const nodes = queryRef.current.getSerializedNodes();
+        const { snappedX, snappedY, vGuide, hGuide } = computeSnapGuides(
+          nodeIdRef.current, newX, newY, elRect, z, nodes,
+        );
+        setGuidesRef.current(hGuide, vGuide);
+        setProp((p: any) => { p.x = snappedX; p.y = snappedY; });
+      } else {
+        setGuidesRef.current(null, null);
+        setProp((p: any) => { p.x = newX; p.y = newY; });
+      }
     };
     const onUp = () => {
       dragStartRef.current = null;
+      setGuidesRef.current(null, null);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, []); // stable — reads from stateRef
+  }, []); // stable — reads from stateRef and refs
 
   const connectRef = (r: HTMLElement | null) => {
-    if (!r) return;
-    connect(r);
-    if (!isAbsolute) drag(r);
+    elementRef.current = r;
+    if (r) {
+      nodeElementRegistry.set(nodeIdRef.current, r);
+      connect(r);
+      if (!isAbsolute) drag(r);
+    } else {
+      nodeElementRegistry.delete(nodeIdRef.current);
+    }
   };
 
   // Light grey fill — clearly visible without being visually heavy.
