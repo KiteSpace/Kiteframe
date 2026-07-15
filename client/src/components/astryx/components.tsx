@@ -174,27 +174,27 @@ export function AstryxUnknown({ astryxComponent }: { astryxComponent: string }) 
 // ─── New components ────────────────────────────────────────────────────────────
 
 export function AstryxTable({ rows = 3, columns = 3 }: AstryxProps) {
-  const headers = ["Name", "Status", "Value"].slice(0, Math.min(Number(columns), 3));
-  const data = [
-    ["Alice", "Active", "$120"],
-    ["Bob", "Pending", "$80"],
-    ["Carol", "Inactive", "$200"],
-  ].slice(0, Math.min(Number(rows), 3));
+  const numCols = Math.min(Math.max(1, Number(columns)), 6);
+  const numRows = Math.min(Math.max(1, Number(rows)), 10);
+  const headers = Array.from({ length: numCols }, (_, i) => `Col ${i + 1}`);
+  const bodyRows = Array.from({ length: numRows }, (_, i) =>
+    Array.from({ length: numCols }, () => "—")
+  );
   return (
     <div className="rounded-md border border-gray-200 overflow-hidden w-full">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50">
-            {headers.map((h) => (
-              <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+            {headers.map((h, i) => (
+              <th key={i} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {data.map((row, i) => (
+          {bodyRows.map((row, i) => (
             <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-              {row.slice(0, Math.min(Number(columns), 3)).map((cell, j) => (
-                <td key={j} className="px-3 py-2 text-gray-700">{cell}</td>
+              {row.map((cell, j) => (
+                <td key={j} className="px-3 py-2 text-gray-400">{cell}</td>
               ))}
             </tr>
           ))}

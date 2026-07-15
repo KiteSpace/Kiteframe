@@ -1,5 +1,5 @@
 import { useNode, useEditor } from "@craftjs/core";
-import { useEffect, useRef, useContext, useCallback, createContext, type CSSProperties } from "react";
+import { useEffect, useRef, useContext, useCallback, createContext, useState, type CSSProperties } from "react";
 import {
   ALLOWED_CRAFT_COMPONENTS,
   validateCraftState,
@@ -298,6 +298,81 @@ function useLeafNode() {
   return { connectRef, extraStyle };
 }
 
+// ─── Inline text edit hook ────────────────────────────────────────────────────
+// Double-click any text-bearing leaf to edit its text prop in place.
+// Enter or blur commits; Escape discards. The wrapper must be position:relative.
+
+function useInlineEdit(propKey: string, currentValue: string) {
+  const { actions: { setProp } } = useNode(() => ({}));
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(currentValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync draft to external prop changes (e.g. AI rewrites) while not editing.
+  useEffect(() => {
+    if (!editing) setDraft(currentValue);
+  }, [currentValue, editing]);
+
+  // Auto-focus and select all text when entering edit mode.
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const commit = useCallback(() => {
+    const val = draft.trim();
+    if (val) setProp((p: any) => { p[propKey] = val; });
+    setEditing(false);
+  }, [draft, propKey, setProp]);
+
+  const discard = useCallback(() => {
+    setDraft(currentValue);
+    setEditing(false);
+  }, [currentValue]);
+
+  const onDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(currentValue);
+    setEditing(true);
+  }, [currentValue]);
+
+  const editOverlay = editing ? (
+    <input
+      ref={inputRef}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+        if (e.key === "Escape") { e.stopPropagation(); discard(); }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(255,255,255,0.95)",
+        border: "none",
+        outline: "2px solid #3b82f6",
+        outlineOffset: 1,
+        borderRadius: 3,
+        padding: "0 4px",
+        font: "inherit",
+        color: "inherit",
+        width: "100%",
+        height: "100%",
+        cursor: "text",
+        zIndex: 100,
+        boxSizing: "border-box",
+      }}
+    />
+  ) : null;
+
+  return { editing, onDoubleClick, editOverlay };
+}
+
 // ─── Container node hook ──────────────────────────────────────────────────────
 // Shared logic for Section / Stack / HStack / Card — provides grey fill, blue
 // selected treatment, drag-over highlight, and free-drag when position === "absolute".
@@ -394,9 +469,11 @@ function useContainerNode(position: string, x: number, y: number) {
 
 export function AstryxButton(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Button");
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
-      <AstryxButtonBase {...props} />
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxButtonBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -404,9 +481,11 @@ export function AstryxButton(props: AstryxProps) {
 
 export function AstryxText(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Text");
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
-      <AstryxTextBase {...props} />
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxTextBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -414,9 +493,11 @@ export function AstryxText(props: AstryxProps) {
 
 export function AstryxHeading(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Heading");
   return (
-    <div ref={connectRef} style={extraStyle}>
-      <AstryxHeadingBase {...props} />
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxHeadingBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -434,9 +515,11 @@ export function AstryxTextInput(props: AstryxProps) {
 
 export function AstryxBadge(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Badge");
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
-      <AstryxBadgeBase {...props} />
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBadgeBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -504,9 +587,11 @@ export function AstryxSkeleton(props: AstryxProps) {
 
 export function AstryxBanner(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Banner message");
   return (
-    <div ref={connectRef} style={extraStyle}>
-      <AstryxBannerBase {...props} />
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBannerBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -514,9 +599,11 @@ export function AstryxBanner(props: AstryxProps) {
 
 export function AstryxEmptyState(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("title", props.title ?? "Nothing here yet");
   return (
-    <div ref={connectRef} style={extraStyle}>
-      <AstryxEmptyStateBase {...props} />
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxEmptyStateBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -524,9 +611,11 @@ export function AstryxEmptyState(props: AstryxProps) {
 
 export function AstryxChatMessage(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Hello!");
   return (
-    <div ref={connectRef} style={extraStyle}>
-      <AstryxChatMessageBase {...props} />
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxChatMessageBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
@@ -534,9 +623,11 @@ export function AstryxChatMessage(props: AstryxProps) {
 
 export function AstryxToken(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Token");
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
-      <AstryxTokenBase {...props} />
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxTokenBase {...props} /></div>
+      {editOverlay}
     </div>
   );
 }
