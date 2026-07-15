@@ -1951,7 +1951,9 @@ interface DesignPanelProps {
 }
 
 function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
-  const { actions, query } = useEditor(() => ({}));
+  const { actions, query, selectedNodeId } = useEditor((state) => ({
+    selectedNodeId: state.events.selected ? [...state.events.selected][0] : undefined,
+  }));
 
   const [activeTab, setActiveTab] = useState<DesignPanelTab>(() => {
     try {
@@ -2027,6 +2029,19 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           } else if (artboardLabels.length === 1) {
             // Only one artboard on the canvas — it must be the target
             targetArtboardLabel = artboardLabels[0];
+          } else if (selectedNodeId && artboardLabels.length > 1) {
+            // Walk up the parent chain of the selected node to find the nearest AstryxArtboard
+            const findArtboardLabel = (nodeId: string): string | undefined => {
+              const node = state[nodeId] as Record<string, unknown> | undefined;
+              if (!node) return undefined;
+              if ((node.type as any)?.resolvedName === "AstryxArtboard") {
+                return (node.props as any)?.label as string | undefined;
+              }
+              const parentId = node.parent as string | undefined;
+              if (!parentId || parentId === nodeId) return undefined;
+              return findArtboardLabel(parentId);
+            };
+            targetArtboardLabel = findArtboardLabel(selectedNodeId);
           }
         }
       } catch { /* ignore */ }
