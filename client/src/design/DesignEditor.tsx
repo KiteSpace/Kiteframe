@@ -1845,7 +1845,11 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
       <div
         style={{
           position: "absolute",
-          height: "100%",
+          // minHeight (not height) ensures craft.js Frame has a measurable
+          // container on first render, while still letting the div grow taller
+          // than the viewport when artboards extend downward.
+          minHeight: "100%",
+          minWidth: "100%",
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "0 0",
         }}
