@@ -1984,6 +1984,45 @@ function mergeGraphAware(
   return merged;
 }
 
+/**
+ * After an AI rewrite, carry forward user-typed `cellData` and `headers` for
+ * every AstryxTable node that appears (by the same ID) in both the old and new
+ * state.  The AI prompt only knows about `rows` / `columns`, so it never emits
+ * cellData or headers — silently erasing user edits.  This helper re-applies
+ * the existing values so they survive the rewrite.
+ */
+function preserveTableCellData(
+  existingState: Record<string, unknown>,
+  newState: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...newState };
+  for (const [nodeId, node] of Object.entries(result)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if ((n.type as any)?.resolvedName !== "AstryxTable") continue;
+
+    const existing = existingState[nodeId];
+    if (!existing || typeof existing !== "object") continue;
+    const e = existing as Record<string, unknown>;
+    if ((e.type as any)?.resolvedName !== "AstryxTable") continue;
+
+    const existingProps = e.props as Record<string, unknown> | undefined;
+    if (!existingProps) continue;
+
+    const existingCellData = existingProps.cellData;
+    const existingHeaders = existingProps.headers;
+    if (existingCellData === undefined && existingHeaders === undefined) continue;
+
+    const newProps = (n.props as Record<string, unknown> | undefined) ?? {};
+    const updated: Record<string, unknown> = { ...newProps };
+    if (existingCellData !== undefined) updated.cellData = existingCellData;
+    if (existingHeaders !== undefined) updated.headers = existingHeaders;
+
+    result[nodeId] = { ...n, props: updated };
+  }
+  return result;
+}
+
 
 const INITIAL_MESSAGES: AIMessage[] = [
   {
@@ -2115,7 +2154,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const patchNodes: Record<string, unknown> = JSON.parse(data.nodes);
         let existingState: Record<string, unknown> = {};
         try { existingState = JSON.parse(query.serialize()); } catch {}
-        const merged = mergeGraphAware(existingState, patchNodes);
+        const mergedRaw = mergeGraphAware(existingState, patchNodes);
+        const merged = preserveTableCellData(existingState, mergedRaw);
         const mergedJson = JSON.stringify(merged);
         const validation = validateCraftState(merged);
         if (!validation.valid) {
@@ -2128,13 +2168,16 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       } else {
         const craftStateStr = data.craftState ?? data;
         const stateJson = typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr);
-        const parsedForValidation = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
+        const parsedRaw = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
+        let existingStateForReplace: Record<string, unknown> = {};
+        try { if (currentCraftState) existingStateForReplace = JSON.parse(currentCraftState); } catch {}
+        const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw) : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
           console.warn("[design/state] State failed validation, discarding:", validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "I tried to create your design") + "\n\n⚠️ Couldn't apply the canvas change automatically — try rephrasing." }]);
         } else {
-          actions.deserialize(sanitizeCraftState(stateJson));
+          actions.deserialize(sanitizeCraftState(JSON.stringify(parsedForValidation)));
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
         }
       }
