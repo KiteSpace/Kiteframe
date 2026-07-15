@@ -85,12 +85,24 @@ function computeSnapGuides(
     const nodeData = nodes[nodeId];
     const parentId = nodeData?.parent;
 
-    // 1. Artboard vertical centre (X axis)
+    // 1. Artboard centre X and Y — use DOM rect from registry for Y
     const artboardWidth = (parentId ? (nodes[parentId]?.props?.width as number) : undefined) ?? 390;
     const artboardCenterX = artboardWidth / 2;
     if (Math.abs(nodeCenterX - artboardCenterX) < SNAP_THRESHOLD) {
       snappedX = Math.round(artboardCenterX - nodeWidth / 2);
       vGuide = artboardCenterX;
+    }
+    if (parentId) {
+      const artboardEl = nodeElementRegistry.get(parentId);
+      if (artboardEl) {
+        const artboardRect = artboardEl.getBoundingClientRect();
+        const artboardHeight = artboardRect.height / zoom;
+        const artboardCenterY = artboardHeight / 2;
+        if (hGuide === null && Math.abs(nodeCenterY - artboardCenterY) < SNAP_THRESHOLD) {
+          snappedY = Math.round(artboardCenterY - nodeHeight / 2);
+          hGuide = artboardCenterY;
+        }
+      }
     }
 
     // 2. Sibling absolute nodes

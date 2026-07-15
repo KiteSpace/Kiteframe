@@ -1568,12 +1568,13 @@ function KeyboardHandler() {
       }
 
       if ((e.ctrlKey || e.metaKey) && !inInput) {
-        if (e.key === "z" && !e.shiftKey) {
+        const k = e.key.toLowerCase();
+        if (k === "z" && !e.shiftKey) {
           e.preventDefault();
           (actions as any).history?.undo?.();
           return;
         }
-        if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+        if ((k === "z" && e.shiftKey) || k === "y") {
           e.preventDefault();
           (actions as any).history?.redo?.();
           return;
