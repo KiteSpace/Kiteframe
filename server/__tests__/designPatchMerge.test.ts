@@ -53,6 +53,39 @@ function makeTwoScreenState() {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers for the stress test
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a craft state with three artboards:
+ *   artboard-a — contains one heading each
+ *   artboard-b — contains one button
+ *   artboard-c — contains one text node (the untouched screens)
+ * ROOT holds all three artboards.
+ */
+function makeThreeScreenState() {
+  const ROOT = 'ROOT';
+  const aId = 'artboard-a';
+  const aHeadingId = 'heading-a';
+  const bId = 'artboard-b';
+  const bButtonId = 'button-b';
+  const cId = 'artboard-c';
+  const cTextId = 'text-c';
+
+  const state: CraftState = {
+    [ROOT]: makeNode('Document', {}, [aId, bId, cId]),
+    [aId]: makeNode('AstryxArtboard', { label: 'Screen A' }, [aHeadingId]),
+    [aHeadingId]: makeNode('AstryxHeading', { text: 'A heading' }),
+    [bId]: makeNode('AstryxArtboard', { label: 'Screen B' }, [bButtonId]),
+    [bButtonId]: makeNode('AstryxButton', { label: 'B button' }),
+    [cId]: makeNode('AstryxArtboard', { label: 'Screen C' }, [cTextId]),
+    [cTextId]: makeNode('AstryxText', { text: 'C text' }),
+  };
+
+  return { state, ids: { ROOT, aId, aHeadingId, bId, bButtonId, cId, cTextId } };
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -183,5 +216,122 @@ describe('mergeDesignPatch — multi-screen isolation', () => {
 
     // New floating node is present
     expect(merged[floatingId]).toBeDefined();
+  });
+});
+
+describe('mergeDesignPatch — stress test (oversized patch)', () => {
+  /**
+   * Simulates an AI returning a large patch: ~200 new nodes all wired into
+   * artboard-a of a 3-artboard craft state.  Artboard-b and artboard-c must
+   * survive byte-identical, orphan pruning must not incorrectly remove any of
+   * the new nodes, and the whole operation must complete well under 50 ms.
+   */
+  it('handles ~200 new nodes wired to one artboard in < 50 ms; other artboards unchanged', () => {
+    const NODE_COUNT = 200;
+    const { state, ids } = makeThreeScreenState();
+
+    // Snapshot the untouched artboards before the merge
+    const bBefore = JSON.stringify(state[ids.bId]);
+    const bButtonBefore = JSON.stringify(state[ids.bButtonId]);
+    const cBefore = JSON.stringify(state[ids.cId]);
+    const cTextBefore = JSON.stringify(state[ids.cTextId]);
+
+    // Build a patch: NODE_COUNT leaf nodes all listed as children of artboard-a
+    const newNodeIds: string[] = [];
+    const patchNodes: CraftState = {};
+
+    for (let i = 0; i < NODE_COUNT; i++) {
+      const nodeId = `stress-node-${i}`;
+      newNodeIds.push(nodeId);
+      patchNodes[nodeId] = makeNode('AstryxText', { text: `Stress node ${i}`, index: i });
+    }
+
+    // Replace artboard-a's child list with all new nodes
+    patchNodes[ids.aId] = makeNode('AstryxArtboard', { label: 'Screen A' }, newNodeIds);
+
+    // --- performance gate ---
+    const start = performance.now();
+    const { merged, orphansRemoved } = mergeDesignPatch(state, patchNodes);
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(50);
+
+    // --- correctness: untouched artboards are byte-identical ---
+    expect(JSON.stringify(merged[ids.bId])).toBe(bBefore);
+    expect(JSON.stringify(merged[ids.bButtonId])).toBe(bButtonBefore);
+    expect(JSON.stringify(merged[ids.cId])).toBe(cBefore);
+    expect(JSON.stringify(merged[ids.cTextId])).toBe(cTextBefore);
+
+    // --- correctness: all new nodes are present in the merged map ---
+    for (const nodeId of newNodeIds) {
+      expect(merged[nodeId]).toBeDefined();
+    }
+
+    // --- correctness: artboard-a lists exactly the new nodes ---
+    const aNode = merged[ids.aId] as Record<string, unknown>;
+    const aChildren = aNode.nodes as string[];
+    expect(aChildren).toHaveLength(NODE_COUNT);
+    for (const nodeId of newNodeIds) {
+      expect(aChildren).toContain(nodeId);
+    }
+
+    // --- correctness: orphan pruning must not remove any of the new nodes ---
+    // The old heading-a (aHeadingId) still exists in the merged map (it came
+    // from existingState and was not deleted), so it is NOT pruned — orphan
+    // pruning only removes references to IDs absent from the merged map.
+    // The patch is well-formed, so no dangling refs should have been produced.
+    expect(orphansRemoved).toBe(0);
+  });
+
+  it('prunes orphan refs correctly even in a large patch with intentionally dangling IDs', () => {
+    const NODE_COUNT = 200;
+    const DANGLING_COUNT = 10;
+    const { state, ids } = makeThreeScreenState();
+
+    const newNodeIds: string[] = [];
+    const danglingIds: string[] = [];
+    const patchNodes: CraftState = {};
+
+    for (let i = 0; i < NODE_COUNT; i++) {
+      const nodeId = `bulk-node-${i}`;
+      newNodeIds.push(nodeId);
+      patchNodes[nodeId] = makeNode('AstryxText', { text: `Bulk ${i}` });
+    }
+
+    // Add dangling IDs that will NOT exist as nodes in the patch
+    for (let i = 0; i < DANGLING_COUNT; i++) {
+      danglingIds.push(`dangling-${i}`);
+    }
+
+    // Artboard-a references all real new nodes plus the dangling (nonexistent) ones
+    patchNodes[ids.aId] = makeNode(
+      'AstryxArtboard',
+      { label: 'Screen A' },
+      [...newNodeIds, ...danglingIds],
+    );
+
+    const { merged, orphansRemoved } = mergeDesignPatch(state, patchNodes);
+
+    // Only the dangling refs are pruned. The original heading-a node still
+    // exists in the merged map (from existingState) so its reference is not
+    // counted as an orphan — orphan pruning only fires on absent IDs.
+    expect(orphansRemoved).toBe(DANGLING_COUNT);
+
+    // All real bulk nodes survive
+    for (const nodeId of newNodeIds) {
+      expect(merged[nodeId]).toBeDefined();
+    }
+
+    // Artboard-a's final child list has only the real nodes
+    const aNode = merged[ids.aId] as Record<string, unknown>;
+    const aChildren = aNode.nodes as string[];
+    expect(aChildren).toHaveLength(NODE_COUNT);
+    for (const id of danglingIds) {
+      expect(aChildren).not.toContain(id);
+    }
+
+    // Artboards b and c are untouched
+    expect(JSON.stringify(merged[ids.bId])).toBe(JSON.stringify(state[ids.bId]));
+    expect(JSON.stringify(merged[ids.cId])).toBe(JSON.stringify(state[ids.cId]));
   });
 });
