@@ -229,6 +229,7 @@ function useLeafNode() {
     const el = elementRef.current;
     if (!el) return;
     const handle = (e: MouseEvent) => {
+      _dragOccurred = false; // reset on every mousedown (absolute or not)
       if (!stateRef.current.isAbsolute) return;
       const { x: sx, y: sy } = stateRef.current;
       dragStartRef.current = { mx: e.clientX, my: e.clientY, sx, sy };
@@ -238,6 +239,7 @@ function useLeafNode() {
         const rawDx = ev.clientX - dragStartRef.current.mx;
         const rawDy = ev.clientY - dragStartRef.current.my;
         if (Math.hypot(rawDx, rawDy) < 3) return;
+        _dragOccurred = true; // movement exceeded threshold → real drag
         const dx = rawDx / z;
         const dy = rawDy / z;
         const newX = Math.round(dragStartRef.current.sx + dx);
@@ -298,6 +300,11 @@ function useLeafNode() {
   return { connectRef, extraStyle };
 }
 
+// Module-level flag: set true when an absolute-node drag exceeds the movement
+// threshold. Cleared at the next mousedown. useInlineEdit checks it so a
+// rapid double-drag never accidentally opens the text editor.
+let _dragOccurred = false;
+
 // ─── Inline text edit hook ────────────────────────────────────────────────────
 // Double-click any text-bearing leaf to edit its text prop in place.
 // Enter or blur commits; Escape discards. The wrapper must be position:relative.
@@ -334,6 +341,8 @@ function useInlineEdit(propKey: string, currentValue: string) {
 
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    // Suppress edit mode if the user was dragging (mouse moved > threshold).
+    if (_dragOccurred) return;
     setDraft(currentValue);
     setEditing(true);
   }, [currentValue]);
