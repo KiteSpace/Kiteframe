@@ -8058,7 +8058,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               // Local projects from tabs (stored in browser). For cloud-backed
               // tabs, also surface share status so the badge/revoke UI works.
               ...tabs
-                .filter((tab) => tab.nodes.length > 0)
+                .filter((tab) => tab.nodes.length > 0 || !!tab.designId)
                 .map((tab) => {
                   const cp = tab.cloudProjectId
                     ? cloudProjects.find((p) => p.id === tab.cloudProjectId)
@@ -8074,6 +8074,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     isLocal: true,
                     shareUuid: cp?.shareUuid || undefined,
                     isShareEnabled: cp?.isShareEnabled || false,
+                    fileType: tab.designId ? ("design" as const) : ("workflow" as const),
+                    designId: tab.designId || undefined,
                   };
                 }),
               // Cloud projects for Pro/Admin users — exclude any that are

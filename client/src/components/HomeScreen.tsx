@@ -43,6 +43,7 @@ import {
   Copy,
   ChevronUp,
   Link,
+  Paintbrush,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -58,6 +59,8 @@ interface RecentProject {
   isLocal?: boolean;
   shareUuid?: string;
   isShareEnabled?: boolean;
+  fileType?: "workflow" | "design";
+  designId?: string;
 }
 
 interface WorkflowTemplate {
@@ -350,14 +353,36 @@ export function HomeScreen({
     }
   }, [deleteProjectId, onDeleteProject]);
 
-  const renderProjectCard = (project: RecentProject, showMenu = true) => (
+  const renderProjectCard = (project: RecentProject, showMenu = true) => {
+    const isDesign = project.fileType === "design";
+    const handleOpen = () => {
+      if (isDesign && project.designId && onOpenDesign) {
+        onOpenDesign(project.designId);
+      } else {
+        onOpenProject(project.id);
+      }
+    };
+    return (
     <Card
       key={project.id}
       className="cursor-pointer hover:border-primary/50 transition-colors group"
-      onClick={() => onOpenProject(project.id)}
+      onClick={handleOpen}
       data-testid={`card-project-${project.id}`}
     >
       <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
+        {/* File type badge — upper left */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-sm"
+          style={isDesign
+            ? { background: "rgba(139,92,246,0.15)", color: "#7c3aed", border: "1px solid rgba(139,92,246,0.25)" }
+            : { background: "rgba(59,130,246,0.12)", color: "#2563eb", border: "1px solid rgba(59,130,246,0.2)" }
+          }
+        >
+          {isDesign
+            ? <Paintbrush size={10} />
+            : <Workflow size={10} />
+          }
+          <span>{isDesign ? "Design" : "Workflow"}</span>
+        </div>
         {project.thumbnail ? (
           <img
             src={project.thumbnail}
@@ -366,7 +391,10 @@ export function HomeScreen({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Workflow size={32} className="text-muted-foreground/50" />
+            {isDesign
+              ? <Paintbrush size={32} className="text-muted-foreground/50" />
+              : <Workflow size={32} className="text-muted-foreground/50" />
+            }
           </div>
         )}
         {showMenu && (
@@ -384,7 +412,7 @@ export function HomeScreen({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenProject(project.id);
+                  handleOpen();
                 }}
                 data-testid={`menu-open-${project.id}`}
               >
@@ -500,6 +528,7 @@ export function HomeScreen({
       </CardContent>
     </Card>
   );
+  };
 
   const CursorTooltip = copiedTooltip ? (
     <div
