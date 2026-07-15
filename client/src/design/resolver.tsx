@@ -524,7 +524,8 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         gap,
         padding,
         minHeight: isRoot ? 480 : 48,
-        width: "100%",
+        width: isRoot ? "max-content" : "100%",
+        minWidth: isRoot ? "100%" : undefined,
         position: "relative",
         boxSizing: "border-box",
         ...(!isRoot ? containerVisual : {}),
@@ -642,7 +643,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
       <div style={{
         fontSize: 11,
         fontWeight: 500,
-        color: selected ? "#3b82f6" : "hsl(var(--muted-foreground))",
+        color: selected ? "#3b82f6" : "var(--muted-foreground)",
         marginBottom: 6,
         paddingLeft: 2,
         userSelect: "none",
@@ -662,7 +663,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
           padding,
           width,
           minHeight: 480,
-          background: "hsl(var(--card))",
+          background: "var(--card)",
           borderRadius: 12,
           boxShadow: selected
             ? "0 0 0 2px #3b82f6, 0 4px 24px rgba(0,0,0,0.10)"

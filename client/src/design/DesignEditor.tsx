@@ -1623,9 +1623,9 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
     <div
       className="flex-1 relative overflow-hidden"
       style={{
-        backgroundImage: "radial-gradient(circle, hsl(var(--foreground) / 0.15) 1.5px, transparent 1.5px)",
+        backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 1.5px, transparent 1.5px)",
         backgroundSize: "20px 20px",
-        backgroundColor: "hsl(var(--muted) / 0.35)",
+        backgroundColor: "var(--muted)",
       }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
