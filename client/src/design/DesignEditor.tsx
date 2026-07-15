@@ -1398,11 +1398,14 @@ const HistoryCtx = createContext<HistoryCtxValue>({
 function HistoryProvider({ children }: { children: ReactNode }) {
   const { actions } = useEditor(() => ({}));
 
-  // Lightweight fingerprint of the node tree: detects any prop/structure change.
+  // Fingerprint covers both props and structure (child order, reparenting).
+  // Sorting by id first so insertion order doesn't cause false positives.
   const { fingerprint } = useEditor((state) => ({
     fingerprint: Object.entries(state.nodes)
-      .map(([id, n]) => `${id}:${JSON.stringify(n.data.props)}`)
-      .sort()
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, n]) =>
+        `${id}:${JSON.stringify(n.data.props)}:[${(n.data.nodes ?? []).join(",")}]`
+      )
       .join("|"),
   }));
 

@@ -768,10 +768,21 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Multiple artboards sit side-by-side inside the ROOT section.
 
 export function AstryxArtboard({ children, label = "Artboard", width = 390, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start" }: AstryxProps) {
-  const { connectors: { connect, drag }, isEmpty, selected } = useNode((node) => ({
+  const { connectors: { connect, drag }, id, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
   }));
+  // Register the artboard DOM element in the shared registry so computeSnapGuides
+  // can measure its height for artboard-centre-Y snap.
+  const nodeIdRef = useRef(id);
+  const artboardConnectRef = useCallback((r: HTMLElement | null) => {
+    if (r) {
+      nodeElementRegistry.set(nodeIdRef.current, r);
+      connect(drag(r));
+    } else {
+      nodeElementRegistry.delete(nodeIdRef.current);
+    }
+  }, [connect, drag]);
   return (
     <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
       <div style={{
@@ -787,7 +798,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
         {label}
       </div>
       <div
-        ref={(r) => { if (r) connect(drag(r)); }}
+        ref={artboardConnectRef}
         style={{
           display: "flex",
           flexDirection: direction as "row" | "column",
