@@ -1859,7 +1859,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
   return (
     <div
-      className="flex-1 relative overflow-hidden"
+      className="h-full w-full relative overflow-hidden"
       style={{
         backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 1.5px, transparent 1.5px)",
         backgroundSize: "20px 20px",
