@@ -1,0 +1,15 @@
+Fair — here’s the concrete list, regardless of when you actually build it:
+Schema/contract
+	1.	Full, current list of Astryx component names (resolvedName values) the resolver actually supports — the real ~20, not the original 5, with exact spelling/casing.
+	2.	For each component: required/expected props shape (e.g. AstryxButton needs children, variant, size, disabled — same detail level as the JSON dump you showed me from the admin-dashboard test).
+	3.	Which components are containers (isCanvas: true, accept nodes children) vs. leaves — needed so the skill knows what can nest inside what.
+	4.	Confirmation of the exact tree JSON shape expected (the ROOT/type.resolvedName/parent/nodes/linkedNodes structure from that sample output) — is that the stable, final shape, or still subject to change?
+Validation behavior (the open question from earlier)
+5. Does designSchema.ts hard-reject on save if a component type isn’t in the allowed list, or does it currently accept and silently degrade via sanitizeCraftState/AstryxUnknown? The skill’s local validator needs to match whatever the server actually enforces — no point being stricter or looser than the real gate.
+Routes
+6. Is /api/external/designs/prompt-template (or equivalent) actually built yet, or does it still need to be added — parallel to the workflow skill’s existing template route?
+7. Confirm /api/external/designs write behavior: does it still create unclaimed (claimed_by_user_id: null) records the way workflows do, or has anything about ownership/auth on that route changed since #204?
+8. What does a successful response actually return — id + view_url as originally speced, or has the shape changed?
+Stability
+9. Is the design editor considered feature-complete enough that this schema won’t shift again soon, or is there more in flight (you mentioned mid-update) that would make this worth waiting on?
+That last one is really the gate — everything else is answerable today, but if the answer to #9 is “still moving,” building against it now just means redoing 1–8 later.​​​​​​​​​​​​​​​​
