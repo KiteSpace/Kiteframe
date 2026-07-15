@@ -1845,6 +1845,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
       <div
         style={{
           position: "absolute",
+          height: "100%",
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "0 0",
         }}
