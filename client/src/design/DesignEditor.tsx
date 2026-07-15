@@ -1137,12 +1137,6 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
   );
 }
 
-// ─── Left rail mode context ───────────────────────────────────────────────────
-
-type LeftRailMode = "components" | "layers";
-interface LeftRailModeCtx { mode: LeftRailMode; setMode: (m: LeftRailMode) => void; }
-const LeftRailModeContext = createContext<LeftRailModeCtx>({ mode: "components", setMode: () => {} });
-
 // ─── Node type → display icon mapping ────────────────────────────────────────
 
 function layerIcon(displayName: string) {
@@ -1272,20 +1266,17 @@ function LeftRail() {
     };
   });
 
-  const { mode, setMode } = useContext(LeftRailModeContext);
-  const isLayersMode = mode === "layers";
-
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   // When user explicitly hits "← Back", force components view even if selection is active
   const [forceComponents, setForceComponents] = useState(false);
 
-  // Auto-show inspect panel whenever a new element is selected (only in components mode)
+  // Auto-show inspect panel whenever a new element is selected
   useEffect(() => {
-    if (selected && !isLayersMode) setForceComponents(false);
-  }, [selected?.id, isLayersMode]);
+    if (selected) setForceComponents(false);
+  }, [selected?.id]);
 
-  const showInspect = !!selected && !forceComponents && !isLayersMode;
+  const showInspect = !!selected && !forceComponents;
 
   const toggleCategory = (name: string) => {
     setCollapsed((prev) => {
@@ -1306,7 +1297,7 @@ function LeftRail() {
       )
     : [];
 
-  const panelTitle = isLayersMode ? "Layers" : showInspect ? "Inspect" : "Components";
+  const panelTitle = showInspect ? "Inspect" : "Components";
 
   return (
     <div
@@ -1317,14 +1308,7 @@ function LeftRail() {
       <div className="px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[12px] font-semibold text-foreground">{panelTitle}</span>
-          {isLayersMode ? (
-            <button
-              onClick={() => setMode("components")}
-              className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
-            >
-              ← Components
-            </button>
-          ) : showInspect ? (
+          {showInspect ? (
             <button
               onClick={() => setForceComponents(true)}
               className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
@@ -1335,7 +1319,7 @@ function LeftRail() {
             <button className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground text-sm" title="Grid view">⊞</button>
           )}
         </div>
-        {!showInspect && !isLayersMode && (
+        {!showInspect && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
             <input
@@ -1358,9 +1342,7 @@ function LeftRail() {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto flex flex-col">
-        {isLayersMode ? (
-          <LayersView />
-        ) : showInspect ? (
+        {showInspect ? (
           <InspectPanel selected={selected!} actions={actions} />
         ) : trimmed ? (
           // Search results
@@ -2281,7 +2263,6 @@ export interface DesignEditorProps {
 export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onBeforeUnloadSave, onNotesChange }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [fitTrigger, setFitTrigger] = useState(0);
-  const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>("components");
   const [notesOpenInternal, setNotesOpenInternal] = useState(false);
 
   const notesOpen = notesOpenProp !== undefined ? notesOpenProp : notesOpenInternal;
@@ -2302,47 +2283,45 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
 
   return (
     <NotesContext.Provider value={{ notesOpen, setNotesOpen }}>
-      <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
-        <Editor resolver={resolver} enabled={editable}>
-          <SnapGuideContext.Provider value={_setSnapGuides}>
-          <HistoryProvider>
-          <div className="flex h-full w-full" style={{ overflow: "clip" }}>
-            {editable && <LeftRail />}
-            <div className="flex flex-col flex-1 min-w-0">
-              {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitView={fitView} />}
-              <div className="relative flex-1 min-h-0">
-                <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
-                  <CanvasArea craftState={craftState} />
-                </InfiniteCanvas>
-                {/* View-only notes overlay (editable users have Notes tab in DesignPanel) */}
-                {!editable && (
-                  <NotesPanel
-                    notes={notes ?? ""}
-                    editable={false}
-                    onNotesChange={undefined}
-                  />
-                )}
-              </div>
+      <Editor resolver={resolver} enabled={editable}>
+        <SnapGuideContext.Provider value={_setSnapGuides}>
+        <HistoryProvider>
+        <div className="flex h-full w-full" style={{ overflow: "clip" }}>
+          {editable && <LeftRail />}
+          <div className="flex flex-col flex-1 min-w-0">
+            {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitView={fitView} />}
+            <div className="relative flex-1 min-h-0">
+              <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
+                <CanvasArea craftState={craftState} />
+              </InfiniteCanvas>
+              {/* View-only notes overlay (editable users have Notes tab in DesignPanel) */}
+              {!editable && (
+                <NotesPanel
+                  notes={notes ?? ""}
+                  editable={false}
+                  onNotesChange={undefined}
+                />
+              )}
             </div>
-            {editable && (
-              <DesignPanel
-                notes={notes ?? ""}
-                editable={editable}
-                onNotesChange={onNotesChange}
-              />
-            )}
           </div>
-          {editable && onSave && (
-            <SaveWatcher
-              onSave={stableSave}
-              onBeforeUnloadSave={onBeforeUnloadSave ? stableBeforeUnloadSave : undefined}
+          {editable && (
+            <DesignPanel
+              notes={notes ?? ""}
+              editable={editable}
+              onNotesChange={onNotesChange}
             />
           )}
-          {editable && <KeyboardHandler />}
-          </HistoryProvider>
-          </SnapGuideContext.Provider>
-        </Editor>
-      </LeftRailModeContext.Provider>
+        </div>
+        {editable && onSave && (
+          <SaveWatcher
+            onSave={stableSave}
+            onBeforeUnloadSave={onBeforeUnloadSave ? stableBeforeUnloadSave : undefined}
+          />
+        )}
+        {editable && <KeyboardHandler />}
+        </HistoryProvider>
+        </SnapGuideContext.Provider>
+      </Editor>
     </NotesContext.Provider>
   );
 }
