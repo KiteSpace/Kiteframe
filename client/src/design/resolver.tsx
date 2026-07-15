@@ -684,11 +684,17 @@ const CELL_EDIT_INPUT_STYLE: CSSProperties = {
 export function AstryxTable(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
   const { actions: { setProp } } = useNode(() => ({}));
+  const zoom = useContext(CanvasZoomContext);
 
   type EditTarget = { row: number; col: number; isHeader: boolean };
   const [editingCell, setEditingCell] = useState<EditTarget | null>(null);
   const [draft, setDraft] = useState("");
   const cellInputRef = useRef<HTMLInputElement>(null);
+
+  // Live column widths during drag (numeric px, canvas units). null = use prop/auto.
+  const [liveColWidths, setLiveColWidths] = useState<(number | null)[]>([]);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const resizingRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
   const numCols = Math.min(Math.max(1, Number(props.columns ?? 3)), 6);
   const numRows = Math.min(Math.max(1, Number(props.rows ?? 3)), 10);
@@ -702,9 +708,15 @@ export function AstryxTable(props: AstryxProps) {
     )
   );
 
-  const colWidths: (string | undefined)[] = Array.from({ length: numCols }, (_, i) =>
+  // Merge prop widths with live drag widths for rendering.
+  const propColWidths: (string | undefined)[] = Array.from({ length: numCols }, (_, i) =>
     (props.colWidths as string[] | undefined)?.[i]
   );
+  const colWidths: (string | undefined)[] = Array.from({ length: numCols }, (_, i) => {
+    const live = liveColWidths[i];
+    if (live != null) return `${live}px`;
+    return propColWidths[i];
+  });
 
   useEffect(() => {
     if (editingCell) {
@@ -712,6 +724,11 @@ export function AstryxTable(props: AstryxProps) {
       cellInputRef.current?.select();
     }
   }, [editingCell]);
+
+  // Reset live widths when columns prop changes.
+  useEffect(() => {
+    setLiveColWidths([]);
+  }, [numCols]);
 
   const startEdit = useCallback((row: number, col: number, isHeader: boolean, currentVal: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -751,6 +768,61 @@ export function AstryxTable(props: AstryxProps) {
 
   const discardCell = useCallback(() => setEditingCell(null), []);
 
+  const onResizeMouseDown = useCallback((colIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // offsetWidth is the element's layout width in CSS pixels (unaffected by CSS
+    // transform: scale). Since the canvas zoom is applied via transform, offsetWidth
+    // is already in canvas-pixel units — no zoom division needed for startW.
+    // Mouse deltas (clientX) are in screen pixels, so we divide those by zoom.
+    const ths = tableRef.current?.querySelectorAll("thead th");
+    const th = ths?.[colIndex] as HTMLElement | undefined;
+    const startW = th?.offsetWidth ?? 100;
+    const z = zoom || 1;
+
+    resizingRef.current = { col: colIndex, startX: e.clientX, startW };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const { col, startX, startW: sw } = resizingRef.current;
+      const delta = (ev.clientX - startX) / z;
+      const newW = Math.max(40, Math.round(sw + delta));
+      setLiveColWidths((prev) => {
+        const next = Array.from({ length: numCols }, (_, i) => prev[i] ?? null);
+        next[col] = newW;
+        return next;
+      });
+    };
+
+    const onUp = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const { col, startX, startW: sw } = resizingRef.current;
+      const delta = (ev.clientX - startX) / z;
+      const newW = Math.max(40, Math.round(sw + delta));
+
+      setProp((p: any) => {
+        const nC = Math.min(Math.max(1, Number(p.columns ?? 3)), 6);
+        const cur: string[] = Array.from({ length: nC }, (_, i) =>
+          (p.colWidths as string[] | undefined)?.[i] ?? ""
+        );
+        cur[col] = `${newW}px`;
+        p.colWidths = cur;
+      });
+
+      // Clear live overrides so props.colWidths (now committed) drive rendering,
+      // and any subsequent inspector edits are not masked by stale live values.
+      setLiveColWidths([]);
+
+      resizingRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [zoom, numCols, setProp]);
+
   const cellInput = (
     <input
       ref={cellInputRef}
@@ -767,10 +839,16 @@ export function AstryxTable(props: AstryxProps) {
     />
   );
 
+  const isResizing = resizingRef.current !== null;
+
   return (
     <div ref={connectRef} style={extraStyle}>
       <div className="rounded-md border border-gray-200 overflow-hidden w-full">
-        <table className="w-full text-sm" style={{ tableLayout: colWidths.some(Boolean) ? "fixed" : "auto" }}>
+        <table
+          ref={tableRef}
+          className="w-full text-sm"
+          style={{ tableLayout: colWidths.some(Boolean) ? "fixed" : "auto", userSelect: isResizing ? "none" : undefined }}
+        >
           {colWidths.some(Boolean) && (
             <colgroup>
               {colWidths.map((w, i) => (
@@ -791,6 +869,21 @@ export function AstryxTable(props: AstryxProps) {
                     title="Double-click to edit"
                   >
                     {isEditing ? cellInput : h}
+                    {/* Column resize handle — right border of each header cell */}
+                    <span
+                      onMouseDown={(e) => onResizeMouseDown(i, e)}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        right: 0,
+                        width: 6,
+                        height: "100%",
+                        cursor: "col-resize",
+                        zIndex: 10,
+                        userSelect: "none",
+                      }}
+                      title=""
+                    />
                   </th>
                 );
               })}
