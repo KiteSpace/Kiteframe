@@ -46,14 +46,16 @@ Use when:
 In "text", be helpful: explain what IS available and suggest the closest Astryx alternative.
 
 TYPE 2 — state (full canvas replacement — ONLY for first-time generation):
-{ "type": "state", "craftState": { <craft.js state object> } }
+{ "type": "state", "message": "One-sentence description of what you built.", "craftState": { <craft.js state object> } }
 Use ONLY when the canvas is empty (no CURRENT CANVAS provided in the user message).
 "craftState" must be a complete craft.js state with ROOT and all nodes as a flat object.
+"message" is REQUIRED — write a brief, friendly sentence describing what you created.
 
 TYPE 3 — patch (add or modify — use when canvas already has content):
-{ "type": "patch", "nodes": { <partial craft.js nodes> } }
+{ "type": "patch", "message": "One-sentence description of what you added or changed.", "nodes": { <partial craft.js nodes> } }
 Use when the canvas already has content and the user wants to add or change elements.
 "nodes" contains ONLY the nodes being added or updated.
+"message" is REQUIRED — write a brief, friendly sentence describing what you did.
 IMPORTANT: always include the parent node (e.g. ROOT or the target artboard) in the patch
 with its "nodes" array updated to include the new children IDs.
 Do NOT re-emit unchanged nodes. Generate node IDs that don't clash with existing ones

@@ -37,6 +37,7 @@ import {
   AstryxResizable,
   createEmptyCraftState,
   sanitizeCraftState,
+  validateCraftState,
   CanvasZoomContext,
 } from "./resolver";
 import {
@@ -1692,6 +1693,42 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
 interface AIMessage { role: "ai" | "user"; text: string; }
 
+/**
+ * Graph-aware merge for craft.js node maps.
+ * After a shallow merge, walks every node's children array and removes
+ * references to IDs that no longer exist in the merged map, preventing
+ * orphan-reference errors when the AI patch doesn't include all siblings.
+ */
+function mergeGraphAware(
+  existingState: Record<string, unknown>,
+  patchNodes: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...existingState, ...patchNodes };
+  const nodeIds = new Set(Object.keys(merged));
+
+  for (const [nodeId, node] of Object.entries(merged)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if (!Array.isArray(n.nodes)) continue;
+
+    const before = n.nodes as string[];
+    const after = before.filter((childId) => {
+      if (!nodeIds.has(childId)) {
+        console.warn(`[mergeGraphAware] Removing orphan child ref "${childId}" from node "${nodeId}"`);
+        return false;
+      }
+      return true;
+    });
+
+    if (after.length !== before.length) {
+      merged[nodeId] = { ...n, nodes: after };
+    }
+  }
+
+  return merged;
+}
+
+
 const INITIAL_MESSAGES: AIMessage[] = [
   {
     role: "ai",
@@ -1749,31 +1786,59 @@ function AIDrawer() {
         // KiteAI replied with a conversational message — no canvas change
         setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
       } else if (data.type === "patch") {
-        // Additive patch: merge new/changed nodes into the existing canvas state
+        // Additive patch: graph-aware merge of new/changed nodes into existing canvas state
         const patchNodes: Record<string, unknown> = JSON.parse(data.nodes);
         let existingState: Record<string, unknown> = {};
         try {
           existingState = JSON.parse(query.serialize());
         } catch { /* start from empty if serialize fails */ }
-        const merged = { ...existingState, ...patchNodes };
-        const sanitized = sanitizeCraftState(JSON.stringify(merged));
-        actions.deserialize(sanitized);
-        const addedCount = Object.keys(patchNodes).length;
-        setMessages((prev) => [
-          ...prev,
-          { role: "ai", text: `Done! Added ${addedCount} element${addedCount !== 1 ? "s" : ""} to your canvas.` },
-        ]);
+
+        // Graph-aware merge: remove orphan child references after merging
+        const merged = mergeGraphAware(existingState, patchNodes);
+        const mergedJson = JSON.stringify(merged);
+        const validation = validateCraftState(merged);
+        if (!validation.valid) {
+          console.warn("[design/patch] Merge produced invalid graph, discarding:", validation.errors);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "ai",
+              text: (data.message ?? "I made a change to your design") +
+                "\n\n⚠️ Couldn't apply the canvas change automatically — try rephrasing.",
+            },
+          ]);
+        } else {
+          const sanitized = sanitizeCraftState(mergedJson);
+          actions.deserialize(sanitized);
+          setMessages((prev) => [
+            ...prev,
+            { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" },
+          ]);
+        }
       } else {
         // Full state replacement (type === "state" or legacy response without type)
         const craftStateStr = data.craftState ?? data;
-        const sanitized = sanitizeCraftState(
-          typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr)
-        );
-        actions.deserialize(sanitized);
-        setMessages((prev) => [
-          ...prev,
-          { role: "ai", text: "Design created! I've built the layout on your canvas." },
-        ]);
+        const stateJson = typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr);
+        const parsedForValidation = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
+        const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
+        if (!validation.valid) {
+          console.warn("[design/state] State failed validation, discarding:", validation.errors);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "ai",
+              text: (data.message ?? "I tried to create your design") +
+                "\n\n⚠️ Couldn't apply the canvas change automatically — try rephrasing.",
+            },
+          ]);
+        } else {
+          const sanitized = sanitizeCraftState(stateJson);
+          actions.deserialize(sanitized);
+          setMessages((prev) => [
+            ...prev,
+            { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" },
+          ]);
+        }
       }
       setStatus("idle");
     } catch (e: any) {

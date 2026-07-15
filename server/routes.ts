@@ -2299,7 +2299,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         if (!nodes || typeof nodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(nodes) });
+        const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+        return res.json({ type: 'patch', nodes: JSON.stringify(nodes), message });
       }
 
       // Default: full state replacement (type === 'state' or legacy format without type)
@@ -2307,7 +2308,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj) });
+      const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: stateMessage });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });
