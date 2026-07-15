@@ -1432,7 +1432,14 @@ function HistoryProvider({ children }: { children: ReactNode }) {
     }
   }, [fingerprint]);
 
+  // Use refs so the callbacks below don't need to be recreated when depth changes.
+  const undoDepthRef = useRef(undoDepth);
+  const redoDepthRef = useRef(redoDepth);
+  undoDepthRef.current = undoDepth;
+  redoDepthRef.current = redoDepth;
+
   const doUndo = useCallback(() => {
+    if (undoDepthRef.current <= 0) return; // nothing to undo — leave isUndoRedoRef clean
     isUndoRedoRef.current = true;
     (actions as any).history?.undo?.();
     setUndoDepth(d => Math.max(0, d - 1));
@@ -1440,6 +1447,7 @@ function HistoryProvider({ children }: { children: ReactNode }) {
   }, [actions]);
 
   const doRedo = useCallback(() => {
+    if (redoDepthRef.current <= 0) return; // nothing to redo — leave isUndoRedoRef clean
     isUndoRedoRef.current = true;
     (actions as any).history?.redo?.();
     setUndoDepth(d => d + 1);
