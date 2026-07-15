@@ -1768,7 +1768,7 @@ function SnapGuideOverlay() {
           left: -9999,
           right: -9999,
           height: 1,
-          background: "#3b82f6",
+          background: "#93c5fd",
           zIndex: 9999,
           pointerEvents: "none",
         }}
@@ -1782,7 +1782,7 @@ function SnapGuideOverlay() {
           top: -9999,
           bottom: -9999,
           width: 1,
-          background: "#3b82f6",
+          background: "#93c5fd",
           zIndex: 9999,
           pointerEvents: "none",
         }}

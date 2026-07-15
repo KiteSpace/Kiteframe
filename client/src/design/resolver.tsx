@@ -59,59 +59,52 @@ type AstryxProps = Record<string, any>;
 // can measure sibling bounds without needing a separate DOM query.
 const nodeElementRegistry = new Map<string, HTMLElement>();
 
-// ─── Shared snap-guide helper ─────────────────────────────────────────────────
-// Computes snapped X/Y and guide-line positions for an absolute drag.
-// Returns canvas-coordinate guide positions (null = no guide active).
-const SNAP_THRESHOLD = 4;
-function computeSnapGuides(
+// ─── Alignment guide helper ────────────────────────────────────────────────────
+// Alignment guides — display-only, no snapping. Lines appear when the dragged
+// node comes within ALIGN_THRESHOLD canvas-px of an alignment axis.
+const ALIGN_THRESHOLD = 8;
+function computeAlignmentGuides(
   nodeId: string,
   newX: number,
   newY: number,
   elRect: DOMRect,
   zoom: number,
   nodes: Record<string, any>,
-): { snappedX: number; snappedY: number; vGuide: number | null; hGuide: number | null } {
+): { vGuide: number | null; hGuide: number | null } {
   const nodeWidth  = elRect.width  / zoom;
   const nodeHeight = elRect.height / zoom;
   const nodeCenterX = newX + nodeWidth  / 2;
   const nodeCenterY = newY + nodeHeight / 2;
 
-  let snappedX = newX;
-  let snappedY = newY;
-  let vGuide: number | null = null; // vertical guide line at this canvas-X
-  let hGuide: number | null = null; // horizontal guide line at this canvas-Y
+  let vGuide: number | null = null;
+  let hGuide: number | null = null;
 
   try {
     const nodeData = nodes[nodeId];
     const parentId = nodeData?.parent;
 
-    // 1. Artboard centre X and Y — use DOM rect from registry for Y
+    // 1. Artboard centre axes
     const artboardWidth = (parentId ? (nodes[parentId]?.props?.width as number) : undefined) ?? 390;
     const artboardCenterX = artboardWidth / 2;
-    if (Math.abs(nodeCenterX - artboardCenterX) < SNAP_THRESHOLD) {
-      snappedX = Math.round(artboardCenterX - nodeWidth / 2);
+    if (Math.abs(nodeCenterX - artboardCenterX) < ALIGN_THRESHOLD) {
       vGuide = artboardCenterX;
     }
     if (parentId) {
       const artboardEl = nodeElementRegistry.get(parentId);
       if (artboardEl) {
         const artboardRect = artboardEl.getBoundingClientRect();
-        const artboardHeight = artboardRect.height / zoom;
-        const artboardCenterY = artboardHeight / 2;
-        if (hGuide === null && Math.abs(nodeCenterY - artboardCenterY) < SNAP_THRESHOLD) {
-          snappedY = Math.round(artboardCenterY - nodeHeight / 2);
+        const artboardCenterY = (artboardRect.height / zoom) / 2;
+        if (hGuide === null && Math.abs(nodeCenterY - artboardCenterY) < ALIGN_THRESHOLD) {
           hGuide = artboardCenterY;
         }
       }
     }
 
-    // 2. Sibling absolute nodes — check left/centre/right and top/middle/bottom
+    // 2. Sibling absolute nodes — left/centre/right and top/middle/bottom
     if (parentId) {
       const siblingIds = (nodes[parentId]?.nodes ?? []) as string[];
-
-      // Track best (closest) snap candidate per axis independently
-      let bestVDist = SNAP_THRESHOLD; // min distance found for X axis
-      let bestHDist = SNAP_THRESHOLD; // min distance found for Y axis
+      let bestVDist = ALIGN_THRESHOLD;
+      let bestHDist = ALIGN_THRESHOLD;
 
       for (const sibId of siblingIds) {
         if (sibId === nodeId) continue;
@@ -129,52 +122,43 @@ function computeSnapGuides(
         const sibBottom  = sibY + sibHeight;
         const sibCenterY = sibY + sibHeight / 2;
 
-        // X-axis: dragged left / centre / right vs sib left / centre / right
-        const nodeRight = newX + nodeWidth;
-        const xCandidates: Array<{ dist: number; snapped: number; guide: number }> = [
-          { dist: Math.abs(newX      - sibX),       snapped: sibX,                    guide: sibX       }, // left→left
-          { dist: Math.abs(newX      - sibCenterX),  snapped: sibCenterX,               guide: sibCenterX  }, // left→centre
-          { dist: Math.abs(newX      - sibRight),    snapped: sibRight,                 guide: sibRight    }, // left→right
-          { dist: Math.abs(nodeCenterX - sibX),      snapped: sibX - nodeWidth / 2,     guide: sibX       }, // centre→left
-          { dist: Math.abs(nodeCenterX - sibCenterX),snapped: sibCenterX - nodeWidth/2, guide: sibCenterX  }, // centre→centre
-          { dist: Math.abs(nodeCenterX - sibRight),  snapped: sibRight - nodeWidth / 2, guide: sibRight    }, // centre→right
-          { dist: Math.abs(nodeRight  - sibX),       snapped: sibX - nodeWidth,         guide: sibX       }, // right→left
-          { dist: Math.abs(nodeRight  - sibCenterX), snapped: sibCenterX - nodeWidth,   guide: sibCenterX  }, // right→centre
-          { dist: Math.abs(nodeRight  - sibRight),   snapped: sibRight - nodeWidth,     guide: sibRight    }, // right→right
-        ];
-        for (const c of xCandidates) {
-          if (c.dist < bestVDist) {
-            bestVDist = c.dist;
-            snappedX = Math.round(c.snapped);
-            vGuide   = c.guide;
-          }
+        const nodeRight  = newX + nodeWidth;
+        const nodeBottom = newY + nodeHeight;
+
+        // X-axis alignment: edges and centres
+        for (const [dist, guide] of [
+          [Math.abs(newX        - sibX),       sibX      ] as const,
+          [Math.abs(newX        - sibCenterX), sibCenterX] as const,
+          [Math.abs(newX        - sibRight),   sibRight  ] as const,
+          [Math.abs(nodeCenterX - sibX),       sibX      ] as const,
+          [Math.abs(nodeCenterX - sibCenterX), sibCenterX] as const,
+          [Math.abs(nodeCenterX - sibRight),   sibRight  ] as const,
+          [Math.abs(nodeRight   - sibX),       sibX      ] as const,
+          [Math.abs(nodeRight   - sibCenterX), sibCenterX] as const,
+          [Math.abs(nodeRight   - sibRight),   sibRight  ] as const,
+        ]) {
+          if (dist < bestVDist) { bestVDist = dist; vGuide = guide; }
         }
 
-        // Y-axis: dragged top / middle / bottom vs sib top / middle / bottom
-        const nodeBottom = newY + nodeHeight;
-        const yCandidates: Array<{ dist: number; snapped: number; guide: number }> = [
-          { dist: Math.abs(newY        - sibY),       snapped: sibY,                     guide: sibY       }, // top→top
-          { dist: Math.abs(newY        - sibCenterY), snapped: sibCenterY,                guide: sibCenterY  }, // top→middle
-          { dist: Math.abs(newY        - sibBottom),  snapped: sibBottom,                 guide: sibBottom   }, // top→bottom
-          { dist: Math.abs(nodeCenterY - sibY),       snapped: sibY - nodeHeight / 2,    guide: sibY       }, // middle→top
-          { dist: Math.abs(nodeCenterY - sibCenterY), snapped: sibCenterY - nodeHeight/2, guide: sibCenterY  }, // middle→middle
-          { dist: Math.abs(nodeCenterY - sibBottom),  snapped: sibBottom - nodeHeight/2,  guide: sibBottom   }, // middle→bottom
-          { dist: Math.abs(nodeBottom  - sibY),       snapped: sibY - nodeHeight,        guide: sibY       }, // bottom→top
-          { dist: Math.abs(nodeBottom  - sibCenterY), snapped: sibCenterY - nodeHeight,   guide: sibCenterY  }, // bottom→middle
-          { dist: Math.abs(nodeBottom  - sibBottom),  snapped: sibBottom - nodeHeight,    guide: sibBottom   }, // bottom→bottom
-        ];
-        for (const c of yCandidates) {
-          if (c.dist < bestHDist) {
-            bestHDist = c.dist;
-            snappedY = Math.round(c.snapped);
-            hGuide   = c.guide;
-          }
+        // Y-axis alignment: edges and centres
+        for (const [dist, guide] of [
+          [Math.abs(newY        - sibY),       sibY      ] as const,
+          [Math.abs(newY        - sibCenterY), sibCenterY] as const,
+          [Math.abs(newY        - sibBottom),  sibBottom ] as const,
+          [Math.abs(nodeCenterY - sibY),       sibY      ] as const,
+          [Math.abs(nodeCenterY - sibCenterY), sibCenterY] as const,
+          [Math.abs(nodeCenterY - sibBottom),  sibBottom ] as const,
+          [Math.abs(nodeBottom  - sibY),       sibY      ] as const,
+          [Math.abs(nodeBottom  - sibCenterY), sibCenterY] as const,
+          [Math.abs(nodeBottom  - sibBottom),  sibBottom ] as const,
+        ]) {
+          if (dist < bestHDist) { bestHDist = dist; hGuide = guide; }
         }
       }
     }
   } catch { /* ignore any craft.js or DOM errors */ }
 
-  return { snappedX, snappedY, vGuide, hGuide };
+  return { vGuide, hGuide };
 }
 
 // ─── Shared visual constants ──────────────────────────────────────────────────
@@ -262,11 +246,11 @@ function useLeafNode() {
         const elRect = elementRef.current?.getBoundingClientRect();
         if (elRect) {
           const nodes = queryRef.current.getSerializedNodes();
-          const { snappedX, snappedY, vGuide, hGuide } = computeSnapGuides(
+          const { vGuide, hGuide } = computeAlignmentGuides(
             nodeIdRef.current, newX, newY, elRect, z, nodes,
           );
           setGuidesRef.current(hGuide, vGuide);
-          setProp((p: any) => { p.x = snappedX; p.y = snappedY; });
+          setProp((p: any) => { p.x = newX; p.y = newY; });
         } else {
           setGuidesRef.current(null, null);
           setProp((p: any) => { p.x = newX; p.y = newY; });
@@ -363,11 +347,11 @@ function useContainerNode(position: string, x: number, y: number) {
       const elRect = elementRef.current?.getBoundingClientRect();
       if (elRect) {
         const nodes = queryRef.current.getSerializedNodes();
-        const { snappedX, snappedY, vGuide, hGuide } = computeSnapGuides(
+        const { vGuide, hGuide } = computeAlignmentGuides(
           nodeIdRef.current, newX, newY, elRect, z, nodes,
         );
         setGuidesRef.current(hGuide, vGuide);
-        setProp((p: any) => { p.x = snappedX; p.y = snappedY; });
+        setProp((p: any) => { p.x = newX; p.y = newY; });
       } else {
         setGuidesRef.current(null, null);
         setProp((p: any) => { p.x = newX; p.y = newY; });
