@@ -1241,7 +1241,7 @@ function LayersView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+    <div className="flex-1 overflow-y-auto p-2 space-y-0.5 flex flex-col justify-start">
       {topLevel.map((id) => renderNode(id, 0))}
     </div>
   );
@@ -1680,13 +1680,7 @@ function CanvasHints() {
     );
   }
 
-  return (
-    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 whitespace-nowrap z-10 pointer-events-none">
-      <div className="bg-foreground/80 backdrop-blur-sm text-background text-[10px] px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
-        <span>👆</span> Click any element on the canvas to inspect it
-      </div>
-    </div>
-  );
+  return null;
 }
 
 // ─── Snap guide overlay ───────────────────────────────────────────────────────
@@ -2152,7 +2146,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-border group-hover:bg-primary transition-colors" />
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DesignPanelTab)} className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DesignPanelTab)} className="flex flex-col h-full min-h-0 overflow-hidden">
         {/* Tab bar */}
         <div className="border-b border-border flex items-center">
           <Button variant="ghost" size="icon" className="h-10 w-8 flex-shrink-0" onClick={() => setIsCollapsed(true)}>
