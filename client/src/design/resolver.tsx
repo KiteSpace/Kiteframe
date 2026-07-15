@@ -209,14 +209,22 @@ function absPositionStyle(position: string, x: number, y: number): CSSProperties
 // Provides drag/connect ref, selection ring, and absolute positioning for all
 // leaf (non-canvas) components from a single hook.
 
+const RADIUS_TOKEN: Record<string, number> = { None: 0, S: 4, M: 8, L: 16, Full: 9999 };
+
 function useLeafNode() {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
-  const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
+  const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY,
+          nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
     nodeY: (node.data.props?.y as number) ?? 0,
+    nodeBg:     node.data.props?.backgroundColor as string | undefined,
+    nodeColor:  node.data.props?.textColor as string | undefined,
+    nodeRadius: node.data.props?.borderRadius as string | undefined,
+    nodeWidth:  node.data.props?.width as number | string | undefined,
+    nodeHeight: node.data.props?.height as number | string | undefined,
   }));
   const { query } = useEditor(() => ({}));
 
@@ -281,6 +289,11 @@ function useLeafNode() {
     ...absPositionStyle(nodePosition, nodeX, nodeY),
     ...(selected ? SELECTION_RING : {}),
     ...(isAbsolute ? { cursor: "grab" } : {}),
+    ...(nodeBg     ? { backgroundColor: nodeBg } : {}),
+    ...(nodeColor  ? { color: nodeColor } : {}),
+    ...(nodeRadius !== undefined ? { borderRadius: RADIUS_TOKEN[nodeRadius] ?? 8 } : {}),
+    ...(nodeWidth  !== undefined && nodeWidth  !== "auto" ? { width:  nodeWidth  } : {}),
+    ...(nodeHeight !== undefined && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
   };
 
   // For absolute nodes we skip craft.js `drag` so no snap/alignment indicators
@@ -684,9 +697,10 @@ const JUSTIFY_MAP: Record<string, string> = {
   start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around",
 };
 
-export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectRef, id, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, id, isEmpty, isAbsolute, containerVisual, selected, onMouseDown } = useContainerNode(position, x, y);
   const isRoot = id === "ROOT";
+  const bgOverride = !isRoot && !selected && backgroundColor ? { background: backgroundColor as string } : {};
   return (
     <div
       ref={connectRef}
@@ -704,6 +718,8 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         position: "relative",
         boxSizing: "border-box",
         ...(!isRoot ? containerVisual : {}),
+        ...bgOverride,
+        ...(textColor ? { color: textColor as string } : {}),
         ...(!isRoot ? absPositionStyle(position, x, y) : {}),
         ...(isAbsolute && !isRoot ? { cursor: "grab" } : {}),
       }}
@@ -715,12 +731,16 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 (AstryxSection as any).craft = {
   displayName: "AstryxSection",
   rules: {
-    canMoveIn: (incomingNode: any) => incomingNode?.data?.displayName === "AstryxArtboard",
+    // ROOT section only accepts artboards; non-root sections accept any component except artboards.
+    canMoveIn: (incomingNode: any, currentNode: any) => {
+      if (currentNode?.id === "ROOT") return incomingNode?.data?.displayName === "AstryxArtboard";
+      return incomingNode?.data?.displayName !== "AstryxArtboard";
+    },
   },
 };
 
-export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectRef, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
   return (
     <div
       ref={connectRef}
@@ -736,6 +756,8 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
         position: "relative",
         boxSizing: "border-box",
         ...containerVisual,
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
       }}
@@ -746,8 +768,8 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
 }
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
-export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectRef, isEmpty, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
   return (
     <div
       ref={connectRef}
@@ -763,6 +785,8 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
         position: "relative",
         boxSizing: "border-box",
         ...containerVisual,
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
       }}
@@ -773,7 +797,7 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
-export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0 }: AstryxProps) {
+export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
   const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
   const variantClass =
     variant === "outlined" ? "bg-white border border-gray-300" :
@@ -792,6 +816,8 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
         boxSizing: "border-box",
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
         ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
         ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
       }}
@@ -808,7 +834,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Named canvas frame — the top-level screen container in the design editor.
 // Multiple artboards sit side-by-side inside the ROOT section.
 
-export function AstryxArtboard({ children, label = "Artboard", width = 390, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start" }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width = 390, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
   const { connectors: { connect, drag }, id, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
@@ -849,7 +875,8 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
           padding,
           width,
           minHeight: 480,
-          background: "var(--card)",
+          background: (backgroundColor as string) || "var(--card)",
+          color: (textColor as string) || undefined,
           borderRadius: 12,
           boxShadow: selected
             ? "0 0 0 2px #3b82f6, 0 4px 24px rgba(0,0,0,0.10)"
