@@ -662,11 +662,151 @@ export function AstryxUnknown(props: AstryxProps) {
 }
 (AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
 
+const CELL_EDIT_INPUT_STYLE: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  background: "rgba(255,255,255,0.97)",
+  border: "none",
+  outline: "2px solid #3b82f6",
+  outlineOffset: -1,
+  borderRadius: 2,
+  padding: "0 4px",
+  font: "inherit",
+  color: "#111827",
+  width: "100%",
+  height: "100%",
+  cursor: "text",
+  zIndex: 100,
+  boxSizing: "border-box" as const,
+  fontSize: "0.75rem",
+};
+
 export function AstryxTable(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
+  const { actions: { setProp } } = useNode(() => ({}));
+
+  type EditTarget = { row: number; col: number; isHeader: boolean };
+  const [editingCell, setEditingCell] = useState<EditTarget | null>(null);
+  const [draft, setDraft] = useState("");
+  const cellInputRef = useRef<HTMLInputElement>(null);
+
+  const numCols = Math.min(Math.max(1, Number(props.columns ?? 3)), 6);
+  const numRows = Math.min(Math.max(1, Number(props.rows ?? 3)), 10);
+
+  const headers: string[] = Array.from({ length: numCols }, (_, i) =>
+    (props.headers as string[] | undefined)?.[i] ?? `Col ${i + 1}`
+  );
+  const cellData: string[][] = Array.from({ length: numRows }, (_, r) =>
+    Array.from({ length: numCols }, (_, c) =>
+      (props.cellData as string[][] | undefined)?.[r]?.[c] ?? "—"
+    )
+  );
+
+  useEffect(() => {
+    if (editingCell) {
+      cellInputRef.current?.focus();
+      cellInputRef.current?.select();
+    }
+  }, [editingCell]);
+
+  const startEdit = useCallback((row: number, col: number, isHeader: boolean, currentVal: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (_dragOccurred) return;
+    setDraft(currentVal);
+    setEditingCell({ row, col, isHeader });
+  }, []);
+
+  const commitCell = useCallback(() => {
+    if (!editingCell) return;
+    const { row, col, isHeader } = editingCell;
+    const val = draft;
+    if (isHeader) {
+      setProp((p: any) => {
+        const nC = Math.min(Math.max(1, Number(p.columns ?? 3)), 6);
+        const cur: string[] = Array.from({ length: nC }, (_, i) =>
+          (p.headers as string[] | undefined)?.[i] ?? `Col ${i + 1}`
+        );
+        cur[col] = val || `Col ${col + 1}`;
+        p.headers = cur;
+      });
+    } else {
+      setProp((p: any) => {
+        const nR = Math.min(Math.max(1, Number(p.rows ?? 3)), 10);
+        const nC = Math.min(Math.max(1, Number(p.columns ?? 3)), 6);
+        const cur: string[][] = Array.from({ length: nR }, (_, r) =>
+          Array.from({ length: nC }, (_, c) =>
+            (p.cellData as string[][] | undefined)?.[r]?.[c] ?? "—"
+          )
+        );
+        cur[row][col] = val || "—";
+        p.cellData = cur;
+      });
+    }
+    setEditingCell(null);
+  }, [editingCell, draft, setProp]);
+
+  const discardCell = useCallback(() => setEditingCell(null), []);
+
+  const cellInput = (
+    <input
+      ref={cellInputRef}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commitCell}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commitCell(); }
+        if (e.key === "Escape") { e.stopPropagation(); discardCell(); }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      style={CELL_EDIT_INPUT_STYLE}
+    />
+  );
+
   return (
     <div ref={connectRef} style={extraStyle}>
-      <AstryxTableBase {...props} />
+      <div className="rounded-md border border-gray-200 overflow-hidden w-full">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              {headers.map((h, i) => {
+                const isEditing = editingCell?.isHeader && editingCell.col === i;
+                return (
+                  <th
+                    key={i}
+                    className="px-3 py-2 text-left text-xs font-medium text-gray-500 relative cursor-default select-none"
+                    style={{ minWidth: 60 }}
+                    onDoubleClick={(e) => startEdit(-1, i, true, h, e)}
+                    title="Double-click to edit"
+                  >
+                    {isEditing ? cellInput : h}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {cellData.map((row, r) => (
+              <tr key={r} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                {row.map((cell, c) => {
+                  const isEditing = editingCell && !editingCell.isHeader && editingCell.row === r && editingCell.col === c;
+                  return (
+                    <td
+                      key={c}
+                      className="px-3 py-2 text-gray-400 relative cursor-default select-none"
+                      style={{ minWidth: 60 }}
+                      onDoubleClick={(e) => startEdit(r, c, false, cell, e)}
+                      title="Double-click to edit"
+                    >
+                      {isEditing ? cellInput : cell}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

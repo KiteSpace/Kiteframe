@@ -694,12 +694,53 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
-  if (displayName === "AstryxTable") return (
-    <>
-      <PropRow label="Rows"><NumberProp value={props.rows ?? 3} onChange={(v) => setProp("rows", v)} min={1} max={10} /></PropRow>
-      <PropRow label="Columns"><NumberProp value={props.columns ?? 3} onChange={(v) => setProp("columns", v)} min={1} max={6} /></PropRow>
-    </>
-  );
+  if (displayName === "AstryxTable") {
+    const handleRowsChange = (v: number) => {
+      const nR = Math.min(Math.max(1, v), 10);
+      const nC = Math.min(Math.max(1, Number(props.columns ?? 3)), 6);
+      const existing = (props.cellData as string[][] | undefined) ?? [];
+      const newCellData: string[][] = Array.from({ length: nR }, (_, r) =>
+        Array.from({ length: nC }, (_, c) => existing[r]?.[c] ?? "—")
+      );
+      setProp("rows", nR);
+      setProp("cellData", newCellData);
+    };
+    const handleColsChange = (v: number) => {
+      const nR = Math.min(Math.max(1, Number(props.rows ?? 3)), 10);
+      const nC = Math.min(Math.max(1, v), 6);
+      const existingCells = (props.cellData as string[][] | undefined) ?? [];
+      const existingHeaders = (props.headers as string[] | undefined) ?? [];
+      const newCellData: string[][] = Array.from({ length: nR }, (_, r) =>
+        Array.from({ length: nC }, (_, c) => existingCells[r]?.[c] ?? "—")
+      );
+      const newHeaders: string[] = Array.from({ length: nC }, (_, i) =>
+        existingHeaders[i] ?? `Col ${i + 1}`
+      );
+      setProp("columns", nC);
+      setProp("cellData", newCellData);
+      setProp("headers", newHeaders);
+    };
+    const handleReset = () => {
+      const nR = Math.min(Math.max(1, Number(props.rows ?? 3)), 10);
+      const nC = Math.min(Math.max(1, Number(props.columns ?? 3)), 6);
+      setProp("cellData", Array.from({ length: nR }, () => Array.from({ length: nC }, () => "—")));
+      setProp("headers", Array.from({ length: nC }, (_, i) => `Col ${i + 1}`));
+    };
+    return (
+      <>
+        <PropRow label="Rows"><NumberProp value={props.rows ?? 3} onChange={handleRowsChange} min={1} max={10} /></PropRow>
+        <PropRow label="Columns"><NumberProp value={props.columns ?? 3} onChange={handleColsChange} min={1} max={6} /></PropRow>
+        <PropRow label="Cells">
+          <button
+            onClick={handleReset}
+            className="text-xs text-red-500 hover:text-red-700 underline"
+          >
+            Reset to "—"
+          </button>
+        </PropRow>
+      </>
+    );
+  }
 
   if (displayName === "AstryxTabs") return (
     <>

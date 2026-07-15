@@ -173,12 +173,16 @@ export function AstryxUnknown({ astryxComponent }: { astryxComponent: string }) 
 
 // ─── New components ────────────────────────────────────────────────────────────
 
-export function AstryxTable({ rows = 3, columns = 3 }: AstryxProps) {
+export function AstryxTable({ rows = 3, columns = 3, cellData: cellDataProp, headers: headersProp }: AstryxProps) {
   const numCols = Math.min(Math.max(1, Number(columns)), 6);
   const numRows = Math.min(Math.max(1, Number(rows)), 10);
-  const headers = Array.from({ length: numCols }, (_, i) => `Col ${i + 1}`);
-  const bodyRows = Array.from({ length: numRows }, (_, i) =>
-    Array.from({ length: numCols }, () => "—")
+  const headers = Array.from({ length: numCols }, (_, i) =>
+    (headersProp as string[] | undefined)?.[i] ?? `Col ${i + 1}`
+  );
+  const bodyRows = Array.from({ length: numRows }, (_, r) =>
+    Array.from({ length: numCols }, (_, c) =>
+      (cellDataProp as string[][] | undefined)?.[r]?.[c] ?? "—"
+    )
   );
   return (
     <div className="rounded-md border border-gray-200 overflow-hidden w-full">
