@@ -105,9 +105,14 @@ function computeSnapGuides(
       }
     }
 
-    // 2. Sibling absolute nodes
+    // 2. Sibling absolute nodes — check left/centre/right and top/middle/bottom
     if (parentId) {
       const siblingIds = (nodes[parentId]?.nodes ?? []) as string[];
+
+      // Track best (closest) snap candidate per axis independently
+      let bestVDist = SNAP_THRESHOLD; // min distance found for X axis
+      let bestHDist = SNAP_THRESHOLD; // min distance found for Y axis
+
       for (const sibId of siblingIds) {
         if (sibId === nodeId) continue;
         const sibProps = nodes[sibId]?.props;
@@ -119,15 +124,51 @@ function computeSnapGuides(
         const sibHeight = sibRect.height / zoom;
         const sibX = (sibProps.x as number) ?? 0;
         const sibY = (sibProps.y as number) ?? 0;
+        const sibRight   = sibX + sibWidth;
         const sibCenterX = sibX + sibWidth  / 2;
+        const sibBottom  = sibY + sibHeight;
         const sibCenterY = sibY + sibHeight / 2;
-        if (vGuide === null && Math.abs(nodeCenterX - sibCenterX) < SNAP_THRESHOLD) {
-          snappedX = Math.round(sibCenterX - nodeWidth / 2);
-          vGuide = sibCenterX;
+
+        // X-axis: dragged left / centre / right vs sib left / centre / right
+        const nodeRight = newX + nodeWidth;
+        const xCandidates: Array<{ dist: number; snapped: number; guide: number }> = [
+          { dist: Math.abs(newX      - sibX),       snapped: sibX,                    guide: sibX       }, // left→left
+          { dist: Math.abs(newX      - sibCenterX),  snapped: sibCenterX,               guide: sibCenterX  }, // left→centre
+          { dist: Math.abs(newX      - sibRight),    snapped: sibRight,                 guide: sibRight    }, // left→right
+          { dist: Math.abs(nodeCenterX - sibX),      snapped: sibX - nodeWidth / 2,     guide: sibX       }, // centre→left
+          { dist: Math.abs(nodeCenterX - sibCenterX),snapped: sibCenterX - nodeWidth/2, guide: sibCenterX  }, // centre→centre
+          { dist: Math.abs(nodeCenterX - sibRight),  snapped: sibRight - nodeWidth / 2, guide: sibRight    }, // centre→right
+          { dist: Math.abs(nodeRight  - sibX),       snapped: sibX - nodeWidth,         guide: sibX       }, // right→left
+          { dist: Math.abs(nodeRight  - sibCenterX), snapped: sibCenterX - nodeWidth,   guide: sibCenterX  }, // right→centre
+          { dist: Math.abs(nodeRight  - sibRight),   snapped: sibRight - nodeWidth,     guide: sibRight    }, // right→right
+        ];
+        for (const c of xCandidates) {
+          if (c.dist < bestVDist) {
+            bestVDist = c.dist;
+            snappedX = Math.round(c.snapped);
+            vGuide   = c.guide;
+          }
         }
-        if (hGuide === null && Math.abs(nodeCenterY - sibCenterY) < SNAP_THRESHOLD) {
-          snappedY = Math.round(sibCenterY - nodeHeight / 2);
-          hGuide = sibCenterY;
+
+        // Y-axis: dragged top / middle / bottom vs sib top / middle / bottom
+        const nodeBottom = newY + nodeHeight;
+        const yCandidates: Array<{ dist: number; snapped: number; guide: number }> = [
+          { dist: Math.abs(newY        - sibY),       snapped: sibY,                     guide: sibY       }, // top→top
+          { dist: Math.abs(newY        - sibCenterY), snapped: sibCenterY,                guide: sibCenterY  }, // top→middle
+          { dist: Math.abs(newY        - sibBottom),  snapped: sibBottom,                 guide: sibBottom   }, // top→bottom
+          { dist: Math.abs(nodeCenterY - sibY),       snapped: sibY - nodeHeight / 2,    guide: sibY       }, // middle→top
+          { dist: Math.abs(nodeCenterY - sibCenterY), snapped: sibCenterY - nodeHeight/2, guide: sibCenterY  }, // middle→middle
+          { dist: Math.abs(nodeCenterY - sibBottom),  snapped: sibBottom - nodeHeight/2,  guide: sibBottom   }, // middle→bottom
+          { dist: Math.abs(nodeBottom  - sibY),       snapped: sibY - nodeHeight,        guide: sibY       }, // bottom→top
+          { dist: Math.abs(nodeBottom  - sibCenterY), snapped: sibCenterY - nodeHeight,   guide: sibCenterY  }, // bottom→middle
+          { dist: Math.abs(nodeBottom  - sibBottom),  snapped: sibBottom - nodeHeight,    guide: sibBottom   }, // bottom→bottom
+        ];
+        for (const c of yCandidates) {
+          if (c.dist < bestHDist) {
+            bestHDist = c.dist;
+            snappedY = Math.round(c.snapped);
+            hGuide   = c.guide;
+          }
         }
       }
     }
