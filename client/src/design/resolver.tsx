@@ -285,14 +285,17 @@ function useLeafNode() {
     return () => el.removeEventListener("mousedown", handle);
   }, []); // register once on mount
 
+  const resolvedRadius = nodeRadius !== undefined ? (RADIUS_TOKEN[nodeRadius] ?? 8) : undefined;
   const extraStyle: CSSProperties = {
     ...absPositionStyle(nodePosition, nodeX, nodeY),
     ...(selected ? SELECTION_RING : {}),
     ...(isAbsolute ? { cursor: "grab" } : {}),
     ...(nodeBg     ? { backgroundColor: nodeBg } : {}),
     ...(nodeColor  ? { color: nodeColor } : {}),
-    ...(nodeRadius !== undefined ? { borderRadius: RADIUS_TOKEN[nodeRadius] ?? 8 } : {}),
-    ...(nodeWidth  !== undefined && nodeWidth  !== "auto" ? { width:  nodeWidth  } : {}),
+    // borderRadius applied to the wrapper so the selection ring matches the shape,
+    // and overflow:hidden clips the inner component to the same corners.
+    ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius, overflow: "hidden" } : {}),
+    ...(nodeWidth  !== undefined && nodeWidth  !== "auto" ? { width: nodeWidth } : { width: "fit-content" }),
     ...(nodeHeight !== undefined && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
   };
 
@@ -391,14 +394,14 @@ function useContainerNode(position: string, x: number, y: number) {
     }
   };
 
-  // Light grey fill — clearly visible without being visually heavy.
+  // Very subtle fill — only visible enough to convey layout structure.
   // Selected: blue tint + solid blue border.
-  // Drag-over: brighter blue dashed border to signal "drop here".
+  // Drag-over: blue dashed border to signal "drop here".
   const containerVisual: CSSProperties = selected
-    ? { background: "rgba(59,130,246,0.06)", border: "1.5px solid #3b82f6", borderRadius: 4 }
+    ? { background: "rgba(59,130,246,0.05)", border: "1.5px solid #3b82f6", borderRadius: 4 }
     : isDragOver
-    ? { background: "rgba(59,130,246,0.07)", border: "1.5px dashed #3b82f6", borderRadius: 4 }
-    : { background: "#f4f4f5", border: "1px dashed rgba(100,100,100,0.25)", borderRadius: 4 };
+    ? { background: "rgba(59,130,246,0.05)", border: "1.5px dashed #3b82f6", borderRadius: 4 }
+    : { background: "rgba(0,0,0,0.025)", borderRadius: 4 };
 
   return { connectRef, id, isEmpty, selected, isDragOver, isAbsolute, containerVisual, onMouseDown };
 }
