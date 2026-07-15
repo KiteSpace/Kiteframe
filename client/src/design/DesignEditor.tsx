@@ -39,6 +39,7 @@ import {
   sanitizeCraftState,
   validateCraftState,
   CanvasZoomContext,
+  SnapGuideContext,
 } from "./resolver";
 import {
   AstryxButton as AstryxButtonBase,
@@ -110,17 +111,42 @@ function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
   const { query, store } = useEditor(() => ({}));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedOnce = useRef(false);
+  const pendingSave = useRef<string | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
 
   useEffect(() => {
     const unsub = (store as unknown as { subscribe: (cb: () => void) => () => void }).subscribe(() => {
       if (!savedOnce.current) { savedOnce.current = true; return; }
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        try { onSave(query.serialize()); } catch { /* ignore hydration edge cases */ }
-      }, 800);
+      let serialized: string | null = null;
+      try { serialized = query.serialize(); } catch { /* ignore */ }
+      pendingSave.current = serialized;
+      if (serialized) {
+        timerRef.current = setTimeout(() => {
+          if (pendingSave.current) {
+            try { onSaveRef.current(pendingSave.current); } catch { /* ignore */ }
+            pendingSave.current = null;
+          }
+        }, 800);
+      }
     });
-    return () => { unsub(); if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [query, store, onSave]);
+
+    const flushSave = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (pendingSave.current) {
+        try { onSaveRef.current(pendingSave.current); } catch { /* ignore */ }
+        pendingSave.current = null;
+      }
+    };
+
+    window.addEventListener("beforeunload", flushSave);
+    return () => {
+      flushSave();
+      unsub();
+      window.removeEventListener("beforeunload", flushSave);
+    };
+  }, [query, store]);
 
   return null;
 }
@@ -1427,7 +1453,10 @@ function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
 
 function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onFitView: () => void }) {
-  const { actions, query } = useEditor(() => ({}));
+  const { actions, query, canUndo, canRedo } = useEditor((state, q) => ({
+    canUndo: (q as any).history?.canUndo?.() ?? false,
+    canRedo: (q as any).history?.canRedo?.() ?? false,
+  }));
   const { mode, setMode } = useContext(LeftRailModeContext);
   const { notesOpen, setNotesOpen } = useContext(NotesContext);
 
@@ -1478,6 +1507,24 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
         Notes
       </button>
       <div className="flex-1" />
+      <div className="flex items-center gap-0.5 mr-1.5">
+        <button
+          onClick={() => (actions as any).history?.undo?.()}
+          disabled={!canUndo}
+          className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Undo (Ctrl+Z)"
+        >
+          ↩
+        </button>
+        <button
+          onClick={() => (actions as any).history?.redo?.()}
+          disabled={!canRedo}
+          className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          ↪
+        </button>
+      </div>
       <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
         <button
           onClick={onZoomOut}
@@ -1501,7 +1548,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
 
 // ─── Delete key handler ───────────────────────────────────────────────────────
 
-function DeleteKeyHandler() {
+function KeyboardHandler() {
   const { actions, selectedId } = useEditor((state) => {
     const sel = state.events.selected;
     const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
@@ -1510,14 +1557,28 @@ function DeleteKeyHandler() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
       const el = document.activeElement as HTMLElement | null;
-      if (!el) return;
-      const tag = el.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable) return;
-      if (!selectedId || selectedId === "ROOT") return;
-      e.preventDefault();
-      actions.delete(selectedId);
+      const inInput = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || !!el?.isContentEditable;
+
+      if ((e.key === "Delete" || e.key === "Backspace") && !inInput) {
+        if (!selectedId || selectedId === "ROOT") return;
+        e.preventDefault();
+        actions.delete(selectedId);
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && !inInput) {
+        if (e.key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          (actions as any).history?.undo?.();
+          return;
+        }
+        if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+          e.preventDefault();
+          (actions as any).history?.redo?.();
+          return;
+        }
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -1551,6 +1612,65 @@ function CanvasHints() {
         <span>👆</span> Click any element on the canvas to inspect it
       </div>
     </div>
+  );
+}
+
+// ─── Snap guide overlay ───────────────────────────────────────────────────────
+// Rendered inside the canvas transformed div (canvas coordinate space).
+// Updated imperatively via a module-level ref to avoid re-rendering the canvas.
+
+const _snapGuideCallback = { current: null as ((h: number | null, v: number | null) => void) | null };
+const _setSnapGuides = (h: number | null, v: number | null) => _snapGuideCallback.current?.(h, v);
+
+function SnapGuideOverlay() {
+  const hRef = useRef<HTMLDivElement>(null);
+  const vRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    _snapGuideCallback.current = (h, v) => {
+      if (hRef.current) {
+        hRef.current.style.display = h !== null ? "block" : "none";
+        if (h !== null) hRef.current.style.top = `${h}px`;
+      }
+      if (vRef.current) {
+        vRef.current.style.display = v !== null ? "block" : "none";
+        if (v !== null) vRef.current.style.left = `${v}px`;
+      }
+    };
+    return () => { _snapGuideCallback.current = null; };
+  }, []);
+
+  return (
+    <>
+      <div
+        ref={hRef}
+        style={{
+          display: "none",
+          position: "absolute",
+          top: 0,
+          left: -9999,
+          right: -9999,
+          height: 1,
+          background: "#3b82f6",
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        ref={vRef}
+        style={{
+          display: "none",
+          position: "absolute",
+          left: 0,
+          top: -9999,
+          bottom: -9999,
+          width: 1,
+          background: "#3b82f6",
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}
+      />
+    </>
   );
 }
 
@@ -1643,6 +1763,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
       >
         <CanvasZoomContext.Provider value={zoom}>
           {children}
+          <SnapGuideOverlay />
         </CanvasZoomContext.Provider>
       </div>
 
@@ -1999,6 +2120,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
     <NotesContext.Provider value={{ notesOpen, setNotesOpen }}>
       <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
         <Editor resolver={resolver} enabled={editable}>
+          <SnapGuideContext.Provider value={_setSnapGuides}>
           <div className="flex h-full w-full" style={{ overflow: "clip" }}>
             {editable && <LeftRail />}
             <div className="flex flex-col flex-1 min-w-0">
@@ -2017,7 +2139,8 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
             {editable && <AIDrawer />}
           </div>
           {editable && onSave && <SaveWatcher onSave={stableSave} />}
-          {editable && <DeleteKeyHandler />}
+          {editable && <KeyboardHandler />}
+          </SnapGuideContext.Provider>
         </Editor>
       </LeftRailModeContext.Provider>
     </NotesContext.Provider>

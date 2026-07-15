@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 type AstryxProps = Record<string, any>;
 
 function pick<T>(map: Record<string, T>, key: any, fallback: T): T {
@@ -204,13 +206,16 @@ export function AstryxTable({ rows = 3, columns = 3 }: AstryxProps) {
 
 export function AstryxTabs({ tabs = "Tab 1,Tab 2,Tab 3", active = "Tab 1" }: AstryxProps) {
   const tabList = String(tabs).split(",").map((t) => t.trim()).filter(Boolean);
+  const [activeTab, setActiveTab] = useState<string>(active);
+  useEffect(() => { setActiveTab(active); }, [active]);
   return (
     <div className="w-full">
       <div className="inline-flex h-9 items-center rounded-lg bg-gray-100 p-1 gap-0.5">
         {tabList.map((tab) => (
           <div
             key={tab}
-            className={`px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-colors ${tab === active ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-colors ${tab === activeTab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
           >
             {tab}
           </div>
@@ -222,15 +227,20 @@ export function AstryxTabs({ tabs = "Tab 1,Tab 2,Tab 3", active = "Tab 1" }: Ast
 
 export function AstryxAccordion({ items = "Section 1,Section 2,Section 3", open = "Section 1" }: AstryxProps) {
   const itemList = String(items).split(",").map((t) => t.trim()).filter(Boolean);
+  const [openItem, setOpenItem] = useState<string>(open);
+  useEffect(() => { setOpenItem(open); }, [open]);
   return (
     <div className="w-full divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
       {itemList.map((item) => (
         <div key={item}>
-          <div className="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-800 bg-white cursor-pointer hover:bg-gray-50">
+          <div
+            onClick={() => setOpenItem(item === openItem ? "" : item)}
+            className="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-800 bg-white cursor-pointer hover:bg-gray-50"
+          >
             {item}
-            <span className="text-gray-400 text-xs">{item === open ? "▲" : "▼"}</span>
+            <span className="text-gray-400 text-xs">{item === openItem ? "▲" : "▼"}</span>
           </div>
-          {item === open && (
+          {item === openItem && (
             <div className="px-4 py-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-100">
               Content for {item}
             </div>
@@ -356,20 +366,31 @@ export function AstryxCommand({ placeholder = "Search commands…" }: AstryxProp
 
 export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxProps) {
   const slideList = String(slides).split(",").map((s) => s.trim()).filter(Boolean);
+  const [activeSlide, setActiveSlide] = useState(0);
   return (
     <div className="relative w-56 overflow-hidden rounded-lg border border-gray-200">
       <div className="flex items-center justify-center h-24 bg-gradient-to-br from-blue-50 to-blue-100">
-        <span className="text-sm text-blue-600 font-medium">{slideList[0]}</span>
+        <span className="text-sm text-blue-600 font-medium">{slideList[activeSlide] ?? slideList[0]}</span>
       </div>
       <div className="absolute inset-y-0 left-1 flex items-center">
-        <button className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center">◀</button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i - 1 + slideList.length) % slideList.length); }}
+          className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
+        >◀</button>
       </div>
       <div className="absolute inset-y-0 right-1 flex items-center">
-        <button className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center">▶</button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i + 1) % slideList.length); }}
+          className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
+        >▶</button>
       </div>
       <div className="flex justify-center gap-1 py-1.5 bg-white border-t border-gray-100">
         {slideList.map((_, i) => (
-          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-blue-600" : "bg-gray-300"}`} />
+          <div
+            key={i}
+            onClick={() => setActiveSlide(i)}
+            className={`w-1.5 h-1.5 rounded-full cursor-pointer ${i === activeSlide ? "bg-blue-600" : "bg-gray-300"}`}
+          />
         ))}
       </div>
     </div>

@@ -46,6 +46,12 @@ import {
 // absolutely-positioned nodes can convert raw mouse-delta pixels to canvas units.
 export const CanvasZoomContext = createContext(1);
 
+// Snap guide context — SnapGuideOverlay inside InfiniteCanvas subscribes; leaf
+// nodes call this during absolute-position drag to show alignment guide lines.
+// Value is a stable setter so it never triggers canvas-wide re-renders.
+export type SnapGuideSetter = (h: number | null, v: number | null) => void;
+export const SnapGuideContext = createContext<SnapGuideSetter>(() => {});
+
 type AstryxProps = Record<string, any>;
 
 // ─── Shared visual constants ──────────────────────────────────────────────────
@@ -82,18 +88,25 @@ function absPositionStyle(position: string, x: number, y: number): CSSProperties
 
 function useLeafNode() {
   const zoom = useContext(CanvasZoomContext);
-  const { connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
+  const setGuides = useContext(SnapGuideContext);
+  const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
     nodeY: (node.data.props?.y as number) ?? 0,
   }));
+  const { query } = useEditor(() => ({}));
 
   const isAbsolute = nodePosition === "absolute";
   const elementRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
   const stateRef = useRef({ x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp });
   stateRef.current = { x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp };
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const setGuidesRef = useRef(setGuides);
+  setGuidesRef.current = setGuides;
+  const nodeIdRef = useRef(id); // id is stable for a mounted node
 
   // Attach a single native mousedown listener on mount so we don't need to
   // touch every individual leaf component's JSX.
@@ -112,13 +125,35 @@ function useLeafNode() {
         if (Math.hypot(rawDx, rawDy) < 3) return;
         const dx = rawDx / z;
         const dy = rawDy / z;
+
+        let newX = Math.round(dragStartRef.current.sx + dx);
+        const newY = Math.round(dragStartRef.current.sy + dy);
+
+        // Snap guide: align to artboard vertical centre
+        let vGuide: number | null = null;
+        try {
+          const nodes = queryRef.current.getSerializedNodes();
+          const parentId = nodes[nodeIdRef.current]?.parent;
+          const artboardWidth = (parentId ? (nodes[parentId]?.props?.width as number) : undefined) ?? 390;
+          const elRect = elementRef.current?.getBoundingClientRect();
+          const nodeWidth = elRect ? elRect.width / stateRef.current.zoom : 0;
+          const nodeCenterX = newX + nodeWidth / 2;
+          const artboardCenterX = artboardWidth / 2;
+          if (Math.abs(nodeCenterX - artboardCenterX) < 4) {
+            newX = Math.round(artboardCenterX - nodeWidth / 2);
+            vGuide = artboardCenterX;
+          }
+        } catch { /* ignore */ }
+
+        setGuidesRef.current(null, vGuide);
         setProp((p: any) => {
-          p.x = Math.round(dragStartRef.current!.sx + dx);
-          p.y = Math.round(dragStartRef.current!.sy + dy);
+          p.x = newX;
+          p.y = newY;
         });
       };
       const onUp = () => {
         dragStartRef.current = null;
+        setGuidesRef.current(null, null);
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
