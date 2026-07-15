@@ -58,6 +58,12 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
   const isUnclaimed = !design.claimedByUserId;
   const canEdit = isOwner;
 
+  // Keep a stable ref to the design id so the keepalive callback never needs
+  // to re-close over a changing prop and is safe to call from beforeunload.
+  const designIdRef = useRef(design.id);
+  designIdRef.current = design.id;
+
+  // Regular debounced save — normal in-session transport via useMutation.
   const patchMutation = useMutation({
     mutationFn: async (craftState: string) => {
       await apiRequest("PATCH", `/api/designs/${design.id}`, { craftState });
@@ -87,10 +93,28 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
     },
   });
 
+  // Called by the 800 ms debounce path — uses patchMutation (normal fetch).
   const handleSave = useCallback((state: string) => {
     saveStatusRef.current = "saving";
     patchMutation.mutate(state);
   }, [patchMutation]);
+
+  // Called only from the beforeunload flush in SaveWatcher.
+  // Uses fetch({ keepalive: true }) so the browser does NOT cancel the request
+  // when the user navigates away (Cmd+R / link click) before it completes.
+  // This is the targeted fix for the race condition where reloading within the
+  // 800 ms debounce window silently dropped the pending craft-state save.
+  // Note: keepalive requests have a ~64 KB body cap; suitable for typical
+  // designs but very large ones should warn the user before closing the tab.
+  const handleBeforeUnloadSave = useCallback((state: string) => {
+    fetch(`/api/designs/${designIdRef.current}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ craftState: state }),
+      keepalive: true,
+      credentials: "include",
+    }).catch(() => { /* fire-and-forget; best-effort on unload */ });
+  }, []); // stable — reads design id from ref
 
   const handleNotesChange = useCallback((notes: string) => {
     notesMutation.mutate(notes);
@@ -205,6 +229,7 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
           notesOpen={notesOpen}
           onSetNotesOpen={setNotesOpen}
           onSave={canEdit ? handleSave : undefined}
+          onBeforeUnloadSave={canEdit ? handleBeforeUnloadSave : undefined}
           onNotesChange={canEdit ? handleNotesChange : undefined}
         />
       </div>

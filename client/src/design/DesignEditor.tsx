@@ -107,13 +107,26 @@ function PreviewThumbnail({ name, children }: { name: string; children: ReactNod
 
 // ─── SaveWatcher ──────────────────────────────────────────────────────────────
 
-function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
+interface SaveWatcherProps {
+  /** Called by the 800 ms debounce — normal in-session save. */
+  onSave: (state: string) => void;
+  /**
+   * Called only from the `beforeunload` flush.  Use a keepalive/sendBeacon
+   * transport here so the request is not cancelled when the page navigates.
+   * Falls back to `onSave` when not provided.
+   */
+  onBeforeUnloadSave?: (state: string) => void;
+}
+
+function SaveWatcher({ onSave, onBeforeUnloadSave }: SaveWatcherProps) {
   const { query, store } = useEditor(() => ({}));
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedOnce = useRef(false);
   const pendingSave = useRef<string | null>(null);
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const onBeforeUnloadSaveRef = useRef(onBeforeUnloadSave);
+  onBeforeUnloadSaveRef.current = onBeforeUnloadSave;
 
   useEffect(() => {
     const unsub = (store as unknown as { subscribe: (cb: () => void) => () => void }).subscribe(() => {
@@ -132,7 +145,23 @@ function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
       }
     });
 
-    const flushSave = () => {
+    // Called when the page is about to unload.  Uses the keepalive transport
+    // so the request completes even after the browser navigates away.
+    const handleBeforeUnload = () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (pendingSave.current) {
+        const state = pendingSave.current;
+        pendingSave.current = null;
+        try {
+          const flushFn = onBeforeUnloadSaveRef.current ?? onSaveRef.current;
+          flushFn(state);
+        } catch { /* ignore */ }
+      }
+    };
+
+    // Called when the component unmounts (tab hidden, editor closed).
+    // The page isn't navigating away, so a regular fetch is fine.
+    const flushOnUnmount = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (pendingSave.current) {
         try { onSaveRef.current(pendingSave.current); } catch { /* ignore */ }
@@ -140,11 +169,11 @@ function SaveWatcher({ onSave }: { onSave: (state: string) => void }) {
       }
     };
 
-    window.addEventListener("beforeunload", flushSave);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      flushSave();
+      flushOnUnmount();
       unsub();
-      window.removeEventListener("beforeunload", flushSave);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [query, store]);
 
@@ -2188,10 +2217,12 @@ export interface DesignEditorProps {
   notesOpen?: boolean;
   onSetNotesOpen?: (open: boolean) => void;
   onSave?: (state: string) => void;
+  /** Keepalive transport for the beforeunload flush — see SaveWatcher. */
+  onBeforeUnloadSave?: (state: string) => void;
   onNotesChange?: (notes: string) => void;
 }
 
-export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onNotesChange }: DesignEditorProps) {
+export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onBeforeUnloadSave, onNotesChange }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [leftRailMode, setLeftRailMode] = useState<LeftRailMode>("components");
@@ -2207,6 +2238,10 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   const stableSave = useCallback(
     (state: string) => { onSave?.(state); },
     [onSave],
+  );
+  const stableBeforeUnloadSave = useCallback(
+    (state: string) => { onBeforeUnloadSave?.(state); },
+    [onBeforeUnloadSave],
   );
 
   return (
@@ -2232,7 +2267,12 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
             </div>
             {editable && <AIDrawer />}
           </div>
-          {editable && onSave && <SaveWatcher onSave={stableSave} />}
+          {editable && onSave && (
+            <SaveWatcher
+              onSave={stableSave}
+              onBeforeUnloadSave={onBeforeUnloadSave ? stableBeforeUnloadSave : undefined}
+            />
+          )}
           {editable && <KeyboardHandler />}
           </HistoryProvider>
           </SnapGuideContext.Provider>
