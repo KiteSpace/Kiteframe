@@ -42,6 +42,7 @@ import {
 import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState } from "./lib/designSchema";
 import { DESIGN_SYSTEM_PROMPT } from "./lib/designPrompt";
+import { mergeDesignPatch } from "./lib/designPatchMerge";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
@@ -2305,18 +2306,9 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         if (currentCraftState && currentCraftState.trim().length > 2) {
           try {
             const existingState: Record<string, unknown> = JSON.parse(currentCraftState);
-            const merged: Record<string, unknown> = { ...existingState, ...patchNodes };
-            // Remove orphan child references (mirrors mergeGraphAware on the client)
-            const nodeIds = new Set(Object.keys(merged));
-            for (const [nodeId, node] of Object.entries(merged)) {
-              if (!node || typeof node !== 'object') continue;
-              const n = node as Record<string, unknown>;
-              if (!Array.isArray(n.nodes)) continue;
-              const cleaned = (n.nodes as string[]).filter(id => nodeIds.has(id));
-              if (cleaned.length !== (n.nodes as string[]).length) {
-                console.warn(`[design/patch] Removed ${(n.nodes as string[]).length - cleaned.length} orphan ref(s) from "${nodeId}"`);
-                merged[nodeId] = { ...n, nodes: cleaned };
-              }
+            const { merged, orphansRemoved } = mergeDesignPatch(existingState, patchNodes as Record<string, unknown>);
+            if (orphansRemoved > 0) {
+              console.warn(`[design/patch] Removed ${orphansRemoved} orphan child ref(s) after merge`);
             }
             return res.json({ type: 'state', craftState: JSON.stringify(merged), message });
           } catch (mergeErr) {
