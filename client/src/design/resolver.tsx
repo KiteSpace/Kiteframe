@@ -1072,15 +1072,28 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Named canvas frame — the top-level screen container in the design editor.
 // Multiple artboards sit side-by-side inside the ROOT section.
 
-export function AstryxArtboard({ children, label = "Artboard", width = 390, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
-  const { connectors: { connect, drag }, id, isEmpty, selected } = useNode((node) => ({
+// Resize handle styles (reused across all three handles)
+const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
+
+export function AstryxArtboard({ children, label = "Artboard", width = 390, height, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
+  const zoom = useContext(CanvasZoomContext);
+  const { connectors: { connect, drag }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
   }));
-  // Register the artboard DOM element in the shared registry so computeSnapGuides
-  // can measure its height for artboard-centre-Y snap.
+
   const nodeIdRef = useRef(id);
-  const artboardConnectRef = useCallback((r: HTMLElement | null) => {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+  // Keep a live snapshot of current dimensions so resize handlers don't close over stale props
+  const sizeRef = useRef({ w: Number(width) || 390, h: height != null ? Number(height) : undefined });
+  sizeRef.current = { w: Number(width) || 390, h: height != null ? Number(height) : undefined };
+
+  const artboardConnectRef = useCallback((r: HTMLDivElement | null) => {
+    frameRef.current = r;
     if (r) {
       nodeElementRegistry.set(nodeIdRef.current, r);
       connect(drag(r));
@@ -1088,6 +1101,38 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
       nodeElementRegistry.delete(nodeIdRef.current);
     }
   }, [connect, drag]);
+
+  // Returns a mousedown handler for resize directions.
+  // dir: "e" = right edge (width), "s" = bottom edge (height), "se" = corner (both)
+  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = sizeRef.current.w;
+    // Resolve starting height from the stored prop or the live DOM measurement
+    const startH = sizeRef.current.h ?? Math.round((frameRef.current?.getBoundingClientRect().height ?? 480) / zoomRef.current);
+
+    const onMove = (ev: MouseEvent) => {
+      const z = zoomRef.current;
+      const dw = (ev.clientX - startX) / z;
+      const dh = (ev.clientY - startY) / z;
+      actionsRef.current.setProp(nodeIdRef.current, (p: any) => {
+        if (dir === "e" || dir === "se") p.width  = Math.max(100, Math.round(startW + dw));
+        if (dir === "s" || dir === "se") p.height = Math.max(100, Math.round(startH + dh));
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
+  const resolvedHeight = height != null ? Number(height) : undefined;
+  const handleColor = selected ? "#3b82f6" : undefined;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
       <div style={{
@@ -1112,7 +1157,8 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
           gap,
           padding,
           width,
-          minHeight: 480,
+          height: resolvedHeight,
+          minHeight: resolvedHeight != null ? resolvedHeight : 480,
           background: (backgroundColor as string) || "var(--card)",
           color: (textColor as string) || undefined,
           borderRadius: 12,
@@ -1122,9 +1168,39 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, dire
           position: "relative",
           boxSizing: "border-box",
           transition: "box-shadow 0.15s",
+          overflow: "visible",
         }}
       >
         {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, margin: 8 }}>drop here</div> : children}
+
+        {/* Right-edge resize handle */}
+        <div
+          onMouseDown={makeResizeHandler("e")}
+          style={{ position: "absolute", top: 0, right: -5, width: 10, bottom: 0, cursor: "ew-resize", zIndex: 20,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div style={{ ...HANDLE_DOT, width: 4, height: 28, ...(handleColor ? { background: handleColor } : {}) }} />
+        </div>
+
+        {/* Bottom-edge resize handle */}
+        <div
+          onMouseDown={makeResizeHandler("s")}
+          style={{ position: "absolute", left: 0, right: 0, bottom: -5, height: 10, cursor: "ns-resize", zIndex: 20,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div style={{ ...HANDLE_DOT, height: 4, width: 28, ...(handleColor ? { background: handleColor } : {}) }} />
+        </div>
+
+        {/* Corner resize handle */}
+        <div
+          onMouseDown={makeResizeHandler("se")}
+          style={{ position: "absolute", right: -6, bottom: -6, width: 14, height: 14, cursor: "nwse-resize", zIndex: 21,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div style={{ width: 8, height: 8, borderRadius: "50%",
+                        background: handleColor ?? "rgba(0,0,0,0.22)",
+                        transition: "background 0.12s" }} />
+        </div>
       </div>
     </div>
   );
