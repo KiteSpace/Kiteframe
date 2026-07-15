@@ -2294,13 +2294,38 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       }
 
       if (responseType === 'patch') {
-        // Additive patch — return only the changed/new nodes
-        const nodes = parsedResponse.nodes;
-        if (!nodes || typeof nodes !== 'object') {
+        // Additive patch — merge into existing canvas state server-side so the
+        // client receives a complete, ready-to-apply craft state (type: 'state').
+        const patchNodes = parsedResponse.nodes;
+        if (!patchNodes || typeof patchNodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
         const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-        return res.json({ type: 'patch', nodes: JSON.stringify(nodes), message });
+
+        if (currentCraftState && currentCraftState.trim().length > 2) {
+          try {
+            const existingState: Record<string, unknown> = JSON.parse(currentCraftState);
+            const merged: Record<string, unknown> = { ...existingState, ...patchNodes };
+            // Remove orphan child references (mirrors mergeGraphAware on the client)
+            const nodeIds = new Set(Object.keys(merged));
+            for (const [nodeId, node] of Object.entries(merged)) {
+              if (!node || typeof node !== 'object') continue;
+              const n = node as Record<string, unknown>;
+              if (!Array.isArray(n.nodes)) continue;
+              const cleaned = (n.nodes as string[]).filter(id => nodeIds.has(id));
+              if (cleaned.length !== (n.nodes as string[]).length) {
+                console.warn(`[design/patch] Removed ${(n.nodes as string[]).length - cleaned.length} orphan ref(s) from "${nodeId}"`);
+                merged[nodeId] = { ...n, nodes: cleaned };
+              }
+            }
+            return res.json({ type: 'state', craftState: JSON.stringify(merged), message });
+          } catch (mergeErr) {
+            console.warn('[design/patch] Server-side merge failed, falling back to raw patch:', mergeErr);
+          }
+        }
+
+        // Fallback: no existing state available — return raw patch for client-side merge
+        return res.json({ type: 'patch', nodes: JSON.stringify(patchNodes), message });
       }
 
       // Default: full state replacement (type === 'state' or legacy format without type)

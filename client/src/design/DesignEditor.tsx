@@ -2007,14 +2007,33 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     setAiStatus("loading");
     try {
       let currentCraftState: string | undefined;
+      let targetArtboardLabel: string | undefined;
       try {
         const serialized = query.serialize();
-        if (serialized && serialized.length > 10) currentCraftState = serialized;
+        if (serialized && serialized.length > 10) {
+          currentCraftState = serialized;
+          // Find artboard labels in the canvas and match them against the prompt
+          // so the AI knows which screen to patch (e.g. "add a table to Screen 1")
+          const state = JSON.parse(serialized) as Record<string, unknown>;
+          const artboardLabels = Object.values(state)
+            .filter((n): n is Record<string, unknown> => !!n && typeof n === "object")
+            .filter((n) => (n.type as any)?.resolvedName === "AstryxArtboard")
+            .map((n) => (n.props as any)?.label as string | undefined)
+            .filter((l): l is string => typeof l === "string" && l.length > 0);
+          const lowerPrompt = trimmed.toLowerCase();
+          const matched = artboardLabels.find((label) => lowerPrompt.includes(label.toLowerCase()));
+          if (matched) {
+            targetArtboardLabel = matched;
+          } else if (artboardLabels.length === 1) {
+            // Only one artboard on the canvas — it must be the target
+            targetArtboardLabel = artboardLabels[0];
+          }
+        }
       } catch { /* ignore */ }
       const res = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: trimmed, currentCraftState }),
+        body: JSON.stringify({ prompt: trimmed, currentCraftState, targetArtboardLabel }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
