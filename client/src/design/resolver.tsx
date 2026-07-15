@@ -702,6 +702,10 @@ export function AstryxTable(props: AstryxProps) {
     )
   );
 
+  const colWidths: (string | undefined)[] = Array.from({ length: numCols }, (_, i) =>
+    (props.colWidths as string[] | undefined)?.[i]
+  );
+
   useEffect(() => {
     if (editingCell) {
       cellInputRef.current?.focus();
@@ -766,7 +770,14 @@ export function AstryxTable(props: AstryxProps) {
   return (
     <div ref={connectRef} style={extraStyle}>
       <div className="rounded-md border border-gray-200 overflow-hidden w-full">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ tableLayout: colWidths.some(Boolean) ? "fixed" : "auto" }}>
+          {colWidths.some(Boolean) && (
+            <colgroup>
+              {colWidths.map((w, i) => (
+                <col key={i} style={w ? { width: w } : undefined} />
+              ))}
+            </colgroup>
+          )}
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
               {headers.map((h, i) => {

@@ -454,11 +454,12 @@ function PropRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function TextProp({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TextProp({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
       className="w-full rounded border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
       value={value ?? ""}
+      placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
     />
   );
@@ -710,15 +711,20 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
       const nC = Math.min(Math.max(1, v), 6);
       const existingCells = (props.cellData as string[][] | undefined) ?? [];
       const existingHeaders = (props.headers as string[] | undefined) ?? [];
+      const existingColWidths = (props.colWidths as string[] | undefined) ?? [];
       const newCellData: string[][] = Array.from({ length: nR }, (_, r) =>
         Array.from({ length: nC }, (_, c) => existingCells[r]?.[c] ?? "—")
       );
       const newHeaders: string[] = Array.from({ length: nC }, (_, i) =>
         existingHeaders[i] ?? `Col ${i + 1}`
       );
+      const newColWidths: string[] = Array.from({ length: nC }, (_, i) =>
+        existingColWidths[i] ?? ""
+      );
       setProp("columns", nC);
       setProp("cellData", newCellData);
       setProp("headers", newHeaders);
+      setProp("colWidths", newColWidths);
     };
     const handleReset = () => {
       const nR = Math.min(Math.max(1, Number(props.rows ?? 3)), 10);
@@ -726,10 +732,24 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
       setProp("cellData", Array.from({ length: nR }, () => Array.from({ length: nC }, () => "—")));
       setProp("headers", Array.from({ length: nC }, (_, i) => `Col ${i + 1}`));
     };
+    const handleColWidthsChange = (raw: string) => {
+      const nC = Math.min(Math.max(1, Number(props.columns ?? 3)), 6);
+      const parts = raw.split(",").map((s) => s.trim());
+      const widths: string[] = Array.from({ length: nC }, (_, i) => parts[i] ?? "");
+      setProp("colWidths", widths);
+    };
+    const colWidthsValue = ((props.colWidths as string[] | undefined) ?? []).join(", ");
     return (
       <>
         <PropRow label="Rows"><NumberProp value={props.rows ?? 3} onChange={handleRowsChange} min={1} max={10} /></PropRow>
         <PropRow label="Columns"><NumberProp value={props.columns ?? 3} onChange={handleColsChange} min={1} max={6} /></PropRow>
+        <PropRow label="Col widths">
+          <TextProp
+            value={colWidthsValue}
+            onChange={handleColWidthsChange}
+            placeholder="e.g. 80px, 200px, 120px"
+          />
+        </PropRow>
         <PropRow label="Cells">
           <button
             onClick={handleReset}
