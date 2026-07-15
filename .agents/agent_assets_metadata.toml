@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "_pbvRlXj1TyqRnDmYx_9k"
+uri = "file://astryx-schema-reference.md"
+type = "text"
+title = "Astryx Schema Reference"
