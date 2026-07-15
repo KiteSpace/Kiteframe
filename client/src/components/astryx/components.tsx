@@ -366,6 +366,7 @@ export function AstryxCommand({ placeholder = "Search commands…" }: AstryxProp
 
 export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxProps) {
   const slideList = String(slides).split(",").map((s) => s.trim()).filter(Boolean);
+  const safeLen = slideList.length || 1;
   const [activeSlide, setActiveSlide] = useState(0);
   return (
     <div className="relative w-56 overflow-hidden rounded-lg border border-gray-200">
@@ -374,13 +375,13 @@ export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxPro
       </div>
       <div className="absolute inset-y-0 left-1 flex items-center">
         <button
-          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i - 1 + slideList.length) % slideList.length); }}
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i - 1 + safeLen) % safeLen); }}
           className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
         >◀</button>
       </div>
       <div className="absolute inset-y-0 right-1 flex items-center">
         <button
-          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i + 1) % slideList.length); }}
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i + 1) % safeLen); }}
           className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
         >▶</button>
       </div>

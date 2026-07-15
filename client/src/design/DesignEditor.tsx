@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
 import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote } from "lucide-react";
 import {
@@ -1380,6 +1380,79 @@ interface NotesContextValue {
 }
 const NotesContext = createContext<NotesContextValue>({ notesOpen: false, setNotesOpen: () => {} });
 
+// ─── History context ───────────────────────────────────────────────────────────
+// Craft.js 0.2.x does not expose canUndo/canRedo on query or actions.
+// We track history availability ourselves by watching for changes in the
+// serialised node tree and gating undo/redo operations through shared handlers.
+interface HistoryCtxValue {
+  canUndo: boolean;
+  canRedo: boolean;
+  doUndo: () => void;
+  doRedo: () => void;
+}
+const HistoryCtx = createContext<HistoryCtxValue>({
+  canUndo: false, canRedo: false, doUndo: () => {}, doRedo: () => {},
+});
+
+// Must be rendered inside <Editor> so it can call useEditor.
+function HistoryProvider({ children }: { children: ReactNode }) {
+  const { actions } = useEditor(() => ({}));
+
+  // Lightweight fingerprint of the node tree: detects any prop/structure change.
+  const { fingerprint } = useEditor((state) => ({
+    fingerprint: Object.entries(state.nodes)
+      .map(([id, n]) => `${id}:${JSON.stringify(n.data.props)}`)
+      .sort()
+      .join("|"),
+  }));
+
+  const [undoDepth, setUndoDepth] = useState(0);
+  const [redoDepth, setRedoDepth] = useState(0);
+  // Flag set synchronously before calling undo/redo so the resulting snapshot
+  // change is not counted as a new "real" edit.
+  const isUndoRedoRef = useRef(false);
+  const prevFpRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (prevFpRef.current === null) {
+      prevFpRef.current = fingerprint;
+      return;
+    }
+    if (fingerprint !== prevFpRef.current) {
+      prevFpRef.current = fingerprint;
+      if (!isUndoRedoRef.current) {
+        // A real user edit — push onto history, clear redo stack.
+        setUndoDepth(d => d + 1);
+        setRedoDepth(0);
+      }
+      isUndoRedoRef.current = false;
+    }
+  }, [fingerprint]);
+
+  const doUndo = useCallback(() => {
+    isUndoRedoRef.current = true;
+    (actions as any).history?.undo?.();
+    setUndoDepth(d => Math.max(0, d - 1));
+    setRedoDepth(d => d + 1);
+  }, [actions]);
+
+  const doRedo = useCallback(() => {
+    isUndoRedoRef.current = true;
+    (actions as any).history?.redo?.();
+    setUndoDepth(d => d + 1);
+    setRedoDepth(d => Math.max(0, d - 1));
+  }, [actions]);
+
+  const value = useMemo(() => ({
+    canUndo: undoDepth > 0,
+    canRedo: redoDepth > 0,
+    doUndo,
+    doRedo,
+  }), [undoDepth, redoDepth, doUndo, doRedo]);
+
+  return <HistoryCtx.Provider value={value}>{children}</HistoryCtx.Provider>;
+}
+
 // ─── Notes panel ─────────────────────────────────────────────────────────────
 
 interface NotesPanelProps {
@@ -1453,10 +1526,8 @@ function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
 
 function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onFitView: () => void }) {
-  const { actions, query, canUndo, canRedo } = useEditor((state, q) => ({
-    canUndo: (q as any).history?.canUndo?.() ?? false,
-    canRedo: (q as any).history?.canRedo?.() ?? false,
-  }));
+  const { actions, query } = useEditor(() => ({}));
+  const { canUndo, canRedo, doUndo, doRedo } = useContext(HistoryCtx);
   const { mode, setMode } = useContext(LeftRailModeContext);
   const { notesOpen, setNotesOpen } = useContext(NotesContext);
 
@@ -1509,7 +1580,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 mr-1.5">
         <button
-          onClick={() => (actions as any).history?.undo?.()}
+          onClick={doUndo}
           disabled={!canUndo}
           className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           title="Undo (Ctrl+Z)"
@@ -1517,7 +1588,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
           ↩
         </button>
         <button
-          onClick={() => (actions as any).history?.redo?.()}
+          onClick={doRedo}
           disabled={!canRedo}
           className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           title="Redo (Ctrl+Shift+Z)"
@@ -1554,6 +1625,11 @@ function KeyboardHandler() {
     const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
     return { selectedId: id };
   });
+  const { doUndo, doRedo } = useContext(HistoryCtx);
+  const doUndoRef = useRef(doUndo);
+  const doRedoRef = useRef(doRedo);
+  doUndoRef.current = doUndo;
+  doRedoRef.current = doRedo;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -1571,12 +1647,12 @@ function KeyboardHandler() {
         const k = e.key.toLowerCase();
         if (k === "z" && !e.shiftKey) {
           e.preventDefault();
-          (actions as any).history?.undo?.();
+          doUndoRef.current();
           return;
         }
         if ((k === "z" && e.shiftKey) || k === "y") {
           e.preventDefault();
-          (actions as any).history?.redo?.();
+          doRedoRef.current();
           return;
         }
       }
@@ -2122,6 +2198,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
       <LeftRailModeContext.Provider value={{ mode: leftRailMode, setMode: setLeftRailMode }}>
         <Editor resolver={resolver} enabled={editable}>
           <SnapGuideContext.Provider value={_setSnapGuides}>
+          <HistoryProvider>
           <div className="flex h-full w-full" style={{ overflow: "clip" }}>
             {editable && <LeftRail />}
             <div className="flex flex-col flex-1 min-w-0">
@@ -2141,6 +2218,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           </div>
           {editable && onSave && <SaveWatcher onSave={stableSave} />}
           {editable && <KeyboardHandler />}
+          </HistoryProvider>
           </SnapGuideContext.Provider>
         </Editor>
       </LeftRailModeContext.Provider>
