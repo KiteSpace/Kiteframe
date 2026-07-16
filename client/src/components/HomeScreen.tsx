@@ -44,6 +44,9 @@ import {
   ChevronUp,
   Link,
   Paintbrush,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -201,6 +204,8 @@ export function HomeScreen({
   const [, navigate] = useLocation();
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [copiedTooltip, setCopiedTooltip] = useState<{ projectId: string; x: number; y: number } | null>(null);
   const [generationMode, setGenerationMode] = useState<"workflow" | "design">("workflow");
   const [isDesignGenerating, setIsDesignGenerating] = useState(false);
@@ -353,7 +358,30 @@ export function HomeScreen({
     }
   }, [deleteProjectId, onDeleteProject]);
 
-  const renderProjectCard = (project: RecentProject, showMenu = true) => {
+  const toggleProjectSelection = useCallback((projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedProjectIds(prev => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedProjectIds(new Set()), []);
+
+  const selectAll = useCallback(() => {
+    setSelectedProjectIds(new Set(recentProjects.map(p => p.id)));
+  }, [recentProjects]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (!onDeleteProject) return;
+    Array.from(selectedProjectIds).forEach(id => onDeleteProject(id));
+    setSelectedProjectIds(new Set());
+    setShowBulkDeleteConfirm(false);
+  }, [selectedProjectIds, onDeleteProject]);
+
+  const renderProjectCard = (project: RecentProject, showMenu = true, isSelected = false, showCheckbox = false) => {
     const isDesign = project.fileType === "design";
     const handleOpen = () => {
       if (isDesign && project.designId && onOpenDesign) {
@@ -365,13 +393,26 @@ export function HomeScreen({
     return (
     <Card
       key={project.id}
-      className="cursor-pointer hover:border-primary/50 transition-colors group"
-      onClick={handleOpen}
+      className={`cursor-pointer transition-colors group ${
+        isSelected
+          ? "border-primary ring-2 ring-primary/20"
+          : "hover:border-primary/50"
+      }`}
+      onClick={(e) => {
+        if (showCheckbox && selectedProjectIds.size > 0) {
+          toggleProjectSelection(project.id, e);
+        } else {
+          handleOpen();
+        }
+      }}
       data-testid={`card-project-${project.id}`}
     >
       <div className="aspect-video bg-muted rounded-t-lg overflow-hidden relative">
-        {/* File type badge — upper left */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-sm"
+        {/* File type badge — hidden on hover (when checkbox shown) or when selected */}
+        <div
+          className={`absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium backdrop-blur-sm transition-opacity ${
+            showCheckbox ? (isSelected ? "opacity-0" : "group-hover:opacity-0") : ""
+          }`}
           style={isDesign
             ? { background: "rgba(139,92,246,0.15)", color: "#7c3aed", border: "1px solid rgba(139,92,246,0.25)" }
             : { background: "rgba(59,130,246,0.12)", color: "#2563eb", border: "1px solid rgba(59,130,246,0.2)" }
@@ -383,6 +424,27 @@ export function HomeScreen({
           }
           <span>{isDesign ? "Design" : "Workflow"}</span>
         </div>
+
+        {/* Selection checkbox — appears on hover or when selected */}
+        {showCheckbox && (
+          <button
+            className={`absolute top-2 left-2 z-20 p-0.5 rounded transition-opacity ${
+              isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+            onClick={(e) => toggleProjectSelection(project.id, e)}
+            data-testid={`checkbox-project-${project.id}`}
+          >
+            {isSelected
+              ? <CheckSquare size={18} className="text-primary drop-shadow" />
+              : <Square size={18} className="text-white drop-shadow-md" />
+            }
+          </button>
+        )}
+
+        {/* Selected overlay */}
+        {isSelected && (
+          <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+        )}
         {project.thumbnail ? (
           <img
             src={project.thumbnail}
@@ -545,49 +607,99 @@ export function HomeScreen({
 
   // All Projects View
   if (showAllProjects) {
+    const numSelected = selectedProjectIds.size;
     return (
       <>
       {CursorTooltip}
       <div className="flex-1 overflow-auto bg-background">
         <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Header with back button */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAllProjects(false)}
-              className="text-muted-foreground hover:text-foreground"
-              data-testid="button-back-home"
-            >
-              <ArrowLeft size={16} className="mr-1" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold">All Projects</h1>
+          {/* Header — normal or selection toolbar */}
+          <div className="flex items-center gap-3 mb-6 min-h-[36px]">
+            {numSelected > 0 ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="text-muted-foreground hover:text-foreground"
+                  data-testid="button-cancel-selection"
+                >
+                  <X size={16} className="mr-1" />
+                  Cancel
+                </Button>
+                <span className="font-medium text-sm">
+                  {numSelected} selected
+                </span>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={numSelected === recentProjects.length ? clearSelection : selectAll}
+                    className="text-muted-foreground hover:text-foreground text-sm"
+                    data-testid="button-select-all"
+                  >
+                    {numSelected === recentProjects.length ? "Deselect all" : "Select all"}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowBulkDeleteConfirm(true)}
+                    data-testid="button-bulk-delete"
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Delete {numSelected}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setShowAllProjects(false); clearSelection(); }}
+                  className="text-muted-foreground hover:text-foreground"
+                  data-testid="button-back-home"
+                >
+                  <ArrowLeft size={16} className="mr-1" />
+                  Back
+                </Button>
+                <h1 className="text-2xl font-bold">All Projects</h1>
+              </>
+            )}
           </div>
 
           {/* Projects Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* New Project Tile */}
-            <Card
-              className="cursor-pointer hover:border-primary/50 transition-colors group border-dashed"
-              onClick={onCreateBlankWorkflow}
-              data-testid="card-new-project"
-            >
-              <div className="aspect-video bg-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Plus size={24} className="text-primary" />
+            {/* New Project Tile — hidden when in selection mode */}
+            {numSelected === 0 && (
+              <Card
+                className="cursor-pointer hover:border-primary/50 transition-colors group border-dashed"
+                onClick={onCreateBlankWorkflow}
+                data-testid="card-new-project"
+              >
+                <div className="aspect-video bg-muted/50 rounded-t-lg overflow-hidden flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Plus size={24} className="text-primary" />
+                  </div>
                 </div>
-              </div>
-              <CardContent className="p-3">
-                <h3 className="font-medium text-center">New Project</h3>
-                <p className="text-xs text-muted-foreground text-center mt-1">
-                  Start from scratch
-                </p>
-              </CardContent>
-            </Card>
+                <CardContent className="p-3">
+                  <h3 className="font-medium text-center">New Project</h3>
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    Start from scratch
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Project Cards */}
-            {recentProjects.map((project) => renderProjectCard(project))}
+            {recentProjects.map((project) =>
+              renderProjectCard(
+                project,
+                true,
+                selectedProjectIds.has(project.id),
+                true,
+              )
+            )}
           </div>
 
           {recentProjects.length === 0 && (
@@ -611,7 +723,7 @@ export function HomeScreen({
           )}
         </div>
 
-        {/* Delete Confirmation Dialog */}
+        {/* Single-project delete confirmation */}
         <AlertDialog
           open={!!deleteProjectId}
           onOpenChange={(open) => !open && setDeleteProjectId(null)}
@@ -634,6 +746,35 @@ export function HomeScreen({
                 data-testid="button-confirm-delete"
               >
                 Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Bulk delete confirmation */}
+        <AlertDialog
+          open={showBulkDeleteConfirm}
+          onOpenChange={(open) => !open && setShowBulkDeleteConfirm(false)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Delete {numSelected} project{numSelected !== 1 ? "s" : ""}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete {numSelected} project{numSelected !== 1 ? "s" : ""}. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-bulk-delete">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-bulk-delete"
+              >
+                Delete {numSelected} project{numSelected !== 1 ? "s" : ""}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
