@@ -796,7 +796,25 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <>
       <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
       <PropRow label="Width (px)"><NumberProp value={props.width ?? 390} onChange={(v) => setProp("width", v)} min={100} /></PropRow>
-      <PropRow label="Height (px)"><NumberProp value={props.height ?? 480} onChange={(v) => setProp("height", v)} min={100} /></PropRow>
+      <PropRow label="Height (px)">
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {props.height != null && (
+            <NumberProp value={props.height} onChange={(v) => setProp("height", v)} min={100} />
+          )}
+          <button
+            onClick={() => setProp("height", props.height != null ? undefined : 480)}
+            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
+              props.height == null
+                ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
+            }`}
+          >
+            Auto
+          </button>
+        </div>
+      </PropRow>
+      <PropRow label="X (px)"><NumberProp value={props.x ?? 64} onChange={(v) => setProp("x", v)} min={0} /></PropRow>
+      <PropRow label="Y (px)"><NumberProp value={props.y ?? 64} onChange={(v) => setProp("y", v)} min={0} /></PropRow>
       <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
       <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
       <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>

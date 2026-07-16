@@ -683,7 +683,7 @@ const CELL_EDIT_INPUT_STYLE: CSSProperties = {
 
 export function AstryxTable(props: AstryxProps) {
   const { connectRef, extraStyle } = useLeafNode();
-  const { actions: { setProp } } = useNode(() => ({}));
+  const { actions: { setProp }, nodeSelected } = useNode((node) => ({ nodeSelected: node.events.selected }));
   const zoom = useContext(CanvasZoomContext);
 
   type EditTarget = { row: number; col: number; isHeader: boolean };
@@ -881,6 +881,9 @@ export function AstryxTable(props: AstryxProps) {
                         cursor: "col-resize",
                         zIndex: 10,
                         userSelect: "none",
+                        borderRight: nodeSelected ? "2px solid rgba(59,130,246,0.65)" : undefined,
+                        boxSizing: "border-box",
+                        transition: "border-color 0.12s",
                       }}
                       title=""
                     />
@@ -1036,23 +1039,27 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
     <div
       ref={connectRef}
       onMouseDown={onMouseDown}
-      style={{
+      style={isRoot ? {
+        position: "relative",
+        minWidth: "max(100%, 3000px)",
+        minHeight: 2000,
+        boxSizing: "border-box",
+      } : {
         display: "flex",
         flexDirection: direction as "row" | "column",
         alignItems: ALIGN_MAP[align] ?? "stretch",
         justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
         padding,
-        minHeight: isRoot ? 480 : 48,
-        width: isRoot ? "max-content" : "100%",
-        minWidth: isRoot ? "100%" : undefined,
+        minHeight: 48,
+        width: "100%",
         position: "relative",
         boxSizing: "border-box",
-        ...(!isRoot ? containerVisual : {}),
+        ...containerVisual,
         ...bgOverride,
         ...(textColor ? { color: textColor as string } : {}),
-        ...(!isRoot ? absPositionStyle(position, x, y) : {}),
-        ...(isAbsolute && !isRoot ? { cursor: "grab" } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
       }}
     >
       {!isRoot && isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
@@ -1168,7 +1175,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Resize handle styles (reused across all three handles)
 const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
 
-export function AstryxArtboard({ children, label = "Artboard", width = 390, height, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width = 390, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
   const { connectors: { connect, drag }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
@@ -1177,13 +1184,20 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
 
   const nodeIdRef = useRef(id);
   const frameRef = useRef<HTMLDivElement | null>(null);
+  const labelRef = useRef<HTMLDivElement | null>(null);
+  const handleERef = useRef<HTMLDivElement | null>(null);
+  const handleSRef = useRef<HTMLDivElement | null>(null);
+  const handleSERef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
-  // Keep a live snapshot of current dimensions so resize handlers don't close over stale props
+  // Live snapshot of current dimensions so resize handlers don't close over stale props
   const sizeRef = useRef({ w: Number(width) || 390, h: height != null ? Number(height) : undefined });
   sizeRef.current = { w: Number(width) || 390, h: height != null ? Number(height) : undefined };
+  // Live snapshot of current position for drag-to-move
+  const posRef = useRef({ x: Number(x) || 0, y: Number(y) || 0 });
+  posRef.current = { x: Number(x) || 0, y: Number(y) || 0 };
 
   const artboardConnectRef = useCallback((r: HTMLDivElement | null) => {
     frameRef.current = r;
@@ -1195,9 +1209,11 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     }
   }, [connect, drag]);
 
-  // Returns a mousedown handler for resize directions.
-  // dir: "e" = right edge (width), "s" = bottom edge (height), "se" = corner (both)
-  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: React.MouseEvent) => {
+  // Returns a native mousedown handler for a resize direction.
+  // dir: "e" = right edge (width only), "s" = bottom edge (height only), "se" = corner (both)
+  // Uses native MouseEvent so the handler fires in the child bubble phase, before
+  // craft.js's native listener on the artboard frame element.
+  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const startX = e.clientX;
@@ -1223,21 +1239,71 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     window.addEventListener("mouseup", onUp);
   }, []);
 
+  // Attach native mousedown listeners to resize handle divs.
+  // Native child bubble fires before craft.js's native listener on the parent frame.
+  useEffect(() => {
+    const eEl = handleERef.current;
+    const sEl = handleSRef.current;
+    const seEl = handleSERef.current;
+    if (!eEl || !sEl || !seEl) return;
+    const eH = makeResizeHandler("e");
+    const sH = makeResizeHandler("s");
+    const seH = makeResizeHandler("se");
+    eEl.addEventListener("mousedown", eH);
+    sEl.addEventListener("mousedown", sH);
+    seEl.addEventListener("mousedown", seH);
+    return () => {
+      eEl.removeEventListener("mousedown", eH);
+      sEl.removeEventListener("mousedown", sH);
+      seEl.removeEventListener("mousedown", seH);
+    };
+  }, [makeResizeHandler]);
+
+  // Attach native mousedown to the label for drag-to-move.
+  useEffect(() => {
+    const el = labelRef.current;
+    if (!el) return;
+    const handle = (e: MouseEvent) => {
+      e.stopPropagation();
+      const startMX = e.clientX;
+      const startMY = e.clientY;
+      const { x: startPX, y: startPY } = posRef.current;
+      const onMove = (ev: MouseEvent) => {
+        const z = zoomRef.current;
+        const newX = Math.round(startPX + (ev.clientX - startMX) / z);
+        const newY = Math.round(startPY + (ev.clientY - startMY) / z);
+        actionsRef.current.setProp(nodeIdRef.current, (p: any) => { p.x = newX; p.y = newY; });
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    el.addEventListener("mousedown", handle);
+    return () => el.removeEventListener("mousedown", handle);
+  }, []); // register once — mutable state accessed via refs
+
   const resolvedHeight = height != null ? Number(height) : undefined;
   const handleColor = selected ? "#3b82f6" : undefined;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 500,
-        color: selected ? "#3b82f6" : "var(--muted-foreground)",
-        marginBottom: 6,
-        paddingLeft: 2,
-        userSelect: "none",
-        letterSpacing: "0.01em",
-        transition: "color 0.15s",
-      }}>
+    <div style={{ position: "absolute", left: Number(x) || 0, top: Number(y) || 0 }}>
+      <div
+        ref={labelRef}
+        style={{
+          fontSize: 11,
+          fontWeight: 500,
+          color: selected ? "#3b82f6" : "var(--muted-foreground)",
+          marginBottom: 6,
+          paddingLeft: 2,
+          userSelect: "none",
+          letterSpacing: "0.01em",
+          transition: "color 0.15s",
+          cursor: "grab",
+        }}
+      >
         {label}
       </div>
       <div
@@ -1266,9 +1332,9 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
       >
         {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, margin: 8 }}>drop here</div> : children}
 
-        {/* Right-edge resize handle */}
+        {/* Right-edge resize handle — uses native addEventListener (see useEffect above) */}
         <div
-          onMouseDown={makeResizeHandler("e")}
+          ref={handleERef}
           style={{ position: "absolute", top: 0, right: -5, width: 10, bottom: 0, cursor: "ew-resize", zIndex: 20,
                     display: "flex", alignItems: "center", justifyContent: "center" }}
         >
@@ -1277,7 +1343,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
 
         {/* Bottom-edge resize handle */}
         <div
-          onMouseDown={makeResizeHandler("s")}
+          ref={handleSRef}
           style={{ position: "absolute", left: 0, right: 0, bottom: -5, height: 10, cursor: "ns-resize", zIndex: 20,
                     display: "flex", alignItems: "center", justifyContent: "center" }}
         >
@@ -1286,7 +1352,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
 
         {/* Corner resize handle */}
         <div
-          onMouseDown={makeResizeHandler("se")}
+          ref={handleSERef}
           style={{ position: "absolute", right: -6, bottom: -6, width: 14, height: 14, cursor: "nwse-resize", zIndex: 21,
                     display: "flex", alignItems: "center", justifyContent: "center" }}
         >
