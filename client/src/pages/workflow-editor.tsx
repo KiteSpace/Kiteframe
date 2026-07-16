@@ -3133,6 +3133,15 @@ function WorkflowEditorContent({
   }, [createBlankTab]);
 
   const openDesignTab = useCallback((designId: string, title?: string) => {
+    // If a tab for this design already exists, just switch to it.
+    const existing = tabs.find((t) => t.designId === designId);
+    if (existing) {
+      setTabs((prev) =>
+        prev.map((t) => (t.id === existing.id ? { ...t, isOpen: true } : t)),
+      );
+      setActiveTabId(existing.id);
+      return;
+    }
     const newTab: WorkflowTab = {
       id: generateTabId(),
       name: title ?? "Untitled Design",
@@ -3149,11 +3158,12 @@ function WorkflowEditorContent({
       flowSettings: {},
       sketchStrokes: [],
       isOpen: true,
+      lastModified: Date.now(),
       designId,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  }, [generateTabId]);
+  }, [generateTabId, tabs]);
 
   const closeTab = useCallback(
     (tabId: string) => {
