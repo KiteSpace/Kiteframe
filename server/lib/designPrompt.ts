@@ -21,7 +21,6 @@ export const ASTRYX_COMPONENT_LIST = [
   "AstryxSkeleton",
   "AstryxAvatar",
   "AstryxIcon",
-  "AstryxImage",
   "AstryxTable",
   "AstryxTabs",
   "AstryxAccordion",
@@ -102,7 +101,6 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 — MEDIA & IDENTITY —
 • AstryxAvatar user avatar props: { name:string, src:string (optional), size:"xs"|"sm"|"md"|"lg" }
 • AstryxIcon   icon glyph  props: { name:string, size:"sm"|"md"|"lg" }
-• AstryxImage  image block props: { src:string, alt:string, width:number, height:number }
 
 — DATA DISPLAY —
 • AstryxTable    data table   props: { rows:number (1-10), columns:number (1-6) }
@@ -140,6 +138,7 @@ NESTING RULES:
 • ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
 • AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
 • Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack. All others are leaves (isCanvas:false, nodes:[]).
+• AstryxCard is always a leaf in generated JSON (isCanvas:false, nodes:[]) — even though the editor allows dropping into it, never give it children.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.
 • For patch:
   - When adding content to "Screen 1", target that AstryxArtboard node — include it in the patch with its updated "nodes" array.
@@ -208,22 +207,35 @@ User says: "Add a video player"
 Correct response:
 {
   "type": "message",
-  "text": "The Astryx library doesn't have a video player component. The closest options are AstryxImage (for a static thumbnail) or AstryxCarousel (for a slideshow). Want me to add one of those instead?"
+  "text": "The Astryx library doesn't have a video player component. The closest option is AstryxCarousel (for a slideshow). Want me to add that instead?"
 }`;
 
 export const DESIGN_FEW_SHOT_EXAMPLES = [
   {
+    // Single-artboard: ROOT → AstryxArtboard → content
     input: "A user profile card showing an avatar, name, role, and a follow button.",
     output: {
       type: "state",
+      message: "A user profile screen with avatar, name, role, and a Follow button.",
       craftState: {
         ROOT: {
           type: { resolvedName: "AstryxSection" },
           isCanvas: true,
-          props: { direction: "column", gap: 16, padding: 24 },
+          props: { direction: "column", gap: 0, padding: 0 },
           displayName: "AstryxSection",
           custom: {},
           parent: null,
+          hidden: false,
+          nodes: ["screen-1"],
+          linkedNodes: {},
+        },
+        "screen-1": {
+          type: { resolvedName: "AstryxArtboard" },
+          isCanvas: true,
+          props: { label: "Screen 1", width: 390, direction: "column", gap: 16, padding: 24 },
+          displayName: "AstryxArtboard",
+          custom: {},
+          parent: "ROOT",
           hidden: false,
           nodes: ["id-row", "follow-btn"],
           linkedNodes: {},
@@ -234,7 +246,7 @@ export const DESIGN_FEW_SHOT_EXAMPLES = [
           props: { gap: 12, align: "center" },
           displayName: "AstryxHStack",
           custom: {},
-          parent: "ROOT",
+          parent: "screen-1",
           hidden: false,
           nodes: ["avatar", "info"],
           linkedNodes: {},
@@ -289,7 +301,127 @@ export const DESIGN_FEW_SHOT_EXAMPLES = [
           props: { children: "Follow", variant: "primary", size: "sm", disabled: false },
           displayName: "AstryxButton",
           custom: {},
+          parent: "screen-1",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+      },
+    },
+  },
+  {
+    // Multi-artboard: ROOT → [AstryxArtboard screen-1, AstryxArtboard screen-2]
+    input: "A two-screen onboarding flow: a welcome screen with a headline and Get Started button, then a sign-up form with email, password, and a Submit button.",
+    output: {
+      type: "state",
+      message: "A two-screen onboarding flow with a welcome screen and a sign-up form.",
+      craftState: {
+        ROOT: {
+          type: { resolvedName: "AstryxSection" },
+          isCanvas: true,
+          props: { direction: "row", gap: 32, padding: 0 },
+          displayName: "AstryxSection",
+          custom: {},
+          parent: null,
+          hidden: false,
+          nodes: ["ob-screen-1", "ob-screen-2"],
+          linkedNodes: {},
+        },
+        "ob-screen-1": {
+          type: { resolvedName: "AstryxArtboard" },
+          isCanvas: true,
+          props: { label: "Welcome", width: 390, direction: "column", gap: 24, padding: 40 },
+          displayName: "AstryxArtboard",
+          custom: {},
           parent: "ROOT",
+          hidden: false,
+          nodes: ["ob-headline", "ob-sub", "ob-start-btn"],
+          linkedNodes: {},
+        },
+        "ob-headline": {
+          type: { resolvedName: "AstryxHeading" },
+          isCanvas: false,
+          props: { children: "Welcome to Kiteframe", size: "2xl" },
+          displayName: "AstryxHeading",
+          custom: {},
+          parent: "ob-screen-1",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-sub": {
+          type: { resolvedName: "AstryxText" },
+          isCanvas: false,
+          props: { children: "Build workflows visually in minutes.", size: "md", muted: true },
+          displayName: "AstryxText",
+          custom: {},
+          parent: "ob-screen-1",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-start-btn": {
+          type: { resolvedName: "AstryxButton" },
+          isCanvas: false,
+          props: { children: "Get Started", variant: "primary", size: "lg", disabled: false },
+          displayName: "AstryxButton",
+          custom: {},
+          parent: "ob-screen-1",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-screen-2": {
+          type: { resolvedName: "AstryxArtboard" },
+          isCanvas: true,
+          props: { label: "Sign Up", width: 390, direction: "column", gap: 16, padding: 40 },
+          displayName: "AstryxArtboard",
+          custom: {},
+          parent: "ROOT",
+          hidden: false,
+          nodes: ["ob-form-heading", "ob-email", "ob-password", "ob-submit-btn"],
+          linkedNodes: {},
+        },
+        "ob-form-heading": {
+          type: { resolvedName: "AstryxHeading" },
+          isCanvas: false,
+          props: { children: "Create your account", size: "xl" },
+          displayName: "AstryxHeading",
+          custom: {},
+          parent: "ob-screen-2",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-email": {
+          type: { resolvedName: "AstryxTextInput" },
+          isCanvas: false,
+          props: { placeholder: "you@example.com", label: "Email", disabled: false },
+          displayName: "AstryxTextInput",
+          custom: {},
+          parent: "ob-screen-2",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-password": {
+          type: { resolvedName: "AstryxTextInput" },
+          isCanvas: false,
+          props: { placeholder: "••••••••", label: "Password", disabled: false },
+          displayName: "AstryxTextInput",
+          custom: {},
+          parent: "ob-screen-2",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "ob-submit-btn": {
+          type: { resolvedName: "AstryxButton" },
+          isCanvas: false,
+          props: { children: "Submit", variant: "primary", size: "md", disabled: false },
+          displayName: "AstryxButton",
+          custom: {},
+          parent: "ob-screen-2",
           hidden: false,
           nodes: [],
           linkedNodes: {},

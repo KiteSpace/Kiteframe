@@ -46,6 +46,7 @@ export function getPromptTemplateForType(dbType: DbEntityType) {
   }
   if (dbType === "design") {
     return {
+      version: "1.0.0",
       system_prompt: DESIGN_SYSTEM_PROMPT,
       output_schema: DESIGN_JSON_SCHEMA,
       few_shot_examples: DESIGN_FEW_SHOT_EXAMPLES,
