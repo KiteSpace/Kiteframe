@@ -1249,13 +1249,13 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     const eH = makeResizeHandler("e");
     const sH = makeResizeHandler("s");
     const seH = makeResizeHandler("se");
-    eEl.addEventListener("mousedown", eH);
-    sEl.addEventListener("mousedown", sH);
-    seEl.addEventListener("mousedown", seH);
+    eEl.addEventListener("mousedown", eH, { capture: true });
+    sEl.addEventListener("mousedown", sH, { capture: true });
+    seEl.addEventListener("mousedown", seH, { capture: true });
     return () => {
-      eEl.removeEventListener("mousedown", eH);
-      sEl.removeEventListener("mousedown", sH);
-      seEl.removeEventListener("mousedown", seH);
+      eEl.removeEventListener("mousedown", eH, { capture: true });
+      sEl.removeEventListener("mousedown", sH, { capture: true });
+      seEl.removeEventListener("mousedown", seH, { capture: true });
     };
   }, [makeResizeHandler]);
 

@@ -2269,7 +2269,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-border group-hover:bg-primary transition-colors" />
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DesignPanelTab)} className="flex flex-col h-full min-h-0 overflow-hidden">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DesignPanelTab)} className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Tab bar */}
         <div className="border-b border-border flex items-center">
           <Button variant="ghost" size="icon" className="h-10 w-8 flex-shrink-0" onClick={() => setIsCollapsed(true)}>
@@ -2299,7 +2299,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                 {m.role === "ai" && (
                   <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex-shrink-0 mt-0.5 shadow-sm" />
                 )}
-                <div className={`max-w-[85%] px-2.5 py-2 text-[11px] leading-snug rounded-2xl ${
+                <div className={`max-w-[85%] px-3 py-2 text-sm leading-snug rounded-2xl ${
                   m.role === "user"
                     ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
                     : "bg-muted text-foreground rounded-bl-sm"
@@ -2328,7 +2328,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
                 placeholder="Ask KiteAI to add or change something…"
                 disabled={aiStatus === "loading"}
-                className="flex-1 text-[11px] bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
+                className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
               />
               {aiStatus === "loading" && <Loader2 className="w-3 h-3 animate-spin text-primary flex-shrink-0" />}
               {aiStatus === "error"   && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
