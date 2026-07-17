@@ -1226,7 +1226,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
       const z = zoomRef.current;
       const dw = (ev.clientX - startX) / z;
       const dh = (ev.clientY - startY) / z;
-      actionsRef.current.setProp(nodeIdRef.current, (p: any) => {
+      actionsRef.current.setProp((p: any) => {
         if (dir === "e" || dir === "se") p.width  = Math.max(100, Math.round(startW + dw));
         if (dir === "s" || dir === "se") p.height = Math.max(100, Math.round(startH + dh));
       });
@@ -1272,7 +1272,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
         const z = zoomRef.current;
         const newX = Math.round(startPX + (ev.clientX - startMX) / z);
         const newY = Math.round(startPY + (ev.clientY - startMY) / z);
-        actionsRef.current.setProp(nodeIdRef.current, (p: any) => { p.x = newX; p.y = newY; });
+        actionsRef.current.setProp((p: any) => { p.x = newX; p.y = newY; });
       };
       const onUp = () => {
         window.removeEventListener("mousemove", onMove);
