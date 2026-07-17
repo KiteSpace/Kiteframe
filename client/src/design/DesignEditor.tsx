@@ -1636,12 +1636,67 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   const { canUndo, canRedo, doUndo, doRedo } = useContext(HistoryCtx);
 
   const addArtboard = useCallback(() => {
-    const rootNode = query.node("ROOT").get();
-    const count = (rootNode?.data?.nodes?.length ?? 0) + 1;
-    const nodeTree = query.parseReactElement(
-      <Element canvas is={AstryxArtboard} label={`Screen ${count}`} width={390} direction="column" gap={16} padding={24} />
-    ).toNodeTree();
-    actions.addNodeTree(nodeTree, "ROOT");
+    try {
+      const serialized = query.serialize();
+      const state: Record<string, any> = serialized ? JSON.parse(serialized) : {};
+
+      if (!state["ROOT"]) {
+        console.warn("[addArtboard] ROOT not found in serialized state");
+        return;
+      }
+
+      const artboards = Object.values(state).filter(
+        (n: any) => n?.type?.resolvedName === "AstryxArtboard"
+      ) as any[];
+
+      let newX = 64;
+      let newY = 64;
+      if (artboards.length > 0) {
+        let maxRight = 0;
+        let yAtMax = 64;
+        for (const ab of artboards) {
+          const abX = Number(ab.props?.x) || 64;
+          const abW = Number(ab.props?.width) || 390;
+          const edge = abX + abW;
+          if (edge > maxRight) {
+            maxRight = edge;
+            yAtMax = Number(ab.props?.y) || 64;
+          }
+        }
+        newX = maxRight + 80;
+        newY = yAtMax;
+      }
+
+      const count = artboards.length + 1;
+      const newId = `artboard-${Date.now()}`;
+
+      state[newId] = {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: true,
+        props: {
+          label: `Screen ${count}`,
+          width: 390,
+          direction: "column",
+          gap: 16,
+          padding: 24,
+          x: newX,
+          y: newY,
+        },
+        displayName: "AstryxArtboard",
+        custom: {},
+        parent: "ROOT",
+        hidden: false,
+        nodes: [],
+        linkedNodes: {},
+      };
+
+      const rootNodes = Array.isArray(state["ROOT"].nodes) ? [...state["ROOT"].nodes] : [];
+      state["ROOT"] = { ...state["ROOT"], nodes: [...rootNodes, newId] };
+
+      actions.deserialize(JSON.stringify(state));
+    } catch (err) {
+      console.error("[addArtboard] Failed:", err);
+    }
     setTimeout(onFitView, 50);
   }, [actions, query, onFitView]);
 

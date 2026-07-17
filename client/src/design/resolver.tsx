@@ -1177,7 +1177,7 @@ const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.1
 
 export function AstryxArtboard({ children, label = "Artboard", width = 390, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
-  const { connectors: { connect, drag }, id, actions, isEmpty, selected } = useNode((node) => ({
+  const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
   }));
@@ -1203,11 +1203,11 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     frameRef.current = r;
     if (r) {
       nodeElementRegistry.set(nodeIdRef.current, r);
-      connect(drag(r));
+      connect(r);
     } else {
       nodeElementRegistry.delete(nodeIdRef.current);
     }
-  }, [connect, drag]);
+  }, [connect]);
 
   // Returns a native mousedown handler for a resize direction.
   // dir: "e" = right edge (width only), "s" = bottom edge (height only), "se" = corner (both)
