@@ -2042,6 +2042,16 @@ function preserveTableCellData(
 }
 
 
+function describeValidationError(errors: string[]): string {
+  if (!errors || errors.length === 0) return "unknown structural issue.";
+  const first = errors[0];
+  if (first.includes("non-existent parent")) return "it referenced a node that doesn't exist on your canvas.";
+  if (first.includes("non-existent child")) return "it produced an inconsistent node tree.";
+  if (first.includes("ROOT")) return "the generated design was missing its root structure.";
+  if (first.includes("resolvedName")) return "it used an unrecognised component type.";
+  return first.slice(0, 120) + ".";
+}
+
 const INITIAL_MESSAGES: AIMessage[] = [
   {
     role: "ai",
@@ -2158,10 +2168,23 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           }
         }
       } catch { /* ignore */ }
+      // Include prior conversation turns so the AI can reference previous context.
+      // `messages` still reflects state before the current user turn was appended.
+      const INITIAL_MSG_COUNT = INITIAL_MESSAGES.length;
+      const conversationHistory = messages
+        .slice(INITIAL_MSG_COUNT)
+        .slice(-12)
+        .map((m) => ({ role: m.role, text: m.text }));
+
       const res = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: trimmed, currentCraftState, targetArtboardLabel }),
+        body: JSON.stringify({
+          prompt: trimmed,
+          currentCraftState,
+          targetArtboardLabel,
+          conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
@@ -2178,7 +2201,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const validation = validateCraftState(merged);
         if (!validation.valid) {
           console.warn("[design/patch] Merge produced invalid graph, discarding:", validation.errors);
-          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "I made a change to your design") + "\n\n⚠️ Couldn't apply the canvas change automatically — try rephrasing." }]);
+          const hint = describeValidationError(validation.errors);
+          setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
         } else {
           actions.deserialize(sanitizeCraftState(mergedJson));
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
@@ -2193,7 +2217,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
           console.warn("[design/state] State failed validation, discarding:", validation.errors);
-          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "I tried to create your design") + "\n\n⚠️ Couldn't apply the canvas change automatically — try rephrasing." }]);
+          const hint = describeValidationError(validation.errors);
+          setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
           actions.deserialize(sanitizeCraftState(JSON.stringify(parsedForValidation)));
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);

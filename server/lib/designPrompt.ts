@@ -85,7 +85,7 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 — INPUTS & ACTIONS —
 • AstryxButton    button       props: { children:string, variant:"primary"|"secondary"|"outline"|"ghost", size:"sm"|"md"|"lg", disabled:boolean }
 • AstryxTextInput text field   props: { placeholder:string, label:string, disabled:boolean }
-• AstryxSelect    dropdown     props: { label:string, placeholder:string }
+• AstryxSelect    dropdown     props: { label:string, placeholder:string, options:string[] (e.g. ["Option A","Option B","Option C"]) }
 • AstryxCheckbox  checkbox     props: { label:string, checked:boolean }
 • AstryxRadioGroup radio group props: { options:string (comma-separated), selected:string }
 • AstryxSlider    range slider props: { value:number, min:number, max:number }
@@ -103,8 +103,8 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxIcon   icon glyph  props: { name:string, size:"sm"|"md"|"lg" }
 
 — DATA DISPLAY —
-• AstryxTable    data table   props: { rows:number (1-10), columns:number (1-6) }
-• AstryxTabs     tab bar      props: { tabs:string[] }
+• AstryxTable    data table   props: { rows:number (1-10), columns:number (1-6), headers:string[] (column names, e.g. ["Name","Email","Role"]), cellData:string[][] (row data, e.g. [["Alice Chen","alice@acme.com","Admin"],["Bob Marsh","bob@acme.com","Viewer"]]) }
+• AstryxTabs     tab bar      props: { tabs:string[] (e.g. ["Overview","Activity","Settings"]) }
 • AstryxAccordion collapsible props: { title:string }
 • AstryxCalendar date picker  props: { month:string (e.g. "July 2026") }
 • AstryxCommand  search/command palette props: { placeholder:string }
@@ -119,6 +119,17 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxEmptyState  empty placeholder props: { title:string, description:string (optional), action:string (optional) }
 • AstryxToken       removable chip    props: { children:string }
 • AstryxDivider     horizontal rule   props: { label:string (optional) }
+
+━━━ REALISTIC CONTENT RULE ━━━
+Always use contextual, realistic content that matches the user's request:
+• Tables: set headers to real column names (e.g. ["Name","Email","Plan","Status"]) and cellData to 3-5 rows of believable data (e.g. [["Alice Chen","alice@acme.com","Pro","Active"],["Bob Marsh","bob@acme.com","Free","Inactive"]])
+• Avatars: use real-sounding full names (e.g. "Alice Chen", "Marcus Rivera", "Priya Nair")
+• Headings/Text: write purposeful, brief copy — never "Heading 1", "Lorem ipsum", or "Text here"
+• Buttons: use action verbs matching the context — "Save Changes", "Send Message", "Add Member"
+• Inputs: descriptive labels + relevant placeholder (e.g. label:"Company name" placeholder:"Acme Corp")
+• Select options: real, context-appropriate choices (e.g. ["Admin","Editor","Viewer"] for a role field)
+• Badges/status: realistic values — "Active", "Pending", "Archived", "Draft"
+• NEVER use "Col 1", "—", "placeholder text", "Option A/B/C" unless the user explicitly asks
 
 ━━━ CRAFT.JS NODE SCHEMA ━━━
 Every node (whether in craftState or a patch) must follow this shape:
@@ -141,7 +152,8 @@ NESTING RULES:
 • AstryxCard is always a leaf in generated JSON (isCanvas:false, nodes:[]) — even though the editor allows dropping into it, never give it children.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.
 • For patch:
-  - When adding content to "Screen 1", target that AstryxArtboard node — include it in the patch with its updated "nodes" array.
+  - When adding content to a named screen (e.g. "Screen 1"), target ONLY that AstryxArtboard node — include it in the patch with its updated "nodes" array.
+  - If the user message contains the line 'Target artboard: "X"', you MUST modify only the artboard whose label is "X". Do NOT touch any other artboard's nodes array.
   - Only include ROOT in the patch if you're adding a new AstryxArtboard (new screen) directly to it.
   - Do NOT re-emit unchanged nodes from other artboards.
 • Keep total node count under 20 for any single generation.
@@ -302,6 +314,167 @@ export const DESIGN_FEW_SHOT_EXAMPLES = [
           displayName: "AstryxButton",
           custom: {},
           parent: "screen-1",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+      },
+    },
+  },
+  {
+    // Table with real headers + cellData
+    input: "A team members admin page with a heading and a table showing Name, Email, Role, and Status for 3 users.",
+    output: {
+      type: "state",
+      message: "A team members page with a heading and a data table with 3 users.",
+      craftState: {
+        ROOT: {
+          type: { resolvedName: "AstryxSection" },
+          isCanvas: true,
+          props: { direction: "column", gap: 0, padding: 0 },
+          displayName: "AstryxSection",
+          custom: {},
+          parent: null,
+          hidden: false,
+          nodes: ["tm-screen"],
+          linkedNodes: {},
+        },
+        "tm-screen": {
+          type: { resolvedName: "AstryxArtboard" },
+          isCanvas: true,
+          props: { label: "Team Members", width: 760, direction: "column", gap: 16, padding: 24 },
+          displayName: "AstryxArtboard",
+          custom: {},
+          parent: "ROOT",
+          hidden: false,
+          nodes: ["tm-heading", "tm-table"],
+          linkedNodes: {},
+        },
+        "tm-heading": {
+          type: { resolvedName: "AstryxHeading" },
+          isCanvas: false,
+          props: { children: "Team Members", size: "xl" },
+          displayName: "AstryxHeading",
+          custom: {},
+          parent: "tm-screen",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "tm-table": {
+          type: { resolvedName: "AstryxTable" },
+          isCanvas: false,
+          props: {
+            rows: 3,
+            columns: 4,
+            headers: ["Name", "Email", "Role", "Status"],
+            cellData: [
+              ["Alice Chen", "alice@acme.com", "Admin", "Active"],
+              ["Marcus Rivera", "marcus@acme.com", "Editor", "Active"],
+              ["Priya Nair", "priya@acme.com", "Viewer", "Inactive"],
+            ],
+          },
+          displayName: "AstryxTable",
+          custom: {},
+          parent: "tm-screen",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+      },
+    },
+  },
+  {
+    // Settings screen with Select options, AstryxTabs
+    input: "A settings screen with a heading, a Notification Frequency dropdown (Daily, Weekly, Never), a role selector (Admin, Editor, Viewer), and a Save Changes button.",
+    output: {
+      type: "state",
+      message: "A settings screen with a heading, two dropdowns, and a Save Changes button.",
+      craftState: {
+        ROOT: {
+          type: { resolvedName: "AstryxSection" },
+          isCanvas: true,
+          props: { direction: "column", gap: 0, padding: 0 },
+          displayName: "AstryxSection",
+          custom: {},
+          parent: null,
+          hidden: false,
+          nodes: ["st-screen"],
+          linkedNodes: {},
+        },
+        "st-screen": {
+          type: { resolvedName: "AstryxArtboard" },
+          isCanvas: true,
+          props: { label: "Settings", width: 480, direction: "column", gap: 20, padding: 32 },
+          displayName: "AstryxArtboard",
+          custom: {},
+          parent: "ROOT",
+          hidden: false,
+          nodes: ["st-heading", "st-tabs", "st-form"],
+          linkedNodes: {},
+        },
+        "st-heading": {
+          type: { resolvedName: "AstryxHeading" },
+          isCanvas: false,
+          props: { children: "Account Settings", size: "xl" },
+          displayName: "AstryxHeading",
+          custom: {},
+          parent: "st-screen",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "st-tabs": {
+          type: { resolvedName: "AstryxTabs" },
+          isCanvas: false,
+          props: { tabs: ["Profile", "Notifications", "Security"] },
+          displayName: "AstryxTabs",
+          custom: {},
+          parent: "st-screen",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "st-form": {
+          type: { resolvedName: "AstryxStack" },
+          isCanvas: true,
+          props: { gap: 16 },
+          displayName: "AstryxStack",
+          custom: {},
+          parent: "st-screen",
+          hidden: false,
+          nodes: ["st-notif-select", "st-role-select", "st-save-btn"],
+          linkedNodes: {},
+        },
+        "st-notif-select": {
+          type: { resolvedName: "AstryxSelect" },
+          isCanvas: false,
+          props: { label: "Notification Frequency", placeholder: "Select frequency", options: ["Daily", "Weekly", "Never"] },
+          displayName: "AstryxSelect",
+          custom: {},
+          parent: "st-form",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "st-role-select": {
+          type: { resolvedName: "AstryxSelect" },
+          isCanvas: false,
+          props: { label: "Role", placeholder: "Select role", options: ["Admin", "Editor", "Viewer"] },
+          displayName: "AstryxSelect",
+          custom: {},
+          parent: "st-form",
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+        "st-save-btn": {
+          type: { resolvedName: "AstryxButton" },
+          isCanvas: false,
+          props: { children: "Save Changes", variant: "primary", size: "md", disabled: false },
+          displayName: "AstryxButton",
+          custom: {},
+          parent: "st-form",
           hidden: false,
           nodes: [],
           linkedNodes: {},

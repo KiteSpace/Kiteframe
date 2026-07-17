@@ -20,6 +20,15 @@ export async function designGenerationHandler(req: Request, res: Response) {
       prompt: z.string().min(1).max(2000),
       currentCraftState: z.string().max(40000).optional(),
       targetArtboardLabel: z.string().max(200).optional(),
+      conversationHistory: z
+        .array(
+          z.object({
+            role: z.enum(['user', 'ai']),
+            text: z.string().max(2000),
+          }),
+        )
+        .max(12)
+        .optional(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -31,13 +40,24 @@ export async function designGenerationHandler(req: Request, res: Response) {
         .json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
     }
 
-    const { prompt, currentCraftState, targetArtboardLabel } = parsed.data;
+    const { prompt, currentCraftState, targetArtboardLabel, conversationHistory } = parsed.data;
 
     let userMessage = prompt;
     if (currentCraftState && currentCraftState.trim().length > 2) {
       userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>`;
       if (targetArtboardLabel) {
         userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
+      }
+    }
+
+    // Build history messages (exclude last user turn — it's the current userMessage above)
+    const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    if (conversationHistory && conversationHistory.length > 0) {
+      for (const turn of conversationHistory) {
+        historyMessages.push({
+          role: turn.role === 'ai' ? 'assistant' : 'user',
+          content: turn.text,
+        });
       }
     }
 
@@ -48,6 +68,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
       maxTokens: 16000,
       messages: [
         { role: 'system', content: DESIGN_SYSTEM_PROMPT },
+        ...historyMessages,
         { role: 'user', content: userMessage },
         { role: 'assistant', content: '{' },
       ],
