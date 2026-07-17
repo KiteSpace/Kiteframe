@@ -2096,6 +2096,24 @@ function preserveTableCellData(
   return result;
 }
 
+function spreadArtboardsInState(state: Record<string, any>): Record<string, any> {
+  const artboardEntries = Object.entries(state).filter(
+    ([, n]: [string, any]) => n?.type?.resolvedName === "AstryxArtboard"
+  );
+  if (artboardEntries.length < 2) return state;
+  artboardEntries.sort(([, a]: [string, any], [, b]: [string, any]) =>
+    (Number(a.props?.x) || 0) - (Number(b.props?.x) || 0)
+  );
+  const result = { ...state };
+  let curX = 64;
+  const baseY = Number(artboardEntries[0][1].props?.y) || 64;
+  for (const [id, node] of artboardEntries) {
+    const width = Number(node.props?.width) || 390;
+    result[id] = { ...node, props: { ...node.props, x: curX, y: baseY } };
+    curX += width + 80;
+  }
+  return result;
+}
 
 function describeValidationError(errors: string[]): string {
   if (!errors || errors.length === 0) return "unknown structural issue.";
@@ -2259,7 +2277,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
         } else {
-          actions.deserialize(sanitizeCraftState(mergedJson));
+          const spread = spreadArtboardsInState(merged);
+          actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
         }
       } else {
@@ -2275,7 +2294,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
-          actions.deserialize(sanitizeCraftState(JSON.stringify(parsedForValidation)));
+          const spread = spreadArtboardsInState(parsedForValidation);
+          actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
         }
       }
