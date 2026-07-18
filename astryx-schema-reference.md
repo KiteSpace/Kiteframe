@@ -1,7 +1,7 @@
 # Astryx Design Component Schema Reference
 
 > Source of truth as of July 2026. Verified directly from
-> `server/lib/designSchema.ts`, `server/lib/designPrompt.ts`, and `server/routes.ts`.
+> `server/lib/designSchema.ts`, `server/lib/designPrompt.ts`, and `server/externalWorkflowRoutes.ts`.
 
 ---
 
@@ -10,11 +10,6 @@
 The authoritative list is `SERVER_ALLOWED_CRAFT_COMPONENTS` in
 `server/lib/designSchema.ts`. Any `resolvedName` not on this list causes a
 server-side 422.
-
-> **Discrepancy:** `designPrompt.ts` (the AI's system prompt) lists `AstryxImage`
-> with props `{ src, alt, width, height }`, but it is **absent** from
-> `SERVER_ALLOWED_CRAFT_COMPONENTS` and absent from `resolver.tsx`. If the AI
-> generates it, the server returns 422. This is a bug in the AI prompt.
 
 ### Containers
 
@@ -38,7 +33,7 @@ server-side 422.
 |---|---|
 | `AstryxButton` | `children:string, variant:"primary"\|"secondary"\|"outline"\|"ghost", size:"sm"\|"md"\|"lg", disabled:boolean` |
 | `AstryxTextInput` | `placeholder:string, label:string, disabled:boolean` |
-| `AstryxSelect` | `label:string, placeholder:string` |
+| `AstryxSelect` | `label:string, placeholder:string, options:string[]` |
 | `AstryxCheckbox` | `label:string, checked:boolean` |
 | `AstryxRadioGroup` | `options:string (comma-separated), selected:string` |
 | `AstryxSlider` | `value:number, min:number, max:number` |
@@ -65,7 +60,7 @@ server-side 422.
 
 | Component | Props |
 |---|---|
-| `AstryxTable` | `rows:number (1–10), columns:number (1–6)` |
+| `AstryxTable` | `rows:number (1–10), columns:number (1–6), headers:string[], cellData:string[][]` |
 | `AstryxTabs` | `tabs:string[]` |
 | `AstryxAccordion` | `title:string` |
 | `AstryxCalendar` | `month:string (e.g. "July 2026")` |
@@ -156,8 +151,8 @@ not expected to change.
 
 **Server hard-rejects on save.**
 
-`validateCraftState()` in `server/lib/designSchema.ts` runs on every `POST /api/designs`
-and `PATCH /api/designs/:id`. It enforces:
+`validateCraftState()` in `server/lib/designSchema.ts` runs on every
+`POST /api/external/designs`. It enforces:
 
 1. ROOT node must exist
 2. `resolvedName` must be in the `SERVER_ALLOWED_CRAFT_COMPONENTS` enum (strict AJV)
@@ -176,51 +171,60 @@ parent/child reference integrity, cycle detection.
 
 ---
 
-## Q6 — `/api/external/designs/prompt-template` — is it built?
+## Q6 — External API routes — current status
 
-**No.** This route does not exist in `routes.ts`.
+**Both workflow and design external routes exist and are live.**
 
-The existing design routes are:
+All routes are registered in `server/externalWorkflowRoutes.ts` via
+`registerExternalEntityRoutes`. Auth is handled by `requireExternalApiKey`
+middleware (checks `Authorization: Bearer <key>` against the `external_api_keys`
+table).
 
-| Route | Auth | Format | Notes |
+| Method | Route | Auth | Description |
 |---|---|---|---|
-| `POST /api/designs/generate` | required | legacy flat-JSON | writes to `external_entities` table |
-| `POST /api/designs` | required | craft.js state | writes to `designs` table |
-| `GET /api/designs/:id` | none | — | public read |
-| `PATCH /api/designs/:id` | required (owner) | craft.js state | — |
-| `POST /api/designs/:id/claim` | required | — | claim unclaimed design |
+| `GET` | `/api/external/workflows/prompt-template` | API key | Returns workflow system prompt + schema + examples |
+| `POST` | `/api/external/workflows` | API key | Create unclaimed workflow (writes to `external_entities`, 24h TTL) |
+| `GET` | `/api/external/workflows/:id` | API key (owner) | Fetch workflow by ID |
+| `PATCH` | `/api/external/workflows/:id` | API key (owner) | Update workflow |
+| `GET` | `/api/external/designs/prompt-template` | API key | Returns design system prompt + craft.js schema + examples |
+| `POST` | `/api/external/designs` | API key | Create unclaimed design (writes to `designs` table, no TTL) |
+| `GET` | `/api/external/designs/:id` | API key (owner) | Fetch design by ID |
+| `PATCH` | `/api/external/designs/:id` | API key (owner) | Update design |
 
-The skill's SKILL.md documents `/api/external/designs` and
-`/api/external/designs/prompt-template` as if they exist — they do not. The
-workflow skill equivalent (`/api/external/workflows/prompt-template`) exists;
-the design parallel needs to be built.
+**Request body shape for POST/PATCH:**
+```json
+{ "data": { ... entity payload ... } }
+```
+
+For designs, the `data` field must be a complete, valid craft.js state object
+(ROOT + all nodes). For workflows, `data` must match the workflow schema
+returned by the prompt-template endpoint.
 
 ---
 
 ## Q7 — Write behavior & ownership
 
-**`POST /api/designs` requires authentication and immediately claims the record.**
+**`POST /api/external/designs` creates an unclaimed design.**
 
-`claimedByUserId` is set to `userId` at create time — there is no unclaimed
-path for the new craft.js format. The old `POST /api/designs/generate` (legacy
-flat-JSON) does create into `external_entities` with no owner, but it uses a
-completely different schema and table.
+The route writes to the `designs` table with `source: "skill"` and `apiKeyId`
+set to the caller's API key. There is no `claimedByUserId` set at create time —
+the record is unclaimed until the user visits the view URL and clicks
+"Save to my account".
 
-If the skill needs an **unauthenticated write path** that creates unclaimed
-craft.js designs (so users can claim them after viewing, as the workflow skill
-does), that route does not yet exist and would need to be built.
+**TTL:** Designs created via the external API currently have no expiry
+(unlike external workflows which expire after 24 hours). The user can claim
+them at any time by visiting the view URL while signed in.
 
 ---
 
-## Q8 — Successful response shape
+## Q8 — Successful response shapes
 
 | Route | Response |
 |---|---|
-| `POST /api/designs` | `{ "id": "<uuid>", "url": "/designs/<uuid>" }` |
-| `POST /api/designs/generate` | `{ "id": "<uuid>", "url": "/designs/<uuid>", "expires_at": "<iso8601>" }` |
+| `POST /api/external/workflows` | `{ "id": "<uuid>", "url": "https://…/workflows/<uuid>", "expires_at": "<iso8601>" }` |
+| `POST /api/external/designs` | `{ "id": "<uuid>", "url": "https://…/designs/<uuid>" }` |
 
-The SKILL.md documents the response with `expires_at`, which matches the legacy
-flat-JSON route — not the new craft.js route.
+Note: designs do not include `expires_at` in the response (no TTL).
 
 ---
 
@@ -229,11 +233,10 @@ flat-JSON route — not the new craft.js route.
 The **craft.js node shape** and **component enum** are stable and server-validated.
 Safe to write against.
 
-**Known issues to resolve before publishing the skill:**
+**Previously known issues — now resolved:**
 
-| Issue | Risk | Action needed |
-|---|---|---|
-| `AstryxImage` in AI prompt but not in server validator | Generates invalid JSON → 422 | Remove from AI prompt OR add to server allowed list |
-| `/api/external/designs` doesn't exist | Skill examples reference a non-existent endpoint | Build the route |
-| `AstryxCard` container behaviour ambiguous | Minor | Treat as leaf in skill-generated JSON |
-| ROOT-patch protection and oversized-patch safety tests just merged | Low — fixes confirmed by tests | No action needed; already solid |
+| Issue | Status |
+|---|---|
+| `AstryxImage` in AI prompt but not in server validator | **Fixed** — `AstryxImage` has been removed from `DESIGN_SYSTEM_PROMPT` and `ASTRYX_COMPONENT_LIST` in `server/lib/designPrompt.ts`; it was never in `SERVER_ALLOWED_CRAFT_COMPONENTS` |
+| `/api/external/designs` didn't exist | **Fixed** — route now exists in `server/externalWorkflowRoutes.ts` |
+| `AstryxCard` container behaviour ambiguous | **Documented** — treat as leaf in skill-generated JSON (server doesn't reject children, but skill convention is leaf-only) |
