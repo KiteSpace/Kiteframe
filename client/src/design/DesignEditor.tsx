@@ -1848,7 +1848,12 @@ function CanvasHints() {
 function SelectionPinButton() {
   const { setPinned } = useContext(PinnedElementContext);
 
-  const { selectedInfo } = useEditor((state) => {
+  // Keep a live ref to the craft query so the rAF loop can always fetch the
+  // latest DOM ref without re-running the effect on every re-render.
+  const craftQueryRef = useRef<any>(null);
+
+  const { selectedInfo } = useEditor((state, query) => {
+    craftQueryRef.current = query;
     const sel = state.events.selected;
     const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
     if (!id || id === "ROOT") return { selectedInfo: null };
@@ -1861,7 +1866,6 @@ function SelectionPinButton() {
         id,
         displayName: dn,
         props: { ...node.data.props } as Record<string, any>,
-        dom: (node as any).dom as HTMLElement | null,
       },
     };
   });
@@ -1870,16 +1874,32 @@ function SelectionPinButton() {
   const rafRef = useRef<number>(0);
 
   useLayoutEffect(() => {
-    const dom = selectedInfo?.dom;
-    if (!dom) { setPos(null); return; }
+    const id = selectedInfo?.id;
+    if (!id) { setPos(null); return; }
+
+    // Some nested elements (e.g. text inside a card inside an artboard) have a
+    // null .dom ref at the moment the selection event fires because the element
+    // hasn't finished mounting.  Poll via rAF until the ref is populated before
+    // starting to track position, so the button always appears eventually.
+    let cancelled = false;
     const tick = () => {
+      if (cancelled) return;
+      const node = craftQueryRef.current?.node(id).get?.();
+      const dom: HTMLElement | null = node ? (node as any).dom : null;
+      if (!dom) {
+        // Not mounted yet – try again next frame.
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       const rect = dom.getBoundingClientRect();
       setPos({ top: rect.top, right: window.innerWidth - rect.right });
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [selectedInfo?.id, selectedInfo?.dom]);
+    return () => { cancelled = true; cancelAnimationFrame(rafRef.current); };
+  // Re-run only when the selected node ID changes, not on every re-render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedInfo?.id]);
 
   if (!selectedInfo || !pos) return null;
 
