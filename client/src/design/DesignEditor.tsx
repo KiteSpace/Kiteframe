@@ -1091,6 +1091,9 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
                   const v = e.target.value;
                   setProp(key as string, v === "auto" || v === "" ? "auto" : Number(v));
                 }}
+                onBlur={(e) => {
+                  if (e.target.value === "") setProp(key as string, "auto");
+                }}
                 placeholder="auto"
                 className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
               />
