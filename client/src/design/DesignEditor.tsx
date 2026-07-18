@@ -2114,7 +2114,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
 // ─── AI drawer (right rail, collapsible) ─────────────────────────────────────
 
-interface AIMessage { role: "ai" | "user"; text: string; }
+interface AIMessage { role: "ai" | "user"; text: string; pinnedElement?: PinnedElement | null; }
 
 /**
  * Graph-aware merge for craft.js node maps.
@@ -2299,7 +2299,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
     if (!trimmed || aiStatus === "loading") return;
-    setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
+    setMessages((prev) => [...prev, { role: "user", text: trimmed, pinnedElement: pinned }]);
     setPrompt("");
     setAiStatus("loading");
     try {
@@ -2509,6 +2509,17 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                     : "bg-muted text-foreground rounded-bl-sm"
                 }`}>
                   {m.text}
+                  {m.role === "user" && m.pinnedElement && (
+                    <div className="flex items-center gap-1 mt-1.5 bg-white/15 rounded-md px-1.5 py-0.5">
+                      <span className="text-[10px] leading-none">📌</span>
+                      <span className="text-[10px] text-primary-foreground/80 font-medium truncate">
+                        {m.pinnedElement.displayName}
+                        {m.pinnedElement.label && m.pinnedElement.label !== m.pinnedElement.displayName
+                          ? ` · "${m.pinnedElement.label.slice(0, 24)}"`
+                          : ""}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
