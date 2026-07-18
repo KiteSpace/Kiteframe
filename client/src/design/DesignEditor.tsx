@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -1478,6 +1478,26 @@ interface NotesContextValue {
 }
 const NotesContext = createContext<NotesContextValue>({ notesOpen: false, setNotesOpen: () => {} });
 
+// ─── Pinned element context ────────────────────────────────────────────────────
+// Shared between SelectionPinButton (canvas) and DesignPanel (chat) so the
+// user can pin any selected element and the AI receives its full prop snapshot.
+
+interface PinnedElement {
+  displayName: string;
+  props: Record<string, any>;
+  label: string;
+}
+
+interface PinnedElementContextValue {
+  pinned: PinnedElement | null;
+  setPinned: (el: PinnedElement | null) => void;
+}
+
+const PinnedElementContext = createContext<PinnedElementContextValue>({
+  pinned: null,
+  setPinned: () => {},
+});
+
 // ─── History context ───────────────────────────────────────────────────────────
 // Craft.js 0.2.x does not expose canUndo/canRedo on query or actions.
 // We track history availability ourselves by watching for changes in the
@@ -1821,6 +1841,77 @@ function CanvasHints() {
   return null;
 }
 
+// ─── Selection pin button ─────────────────────────────────────────────────────
+// Floats above the selected element (fixed-position, outside the canvas
+// transform) so the user can pin the element to the AI chat for precise edits.
+
+function SelectionPinButton() {
+  const { setPinned } = useContext(PinnedElementContext);
+
+  const { selectedInfo } = useEditor((state) => {
+    const sel = state.events.selected;
+    const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
+    if (!id || id === "ROOT") return { selectedInfo: null };
+    const node = state.nodes[id];
+    if (!node) return { selectedInfo: null };
+    const dn = node.data.displayName as string;
+    if (dn === "AstryxArtboard") return { selectedInfo: null };
+    return {
+      selectedInfo: {
+        id,
+        displayName: dn,
+        props: { ...node.data.props } as Record<string, any>,
+        dom: (node as any).dom as HTMLElement | null,
+      },
+    };
+  });
+
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const rafRef = useRef<number>(0);
+
+  useLayoutEffect(() => {
+    const dom = selectedInfo?.dom;
+    if (!dom) { setPos(null); return; }
+    const tick = () => {
+      const rect = dom.getBoundingClientRect();
+      setPos({ top: rect.top, right: window.innerWidth - rect.right });
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [selectedInfo?.id, selectedInfo?.dom]);
+
+  if (!selectedInfo || !pos) return null;
+
+  const rawLabel = selectedInfo.props.children
+    ?? selectedInfo.props.label
+    ?? selectedInfo.props.placeholder
+    ?? selectedInfo.props.title
+    ?? selectedInfo.displayName;
+  const label = String(rawLabel ?? selectedInfo.displayName);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: Math.max(4, pos.top - 34),
+        right: Math.max(4, pos.right - 4),
+        zIndex: 1000,
+      }}
+    >
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={() => setPinned({ displayName: selectedInfo.displayName, props: selectedInfo.props, label })}
+        className="flex items-center gap-1 bg-primary text-primary-foreground rounded-lg px-2 py-1 shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-[10px] font-semibold"
+        title="Pin this element to the AI chat"
+      >
+        <MessageCirclePlus className="w-3 h-3" />
+        Ask AI
+      </button>
+    </div>
+  );
+}
+
 // ─── Snap guide overlay ───────────────────────────────────────────────────────
 // Rendered inside the canvas transformed div (canvas coordinate space).
 // Updated imperatively via a module-level ref to avoid re-rendering the canvas.
@@ -2154,6 +2245,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     selectedNodeId: state.events.selected ? [...state.events.selected][0] : undefined,
   }));
 
+  const { pinned, setPinned } = useContext(PinnedElementContext);
+
   const [activeTab, setActiveTab] = useState<DesignPanelTab>(() => {
     try {
       const s = localStorage.getItem(DESIGN_PANEL_ACTIVE_TAB_KEY);
@@ -2184,6 +2277,9 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   useEffect(() => { try { localStorage.setItem(DESIGN_PANEL_COLLAPSED_KEY, String(isCollapsed)); } catch {} }, [isCollapsed]);
   useEffect(() => { try { localStorage.setItem(DESIGN_PANEL_ACTIVE_TAB_KEY, activeTab); } catch {} }, [activeTab]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // Auto-switch to KiteAI tab when something is pinned so the chip is visible.
+  useEffect(() => { if (pinned) { setActiveTab("kite-ai"); setIsCollapsed(false); } }, [pinned]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -2260,10 +2356,15 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           currentCraftState,
           targetArtboardLabel,
           conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
+          selectedElement: pinned
+            ? { displayName: pinned.displayName, props: pinned.props }
+            : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
+
+      setPinned(null);
 
       if (data.type === "message") {
         setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
@@ -2424,6 +2525,22 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
             <div ref={messagesEndRef} />
           </div>
           <div className="px-2.5 py-2.5 border-t border-border shrink-0">
+            {pinned && (
+              <div className="flex items-center gap-1.5 mb-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2 py-1">
+                <MessageCirclePlus className="w-3 h-3 text-primary shrink-0" />
+                <span className="text-[10px] text-primary font-medium truncate flex-1 min-w-0">
+                  {pinned.displayName}
+                  {pinned.label && pinned.label !== pinned.displayName ? ` · "${pinned.label.slice(0, 24)}"` : ""}
+                </span>
+                <button
+                  onClick={() => setPinned(null)}
+                  className="text-primary/60 hover:text-primary transition-colors"
+                  title="Remove pin"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-xl px-2.5 py-1.5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
               <input
                 value={prompt}
@@ -2518,6 +2635,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   const [zoom, setZoom] = useState(1);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [notesOpenInternal, setNotesOpenInternal] = useState(false);
+  const [pinned, setPinned] = useState<PinnedElement | null>(null);
 
   const notesOpen = notesOpenProp !== undefined ? notesOpenProp : notesOpenInternal;
   const setNotesOpen = onSetNotesOpen ?? setNotesOpenInternal;
@@ -2536,6 +2654,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   );
 
   return (
+    <PinnedElementContext.Provider value={{ pinned, setPinned }}>
     <NotesContext.Provider value={{ notesOpen, setNotesOpen }}>
       <Editor resolver={resolver} enabled={editable}>
         <SnapGuideContext.Provider value={_setSnapGuides}>
@@ -2573,10 +2692,12 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           />
         )}
         {editable && <KeyboardHandler />}
+        {editable && <SelectionPinButton />}
         </HistoryProvider>
         </SnapGuideContext.Provider>
       </Editor>
     </NotesContext.Provider>
+    </PinnedElementContext.Provider>
   );
 }
 

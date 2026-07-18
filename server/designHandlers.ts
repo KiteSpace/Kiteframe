@@ -29,6 +29,12 @@ export async function designGenerationHandler(req: Request, res: Response) {
         )
         .max(12)
         .optional(),
+      selectedElement: z
+        .object({
+          displayName: z.string().max(100),
+          props: z.record(z.unknown()),
+        })
+        .optional(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -40,7 +46,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
         .json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
     }
 
-    const { prompt, currentCraftState, targetArtboardLabel, conversationHistory } = parsed.data;
+    const { prompt, currentCraftState, targetArtboardLabel, conversationHistory, selectedElement } = parsed.data;
 
     let userMessage = prompt;
     if (currentCraftState && currentCraftState.trim().length > 2) {
@@ -48,6 +54,10 @@ export async function designGenerationHandler(req: Request, res: Response) {
       if (targetArtboardLabel) {
         userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
       }
+    }
+    if (selectedElement) {
+      const safeProps = JSON.stringify(selectedElement.props, null, 2).slice(0, 2000);
+      userMessage += `\n\n<FOCUSED_ELEMENT>\nType: ${selectedElement.displayName}\nProps:\n${safeProps}\n</FOCUSED_ELEMENT>`;
     }
 
     // Build history messages (exclude last user turn — it's the current userMessage above)
