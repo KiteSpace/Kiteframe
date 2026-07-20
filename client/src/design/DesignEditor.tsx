@@ -1659,6 +1659,15 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   const { actions, query } = useEditor(() => ({}));
   const { canUndo, canRedo, doUndo, doRedo } = useContext(HistoryCtx);
 
+  const { selectedArtboardId } = useEditor((state) => {
+    const sel = state.events.selected;
+    const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
+    if (!id) return { selectedArtboardId: null };
+    const node = state.nodes[id];
+    const isArtboard = node?.data?.displayName === "AstryxArtboard";
+    return { selectedArtboardId: isArtboard ? id : null };
+  });
+
   const addArtboard = useCallback(() => {
     try {
       const serialized = query.serialize();
@@ -1724,6 +1733,19 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
     setTimeout(onFitView, 50);
   }, [actions, query, onFitView]);
 
+  const duplicateArtboard = useCallback(() => {
+    if (!selectedArtboardId) return;
+    try {
+      const serialized = query.serialize();
+      const state: Record<string, any> = serialized ? JSON.parse(serialized) : {};
+      const result = cloneSubtreeInState(state, selectedArtboardId);
+      if (!result) return;
+      actions.deserialize(JSON.stringify(result.newState));
+    } catch (err) {
+      console.error("[duplicateArtboard] Failed:", err);
+    }
+  }, [actions, query, selectedArtboardId]);
+
   return (
     <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
       <button
@@ -1733,6 +1755,15 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
       >
         + Artboard
       </button>
+      {selectedArtboardId && (
+        <button
+          onClick={duplicateArtboard}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
+          title="Duplicate artboard (Ctrl+D)"
+        >
+          ⧉ Duplicate
+        </button>
+      )}
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 mr-1.5">
         <button
@@ -1776,10 +1807,14 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
 // ─── Delete key handler ───────────────────────────────────────────────────────
 
 function KeyboardHandler() {
-  const { actions, selectedId } = useEditor((state) => {
+  const { actions, query, selectedId, selectedIsArtboard } = useEditor((state) => {
     const sel = state.events.selected;
     const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
-    return { selectedId: id };
+    const node = id ? state.nodes[id] : null;
+    return {
+      selectedId: id,
+      selectedIsArtboard: node?.data?.displayName === "AstryxArtboard",
+    };
   });
   const { doUndo, doRedo } = useContext(HistoryCtx);
   const doUndoRef = useRef(doUndo);
@@ -1811,11 +1846,23 @@ function KeyboardHandler() {
           doRedoRef.current();
           return;
         }
+        if (k === "d" && selectedIsArtboard && selectedId) {
+          e.preventDefault();
+          try {
+            const serialized = query.serialize();
+            const state: Record<string, any> = serialized ? JSON.parse(serialized) : {};
+            const result = cloneSubtreeInState(state, selectedId);
+            if (result) actions.deserialize(JSON.stringify(result.newState));
+          } catch (err) {
+            console.error("[duplicateArtboard] Ctrl+D failed:", err);
+          }
+          return;
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedId, actions]);
+  }, [selectedId, selectedIsArtboard, actions, query]);
 
   return null;
 }
@@ -2229,6 +2276,77 @@ function preserveTableCellData(
     result[nodeId] = { ...n, props: updated };
   }
   return result;
+}
+
+/**
+ * Clones an artboard subtree with fresh node IDs.
+ * Returns { newState, newArtboardId } where newState is the updated craft.js
+ * node map with all cloned nodes inserted and ROOT.nodes updated.
+ * Positions the clone to the right of all existing artboards.
+ */
+function cloneSubtreeInState(
+  state: Record<string, any>,
+  artboardId: string,
+): { newState: Record<string, any>; newArtboardId: string } | null {
+  const artboard = state[artboardId];
+  if (!artboard || artboard?.type?.resolvedName !== "AstryxArtboard") return null;
+
+  // Collect all descendant node IDs (BFS)
+  const allIds: string[] = [];
+  const queue: string[] = [artboardId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    allIds.push(id);
+    const node = state[id];
+    if (!node) continue;
+    for (const childId of (node.nodes ?? [])) queue.push(childId);
+    for (const linkedId of Object.values(node.linkedNodes ?? {})) queue.push(linkedId as string);
+  }
+
+  // Build ID remap
+  const ts = Date.now();
+  const idMap: Record<string, string> = {};
+  allIds.forEach((id, i) => {
+    idMap[id] = id === artboardId ? `artboard-${ts}` : `node-${ts}-${i}`;
+  });
+  const newArtboardId = idMap[artboardId];
+
+  // Deep-clone each node with remapped IDs
+  const clonedNodes: Record<string, any> = {};
+  for (const id of allIds) {
+    const node = JSON.parse(JSON.stringify(state[id]));
+    node.parent = id === artboardId ? "ROOT" : (idMap[node.parent] ?? node.parent);
+    if (Array.isArray(node.nodes)) node.nodes = node.nodes.map((c: string) => idMap[c] ?? c);
+    if (node.linkedNodes && typeof node.linkedNodes === "object") {
+      const remapped: Record<string, string> = {};
+      for (const [k, v] of Object.entries(node.linkedNodes)) remapped[k] = idMap[v as string] ?? (v as string);
+      node.linkedNodes = remapped;
+    }
+    clonedNodes[idMap[id]] = node;
+  }
+
+  // Position clone to the right of all artboards
+  const allArtboards = Object.values(state).filter((n: any) => n?.type?.resolvedName === "AstryxArtboard") as any[];
+  let maxRight = 64;
+  for (const ab of allArtboards) {
+    const edge = (Number(ab.props?.x) || 64) + (Number(ab.props?.width) || 390);
+    if (edge > maxRight) maxRight = edge;
+  }
+  const srcLabel: string = artboard.props?.label ?? "Artboard";
+  clonedNodes[newArtboardId].props = {
+    ...clonedNodes[newArtboardId].props,
+    x: maxRight + 80,
+    y: Number(artboard.props?.y) || 64,
+    label: `${srcLabel} Copy`,
+  };
+
+  const rootNodes = Array.isArray(state["ROOT"]?.nodes) ? state["ROOT"].nodes : [];
+  const newState = {
+    ...state,
+    ...clonedNodes,
+    ROOT: { ...state["ROOT"], nodes: [...rootNodes, newArtboardId] },
+  };
+  return { newState, newArtboardId };
 }
 
 /**
