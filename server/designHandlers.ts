@@ -14,7 +14,33 @@ import { executeAiChat } from './aiChatExecutor';
 import { DESIGN_SYSTEM_PROMPT } from './lib/designPrompt';
 import { mergeDesignPatch } from './lib/designPatchMerge';
 
+const MODEL = 'claude-sonnet-4-5-20250929';
+
+function logSuccess(entry: {
+  prompt: string;
+  selectedElementType?: string;
+  targetArtboardLabel?: string;
+  responseType: 'message' | 'state' | 'patch';
+  nodeCount?: number;
+  durationMs: number;
+  model: string;
+}) {
+  console.log('[design_ai]', JSON.stringify(entry));
+}
+
+function logRejected(entry: {
+  prompt: string;
+  selectedElementType?: string;
+  reason: string;
+  durationMs: number;
+  model: string;
+  validationErrors?: string[];
+}) {
+  console.warn('[design_ai_rejected]', JSON.stringify(entry));
+}
+
 export async function designGenerationHandler(req: Request, res: Response) {
+  const startMs = Date.now();
   try {
     const schema = z.object({
       prompt: z.string().min(1).max(2000),
@@ -48,6 +74,8 @@ export async function designGenerationHandler(req: Request, res: Response) {
     }
 
     const { prompt, currentCraftState, targetArtboardLabel, conversationHistory, selectedElement } = parsed.data;
+    const promptSnippet = prompt.slice(0, 200);
+    const selectedElementType = selectedElement?.displayName;
 
     let userMessage = prompt;
     if (currentCraftState && currentCraftState.trim().length > 2) {
@@ -75,7 +103,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
     // Anthropic assistant-prefill: response continues from the opening '{'.
     const result = await executeAiChat({
       provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
+      model: MODEL,
       maxTokens: 16000,
       messages: [
         { role: 'system', content: DESIGN_SYSTEM_PROMPT },
@@ -86,6 +114,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
     });
 
     if (!result.ok) {
+      logRejected({ prompt: promptSnippet, selectedElementType, reason: 'ai_error', durationMs: Date.now() - startMs, model: MODEL });
       return res
         .status(result.status || 500)
         .json({ error: result.error || 'AI generation failed' });
@@ -93,6 +122,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
 
     const stopReason = (result as any).json?.stop_reason;
     if (stopReason === 'max_tokens') {
+      logRejected({ prompt: promptSnippet, selectedElementType, reason: 'max_tokens', durationMs: Date.now() - startMs, model: MODEL });
       return res.status(500).json({
         error: 'Design was too complex — try a simpler prompt with fewer components',
       });
@@ -102,6 +132,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
     const raw = ('{' + (result.text || '')).trim();
     const jsonEnd = raw.lastIndexOf('}');
     if (jsonEnd === -1) {
+      logRejected({ prompt: promptSnippet, selectedElementType, reason: 'incomplete_response', durationMs: Date.now() - startMs, model: MODEL });
       return res
         .status(500)
         .json({ error: 'AI returned incomplete response — try rephrasing your prompt' });
@@ -116,6 +147,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
       try {
         parsedResponse = JSON.parse(repaired);
       } catch {
+        logRejected({ prompt: promptSnippet, selectedElementType, reason: 'invalid_json', durationMs: Date.now() - startMs, model: MODEL });
         return res
           .status(500)
           .json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
@@ -127,17 +159,20 @@ export async function designGenerationHandler(req: Request, res: Response) {
     if (responseType === 'message') {
       const text =
         typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.';
+      logSuccess({ prompt: promptSnippet, selectedElementType, targetArtboardLabel, responseType: 'message', durationMs: Date.now() - startMs, model: MODEL });
       return res.json({ type: 'message', text });
     }
 
     if (responseType === 'patch') {
       const patchNodes = parsedResponse.nodes;
       if (!patchNodes || typeof patchNodes !== 'object') {
+        logRejected({ prompt: promptSnippet, selectedElementType, reason: 'invalid_patch_nodes', durationMs: Date.now() - startMs, model: MODEL });
         return res
           .status(500)
           .json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
       }
 
+      const nodeCount = Object.keys(patchNodes).length;
       const message =
         typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
 
@@ -151,25 +186,30 @@ export async function designGenerationHandler(req: Request, res: Response) {
           if (orphansRemoved > 0) {
             console.warn(`[design/patch] Removed ${orphansRemoved} orphan child ref(s) after merge`);
           }
+          logSuccess({ prompt: promptSnippet, selectedElementType, targetArtboardLabel, responseType: 'state', nodeCount, durationMs: Date.now() - startMs, model: MODEL });
           return res.json({ type: 'state', craftState: JSON.stringify(merged), message });
         } catch (mergeErr) {
           console.warn('[design/patch] Server-side merge failed, falling back to raw patch:', mergeErr);
         }
       }
 
+      logSuccess({ prompt: promptSnippet, selectedElementType, targetArtboardLabel, responseType: 'patch', nodeCount, durationMs: Date.now() - startMs, model: MODEL });
       return res.json({ type: 'patch', nodes: JSON.stringify(patchNodes), message });
     }
 
     // Default: full state replacement
     const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
     if (!craftStateObj || typeof craftStateObj !== 'object') {
+      logRejected({ prompt: promptSnippet, selectedElementType, reason: 'invalid_craft_state', durationMs: Date.now() - startMs, model: MODEL });
       return res
         .status(500)
         .json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
     }
 
+    const nodeCount = Object.keys(craftStateObj).length;
     const stateMessage =
       typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+    logSuccess({ prompt: promptSnippet, selectedElementType, targetArtboardLabel, responseType: 'state', nodeCount, durationMs: Date.now() - startMs, model: MODEL });
     return res.json({
       type: 'state',
       craftState: JSON.stringify(craftStateObj),
@@ -177,6 +217,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
     });
   } catch (err: any) {
     console.error('Design generation error:', err);
+    logRejected({ prompt: (req.body?.prompt ?? '').toString().slice(0, 200), reason: 'internal_error', durationMs: Date.now() - startMs, model: MODEL });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

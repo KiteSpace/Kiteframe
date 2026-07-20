@@ -2211,6 +2211,17 @@ function preserveTableCellData(
     if (existingCellData === undefined && existingHeaders === undefined) continue;
 
     const newProps = (n.props as Record<string, unknown> | undefined) ?? {};
+
+    // Warn when preservation is actually overwriting AI-generated values so
+    // the override is visible in the browser console even without server logs.
+    const aiCellData = newProps.cellData;
+    const aiHeaders = newProps.headers;
+    const overwritingCellData = existingCellData !== undefined && aiCellData !== undefined && JSON.stringify(aiCellData) !== JSON.stringify(existingCellData);
+    const overwritingHeaders = existingHeaders !== undefined && aiHeaders !== undefined && JSON.stringify(aiHeaders) !== JSON.stringify(existingHeaders);
+    if (overwritingCellData || overwritingHeaders) {
+      console.warn("[design_ai_overridden] preserveTableCellData restored old data for node", nodeId, { overwritingCellData, overwritingHeaders });
+    }
+
     const updated: Record<string, unknown> = { ...newProps };
     if (existingCellData !== undefined) updated.cellData = existingCellData;
     if (existingHeaders !== undefined) updated.headers = existingHeaders;
@@ -2218,6 +2229,46 @@ function preserveTableCellData(
     result[nodeId] = { ...n, props: updated };
   }
   return result;
+}
+
+/**
+ * Diffs two craft.js node maps and returns which nodes were added, modified
+ * (props changed), or removed. Used for `[design_ai_applied]` console logging.
+ * Logs component types and node IDs only — never logs prop content.
+ */
+function diffCraftStates(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): {
+  added: Array<{ nodeId: string; resolvedName: string }>;
+  modified: Array<{ nodeId: string; resolvedName: string }>;
+  removed: Array<{ nodeId: string; resolvedName: string }>;
+} {
+  const getResolvedName = (node: unknown): string =>
+    (node && typeof node === "object" ? ((node as any).type?.resolvedName as string) : undefined) ?? "unknown";
+
+  const added: Array<{ nodeId: string; resolvedName: string }> = [];
+  const modified: Array<{ nodeId: string; resolvedName: string }> = [];
+  const removed: Array<{ nodeId: string; resolvedName: string }> = [];
+
+  for (const [nodeId, node] of Object.entries(after)) {
+    const resolvedName = getResolvedName(node);
+    if (!(nodeId in before)) {
+      added.push({ nodeId, resolvedName });
+    } else {
+      const beforeProps = (before[nodeId] as any)?.props;
+      const afterProps = (node as any)?.props;
+      if (JSON.stringify(beforeProps) !== JSON.stringify(afterProps)) {
+        modified.push({ nodeId, resolvedName });
+      }
+    }
+  }
+  for (const [nodeId, node] of Object.entries(before)) {
+    if (!(nodeId in after)) {
+      removed.push({ nodeId, resolvedName: getResolvedName(node) });
+    }
+  }
+  return { added, modified, removed };
 }
 
 function spreadArtboardsInState(state: Record<string, any>): Record<string, any> {
@@ -2332,6 +2383,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     setMessages((prev) => [...prev, { role: "user", text: trimmed, pinnedElement: pinned }]);
     setPrompt("");
     setAiStatus("loading");
+    const aiStartMs = Date.now();
     try {
       let currentCraftState: string | undefined;
       let targetArtboardLabel: string | undefined;
@@ -2404,15 +2456,22 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         try { existingState = JSON.parse(query.serialize()); } catch {}
         const mergedRaw = mergeGraphAware(existingState, patchNodes);
         const merged = preserveTableCellData(existingState, mergedRaw, pinned?.nodeId);
-        const mergedJson = JSON.stringify(merged);
         const validation = validateCraftState(merged);
         if (!validation.valid) {
+          console.warn("[design_ai_discarded]", { reason: "patch_invalid_graph", errors: validation.errors, durationMs: Date.now() - aiStartMs });
           console.warn("[design/patch] Merge produced invalid graph, discarding:", validation.errors);
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
         } else {
           const spread = spreadArtboardsInState(merged);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+          const diff = diffCraftStates(existingState, merged);
+          const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
+          if (totalChanges === 0) {
+            console.warn("[design_ai_applied] no visual change detected", { responseType: "patch", durationMs: Date.now() - aiStartMs });
+          } else {
+            console.log("[design_ai_applied]", { responseType: "patch", diff, durationMs: Date.now() - aiStartMs });
+          }
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
         }
       } else {
@@ -2424,12 +2483,20 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw, pinned?.nodeId) : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
+          console.warn("[design_ai_discarded]", { reason: "state_invalid", errors: validation.errors, durationMs: Date.now() - aiStartMs });
           console.warn("[design/state] State failed validation, discarding:", validation.errors);
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
           const spread = spreadArtboardsInState(parsedForValidation);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+          const diff = diffCraftStates(existingStateForReplace, parsedForValidation);
+          const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
+          if (totalChanges === 0) {
+            console.warn("[design_ai_applied] no visual change detected", { responseType: "state", durationMs: Date.now() - aiStartMs });
+          } else {
+            console.log("[design_ai_applied]", { responseType: "state", diff, durationMs: Date.now() - aiStartMs });
+          }
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
         }
       }
