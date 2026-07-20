@@ -33,6 +33,7 @@ export async function designGenerationHandler(req: Request, res: Response) {
         .object({
           displayName: z.string().max(100),
           props: z.record(z.unknown()),
+          nodeId: z.string().max(200).optional(),
         })
         .optional(),
     });

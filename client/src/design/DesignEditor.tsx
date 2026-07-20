@@ -1486,6 +1486,7 @@ interface PinnedElement {
   displayName: string;
   props: Record<string, any>;
   label: string;
+  nodeId: string;
 }
 
 interface PinnedElementContextValue {
@@ -1921,7 +1922,7 @@ function SelectionPinButton() {
     >
       <button
         onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => setPinned({ displayName: selectedInfo.displayName, props: selectedInfo.props, label })}
+        onClick={() => setPinned({ displayName: selectedInfo.displayName, props: selectedInfo.props, label, nodeId: selectedInfo.id })}
         className="flex items-center gap-1 bg-primary text-primary-foreground rounded-lg px-2 py-1 shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-[10px] font-semibold"
         title="Pin this element to the AI chat"
       >
@@ -2174,19 +2175,28 @@ function mergeGraphAware(
 /**
  * After an AI rewrite, carry forward user-typed `cellData` and `headers` for
  * every AstryxTable node that appears (by the same ID) in both the old and new
- * state.  The AI prompt only knows about `rows` / `columns`, so it never emits
- * cellData or headers — silently erasing user edits.  This helper re-applies
- * the existing values so they survive the rewrite.
+ * state — protecting data that the user typed manually from being silently
+ * erased by an unrelated layout change.
+ *
+ * Pass `targetNodeId` when the user explicitly asked the AI to edit a specific
+ * node (e.g. via "Ask AI" with a pinned selection). That node is excluded from
+ * preservation so the AI's new values take effect; all other tables are still
+ * protected.
  */
 function preserveTableCellData(
   existingState: Record<string, unknown>,
   newState: Record<string, unknown>,
+  targetNodeId?: string,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = { ...newState };
   for (const [nodeId, node] of Object.entries(result)) {
     if (!node || typeof node !== "object") continue;
     const n = node as Record<string, unknown>;
     if ((n.type as any)?.resolvedName !== "AstryxTable") continue;
+
+    // Skip preservation for the node the user explicitly targeted — the AI's
+    // new headers/cellData values should win.
+    if (targetNodeId && nodeId === targetNodeId) continue;
 
     const existing = existingState[nodeId];
     if (!existing || typeof existing !== "object") continue;
@@ -2377,7 +2387,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           targetArtboardLabel,
           conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
           selectedElement: pinned
-            ? { displayName: pinned.displayName, props: pinned.props }
+            ? { displayName: pinned.displayName, props: pinned.props, nodeId: pinned.nodeId }
             : undefined,
         }),
       });
@@ -2393,7 +2403,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         let existingState: Record<string, unknown> = {};
         try { existingState = JSON.parse(query.serialize()); } catch {}
         const mergedRaw = mergeGraphAware(existingState, patchNodes);
-        const merged = preserveTableCellData(existingState, mergedRaw);
+        const merged = preserveTableCellData(existingState, mergedRaw, pinned?.nodeId);
         const mergedJson = JSON.stringify(merged);
         const validation = validateCraftState(merged);
         if (!validation.valid) {
@@ -2411,7 +2421,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const parsedRaw = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
         let existingStateForReplace: Record<string, unknown> = {};
         try { if (currentCraftState) existingStateForReplace = JSON.parse(currentCraftState); } catch {}
-        const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw) : null;
+        const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw, pinned?.nodeId) : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
           console.warn("[design/state] State failed validation, discarding:", validation.errors);

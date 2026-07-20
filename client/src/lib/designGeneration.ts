@@ -156,7 +156,7 @@ COMPONENT QUICK-REFERENCE:
 - AstryxIcon:   icon glyph, props: { name: string, size: "sm"|"md"|"lg" }
 
 — DATA DISPLAY —
-- AstryxTable:     data table, props: { rows: number (1-3), columns: number (1-3) }
+- AstryxTable:     data table, props: { rows: number (1-10), columns: number (1-6), headers: string[] (column names, e.g. ["Name","Email","Role"]), cellData: string[][] (row data, e.g. [["Alice Chen","alice@acme.com","Admin"]]) }
 - AstryxTabs:      tab navigation bar, props: { tabs: string (comma-separated), active: string }
 - AstryxAccordion: collapsible sections, props: { items: string (comma-separated), open: string }
 - AstryxCalendar:  date picker, props: { month: string }
