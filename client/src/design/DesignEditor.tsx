@@ -2312,7 +2312,7 @@ function preserveTableCellData(
     const overwritingCellData = existingCellData !== undefined && aiCellData !== undefined && JSON.stringify(aiCellData) !== JSON.stringify(existingCellData);
     const overwritingHeaders = existingHeaders !== undefined && aiHeaders !== undefined && JSON.stringify(aiHeaders) !== JSON.stringify(existingHeaders);
     if (overwritingCellData || overwritingHeaders) {
-      console.warn("[design_ai_overridden] preserveTableCellData restored old data for node", nodeId, { overwritingCellData, overwritingHeaders });
+      // logging disabled
     }
 
     const updated: Record<string, unknown> = { ...newProps };
@@ -2622,8 +2622,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const merged = preserveTableCellData(existingState, mergedRaw, pinned?.nodeId);
         const validation = validateCraftState(merged);
         if (!validation.valid) {
-          console.warn("[design_ai_discarded]", { reason: "patch_invalid_graph", errors: validation.errors, durationMs: Date.now() - aiStartMs });
-          console.warn("[design/patch] Merge produced invalid graph, discarding:", validation.errors);
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
         } else {
@@ -2631,11 +2629,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(existingState, merged);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
-          if (totalChanges === 0) {
-            console.warn("[design_ai_applied] no visual change detected", { responseType: "patch", durationMs: Date.now() - aiStartMs });
-          } else {
-            console.log("[design_ai_applied]", { responseType: "patch", diff, durationMs: Date.now() - aiStartMs });
-          }
+          void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
         }
       } else {
@@ -2647,8 +2641,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw, pinned?.nodeId) : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
-          console.warn("[design_ai_discarded]", { reason: "state_invalid", errors: validation.errors, durationMs: Date.now() - aiStartMs });
-          console.warn("[design/state] State failed validation, discarding:", validation.errors);
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
@@ -2656,11 +2648,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(existingStateForReplace, parsedForValidation);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
-          if (totalChanges === 0) {
-            console.warn("[design_ai_applied] no visual change detected", { responseType: "state", durationMs: Date.now() - aiStartMs });
-          } else {
-            console.log("[design_ai_applied]", { responseType: "state", diff, durationMs: Date.now() - aiStartMs });
-          }
+          void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
         }
       }

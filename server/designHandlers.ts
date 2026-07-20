@@ -25,7 +25,8 @@ function logSuccess(entry: {
   durationMs: number;
   model: string;
 }) {
-  console.log('[design_ai]', JSON.stringify(entry));
+  // logging disabled
+  void entry;
 }
 
 function logRejected(entry: {
@@ -36,7 +37,8 @@ function logRejected(entry: {
   model: string;
   validationErrors?: string[];
 }) {
-  console.warn('[design_ai_rejected]', JSON.stringify(entry));
+  // logging disabled
+  void entry;
 }
 
 export async function designGenerationHandler(req: Request, res: Response) {
