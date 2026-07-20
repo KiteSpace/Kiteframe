@@ -901,6 +901,22 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">BG</span>
           <div className="flex gap-1.5 flex-wrap">
+            {/* Transparent tile */}
+            <button
+              key="transparent"
+              onClick={() => setProp("backgroundColor", "transparent")}
+              title="Transparent"
+              style={{
+                backgroundImage: "linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%)",
+                backgroundSize: "6px 6px",
+                backgroundPosition: "0 0,0 3px,3px -3px,-3px 0px",
+                backgroundColor: "#fff",
+                boxShadow: (!selected.props.backgroundColor || selected.props.backgroundColor === "transparent")
+                  ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
+                  : undefined,
+              }}
+              className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+            />
             {["#ffffff","#f8fafc","#1e293b","#000000","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
               <button
                 key={hex}
@@ -919,25 +935,55 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         </div>
 
         {/* Text swatches — universal */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">Text</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {["#000000","#1e293b","#64748b","#ffffff","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
-              <button
-                key={hex}
-                onClick={() => setProp("textColor", hex)}
-                title={hex}
-                style={{
-                  background: hex,
-                  boxShadow: selected.props.textColor === hex
-                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                    : undefined,
-                }}
-                className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-              />
-            ))}
-          </div>
-        </div>
+        {(() => {
+          const isTextNode = dn === "AstryxText" || dn === "AstryxHeading";
+          const activeTextColor = isTextNode
+            ? (selected.props.color ?? selected.props.textColor)
+            : selected.props.textColor;
+          const setTextColor = (hex: string) => {
+            if (isTextNode) setProp("color", hex);
+            else setProp("textColor", hex);
+          };
+          const clearTextColor = () => {
+            if (isTextNode) { setProp("color", undefined); setProp("textColor", undefined); }
+            else setProp("textColor", undefined);
+          };
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">Text</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {/* Clear/reset tile */}
+                <button
+                  key="clear"
+                  onClick={clearTextColor}
+                  title="Default (clear)"
+                  style={{
+                    backgroundImage: "linear-gradient(to top right, transparent calc(50% - 0.5px), #ef4444 calc(50% - 0.5px), #ef4444 calc(50% + 0.5px), transparent calc(50% + 0.5px))",
+                    backgroundColor: "#fff",
+                    boxShadow: !activeTextColor
+                      ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
+                      : undefined,
+                  }}
+                  className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+                />
+                {["#000000","#1e293b","#64748b","#ffffff","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
+                  <button
+                    key={hex}
+                    onClick={() => setTextColor(hex)}
+                    title={hex}
+                    style={{
+                      background: hex,
+                      boxShadow: activeTextColor === hex
+                        ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                        : undefined,
+                    }}
+                    className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Component-specific: `color` token (Badge, ProgressBar) */}
         {HAS_COLOR_PROP.has(dn) && (

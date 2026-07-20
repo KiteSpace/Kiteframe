@@ -31,14 +31,14 @@ export function AstryxBadge({ children = "Badge", color = "blue" }: AstryxProps)
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>{children}</span>;
 }
 
-export function AstryxText({ children = "Text", size = "md", muted }: AstryxProps) {
+export function AstryxText({ children = "Text", size = "md", muted, color }: AstryxProps) {
   const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base", lg: "text-lg" }, size, "text-base");
-  return <p className={`${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`}>{children}</p>;
+  return <p className={`${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`} style={color ? { color } : undefined}>{children}</p>;
 }
 
-export function AstryxHeading({ children = "Heading", size = "lg" }: AstryxProps) {
+export function AstryxHeading({ children = "Heading", size = "lg", color }: AstryxProps) {
   const sizeClass = pick({ sm: "text-base font-semibold", md: "text-lg font-semibold", lg: "text-xl font-bold", xl: "text-2xl font-bold", "2xl": "text-3xl font-bold" }, size, "text-xl font-bold");
-  return <h2 className={`${sizeClass} text-gray-900`}>{children}</h2>;
+  return <h2 className={`${sizeClass} text-gray-900`} style={color ? { color } : undefined}>{children}</h2>;
 }
 
 export function AstryxAvatar({ name = "?", src, size = "md" }: AstryxProps) {
