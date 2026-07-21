@@ -297,7 +297,7 @@ function useLeafNode() {
       nodeElementRegistry.delete(nodeIdRef.current);
     }
   };
-  return { connectRef, extraStyle };
+  return { connectRef, extraStyle, resolvedRadius };
 }
 
 // Module-level flag: set true when an absolute-node drag exceeds the movement
@@ -477,11 +477,11 @@ function useContainerNode(position: string, x: number, y: number) {
 // ─── Leaf components ──────────────────────────────────────────────────────────
 
 export function AstryxButton(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Button");
   return (
     <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
-      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxButtonBase {...props} /></div>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxButtonBase {...props} borderRadius={resolvedRadius} /></div>
       {editOverlay}
     </div>
   );
@@ -513,10 +513,10 @@ export function AstryxHeading(props: AstryxProps) {
 (AstryxHeading as any).craft = { displayName: "AstryxHeading", rules: { canMoveIn: () => false } };
 
 export function AstryxTextInput(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
-      <AstryxTextInputBase {...props} />
+      <AstryxTextInputBase {...props} borderRadius={resolvedRadius} />
     </div>
   );
 }
@@ -565,10 +565,10 @@ export function AstryxDivider(props: AstryxProps) {
 (AstryxDivider as any).craft = { displayName: "AstryxDivider", rules: { canMoveIn: () => false } };
 
 export function AstryxProgressBar(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
-      <AstryxProgressBarBase {...props} />
+      <AstryxProgressBarBase {...props} borderRadius={resolvedRadius} />
     </div>
   );
 }
@@ -595,11 +595,11 @@ export function AstryxSkeleton(props: AstryxProps) {
 (AstryxSkeleton as any).craft = { displayName: "AstryxSkeleton", rules: { canMoveIn: () => false } };
 
 export function AstryxBanner(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Banner message");
   return (
     <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
-      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBannerBase {...props} /></div>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBannerBase {...props} borderRadius={resolvedRadius} /></div>
       {editOverlay}
     </div>
   );
@@ -940,10 +940,10 @@ export function AstryxAccordion(props: AstryxProps) {
 (AstryxAccordion as any).craft = { displayName: "AstryxAccordion", rules: { canMoveIn: () => false } };
 
 export function AstryxSelect(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
-      <AstryxSelectBase {...props} />
+      <AstryxSelectBase {...props} borderRadius={resolvedRadius} />
     </div>
   );
 }
@@ -1135,8 +1135,9 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
-export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
   const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
+  const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
   const variantClass =
     variant === "outlined" ? "bg-white border border-gray-300" :
     variant === "ghost"    ? "bg-gray-50" :
@@ -1156,6 +1157,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
         ...(isAbsolute ? { cursor: "grab" } : {}),
         ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
         ...(textColor ? { color: textColor as string } : {}),
+        ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius } : {}),
         ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
         ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
       }}

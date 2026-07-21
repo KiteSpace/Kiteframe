@@ -849,8 +849,9 @@ const SPACING_PRESETS = [
 
 const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);
-const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","AstryxText","AstryxHeading","AstryxSpinner","AstryxStatusDot","AstryxIcon","AstryxToken","AstryxSelect","AstryxSkeleton"]);
+const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","AstryxText","AstryxHeading","AstryxSpinner","AstryxStatusDot","AstryxIcon","AstryxToken","AstryxSelect"]);
 const IS_CONTAINER = new Set(["AstryxSection","AstryxStack","AstryxHStack","AstryxArtboard"]);
+const NO_RADIUS = new Set(["AstryxBadge","AstryxAvatar","AstryxSkeleton","AstryxSpinner"]);
 const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
 
 function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
@@ -1071,7 +1072,8 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
           </div>
         )}
 
-        {/* Border radius token row — universal */}
+        {/* Border radius token row — hidden for fixed-shape components */}
+        {!NO_RADIUS.has(dn) && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Radius</span>
           <div className="flex gap-1 flex-wrap">
@@ -1090,6 +1092,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             ))}
           </div>
         </div>
+        )}
       </section>
 
       {/* ── Spacing (containers only) ────────────────────────────── */}

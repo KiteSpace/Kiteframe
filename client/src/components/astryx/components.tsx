@@ -6,7 +6,7 @@ function pick<T>(map: Record<string, T>, key: any, fallback: T): T {
   return (map[key as string] ?? fallback) as T;
 }
 
-export function AstryxButton({ children = "Button", variant = "primary", size = "md", disabled }: AstryxProps) {
+export function AstryxButton({ children = "Button", variant = "primary", size = "md", disabled, borderRadius }: AstryxProps) {
   const sizeClass    = pick({ sm: "px-2 py-1 text-xs", md: "px-3 py-1.5 text-sm", lg: "px-4 py-2 text-base" }, size, "px-3 py-1.5 text-sm");
   const variantClass = pick({
     primary:   "bg-blue-600 text-white hover:bg-blue-700",
@@ -15,15 +15,19 @@ export function AstryxButton({ children = "Button", variant = "primary", size = 
     ghost:     "text-gray-700 hover:bg-gray-100",
   }, variant, "bg-blue-600 text-white");
   return (
-    <button className={`inline-flex items-center justify-center rounded-md font-medium transition-colors ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`} disabled={disabled}>
+    <button
+      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+      disabled={disabled}
+    >
       {children}
     </button>
   );
 }
 
-export function AstryxCard({ children = "Card content", variant = "elevated" }: AstryxProps) {
+export function AstryxCard({ children = "Card content", variant = "elevated", borderRadius }: AstryxProps) {
   const variantClass = pick({ elevated: "bg-white shadow-md border border-gray-100", outlined: "bg-white border border-gray-300", ghost: "bg-gray-50" }, variant, "bg-white shadow-md");
-  return <div className={`rounded-lg p-4 ${variantClass}`}>{children}</div>;
+  return <div className={`rounded-lg p-4 ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
 }
 
 export function AstryxBadge({ children = "Badge", color = "blue" }: AstryxProps) {
@@ -58,7 +62,7 @@ export function AstryxSpinner({ size = "md" }: AstryxProps) {
 
 export function AstryxDivider({ label }: AstryxProps) {
   return (
-    <div className="flex items-center gap-2 w-40">
+    <div className="flex items-center gap-2 w-full">
       <div className="flex-1 h-px bg-gray-200" />
       {label && <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>}
       <div className="flex-1 h-px bg-gray-200" />
@@ -66,33 +70,34 @@ export function AstryxDivider({ label }: AstryxProps) {
   );
 }
 
-export function AstryxProgressBar({ value = 50, color = "blue" }: AstryxProps) {
+export function AstryxProgressBar({ value = 50, color = "blue", borderRadius }: AstryxProps) {
   const colorClass   = pick({ blue: "bg-blue-500", green: "bg-green-500", amber: "bg-amber-500", red: "bg-red-500" }, color, "bg-blue-500");
   const clampedValue = Math.max(0, Math.min(100, Number(value)));
   return (
-    <div className="w-40 h-2 bg-gray-200 rounded-full overflow-hidden">
+    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden" style={borderRadius !== undefined ? { borderRadius } : undefined}>
       <div className={`h-full ${colorClass} rounded-full transition-all`} style={{ width: `${clampedValue}%` }} />
     </div>
   );
 }
 
-export function AstryxStatusDot({ status = "online" }: AstryxProps) {
+export function AstryxStatusDot({ status = "online", size = "md" }: AstryxProps) {
   const colorClass = pick({ online: "bg-green-500", offline: "bg-gray-400", busy: "bg-red-500", away: "bg-amber-500" }, status, "bg-green-500");
-  return <div className={`w-2.5 h-2.5 rounded-full ${colorClass}`} />;
+  const sizeClass  = pick({ sm: "w-2 h-2", md: "w-2.5 h-2.5", lg: "w-3.5 h-3.5" }, size, "w-2.5 h-2.5");
+  return <div className={`${sizeClass} rounded-full ${colorClass}`} />;
 }
 
 export function AstryxSkeleton({ width = 120, height = 16 }: AstryxProps) {
   return <div className="rounded animate-pulse bg-gray-200" style={{ width, height }} />;
 }
 
-export function AstryxBanner({ children = "Banner message", variant = "info" }: AstryxProps) {
+export function AstryxBanner({ children = "Banner message", variant = "info", borderRadius }: AstryxProps) {
   const variantClass = pick({
     info:    "bg-blue-50 border-blue-200 text-blue-800",
     success: "bg-green-50 border-green-200 text-green-800",
     warning: "bg-amber-50 border-amber-200 text-amber-800",
     error:   "bg-red-50 border-red-200 text-red-800",
   }, variant, "bg-blue-50 border-blue-200 text-blue-800");
-  return <div className={`px-3 py-2 rounded-md border text-sm ${variantClass}`}>{children}</div>;
+  return <div className={`px-3 py-2 rounded-md border text-sm ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
 }
 
 export function AstryxEmptyState({ title = "Nothing here", description, action }: AstryxProps) {
@@ -126,12 +131,13 @@ export function AstryxToken({ children = "Tag" }: AstryxProps) {
   );
 }
 
-export function AstryxTextInput({ placeholder = "Enter text…", label, value, disabled }: AstryxProps) {
+export function AstryxTextInput({ placeholder = "Enter text…", label, value, disabled, borderRadius }: AstryxProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 w-full">
       {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
       <input
-        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 w-40"
+        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 w-full"
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
         placeholder={placeholder}
         defaultValue={value}
         disabled={disabled}
@@ -150,9 +156,20 @@ export function AstryxHStack({ children, gap = 8, align = "center" }: AstryxProp
   return <div className={`flex flex-row ${alignClass}`} style={{ gap }}>{children}</div>;
 }
 
-export function AstryxIcon({ name = "★", size = "md" }: AstryxProps) {
+const ICON_GLYPHS: Record<string, string> = {
+  star: "★", check: "✓", heart: "♥", arrow: "→", chevron: "›",
+  home: "⌂", user: "○", search: "⌕", close: "✕", x: "✕",
+  plus: "+", minus: "−", settings: "⚙", mail: "✉", lock: "⊕",
+  info: "ⓘ", warning: "⚠", edit: "✎", trash: "⊘", upload: "↑",
+  download: "↓", menu: "☰", grid: "⊞", share: "↗", eye: "◉",
+  send: "➤", bookmark: "⬟", pin: "⊙", link: "⊗", image: "▣",
+  bell: "◎", calendar: "◪", phone: "☎", tag: "◈",
+};
+export function AstryxIcon({ name = "star", size = "md" }: AstryxProps) {
   const sizeClass = pick({ sm: "text-base", md: "text-xl", lg: "text-2xl" }, size, "text-xl");
-  return <span className={`${sizeClass} text-gray-500 select-none`} title={name}>⬡</span>;
+  const key = String(name).toLowerCase().trim();
+  const glyph = ICON_GLYPHS[key] ?? (String(name).charAt(0).toUpperCase() || "⬡");
+  return <span className={`${sizeClass} text-gray-500 select-none`} title={name}>{glyph}</span>;
 }
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16 }: AstryxProps) {
@@ -255,13 +272,32 @@ export function AstryxAccordion({ items = "Section 1,Section 2,Section 3", open 
   );
 }
 
-export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3" }: AstryxProps) {
+export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3", size = "md", borderRadius }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const heightClass = pick({ sm: "h-7 text-xs", md: "h-9 text-sm", lg: "h-11 text-base" }, size, "h-9 text-sm");
+  const preview = optionList.slice(0, 3);
   return (
-    <div className="flex h-9 w-44 items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-500 cursor-pointer hover:border-gray-400">
-      <span>{placeholder}</span>
-      <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
+    <div className="flex flex-col w-full">
+      <div
+        className={`flex ${heightClass} w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-500 cursor-pointer hover:border-gray-400`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <span>{placeholder}</span>
+        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      {preview.length > 0 && (
+        <div className="mt-0.5 border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden">
+          {preview.map((opt, i) => (
+            <div key={i} className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
