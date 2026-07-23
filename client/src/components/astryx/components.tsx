@@ -336,7 +336,7 @@ export function AstryxRadioGroup({ options = "Option A,Option B,Option C", selec
 export function AstryxSlider({ value = 50, min = 0, max = 100 }: AstryxProps) {
   const pct = Math.max(0, Math.min(100, ((Number(value) - Number(min)) / (Number(max) - Number(min))) * 100));
   return (
-    <div className="w-40 flex flex-col gap-1.5">
+    <div className="w-full flex flex-col gap-1.5">
       <div className="relative h-1.5 w-full rounded-full bg-gray-200">
         <div className="absolute h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
         <div
@@ -363,7 +363,7 @@ export function AstryxCalendar({ month = "July 2026" }: AstryxProps) {
     27, 28, 29, 30, 31, null, null,
   ];
   return (
-    <div className="rounded-md border border-gray-200 bg-white p-3 w-56 text-sm">
+    <div className="rounded-md border border-gray-200 bg-white p-3 w-full text-sm">
       <div className="flex items-center justify-between mb-2">
         <button className="text-gray-400 hover:text-gray-600 px-1 text-xs">◀</button>
         <span className="font-medium text-gray-800 text-xs">{month}</span>
@@ -388,7 +388,7 @@ export function AstryxCalendar({ month = "July 2026" }: AstryxProps) {
 
 export function AstryxCommand({ placeholder = "Search commands…" }: AstryxProps) {
   return (
-    <div className="w-56 rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden">
+    <div className="w-full rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden">
       <div className="flex items-center px-3 py-2 border-b border-gray-100">
         <svg className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
