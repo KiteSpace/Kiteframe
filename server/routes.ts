@@ -6982,7 +6982,7 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
       const { valid, errors } = validateCraftState(state);
       if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
-      const allowedSources = ['native', 'home-ai'];
+      const allowedSources = ['native', 'home-ai', 'workflow-bridge'];
       const resolvedSource = typeof source === 'string' && allowedSources.includes(source) ? source : 'native';
       const design = await storage.createDesign({
         claimedByUserId: userId,

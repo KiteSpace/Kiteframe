@@ -131,12 +131,12 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
 
   return (
     <div className={`${inline ? "h-full w-full" : "h-screen w-screen"} flex flex-col bg-background overflow-hidden`}>
-      {/* Header — only show when inline (tab mode) since standalone has its own chrome */}
-      {inline && (
+      {/* Header — only show when inline and generated from a workflow */}
+      {inline && design.source === "workflow-bridge" && design.title && (
         <div className="h-10 flex items-center gap-3 px-4 border-b border-border shrink-0">
-          <h1 className="text-xs font-medium truncate flex-1 text-muted-foreground">
-            {design.title ?? "Untitled Design"}
-          </h1>
+          <span className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full truncate max-w-xs">
+            {design.title}
+          </span>
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
             {!canEdit && (

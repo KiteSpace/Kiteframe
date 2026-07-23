@@ -10640,7 +10640,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           credentials: "include",
-                          body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge" }),
+                          body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge", title: activeTab?.name ?? null }),
                         });
                         if (createRes.status === 401) { openSignup(); return; }
                         const createData = await createRes.json();
