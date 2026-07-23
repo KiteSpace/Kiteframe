@@ -10645,7 +10645,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         if (createRes.status === 401) { openSignup(); return; }
                         const createData = await createRes.json();
                         if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-                        setLocation(`/designs/${createData.id}`);
+                        openDesignTab(createData.id, activeTab?.name ? `${activeTab.name} — Interface` : "Untitled Interface");
                       } catch (e: unknown) {
                         const msg = e instanceof Error ? e.message : "Could not generate interface";
                         toast({ title: "Interface generation failed", description: msg, variant: "destructive" });

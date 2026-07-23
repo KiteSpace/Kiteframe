@@ -3582,8 +3582,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                   props.onLayoutWorkflow?.(flowId, nodeIds, layoutType);
                 }}
                 readOnly={false}
-                onGenerateInterface={index === 0 ? props.onGenerateInterface : undefined}
-                isGeneratingInterface={index === 0 ? props.isGeneratingInterface : false}
+                onGenerateInterface={props.onGenerateInterface}
+                isGeneratingInterface={props.isGeneratingInterface ?? false}
               />
             );
           })}
