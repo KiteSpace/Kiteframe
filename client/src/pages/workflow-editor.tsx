@@ -10663,8 +10663,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onQuickAdd={handleQuickAdd}
                     workflowName={activeTab?.name}
                     onWorkflowNameChange={setWorkflowName}
-                    workflowMetadata={metadata}
-                    onWorkflowMetadataChange={setProjectMetadata}
                     onEdgeReconnect={handleEdgeReconnect}
                     onEdgeControlPointDragStart={() => {
                       saveToHistory("Reshape edge");

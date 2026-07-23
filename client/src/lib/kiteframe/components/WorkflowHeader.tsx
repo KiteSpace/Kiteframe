@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown } from 'lucide-react';
+import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown, WandSparkles, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -65,6 +65,8 @@ interface WorkflowHeaderProps {
   onLayoutWorkflow?: (flowId: string, layoutType: 'hierarchical' | 'horizontal' | 'vertical') => void;
   readOnly?: boolean;
   flowNodes?: any[];
+  onGenerateInterface?: () => void;
+  isGeneratingInterface?: boolean;
 }
 
 export function WorkflowHeader({
@@ -81,6 +83,8 @@ export function WorkflowHeader({
   onLayoutWorkflow,
   readOnly = false,
   flowNodes = [],
+  onGenerateInterface,
+  isGeneratingInterface = false,
 }: WorkflowHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -224,6 +228,7 @@ export function WorkflowHeader({
       onMouseDown={(e) => e.stopPropagation()}
       data-testid={`workflow-header-${flowId}`}
     >
+      <div className="flex items-center gap-2">
       <div className="relative">
         <button
           onClick={() => {
@@ -430,6 +435,25 @@ export function WorkflowHeader({
             </button>
           </div>
         )}
+      </div>
+
+      {onGenerateInterface && (
+        <button
+          onClick={onGenerateInterface}
+          disabled={isGeneratingInterface}
+          className="group/gi flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm hover:shadow-md transition-all text-sm font-medium disabled:opacity-60"
+          style={{ backgroundColor: '#2b313d', color: '#ffffff' }}
+          title="Create interface project"
+        >
+          {isGeneratingInterface
+            ? <Loader2 size={14} className="animate-spin flex-shrink-0" />
+            : <WandSparkles size={14} className="flex-shrink-0" />
+          }
+          <span className="overflow-hidden max-w-0 group-hover/gi:max-w-[140px] transition-all duration-200 whitespace-nowrap">
+            {isGeneratingInterface ? 'Generating…' : 'Create interface'}
+          </span>
+        </button>
+      )}
       </div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
