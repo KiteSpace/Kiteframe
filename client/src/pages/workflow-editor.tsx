@@ -116,6 +116,7 @@ import {
   getOppositeTextColor,
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
+import { buildInterfacePromptFromWorkflow } from "@/lib/buildInterfacePrompt";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
 import {
@@ -150,6 +151,8 @@ import {
   RotateCcw,
   Rocket,
   GitBranch,
+  WandSparkles,
+  Loader2,
 } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
@@ -2251,6 +2254,7 @@ function WorkflowEditorContent({
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
   const [designModeTabIds, setDesignModeTabIds] = useState<Set<string>>(new Set());
   const [previousTabId, setPreviousTabId] = useState<string | null>(null);
+  const [isGeneratingInterface, setIsGeneratingInterface] = useState(false);
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
@@ -8027,6 +8031,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     </button>
                   </div>
                 ))}
+            {/* Generate Interface button — hidden in view mode */}
+            {!effectiveReadOnly && (
+              <button
+                onClick={async () => {
+                  if (isGeneratingInterface) return;
+                  setIsGeneratingInterface(true);
+                  try {
+                    const prompt = buildInterfacePromptFromWorkflow(nodes, edges, activeTab?.name);
+                    const genRes = await fetch("/api/ai/design", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ prompt }),
+                    });
+                    const genData = await genRes.json();
+                    if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+                    const createRes = await fetch("/api/designs", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge" }),
+                    });
+                    const createData = await createRes.json();
+                    if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+                    setLocation(`/designs/${createData.id}`);
+                  } catch (e: unknown) {
+                    const msg = e instanceof Error ? e.message : "Could not generate interface";
+                    toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
+                  } finally {
+                    setIsGeneratingInterface(false);
+                  }
+                }}
+                title="Create interface project from this workflow"
+                data-testid="button-generate-interface"
+                className="group/gi flex items-center gap-2 h-8 px-2 rounded-full bg-black text-white flex-shrink-0 overflow-hidden transition-all duration-200 max-w-8 hover:max-w-[13rem] hover:px-3 whitespace-nowrap"
+              >
+                {isGeneratingInterface
+                  ? <Loader2 size={15} className="flex-shrink-0 animate-spin" />
+                  : <WandSparkles size={15} className="flex-shrink-0" />
+                }
+                <span className="text-xs font-medium opacity-0 group-hover/gi:opacity-100 transition-opacity duration-150 delay-75">
+                  {isGeneratingInterface ? "Generating…" : "Create interface project"}
+                </span>
+              </button>
+            )}
             {/* New Tab button - hidden in view mode */}
             {!effectiveReadOnly && (
               <button
