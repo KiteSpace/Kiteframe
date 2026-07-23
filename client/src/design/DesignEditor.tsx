@@ -2806,7 +2806,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         </div>
 
         {/* KiteAI tab */}
-        <TabsContent value="kite-ai" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
+        <TabsContent value="kite-ai" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0 data-[state=inactive]:hidden">
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 min-h-0">
             {messages.map((m, i) => (
               <div key={i} className={`flex gap-1.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -2886,12 +2886,12 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         </TabsContent>
 
         {/* Layers tab */}
-        <TabsContent value="layers" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
+        <TabsContent value="layers" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0 data-[state=inactive]:hidden">
           <LayersView />
         </TabsContent>
 
         {/* Notes tab */}
-        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0">
+        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0 data-[state=inactive]:hidden">
           <div className="flex-1 flex flex-col p-3 min-h-0">
             {editable ? (
               <textarea
