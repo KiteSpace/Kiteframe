@@ -190,16 +190,26 @@ function absPositionStyle(position: string, x: number, y: number): CSSProperties
 }
 
 // ─── Leaf node hook ───────────────────────────────────────────────────────────
-// Provides drag/connect ref, selection ring, and absolute positioning for all
-// leaf (non-canvas) components from a single hook.
+// Provides drag/connect ref, selection ring, absolute positioning, full-width
+// defaulting, and drag-to-resize handles for all leaf components.
 
 const RADIUS_TOKEN: Record<string, number> = { None: 0, S: 4, M: 8, L: 16, Full: 9999 };
+
+// Components that should fill their parent's width by default rather than
+// shrink-wrapping. These are block-level by nature (tables, inputs, carousels…).
+const FULL_WIDTH_LEAF = new Set([
+  "AstryxCarousel", "AstryxResizable", "AstryxTable", "AstryxTabs",
+  "AstryxAccordion", "AstryxSlider", "AstryxCalendar", "AstryxCommand",
+  "AstryxBanner", "AstryxEmptyState", "AstryxChatMessage", "AstryxDivider",
+  "AstryxProgressBar", "AstryxTextInput", "AstryxSelect", "AstryxRadioGroup",
+  "AstryxHeading",
+]);
 
 function useLeafNode() {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
   const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY,
-          nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight } = useNode((node) => ({
+          nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight, displayName } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
@@ -209,27 +219,41 @@ function useLeafNode() {
     nodeRadius: node.data.props?.borderRadius as string | undefined,
     nodeWidth:  node.data.props?.width as number | string | undefined,
     nodeHeight: node.data.props?.height as number | string | undefined,
+    displayName: node.data.displayName as string,
   }));
   const { query } = useEditor(() => ({}));
 
   const isAbsolute = nodePosition === "absolute";
+  const isFullWidth = FULL_WIDTH_LEAF.has(displayName);
+
   const elementRef = useRef<HTMLElement | null>(null);
+  const handleERef = useRef<HTMLDivElement | null>(null);
+  const handleSRef = useRef<HTMLDivElement | null>(null);
+  const handleSERef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
   const stateRef = useRef({ x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp });
   stateRef.current = { x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp };
+  // Live size snapshot so resize handlers don't close over stale props.
+  const sizeRef = useRef({
+    w: nodeWidth != null && nodeWidth !== "auto" ? Number(nodeWidth) : undefined,
+    h: nodeHeight != null && nodeHeight !== "auto" ? Number(nodeHeight) : undefined,
+  });
+  sizeRef.current = {
+    w: nodeWidth != null && nodeWidth !== "auto" ? Number(nodeWidth) : undefined,
+    h: nodeHeight != null && nodeHeight !== "auto" ? Number(nodeHeight) : undefined,
+  };
   const queryRef = useRef(query);
   queryRef.current = query;
   const setGuidesRef = useRef(setGuides);
   setGuidesRef.current = setGuides;
-  const nodeIdRef = useRef(id); // id is stable for a mounted node
+  const nodeIdRef = useRef(id);
 
-  // Attach a single native mousedown listener on mount so we don't need to
-  // touch every individual leaf component's JSX.
+  // Attach drag-to-move (absolute nodes only) once on mount.
   useEffect(() => {
     const el = elementRef.current;
     if (!el) return;
     const handle = (e: MouseEvent) => {
-      _dragOccurred = false; // reset on every mousedown (absolute or not)
+      _dragOccurred = false;
       if (!stateRef.current.isAbsolute) return;
       const { x: sx, y: sy } = stateRef.current;
       dragStartRef.current = { mx: e.clientX, my: e.clientY, sx, sy };
@@ -239,18 +263,15 @@ function useLeafNode() {
         const rawDx = ev.clientX - dragStartRef.current.mx;
         const rawDy = ev.clientY - dragStartRef.current.my;
         if (Math.hypot(rawDx, rawDy) < 3) return;
-        _dragOccurred = true; // movement exceeded threshold → real drag
+        _dragOccurred = true;
         const dx = rawDx / z;
         const dy = rawDy / z;
         const newX = Math.round(dragStartRef.current.sx + dx);
         const newY = Math.round(dragStartRef.current.sy + dy);
-
         const elRect = elementRef.current?.getBoundingClientRect();
         if (elRect) {
           const nodes = queryRef.current.getSerializedNodes();
-          const { vGuide, hGuide } = computeAlignmentGuides(
-            nodeIdRef.current, newX, newY, elRect, z, nodes,
-          );
+          const { vGuide, hGuide } = computeAlignmentGuides(nodeIdRef.current, newX, newY, elRect, z, nodes);
           setGuidesRef.current(hGuide, vGuide);
           setProp((p: any) => { p.x = newX; p.y = newY; });
         } else {
@@ -269,24 +290,75 @@ function useLeafNode() {
     };
     el.addEventListener("mousedown", handle);
     return () => el.removeEventListener("mousedown", handle);
-  }, []); // register once on mount
+  }, []);
+
+  // Stable factory for E/S/SE resize handlers — reads live values via refs.
+  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const { zoom: z } = stateRef.current;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = sizeRef.current.w ?? Math.round((elementRef.current?.getBoundingClientRect().width ?? 100) / z);
+    const startH = sizeRef.current.h ?? Math.round((elementRef.current?.getBoundingClientRect().height ?? 40) / z);
+    const onMove = (ev: MouseEvent) => {
+      const { zoom: cz, setProp } = stateRef.current;
+      const dw = (ev.clientX - startX) / cz;
+      const dh = (ev.clientY - startY) / cz;
+      setProp((p: any) => {
+        if (dir === "e" || dir === "se") p.width  = Math.max(20, Math.round(startW + dw));
+        if (dir === "s" || dir === "se") p.height = Math.max(20, Math.round(startH + dh));
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
+  // Re-attach resize listeners whenever selection changes (handles conditionally mount).
+  useEffect(() => {
+    const eEl = handleERef.current;
+    const sEl = handleSRef.current;
+    const seEl = handleSERef.current;
+    if (!eEl || !sEl || !seEl) return;
+    const eH = makeResizeHandler("e");
+    const sH = makeResizeHandler("s");
+    const seH = makeResizeHandler("se");
+    eEl.addEventListener("mousedown", eH, { capture: true });
+    sEl.addEventListener("mousedown", sH, { capture: true });
+    seEl.addEventListener("mousedown", seH, { capture: true });
+    return () => {
+      eEl.removeEventListener("mousedown", eH, { capture: true });
+      sEl.removeEventListener("mousedown", sH, { capture: true });
+      seEl.removeEventListener("mousedown", seH, { capture: true });
+    };
+  }, [selected, makeResizeHandler]);
 
   const resolvedRadius = nodeRadius !== undefined ? (RADIUS_TOKEN[nodeRadius] ?? 8) : undefined;
   const extraStyle: CSSProperties = {
     ...absPositionStyle(nodePosition, nodeX, nodeY),
+    // Flow nodes get position:relative so resize handles (position:absolute) anchor correctly.
+    ...(!isAbsolute ? { position: "relative" } : {}),
     ...(selected ? SELECTION_RING : {}),
     ...(isAbsolute ? { cursor: "grab" } : {}),
-    ...(nodeBg     ? { backgroundColor: nodeBg } : {}),
-    ...(nodeColor  ? { color: nodeColor } : {}),
-    // borderRadius applied to the wrapper so the selection ring matches the shape,
-    // and overflow:hidden clips the inner component to the same corners.
-    ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius, overflow: "hidden" } : {}),
-    ...(nodeWidth  !== undefined && nodeWidth  !== "auto" ? { width: nodeWidth } : { width: "fit-content" }),
+    ...(nodeBg  ? { backgroundColor: nodeBg } : {}),
+    ...(nodeColor ? { color: nodeColor } : {}),
+    // borderRadius on the wrapper matches the selection ring shape.
+    // Use overflow:visible when selected so resize handles aren't clipped.
+    ...(resolvedRadius !== undefined
+      ? { borderRadius: resolvedRadius, overflow: selected ? "visible" : "hidden" }
+      : {}),
+    // Full-width components expand to fill their parent; inline ones shrink-wrap.
+    ...(isFullWidth ? { display: "block" } : {}),
+    ...(nodeWidth !== undefined && nodeWidth !== "auto"
+      ? { width: nodeWidth }
+      : isFullWidth ? { width: "100%" } : { width: "fit-content" }),
     ...(nodeHeight !== undefined && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
   };
 
-  // For absolute nodes we skip craft.js `drag` so no snap/alignment indicators
-  // appear. Selection still works via `connect`.
   const connectRef = (r: HTMLElement | null) => {
     elementRef.current = r;
     if (r) {
@@ -297,7 +369,35 @@ function useLeafNode() {
       nodeElementRegistry.delete(nodeIdRef.current);
     }
   };
-  return { connectRef, extraStyle, resolvedRadius };
+
+  // Resize handles — rendered only when selected.
+  const resizeHandles = selected ? (
+    <>
+      <div
+        ref={handleERef}
+        style={{ position: "absolute", top: 0, right: -4, width: 8, bottom: 0,
+                  cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20, transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleSRef}
+        style={{ position: "absolute", left: 0, right: 0, bottom: -4, height: 8,
+                  cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20, transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleSERef}
+        style={{ position: "absolute", right: -5, bottom: -5, width: 12, height: 12,
+                  cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+      </div>
+    </>
+  ) : null;
+
+  return { connectRef, extraStyle, resolvedRadius, resizeHandles };
 }
 
 // Module-level flag: set true when an absolute-node drag exceeds the movement
@@ -477,186 +577,203 @@ function useContainerNode(position: string, x: number, y: number) {
 // ─── Leaf components ──────────────────────────────────────────────────────────
 
 export function AstryxButton(props: AstryxProps) {
-  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Button");
   return (
     <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxButtonBase {...props} borderRadius={resolvedRadius} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxButton as any).craft = { displayName: "AstryxButton", rules: { canMoveIn: () => false } };
 
 export function AstryxText(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Text");
   return (
     <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxTextBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxText as any).craft = { displayName: "AstryxText", rules: { canMoveIn: () => false } };
 
 export function AstryxHeading(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Heading");
   return (
     <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxHeadingBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxHeading as any).craft = { displayName: "AstryxHeading", rules: { canMoveIn: () => false } };
 
 export function AstryxTextInput(props: AstryxProps) {
-  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxTextInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxTextInput as any).craft = { displayName: "AstryxTextInput", rules: { canMoveIn: () => false } };
 
 export function AstryxBadge(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Badge");
   return (
     <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBadgeBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxBadge as any).craft = { displayName: "AstryxBadge", rules: { canMoveIn: () => false } };
 
 export function AstryxAvatar(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
       <AstryxAvatarBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxAvatar as any).craft = { displayName: "AstryxAvatar", rules: { canMoveIn: () => false } };
 
 export function AstryxSpinner(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
       <AstryxSpinnerBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxSpinner as any).craft = { displayName: "AstryxSpinner", rules: { canMoveIn: () => false } };
 
 export function AstryxDivider(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxDividerBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxDivider as any).craft = { displayName: "AstryxDivider", rules: { canMoveIn: () => false } };
 
 export function AstryxProgressBar(props: AstryxProps) {
-  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxProgressBarBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxProgressBar as any).craft = { displayName: "AstryxProgressBar", rules: { canMoveIn: () => false } };
 
 export function AstryxStatusDot(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
       <AstryxStatusDotBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxStatusDot as any).craft = { displayName: "AstryxStatusDot", rules: { canMoveIn: () => false } };
 
 export function AstryxSkeleton(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxSkeletonBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxSkeleton as any).craft = { displayName: "AstryxSkeleton", rules: { canMoveIn: () => false } };
 
 export function AstryxBanner(props: AstryxProps) {
-  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Banner message");
   return (
     <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxBannerBase {...props} borderRadius={resolvedRadius} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxBanner as any).craft = { displayName: "AstryxBanner", rules: { canMoveIn: () => false } };
 
 export function AstryxEmptyState(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("title", props.title ?? "Nothing here yet");
   return (
     <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxEmptyStateBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxEmptyState as any).craft = { displayName: "AstryxEmptyState", rules: { canMoveIn: () => false } };
 
 export function AstryxChatMessage(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Hello!");
   return (
     <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxChatMessageBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxChatMessage as any).craft = { displayName: "AstryxChatMessage", rules: { canMoveIn: () => false } };
 
 export function AstryxToken(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Token");
   return (
     <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
       <div style={editing ? { visibility: "hidden" } : undefined}><AstryxTokenBase {...props} /></div>
       {editOverlay}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxToken as any).craft = { displayName: "AstryxToken", rules: { canMoveIn: () => false } };
 
 export function AstryxIcon(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
       <AstryxIconBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxIcon as any).craft = { displayName: "AstryxIcon", rules: { canMoveIn: () => false } };
 
 export function AstryxUnknown(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxUnknownBase astryxComponent={props.astryxComponent ?? "Unknown"} />
+      {resizeHandles}
     </div>
   );
 }
@@ -682,7 +799,7 @@ const CELL_EDIT_INPUT_STYLE: CSSProperties = {
 };
 
 export function AstryxTable(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   const { actions: { setProp }, nodeSelected } = useNode((node) => ({ nodeSelected: node.events.selected }));
   const zoom = useContext(CanvasZoomContext);
 
@@ -914,106 +1031,117 @@ export function AstryxTable(props: AstryxProps) {
           </tbody>
         </table>
       </div>
+      {resizeHandles}
     </div>
   );
 }
 (AstryxTable as any).craft = { displayName: "AstryxTable", rules: { canMoveIn: () => false } };
 
 export function AstryxTabs(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxTabsBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxTabs as any).craft = { displayName: "AstryxTabs", rules: { canMoveIn: () => false } };
 
 export function AstryxAccordion(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxAccordionBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxAccordion as any).craft = { displayName: "AstryxAccordion", rules: { canMoveIn: () => false } };
 
 export function AstryxSelect(props: AstryxProps) {
-  const { connectRef, extraStyle, resolvedRadius } = useLeafNode();
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxSelectBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxSelect as any).craft = { displayName: "AstryxSelect", rules: { canMoveIn: () => false } };
 
 export function AstryxCheckbox(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
-    <div ref={connectRef} style={{ display: "inline-block", ...extraStyle }}>
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
       <AstryxCheckboxBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxCheckbox as any).craft = { displayName: "AstryxCheckbox", rules: { canMoveIn: () => false } };
 
 export function AstryxRadioGroup(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxRadioGroupBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxRadioGroup as any).craft = { displayName: "AstryxRadioGroup", rules: { canMoveIn: () => false } };
 
 export function AstryxSlider(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxSliderBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxSlider as any).craft = { displayName: "AstryxSlider", rules: { canMoveIn: () => false } };
 
 export function AstryxCalendar(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxCalendarBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxCalendar as any).craft = { displayName: "AstryxCalendar", rules: { canMoveIn: () => false } };
 
 export function AstryxCommand(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxCommandBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxCommand as any).craft = { displayName: "AstryxCommand", rules: { canMoveIn: () => false } };
 
 export function AstryxCarousel(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxCarouselBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
 (AstryxCarousel as any).craft = { displayName: "AstryxCarousel", rules: { canMoveIn: () => false } };
 
 export function AstryxResizable(props: AstryxProps) {
-  const { connectRef, extraStyle } = useLeafNode();
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
       <AstryxResizableBase {...props} />
+      {resizeHandles}
     </div>
   );
 }
