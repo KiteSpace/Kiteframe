@@ -2219,7 +2219,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   app.post('/api/ai/design', aiRateLimiter, async (req: any, res) => {
     try {
       const schema = z.object({
-        prompt: z.string().min(1).max(2000),
+        prompt: z.string().min(1).max(8000),
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
       });
