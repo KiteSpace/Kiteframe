@@ -16,7 +16,7 @@ export function AstryxButton({ children = "Button", variant = "primary", size = 
   }, variant, "bg-blue-600 text-white");
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-md font-medium transition-colors ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      className={`w-full inline-flex items-center justify-center rounded-md font-medium transition-colors ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       style={borderRadius !== undefined ? { borderRadius } : undefined}
       disabled={disabled}
     >
@@ -27,37 +27,47 @@ export function AstryxButton({ children = "Button", variant = "primary", size = 
 
 export function AstryxCard({ children = "Card content", variant = "elevated", borderRadius }: AstryxProps) {
   const variantClass = pick({ elevated: "bg-white shadow-md border border-gray-100", outlined: "bg-white border border-gray-300", ghost: "bg-gray-50" }, variant, "bg-white shadow-md");
-  return <div className={`rounded-lg p-4 ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
+  return <div className={`w-full rounded-lg p-4 ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
 }
 
 export function AstryxBadge({ children = "Badge", color = "blue" }: AstryxProps) {
   const colorClass = pick({ blue: "bg-blue-100 text-blue-800", green: "bg-green-100 text-green-800", amber: "bg-amber-100 text-amber-800", red: "bg-red-100 text-red-800", gray: "bg-gray-100 text-gray-700" }, color, "bg-blue-100 text-blue-800");
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>{children}</span>;
+  return (
+    <div className="w-full flex">
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>{children}</span>
+    </div>
+  );
 }
 
 export function AstryxText({ children = "Text", size = "md", muted, color }: AstryxProps) {
   const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base", lg: "text-lg" }, size, "text-base");
-  return <p className={`${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`} style={color ? { color } : undefined}>{children}</p>;
+  return <p className={`w-full ${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`} style={color ? { color } : undefined}>{children}</p>;
 }
 
 export function AstryxHeading({ children = "Heading", size = "lg", color }: AstryxProps) {
   const sizeClass = pick({ sm: "text-base font-semibold", md: "text-lg font-semibold", lg: "text-xl font-bold", xl: "text-2xl font-bold", "2xl": "text-3xl font-bold" }, size, "text-xl font-bold");
-  return <h2 className={`${sizeClass} text-gray-900`} style={color ? { color } : undefined}>{children}</h2>;
+  return <h2 className={`w-full ${sizeClass} text-gray-900`} style={color ? { color } : undefined}>{children}</h2>;
 }
 
 export function AstryxAvatar({ name = "?", src, size = "md" }: AstryxProps) {
   const sizeClass = pick({ xs: "w-6 h-6 text-xs", sm: "w-8 h-8 text-sm", md: "w-10 h-10 text-base", lg: "w-14 h-14 text-lg" }, size, "w-10 h-10 text-base");
   const initials = String(name).split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className={`${sizeClass} rounded-full bg-blue-500 text-white flex items-center justify-center font-medium overflow-hidden`}>
-      {src ? <img src={src} alt={name} className="w-full h-full object-cover" /> : initials}
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} rounded-full bg-blue-500 text-white flex items-center justify-center font-medium overflow-hidden`}>
+        {src ? <img src={src} alt={name} className="w-full h-full object-cover" /> : initials}
+      </div>
     </div>
   );
 }
 
 export function AstryxSpinner({ size = "md" }: AstryxProps) {
   const sizeClass = pick({ sm: "w-4 h-4", md: "w-6 h-6", lg: "w-8 h-8" }, size, "w-6 h-6");
-  return <div className={`${sizeClass} border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin`} />;
+  return (
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin`} />
+    </div>
+  );
 }
 
 export function AstryxDivider({ label }: AstryxProps) {
@@ -83,11 +93,15 @@ export function AstryxProgressBar({ value = 50, color = "blue", borderRadius }: 
 export function AstryxStatusDot({ status = "online", size = "md" }: AstryxProps) {
   const colorClass = pick({ online: "bg-green-500", offline: "bg-gray-400", busy: "bg-red-500", away: "bg-amber-500" }, status, "bg-green-500");
   const sizeClass  = pick({ sm: "w-2 h-2", md: "w-2.5 h-2.5", lg: "w-3.5 h-3.5" }, size, "w-2.5 h-2.5");
-  return <div className={`${sizeClass} rounded-full ${colorClass}`} />;
+  return (
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} rounded-full ${colorClass}`} />
+    </div>
+  );
 }
 
-export function AstryxSkeleton({ width = 120, height = 16 }: AstryxProps) {
-  return <div className="rounded animate-pulse bg-gray-200" style={{ width, height }} />;
+export function AstryxSkeleton({ height = 16 }: AstryxProps) {
+  return <div className="w-full rounded animate-pulse bg-gray-200" style={{ height }} />;
 }
 
 export function AstryxBanner({ children = "Banner message", variant = "info", borderRadius }: AstryxProps) {
@@ -97,12 +111,12 @@ export function AstryxBanner({ children = "Banner message", variant = "info", bo
     warning: "bg-amber-50 border-amber-200 text-amber-800",
     error:   "bg-red-50 border-red-200 text-red-800",
   }, variant, "bg-blue-50 border-blue-200 text-blue-800");
-  return <div className={`px-3 py-2 rounded-md border text-sm ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
+  return <div className={`w-full px-3 py-2 rounded-md border text-sm ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
 }
 
 export function AstryxEmptyState({ title = "Nothing here", description, action }: AstryxProps) {
   return (
-    <div className="flex flex-col items-center gap-2 p-6 text-center">
+    <div className="w-full flex flex-col items-center gap-2 p-6 text-center">
       <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xl">○</div>
       <p className="text-sm font-medium text-gray-900">{title}</p>
       {description && <p className="text-xs text-gray-500">{description}</p>}
@@ -113,7 +127,7 @@ export function AstryxEmptyState({ title = "Nothing here", description, action }
 
 export function AstryxChatMessage({ children = "Message", sender = "User", timestamp, isOwn }: AstryxProps) {
   return (
-    <div className={`flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
+    <div className={`w-full flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
       <span className="text-xs text-gray-500">{sender}{timestamp ? ` · ${timestamp}` : ""}</span>
       <div className={`px-3 py-2 rounded-2xl text-sm max-w-xs ${isOwn ? "bg-blue-600 text-white rounded-tr-sm" : "bg-gray-100 text-gray-900 rounded-tl-sm"}`}>
         {children}
@@ -124,10 +138,12 @@ export function AstryxChatMessage({ children = "Message", sender = "User", times
 
 export function AstryxToken({ children = "Tag" }: AstryxProps) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
-      {children}
-      <span className="text-gray-400 hover:text-gray-600 cursor-pointer">×</span>
-    </span>
+    <div className="w-full flex">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
+        {children}
+        <span className="text-gray-400 hover:text-gray-600 cursor-pointer">×</span>
+      </span>
+    </div>
   );
 }
 
@@ -148,12 +164,12 @@ export function AstryxTextInput({ placeholder = "Enter text…", label, value, d
 }
 
 export function AstryxStack({ children, gap = 8 }: AstryxProps) {
-  return <div className="flex flex-col" style={{ gap }}>{children}</div>;
+  return <div className="w-full flex flex-col" style={{ gap }}>{children}</div>;
 }
 
 export function AstryxHStack({ children, gap = 8, align = "center" }: AstryxProps) {
   const alignClass = pick({ start: "items-start", center: "items-center", end: "items-end" }, align, "items-center");
-  return <div className={`flex flex-row ${alignClass}`} style={{ gap }}>{children}</div>;
+  return <div className={`w-full flex flex-row ${alignClass}`} style={{ gap }}>{children}</div>;
 }
 
 export const ICON_GLYPHS: Record<string, string> = {
@@ -169,7 +185,11 @@ export function AstryxIcon({ name = "star", size = "md" }: AstryxProps) {
   const sizeClass = pick({ sm: "text-base", md: "text-xl", lg: "text-2xl" }, size, "text-xl");
   const key = String(name).toLowerCase().trim();
   const glyph = ICON_GLYPHS[key] ?? (String(name).charAt(0).toUpperCase() || "⬡");
-  return <span className={`${sizeClass} text-gray-500 select-none`} title={name}>{glyph}</span>;
+  return (
+    <div className="w-full flex justify-center">
+      <span className={`${sizeClass} text-gray-500 select-none`} title={name}>{glyph}</span>
+    </div>
+  );
 }
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16 }: AstryxProps) {
@@ -182,7 +202,7 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 
 export function AstryxUnknown({ astryxComponent }: { astryxComponent: string }) {
   return (
-    <div className="border border-dashed border-gray-300 rounded-md px-3 py-2 text-xs text-gray-400 bg-gray-50">
+    <div className="w-full border border-dashed border-gray-300 rounded-md px-3 py-2 text-xs text-gray-400 bg-gray-50">
       [{astryxComponent}]
     </div>
   );
@@ -304,7 +324,7 @@ export function AstryxSelect({ placeholder = "Select option…", options = "Opti
 
 export function AstryxCheckbox({ label = "Checkbox label", checked = false }: AstryxProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="w-full flex items-center gap-2">
       <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
         {checked && (
           <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -320,7 +340,7 @@ export function AstryxCheckbox({ label = "Checkbox label", checked = false }: As
 export function AstryxRadioGroup({ options = "Option A,Option B,Option C", selected = "Option A" }: AstryxProps) {
   const optionList = String(options).split(",").map((o) => o.trim()).filter(Boolean);
   return (
-    <div className="flex flex-col gap-2">
+    <div className="w-full flex flex-col gap-2">
       {optionList.map((opt) => (
         <div key={opt} className="flex items-center gap-2">
           <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${opt === selected ? "border-blue-600" : "border-gray-300"}`}>
@@ -409,7 +429,7 @@ export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxPro
   const safeLen = slideList.length || 1;
   const [activeSlide, setActiveSlide] = useState(0);
   return (
-    <div className="relative w-56 overflow-hidden rounded-lg border border-gray-200">
+    <div className="relative w-full overflow-hidden rounded-lg border border-gray-200">
       <div className="flex items-center justify-center h-24 bg-gradient-to-br from-blue-50 to-blue-100">
         <span className="text-sm text-blue-600 font-medium">{slideList[activeSlide] ?? slideList[0]}</span>
       </div>
@@ -441,7 +461,7 @@ export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxPro
 export function AstryxResizable({ direction = "horizontal" }: AstryxProps) {
   const isH = direction === "horizontal";
   return (
-    <div className={`flex ${isH ? "flex-row" : "flex-col"} w-56 h-20 rounded-md border border-gray-200 overflow-hidden`}>
+    <div className={`flex ${isH ? "flex-row" : "flex-col"} w-full h-20 rounded-md border border-gray-200 overflow-hidden`}>
       <div className="flex-1 bg-white flex items-center justify-center">
         <span className="text-xs text-gray-400">Panel 1</span>
       </div>
