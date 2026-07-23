@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   resolver,
   AstryxSection,
@@ -74,6 +75,7 @@ import {
   AstryxCommand as AstryxCommandBase,
   AstryxCarousel as AstryxCarouselBase,
   AstryxResizable as AstryxResizableBase,
+  ICON_GLYPHS,
 } from "@/components/astryx";
 
 // ─── Preview error boundary ────────────────────────────────────────────────────
@@ -501,6 +503,60 @@ function ToggleProp({ value, onChange }: { value: boolean; onChange: (v: boolean
   );
 }
 
+const ICON_ENTRIES = Object.entries(ICON_GLYPHS);
+
+function IconPickerProp({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const currentGlyph = ICON_GLYPHS[value.toLowerCase().trim()] ?? value.charAt(0).toUpperCase() || "⬡";
+  const filtered = search.trim()
+    ? ICON_ENTRIES.filter(([name]) => name.includes(search.toLowerCase()))
+    : ICON_ENTRIES;
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="flex items-center gap-1.5 rounded border border-border bg-background px-2 py-1 text-xs hover:bg-muted transition-colors"
+            title="Browse icons"
+          >
+            <span className="text-base leading-none">{currentGlyph}</span>
+            <span className="text-muted-foreground">{value || "star"}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="start">
+          <input
+            className="w-full rounded border border-border bg-background px-2 py-1 text-xs mb-2 focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Search icons…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="grid grid-cols-6 gap-1 max-h-40 overflow-y-auto">
+            {filtered.map(([name, glyph]) => (
+              <button
+                key={name}
+                title={name}
+                onClick={() => { onChange(name); setOpen(false); setSearch(""); }}
+                className={`flex flex-col items-center justify-center rounded p-1.5 text-center hover:bg-muted transition-colors ${value === name ? "bg-primary/10 ring-1 ring-primary" : ""}`}
+              >
+                <span className="text-base leading-none">{glyph}</span>
+                <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-0.5">{name}</span>
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+      <input
+        className="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+        value={value}
+        placeholder="custom name"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
 // ─── Component-specific props ─────────────────────────────────────────────────
 
 function ComponentProps({ displayName, props, setProp }: { displayName: string; props: Record<string, any>; setProp: (k: string, v: any) => void }) {
@@ -656,7 +712,9 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
 
   if (displayName === "AstryxIcon") return (
     <>
-      <PropRow label="Symbol"><TextProp value={props.name ?? "★"} onChange={(v) => setProp("name", v)} /></PropRow>
+      <PropRow label="Icon">
+        <IconPickerProp value={String(props.name ?? "star")} onChange={(v) => setProp("name", v)} />
+      </PropRow>
       <PropRow label="Size"><SelectProp value={props.size ?? "md"} options={["sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
     </>
   );

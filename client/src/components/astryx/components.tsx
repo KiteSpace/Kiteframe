@@ -156,7 +156,7 @@ export function AstryxHStack({ children, gap = 8, align = "center" }: AstryxProp
   return <div className={`flex flex-row ${alignClass}`} style={{ gap }}>{children}</div>;
 }
 
-const ICON_GLYPHS: Record<string, string> = {
+export const ICON_GLYPHS: Record<string, string> = {
   star: "★", check: "✓", heart: "♥", arrow: "→", chevron: "›",
   home: "⌂", user: "○", search: "⌕", close: "✕", x: "✕",
   plus: "+", minus: "−", settings: "⚙", mail: "✉", lock: "⊕",
