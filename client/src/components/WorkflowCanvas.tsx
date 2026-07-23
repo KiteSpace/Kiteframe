@@ -106,6 +106,9 @@ interface WorkflowCanvasProps {
   // Comment mode toggle shown in the floating toolbar
   commentModeActive?: boolean;
   onToggleCommentMode?: () => void;
+  // Generate interface button in the floating workflow name pill
+  onGenerateInterface?: () => void;
+  isGeneratingInterface?: boolean;
 }
 
 export function WorkflowCanvas({
@@ -194,6 +197,8 @@ export function WorkflowCanvas({
   onToggleShareLock,
   commentModeActive,
   onToggleCommentMode,
+  onGenerateInterface,
+  isGeneratingInterface,
 }: WorkflowCanvasProps) {
   // Minimap state removed for performance
   
@@ -711,6 +716,8 @@ export function WorkflowCanvas({
         onEdgeControlPointChange={onEdgeControlPointChange}
         onEdgeControlPointDragStart={onEdgeControlPointDragStart}
         onEdgeWaypointsChange={onEdgeWaypointsChange}
+        onGenerateInterface={onGenerateInterface}
+        isGeneratingInterface={isGeneratingInterface}
         className="w-full h-full"
         data-testid="workflow-canvas"
       />

@@ -8031,68 +8031,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     </button>
                   </div>
                 ))}
-            {/* Generate Interface button — hidden in view mode */}
-            {!effectiveReadOnly && (
-              <button
-                onClick={async () => {
-                  if (isGeneratingInterface) return;
-                  if (isOutOfCredits) {
-                    if (ctaAction === "signup") openSignup();
-                    else openCreditsDialog();
-                    return;
-                  }
-                  try {
-                    const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
-                    if (sessionRes.status === 401) { openSignup(); return; }
-                  } catch { /* network error — let main call handle it */ }
-                  setIsGeneratingInterface(true);
-                  try {
-                    const prompt = buildInterfacePromptFromWorkflow(nodes, edges, activeTab?.name);
-                    const genRes = await fetch("/api/ai/design", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      credentials: "include",
-                      body: JSON.stringify({ prompt }),
-                    });
-                    if (genRes.status === 401) { openSignup(); return; }
-                    const genData = await genRes.json();
-                    if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
-                    const createRes = await fetch("/api/designs", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      credentials: "include",
-                      body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge" }),
-                    });
-                    if (createRes.status === 401) { openSignup(); return; }
-                    const createData = await createRes.json();
-                    if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-                    setLocation(`/designs/${createData.id}`);
-                  } catch (e: unknown) {
-                    const msg = e instanceof Error ? e.message : "Could not generate interface";
-                    toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
-                  } finally {
-                    setIsGeneratingInterface(false);
-                  }
-                }}
-                title="Create interface project from this workflow"
-                data-testid="button-generate-interface"
-                className={`group/gi flex items-center gap-2 h-8 rounded-full bg-black text-white flex-shrink-0 overflow-hidden transition-all duration-200 whitespace-nowrap ${
-                  isGeneratingInterface
-                    ? "max-w-[13rem] px-3"
-                    : "max-w-8 px-2 hover:max-w-[13rem] hover:px-3"
-                }`}
-              >
-                {isGeneratingInterface
-                  ? <Loader2 size={15} className="flex-shrink-0 animate-spin" />
-                  : <WandSparkles size={15} className="flex-shrink-0" />
-                }
-                <span className={`text-xs font-medium transition-opacity duration-150 ${
-                  isGeneratingInterface ? "opacity-100" : "opacity-0 group-hover/gi:opacity-100 delay-75"
-                }`}>
-                  {isGeneratingInterface ? "Generating…" : "Create interface project"}
-                </span>
-              </button>
-            )}
             {/* New Tab button - hidden in view mode */}
             {!effectiveReadOnly && (
               <button
@@ -10675,6 +10613,47 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     onToggleShareLock={handleToggleShareLock}
                     commentModeActive={commentPlacing}
                     onToggleCommentMode={() => setCommentPlacing((p) => !p)}
+                    onGenerateInterface={effectiveReadOnly ? undefined : async () => {
+                      if (isGeneratingInterface) return;
+                      if (isOutOfCredits) {
+                        if (ctaAction === "signup") openSignup();
+                        else openCreditsDialog();
+                        return;
+                      }
+                      try {
+                        const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
+                        if (sessionRes.status === 401) { openSignup(); return; }
+                      } catch { /* network error — let main call handle it */ }
+                      setIsGeneratingInterface(true);
+                      try {
+                        const prompt = buildInterfacePromptFromWorkflow(nodes, edges, activeTab?.name);
+                        const genRes = await fetch("/api/ai/design", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ prompt }),
+                        });
+                        if (genRes.status === 401) { openSignup(); return; }
+                        const genData = await genRes.json();
+                        if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+                        const createRes = await fetch("/api/designs", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge" }),
+                        });
+                        if (createRes.status === 401) { openSignup(); return; }
+                        const createData = await createRes.json();
+                        if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+                        setLocation(`/designs/${createData.id}`);
+                      } catch (e: unknown) {
+                        const msg = e instanceof Error ? e.message : "Could not generate interface";
+                        toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
+                      } finally {
+                        setIsGeneratingInterface(false);
+                      }
+                    }}
+                    isGeneratingInterface={isGeneratingInterface}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
                       saveToHistory("Update canvas objects");

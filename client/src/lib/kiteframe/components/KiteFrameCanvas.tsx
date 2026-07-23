@@ -72,6 +72,8 @@ import {
   Pencil,
   Trash2,
   Table2,
+  WandSparkles,
+  Loader2,
 } from "lucide-react";
 import type { NodeHyperlink, LegacyNodeHyperlink, OgMetadata } from "../types";
 
@@ -476,6 +478,8 @@ interface WorkflowNameInputProps {
   onChange: (name: string) => void;
   metadata?: ProjectMetadata;
   onMetadataChange?: (metadata: ProjectMetadata) => void;
+  onGenerateInterface?: () => void;
+  isGeneratingInterface?: boolean;
 }
 
 const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
@@ -483,6 +487,8 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
   onChange,
   metadata,
   onMetadataChange,
+  onGenerateInterface,
+  isGeneratingInterface,
 }) => {
   const [mode, setMode] = useState<"collapsed" | "editing-name" | "expanded">(
     "collapsed",
@@ -698,28 +704,53 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
     if (!hasContent) {
       // Simple name display with chevron
       return (
-        <div className="absolute top-4 left-52 z-30 flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 px-2 py-1 text-lg font-medium text-gray-700 dark:text-gray-300 shadow-sm" style={{ borderRadius: '12px' }}>
-          <span
-            onClick={handleStartNameEdit}
-            className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
-            title="Click to edit workflow name (or press F2)"
-          >
-            {name || "Untitled Workflow"}
-          </span>
-          <button
-            onClick={handleExpandForm}
-            className="w-4 h-4 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title="Expand form"
-          >
-            <ChevronDown size={12} />
-          </button>
+        <div className="absolute top-4 left-52 z-30 flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700 px-2 py-1 text-lg font-medium text-gray-700 dark:text-gray-300 shadow-sm" style={{ borderRadius: '12px' }}>
+            <span
+              onClick={handleStartNameEdit}
+              className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+              title="Click to edit workflow name (or press F2)"
+            >
+              {name || "Untitled Workflow"}
+            </span>
+            <button
+              onClick={handleExpandForm}
+              className="w-4 h-4 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Expand form"
+            >
+              <ChevronDown size={12} />
+            </button>
+          </div>
+          {onGenerateInterface && (
+            <button
+              onClick={onGenerateInterface}
+              title="Create interface project from this workflow"
+              data-testid="button-generate-interface"
+              className={`group/gi flex items-center gap-2 h-8 rounded-full bg-black text-white flex-shrink-0 overflow-hidden transition-all duration-200 whitespace-nowrap ${
+                isGeneratingInterface
+                  ? "max-w-[13rem] px-3"
+                  : "max-w-8 px-2 hover:max-w-[13rem] hover:px-3"
+              }`}
+            >
+              {isGeneratingInterface
+                ? <Loader2 size={15} className="flex-shrink-0 animate-spin" />
+                : <WandSparkles size={15} className="flex-shrink-0" />
+              }
+              <span className={`text-xs font-medium transition-opacity duration-150 ${
+                isGeneratingInterface ? "opacity-100" : "opacity-0 group-hover/gi:opacity-100 delay-75"
+              }`}>
+                {isGeneratingInterface ? "Generating…" : "Create interface project"}
+              </span>
+            </button>
+          )}
         </div>
       );
     }
 
     // Rich card display with content
     return (
-      <div className="absolute top-4 left-52 z-30 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-3 max-w-80" style={{ borderRadius: '12px' }}>
+      <div className="absolute top-4 left-52 z-30 flex items-start gap-2">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg p-3 max-w-80" style={{ borderRadius: '12px' }}>
         <div className="flex items-center justify-between mb-2">
           <h3
             onClick={handleStartNameEdit}
@@ -795,6 +826,29 @@ const WorkflowNameInput: React.FC<WorkflowNameInputProps> = ({
               </span>
             ))}
           </div>
+        )}
+        </div>
+        {onGenerateInterface && (
+          <button
+            onClick={onGenerateInterface}
+            title="Create interface project from this workflow"
+            data-testid="button-generate-interface"
+            className={`group/gi flex items-center gap-2 h-8 rounded-full bg-black text-white flex-shrink-0 overflow-hidden transition-all duration-200 whitespace-nowrap ${
+              isGeneratingInterface
+                ? "max-w-[13rem] px-3"
+                : "max-w-8 px-2 hover:max-w-[13rem] hover:px-3"
+            }`}
+          >
+            {isGeneratingInterface
+              ? <Loader2 size={15} className="flex-shrink-0 animate-spin" />
+              : <WandSparkles size={15} className="flex-shrink-0" />
+            }
+            <span className={`text-xs font-medium transition-opacity duration-150 ${
+              isGeneratingInterface ? "opacity-100" : "opacity-0 group-hover/gi:opacity-100 delay-75"
+            }`}>
+              {isGeneratingInterface ? "Generating…" : "Create interface project"}
+            </span>
+          </button>
         )}
       </div>
     );
@@ -1329,6 +1383,10 @@ type Props = {
   onEdgeControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onEdgeControlPointDragStart?: (edgeId: string) => void;
   onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
+
+  // Generate interface button shown in the floating workflow name pill
+  onGenerateInterface?: () => void;
+  isGeneratingInterface?: boolean;
 };
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -6509,6 +6567,18 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           />
         )}
 
+
+        {/* Floating Workflow Name + Generate Interface button */}
+        {props.workflowName !== undefined && props.onWorkflowNameChange && !props.readOnly && (
+          <WorkflowNameInput
+            name={props.workflowName}
+            onChange={props.onWorkflowNameChange}
+            metadata={props.workflowMetadata}
+            onMetadataChange={props.onWorkflowMetadataChange}
+            onGenerateInterface={props.onGenerateInterface}
+            isGeneratingInterface={props.isGeneratingInterface}
+          />
+        )}
 
         {/* ========== PRODUCTION FEATURES UI FEEDBACK ========== */}
         {/* Memory Warning */}
