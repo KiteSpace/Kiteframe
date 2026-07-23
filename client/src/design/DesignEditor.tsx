@@ -508,7 +508,7 @@ const ICON_ENTRIES = Object.entries(ICON_GLYPHS);
 function IconPickerProp({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const currentGlyph = ICON_GLYPHS[value.toLowerCase().trim()] ?? value.charAt(0).toUpperCase() || "⬡";
+  const currentGlyph = ICON_GLYPHS[value.toLowerCase().trim()] ?? (value.charAt(0).toUpperCase() || "⬡");
   const filtered = search.trim()
     ? ICON_ENTRIES.filter(([name]) => name.includes(search.toLowerCase()))
     : ICON_ENTRIES;
