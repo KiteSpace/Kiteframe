@@ -20,6 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { BlankCanvasState } from "@/components/BlankCanvasState";
 import { NewTabTypePicker } from "@/components/NewTabTypePicker";
 import { DesignTabView } from "@/design/DesignPage";
@@ -154,6 +163,7 @@ import {
   WandSparkles,
   Loader2,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
@@ -2259,6 +2269,9 @@ function WorkflowEditorContent({
   const [designModeTabIds, setDesignModeTabIds] = useState<Set<string>>(new Set());
   const [previousTabId, setPreviousTabId] = useState<string | null>(null);
   const [isGeneratingInterface, setIsGeneratingInterface] = useState(false);
+  const [interfacePickerOpen, setInterfacePickerOpen] = useState(false);
+  const [interfacePickerSourceTab, setInterfacePickerSourceTab] = useState<WorkflowTab | null>(null);
+  const [interfacePickerRemember, setInterfacePickerRemember] = useState(false);
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
@@ -3184,7 +3197,8 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
-  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab) => {
+  // destination: "project" = add as a tab here (default), "standalone" = open in a new browser tab
+  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, destination: "project" | "standalone" = "project") => {
     if (isGeneratingInterface) return;
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
@@ -3232,15 +3246,19 @@ function WorkflowEditorContent({
       if (createRes.status === 401) { openSignup(); return; }
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-      openDesignTab(
-        createData.id,
-        tabTitle,
-        {
-          syncedAt: createData.workflowSyncedAt ?? null,
-          isStale: false,
-          sourceWorkflowId: createData.sourceWorkflowId ?? null,
-        },
-      );
+      if (destination === "standalone") {
+        window.open(`/designs/${createData.id}`, "_blank");
+      } else {
+        openDesignTab(
+          createData.id,
+          tabTitle,
+          {
+            syncedAt: createData.workflowSyncedAt ?? null,
+            isStale: false,
+            sourceWorkflowId: createData.sourceWorkflowId ?? null,
+          },
+        );
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Could not generate interface";
       toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
@@ -10765,7 +10783,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     commentModeActive={commentPlacing}
                     onToggleCommentMode={() => setCommentPlacing((p) => !p)}
                     onGenerateInterface={effectiveReadOnly ? undefined : async () => {
-                      if (activeTab) generateInterfaceFromWorkflow(activeTab);
+                      if (!activeTab) return;
+                      const projectKey = activeTab.cloudProjectId?.toString() || activeTabId;
+                      const saved = localStorage.getItem(`kf_iface_dest_${projectKey}`);
+                      if (saved === "project" || saved === "standalone") {
+                        generateInterfaceFromWorkflow(activeTab, saved);
+                      } else {
+                        setInterfacePickerSourceTab(activeTab);
+                        setInterfacePickerRemember(false);
+                        setInterfacePickerOpen(true);
+                      }
                     }}
                     isGeneratingInterface={isGeneratingInterface}
                     onViewportChange={setViewport}
@@ -14859,6 +14886,68 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Interface project destination picker */}
+      <Dialog open={interfacePickerOpen} onOpenChange={(open) => { if (!open) setInterfacePickerOpen(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Where should the interface go?</DialogTitle>
+            <DialogDescription>
+              Choose how to open the generated interface design.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-1">
+            <button
+              onClick={() => {
+                if (interfacePickerRemember && interfacePickerSourceTab) {
+                  const projectKey = interfacePickerSourceTab.cloudProjectId?.toString() || interfacePickerSourceTab.id;
+                  localStorage.setItem(`kf_iface_dest_${projectKey}`, "project");
+                }
+                setInterfacePickerOpen(false);
+                if (interfacePickerSourceTab) generateInterfaceFromWorkflow(interfacePickerSourceTab, "project");
+              }}
+              className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <Plus size={16} className="text-blue-600 dark:text-blue-300" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Add to this project</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Opens as a new tab here</p>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                if (interfacePickerRemember && interfacePickerSourceTab) {
+                  const projectKey = interfacePickerSourceTab.cloudProjectId?.toString() || interfacePickerSourceTab.id;
+                  localStorage.setItem(`kf_iface_dest_${projectKey}`, "standalone");
+                }
+                setInterfacePickerOpen(false);
+                if (interfacePickerSourceTab) generateInterfaceFromWorkflow(interfacePickerSourceTab, "standalone");
+              }}
+              className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                <ExternalLink size={16} className="text-purple-600 dark:text-purple-300" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">New interface project</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Opens in a new browser tab</p>
+              </div>
+            </button>
+          </div>
+          <div className="flex items-center gap-2 pt-1 pb-1">
+            <Checkbox
+              id="remember-iface-choice"
+              checked={interfacePickerRemember}
+              onCheckedChange={(v) => setInterfacePickerRemember(!!v)}
+            />
+            <Label htmlFor="remember-iface-choice" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+              Remember this choice for this project
+            </Label>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Table Link Picker for FormNode */}
       {tableLinkPicker && (
