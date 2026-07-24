@@ -73,15 +73,15 @@ CRITICAL RULES for patch:
 These are the ONLY valid resolvedName values. If the user asks for anything else, use TYPE 1.
 
 — CONTAINERS (isCanvas: true, can hold children in "nodes") —
-• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number, backgroundType?:"color"|"gradient"|"image", backgroundColor?:string (hex), backgroundGradient?:string (CSS linear-gradient), backgroundImageUrl?:string (URL) }
-• AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number }
-• AstryxStack    vertical stack           props: { gap:number }
-• AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end" }
-• AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost" }
+• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number, backgroundType?:"color"|"gradient"|"image", backgroundColor?:string (hex), backgroundGradient?:string (CSS linear-gradient), backgroundImageUrl?:string (URL), textColor?:string (hex — auto-set for contrast) }
+• AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number, backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxStack    vertical stack           props: { gap:number, backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost", backgroundColor?:string (hex), textColor?:string (hex) }
 
 — TYPOGRAPHY —
-• AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl" }
-• AstryxText     body copy props: { children:string, size:"xs"|"sm"|"md"|"lg", muted:boolean }
+• AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl", textColor?:string (hex) }
+• AstryxText     body copy props: { children:string, size:"xs"|"sm"|"md"|"lg", muted:boolean, textColor?:string (hex) }
 
 — INPUTS & ACTIONS —
 • AstryxButton    button       props: { children:string, variant:"primary"|"secondary"|"outline"|"ghost", size:"sm"|"md"|"lg", disabled:boolean }
@@ -130,6 +130,13 @@ Always use contextual, realistic content that matches the user's request:
 • Select options: real, context-appropriate choices (e.g. ["Admin","Editor","Viewer"] for a role field)
 • Badges/status: realistic values — "Active", "Pending", "Archived", "Draft"
 • NEVER use "Col 1", "—", "placeholder text", "Option A/B/C" unless the user explicitly asks
+
+━━━ CONTRAST RULE ━━━
+Whenever you set backgroundColor on any container (AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard), you MUST also set textColor to ensure readable text:
+• Dark backgrounds (luminance < 0.35) — e.g. #000000, #111827, #1e293b, #0f172a, #1a1a1a, navy, dark blues/greens/purples → textColor: "#FFFFFF"
+• Light backgrounds (luminance ≥ 0.35) — e.g. #ffffff, #f8fafc, #f1f5f9, #e2e8f0, pale/pastel colors → textColor: "#111827"
+• Mid-range brand colors: choose based on which side of 0.35 luminance they fall — when in doubt, use "#FFFFFF"
+This applies to every container that carries a backgroundColor — never omit textColor when backgroundColor is present.
 
 ━━━ CRAFT.JS NODE SCHEMA ━━━
 Every node (whether in craftState or a patch) must follow this shape:

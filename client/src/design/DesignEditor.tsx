@@ -48,6 +48,7 @@ import {
 } from "./resolver";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
+import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
 import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
@@ -1176,7 +1177,13 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             {["#ffffff","#f8fafc","#1e293b","#000000","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
               <button
                 key={hex}
-                onClick={() => setProp("backgroundColor", hex)}
+                onClick={() => {
+                  setProp("backgroundColor", hex);
+                  if (IS_CONTAINER.has(dn) || dn === "AstryxCard") {
+                    const auto = contrastTextFor(hex);
+                    if (auto) setProp("textColor", auto);
+                  }
+                }}
                 title={hex}
                 style={{
                   background: hex,
@@ -2062,7 +2069,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   const [importOpen, setImportOpen] = useState(false);
   const handleImportResult = useCallback((craftStateStr: string) => {
     try {
-      const parsed = JSON.parse(craftStateStr);
+      const parsed = applyContrastColors(JSON.parse(craftStateStr));
       const validation = validateCraftState(parsed);
       if (!validation.valid) {
         const hint = describeValidationError(validation.errors);
@@ -2981,7 +2988,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         if (data.type === "message") {
           setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
         } else {
-          const parsedRaw = (() => { try { return JSON.parse(data.craftState); } catch { return null; } })();
+          const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(data.craftState)); } catch { return null; } })();
           if (parsedRaw) {
             const validation = validateCraftState(parsedRaw);
             if (!validation.valid) {
@@ -3084,7 +3091,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         let existingState: Record<string, unknown> = {};
         try { existingState = JSON.parse(query.serialize()); } catch {}
         const mergedRaw = mergeGraphAware(existingState, patchNodes);
-        const merged = preserveTableCellData(existingState, mergedRaw, pinned?.nodeId);
+        const merged = applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId));
         const validation = validateCraftState(merged);
         if (!validation.valid) {
           const hint = describeValidationError(validation.errors);
@@ -3100,7 +3107,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       } else {
         const craftStateStr = data.craftState ?? data;
         const stateJson = typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr);
-        const parsedRaw = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
+        const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(stateJson)); } catch { return null; } })();
         let fullExistingForReplace: Record<string, unknown> = {};
         try { fullExistingForReplace = JSON.parse(query.serialize()); } catch {}
         const parsedForValidation = parsedRaw ? preserveTableCellData(fullExistingForReplace, parsedRaw, pinned?.nodeId) : null;
