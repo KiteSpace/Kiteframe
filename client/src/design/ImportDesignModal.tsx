@@ -81,6 +81,30 @@ interface ScreenshotTabProps {
 
 type ScreenshotInputMode = "upload" | "url";
 
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MIN_DIM_PX = 200; // warn below this width
+const MAX_RESIZE_PX = 1920; // resize target max dimension
+
+async function resizeImageDataUrl(dataUrl: string, maxPx: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => reject(new Error("Failed to load image for resize"));
+    img.src = dataUrl;
+  });
+}
+
 function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabProps) {
   const [inputMode, setInputMode] = useState<ScreenshotInputMode>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -88,6 +112,7 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warn, setWarn] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,8 +123,26 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
     }
     setFile(f);
     setError(null);
+    setWarn(null);
     const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setPreview(dataUrl);
+
+      const img = new Image();
+      img.onload = () => {
+        const warnings: string[] = [];
+        if (f.size > MAX_FILE_BYTES) {
+          const mb = (f.size / 1024 / 1024).toFixed(1);
+          warnings.push(`Image is ${mb} MB — it will be resized to ${MAX_RESIZE_PX}px before sending.`);
+        }
+        if (img.width < MIN_DIM_PX) {
+          warnings.push(`Image is very small (${img.width}px wide) — results may be poor.`);
+        }
+        setWarn(warnings.length ? warnings.join(" ") : null);
+      };
+      img.src = dataUrl;
+    };
     reader.readAsDataURL(f);
   }, []);
 
@@ -115,8 +158,12 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
     setIsLoading(true);
     setError(null);
     try {
-      const base64 = preview.split(",")[1];
-      const mimeType = file.type || "image/png";
+      let finalDataUrl = preview;
+      if (file.size > MAX_FILE_BYTES) {
+        finalDataUrl = await resizeImageDataUrl(preview, MAX_RESIZE_PX);
+      }
+      const base64 = finalDataUrl.split(",")[1];
+      const mimeType = finalDataUrl.startsWith("data:image/jpeg") ? "image/jpeg" : (file.type || "image/png");
       const res = await fetch("/api/ai/design-from-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,6 +220,7 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
   const switchMode = (mode: ScreenshotInputMode) => {
     setInputMode(mode);
     setError(null);
+    setWarn(null);
     setFile(null);
     setPreview(null);
     setImageUrl("");
@@ -240,7 +288,7 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
             <div className="relative rounded-xl overflow-hidden border border-border bg-muted/30">
               <img src={preview} alt="Preview" className="w-full max-h-64 object-contain" />
               <button
-                onClick={() => { setFile(null); setPreview(null); setError(null); }}
+                onClick={() => { setFile(null); setPreview(null); setError(null); setWarn(null); }}
                 className="absolute top-2 right-2 w-6 h-6 rounded-full bg-background/80 border border-border flex items-center justify-center hover:bg-background transition-colors"
               >
                 <X size={12} />
@@ -262,6 +310,13 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
           <p className="text-[11px] text-muted-foreground">
             Supports direct image links from Loom, Notion, Slack, and most image hosts.
           </p>
+        </div>
+      )}
+
+      {warn && !error && (
+        <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+          <AlertCircle size={14} className="shrink-0" />
+          {warn}
         </div>
       )}
 

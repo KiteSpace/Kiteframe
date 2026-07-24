@@ -2459,15 +2459,16 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Reuses the same JSON parsing / response routing as /api/ai/design.
   app.post('/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
     try {
+      const MAX_IMAGE_BASE64_BYTES = 400 * 1024; // 400 KB base64
       const schema = z.object({
-        imageBase64: z.string().min(1),
+        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_BYTES, `Image payload must be under 400 KB. Please resize your image before uploading.`),
         mimeType: z.string().default('image/png'),
         frameLabel: z.string().max(200).optional().default('Screen 1'),
         currentCraftState: z.string().max(40000).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid request: ' + parsed.error.issues[0]?.message });
+        return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
       }
       const { imageBase64, mimeType, frameLabel, currentCraftState } = parsed.data;
 
