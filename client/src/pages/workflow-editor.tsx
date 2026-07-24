@@ -8736,9 +8736,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               onNavigateToWorkflow={async (_workflowName) => {
                 // 1. Match by cloudProjectId (robust) then fall back to name.
                 const sourceId = activeTab.designSourceWorkflowId;
-                const match =
-                  (sourceId && tabs.find((t) => !t.designId && t.cloudProjectId === sourceId)) ||
-                  tabs.find((t) => !t.designId && t.name === _workflowName);
+                const match = sourceId
+                  ? tabs.find((t) => !t.designId && t.cloudProjectId === sourceId)
+                  : null;
                 if (match) {
                   setTabs((prev) => prev.map((t) => t.id === match.id ? { ...t, isOpen: true } : t));
                   setActiveTabId(match.id);
