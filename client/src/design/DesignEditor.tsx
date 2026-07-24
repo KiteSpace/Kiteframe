@@ -2071,14 +2071,17 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
         setImportOpen(false);
         return;
       }
-      const spread = spreadArtboardsInState(parsed);
+      let fullExisting: Record<string, unknown> = {};
+      try { fullExisting = JSON.parse(query.serialize()); } catch {}
+      const merged = mergeIntoCanvas(fullExisting, parsed);
+      const spread = spreadArtboardsInState(merged, fullExisting);
       actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
     } catch (err) {
       console.error("[ImportDesign] Failed to apply:", err);
     }
     setImportOpen(false);
     setTimeout(onFitView, 80);
-  }, [actions, onFitView]);
+  }, [actions, query, onFitView]);
 
   return (
     <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
@@ -2568,6 +2571,55 @@ function mergeGraphAware(
 }
 
 /**
+ * Additively merges an incoming full craft.js state (e.g. from image import or
+ * an AI full-state response) into the existing canvas so that artboards the user
+ * already built are preserved alongside the new ones.
+ *
+ * Key difference from mergeGraphAware (which is for PATCH responses):
+ * - Both existing and incoming states include a ROOT node. A plain object spread
+ *   would overwrite ROOT with the incoming ROOT whose `nodes` array only references
+ *   the new artboard, making existing artboards unreachable from ROOT.
+ * - Here we union ROOT.nodes instead of overwriting it.
+ * - All other nodes: incoming wins for shared IDs (correct for modifications —
+ *   e.g. AI regenerates an artboard with the same ID, it should replace it).
+ */
+function mergeIntoCanvas(
+  existingState: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...existingState, ...incoming };
+
+  const existingRoot = existingState["ROOT"] as Record<string, unknown> | undefined;
+  const incomingRoot = incoming["ROOT"] as Record<string, unknown> | undefined;
+  if (existingRoot && incomingRoot) {
+    const existingRootNodes = Array.isArray(existingRoot.nodes) ? (existingRoot.nodes as string[]) : [];
+    const incomingRootNodes = Array.isArray(incomingRoot.nodes) ? (incomingRoot.nodes as string[]) : [];
+    const combined = [...new Set([...existingRootNodes, ...incomingRootNodes])];
+    merged["ROOT"] = { ...incomingRoot, nodes: combined };
+  }
+
+  const nodeIds = new Set(Object.keys(merged));
+  for (const [nodeId, node] of Object.entries(merged)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if (!Array.isArray(n.nodes)) continue;
+    const before = n.nodes as string[];
+    const after = before.filter((childId) => {
+      if (!nodeIds.has(childId)) {
+        console.warn(`[mergeIntoCanvas] Removing orphan child ref "${childId}" from node "${nodeId}"`);
+        return false;
+      }
+      return true;
+    });
+    if (after.length !== before.length) {
+      merged[nodeId] = { ...n, nodes: after };
+    }
+  }
+
+  return merged;
+}
+
+/**
  * After an AI rewrite, carry forward user-typed `cellData` and `headers` for
  * every AstryxTable node that appears (by the same ID) in both the old and new
  * state — protecting data that the user typed manually from being silently
@@ -2936,9 +2988,10 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
               const hint = describeValidationError(validation.errors);
               setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
             } else {
-              let existingState: Record<string, unknown> = {};
-              try { if (currentCraftState) existingState = JSON.parse(currentCraftState); } catch {}
-              const spread = spreadArtboardsInState(parsedRaw, existingState);
+              let fullExisting: Record<string, unknown> = {};
+              try { fullExisting = JSON.parse(query.serialize()); } catch {}
+              const merged = mergeIntoCanvas(fullExisting, parsedRaw);
+              const spread = spreadArtboardsInState(merged, fullExisting);
               actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
               setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
             }
@@ -3048,17 +3101,18 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const craftStateStr = data.craftState ?? data;
         const stateJson = typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr);
         const parsedRaw = (() => { try { return JSON.parse(stateJson); } catch { return null; } })();
-        let existingStateForReplace: Record<string, unknown> = {};
-        try { if (currentCraftState) existingStateForReplace = JSON.parse(currentCraftState); } catch {}
-        const parsedForValidation = parsedRaw ? preserveTableCellData(existingStateForReplace, parsedRaw, pinned?.nodeId) : null;
+        let fullExistingForReplace: Record<string, unknown> = {};
+        try { fullExistingForReplace = JSON.parse(query.serialize()); } catch {}
+        const parsedForValidation = parsedRaw ? preserveTableCellData(fullExistingForReplace, parsedRaw, pinned?.nodeId) : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
-          const spread = spreadArtboardsInState(parsedForValidation!);
+          const mergedForApply = mergeIntoCanvas(fullExistingForReplace, parsedForValidation!);
+          const spread = spreadArtboardsInState(mergedForApply, fullExistingForReplace);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-          const diff = diffCraftStates(existingStateForReplace, parsedForValidation!);
+          const diff = diffCraftStates(fullExistingForReplace, parsedForValidation!);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
