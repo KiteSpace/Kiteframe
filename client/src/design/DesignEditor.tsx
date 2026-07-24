@@ -47,6 +47,7 @@ import {
   SnapGuideContext,
 } from "./resolver";
 import { ImportDesignModal } from "./ImportDesignModal";
+import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
@@ -2109,7 +2110,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={handleImportResult}
-        currentCraftState={(() => { try { return query.serialize() || undefined; } catch { return undefined; } })()}
+        currentCraftState={(() => { try { return skeletonizeCraftState(query.serialize() ?? '') ?? undefined; } catch { return undefined; } })()}
       />
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 mr-1.5">
@@ -2912,7 +2913,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       setAiStatus("loading");
       try {
         let currentCraftState: string | undefined;
-        try { const s = query.serialize(); if (s && s.length > 10) currentCraftState = s; } catch {}
+        try { currentCraftState = skeletonizeCraftState(query.serialize() ?? ''); } catch {}
         const res = await fetch("/api/ai/design-from-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2965,7 +2966,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       try {
         const serialized = query.serialize();
         if (serialized && serialized.length > 10) {
-          currentCraftState = serialized;
+          currentCraftState = skeletonizeCraftState(serialized);
           // Find artboard labels in the canvas and match them against the prompt
           // so the AI knows which screen to patch (e.g. "add a table to Screen 1")
           const state = JSON.parse(serialized) as Record<string, unknown>;
