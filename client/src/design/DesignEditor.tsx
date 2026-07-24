@@ -47,6 +47,7 @@ import {
   SnapGuideContext,
 } from "./resolver";
 import { ImportDesignModal } from "./ImportDesignModal";
+import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
   AstryxCard as AstryxCardBase,
@@ -1968,6 +1969,7 @@ function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
 function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onFitView: () => void }) {
   const { actions, query } = useEditor(() => ({}));
   const { canUndo, canRedo, doUndo, doRedo } = useContext(HistoryCtx);
+  const { toast } = useToast();
 
   const { selectedArtboardId } = useEditor((state) => {
     const sel = state.events.selected;
@@ -2060,6 +2062,14 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   const handleImportResult = useCallback((craftStateStr: string) => {
     try {
       const parsed = JSON.parse(craftStateStr);
+      const validation = validateCraftState(parsed);
+      if (!validation.valid) {
+        const hint = describeValidationError(validation.errors);
+        console.error("[ImportDesign] Invalid craft state — canvas unchanged:", hint);
+        toast({ title: "Import failed", description: `Couldn't import that design — ${hint} Try a different file or image.`, variant: "destructive" });
+        setImportOpen(false);
+        return;
+      }
       const spread = spreadArtboardsInState(parsed);
       actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
     } catch (err) {
@@ -2920,12 +2930,20 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         } else {
           const parsedRaw = (() => { try { return JSON.parse(data.craftState); } catch { return null; } })();
           if (parsedRaw) {
-            let existingState: Record<string, unknown> = {};
-            try { if (currentCraftState) existingState = JSON.parse(currentCraftState); } catch {}
-            const spread = spreadArtboardsInState(parsedRaw, existingState);
-            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+            const validation = validateCraftState(parsedRaw);
+            if (!validation.valid) {
+              const hint = describeValidationError(validation.errors);
+              setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
+            } else {
+              let existingState: Record<string, unknown> = {};
+              try { if (currentCraftState) existingState = JSON.parse(currentCraftState); } catch {}
+              const spread = spreadArtboardsInState(parsedRaw, existingState);
+              actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+              setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+            }
+          } else {
+            setMessages((prev) => [...prev, { role: "ai", text: "I couldn't parse the image response. Try again or use a different image." }]);
           }
-          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
         }
         setAiStatus("idle");
       } catch (e: any) {
