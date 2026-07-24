@@ -566,13 +566,6 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [urlInput, setUrlInput] = useState<string>(props.backgroundImageUrl ?? "");
 
-  const switchType = (t: "color" | "gradient" | "image") => {
-    setProp("backgroundType", t);
-    if (t !== "gradient") setProp("backgroundGradient", undefined);
-    if (t !== "image") setProp("backgroundImageUrl", undefined);
-    if (t !== "color") setProp("backgroundColor", undefined);
-  };
-
   const grad1 = props._gradStop1 ?? "#3b82f6";
   const grad2 = props._gradStop2 ?? "#8b5cf6";
   const gradAngle = props._gradAngle ?? 135;
@@ -581,6 +574,13 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
     setProp("_gradStop2", stop2);
     setProp("_gradAngle", angle);
     setProp("backgroundGradient", `linear-gradient(${angle}deg, ${stop1}, ${stop2})`);
+  };
+
+  const switchType = (t: "color" | "gradient" | "image") => {
+    setProp("backgroundType", t);
+    if (t === "gradient") {
+      updateGradient(grad1, grad2, gradAngle);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
