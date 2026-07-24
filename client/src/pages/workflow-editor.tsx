@@ -8733,11 +8733,45 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               key={activeTab.designId}
               designId={activeTab.designId}
               onTitleLoaded={(title) => updateActiveTab({ name: title })}
-              onNavigateToWorkflow={(workflowName) => {
-                const match = tabs.find((t) => !t.designId && t.name === workflowName);
+              onNavigateToWorkflow={async (_workflowName) => {
+                // 1. Match by cloudProjectId (robust) then fall back to name.
+                const sourceId = activeTab.designSourceWorkflowId;
+                const match =
+                  (sourceId && tabs.find((t) => !t.designId && t.cloudProjectId === sourceId)) ||
+                  tabs.find((t) => !t.designId && t.name === _workflowName);
                 if (match) {
                   setTabs((prev) => prev.map((t) => t.id === match.id ? { ...t, isOpen: true } : t));
                   setActiveTabId(match.id);
+                  return;
+                }
+                // 2. Tab not open — fetch from server and open it.
+                if (!sourceId) return;
+                try {
+                  const projRes = await fetch(`/api/projects/${sourceId}`, { credentials: "include" });
+                  if (projRes.status === 401) { openSignup(); return; }
+                  if (!projRes.ok) throw new Error("Project not found");
+                  const { project } = await projRes.json();
+                  const wfData = project?.workflowData ?? {};
+                  const newTab: WorkflowTab = {
+                    id: generateTabId(),
+                    name: project?.name ?? _workflowName ?? "Untitled Workflow",
+                    nodes: wfData.nodes ?? [],
+                    edges: wfData.edges ?? [],
+                    canvasObjects: wfData.canvasObjects ?? [],
+                    viewport: wfData.viewport ?? { x: 0, y: 0, zoom: 1 },
+                    selectedNodeId: "",
+                    selectedEdgeId: "",
+                    history: [],
+                    historyIndex: 0,
+                    showImageModal: null,
+                    metadata: { name: project?.name ?? "", description: "", links: [], linksFormat: "text", categories: [] },
+                    cloudProjectId: sourceId,
+                    isOpen: true,
+                  };
+                  setTabs((prev) => [...prev, newTab]);
+                  setActiveTabId(newTab.id);
+                } catch {
+                  toast({ title: "Could not open workflow", description: "The source workflow could not be loaded.", variant: "destructive" });
                 }
               }}
             />
