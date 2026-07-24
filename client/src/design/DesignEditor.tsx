@@ -1111,11 +1111,44 @@ const NO_RADIUS = new Set(["AstryxBadge","AstryxAvatar","AstryxSkeleton","Astryx
 const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
 
 function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
+  const { query } = useEditor(() => ({}));
+
   const setProp = useCallback(
     (key: string, value: any) => {
       actions.setProp(selected.id, (p: any) => { p[key] = value; });
+
+      // Auto-apply contrast whenever backgroundColor changes on a container.
+      // Uses history.ignore() so auto-textColor doesn't pollute the undo stack.
+      if (key === "backgroundColor" && typeof value === "string" && value !== "transparent") {
+        const isContainerNode = IS_CONTAINER.has(selected.displayName) || selected.displayName === "AstryxCard";
+        if (isContainerNode) {
+          const autoColor = contrastTextFor(value);
+          if (autoColor) {
+            actions.history.ignore().setProp(selected.id, (p: any) => { p.textColor = autoColor; });
+            // Also set `color` on descendant leaf text nodes — their base component
+            // renders `text-gray-900` via Tailwind which CSS cascade cannot override.
+            try {
+              const allNodes = JSON.parse(query.serialize()) as Record<string, any>;
+              const visited = new Set<string>();
+              const queue: string[] = [...(allNodes[selected.id]?.nodes ?? [])];
+              while (queue.length > 0) {
+                const nodeId = queue.shift()!;
+                if (visited.has(nodeId)) continue;
+                visited.add(nodeId);
+                const n = allNodes[nodeId];
+                if (!n) continue;
+                const nName: string = (n.type?.resolvedName ?? n.displayName ?? "") as string;
+                if ((nName === "AstryxText" || nName === "AstryxHeading") && !n.props?.color) {
+                  actions.history.ignore().setProp(nodeId, (p: any) => { p.color = autoColor; });
+                }
+                if (Array.isArray(n.nodes)) queue.push(...n.nodes);
+              }
+            } catch { /* ignore — canvas state may not be serializable during initial load */ }
+          }
+        }
+      }
     },
-    [selected.id, actions],
+    [selected.id, selected.displayName, actions, query],
   );
 
   const dn = selected.displayName;
@@ -1177,13 +1210,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             {["#ffffff","#f8fafc","#1e293b","#000000","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
               <button
                 key={hex}
-                onClick={() => {
-                  setProp("backgroundColor", hex);
-                  if (IS_CONTAINER.has(dn) || dn === "AstryxCard") {
-                    const auto = contrastTextFor(hex);
-                    if (auto) setProp("textColor", auto);
-                  }
-                }}
+                onClick={() => setProp("backgroundColor", hex)}
                 title={hex}
                 style={{
                   background: hex,
