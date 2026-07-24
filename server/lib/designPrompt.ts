@@ -73,7 +73,7 @@ CRITICAL RULES for patch:
 These are the ONLY valid resolvedName values. If the user asks for anything else, use TYPE 1.
 
 — CONTAINERS (isCanvas: true, can hold children in "nodes") —
-• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number }
+• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number, backgroundType?:"color"|"gradient"|"image", backgroundColor?:string (hex), backgroundGradient?:string (CSS linear-gradient), backgroundImageUrl?:string (URL) }
 • AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number }
 • AstryxStack    vertical stack           props: { gap:number }
 • AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end" }

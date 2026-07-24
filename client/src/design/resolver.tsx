@@ -1305,7 +1305,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Resize handle styles (reused across all three handles)
 const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
 
-export function AstryxArtboard({ children, label = "Artboard", width = 390, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width = 390, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
   const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
@@ -1448,7 +1448,17 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
           width,
           height: resolvedHeight,
           minHeight: resolvedHeight != null ? resolvedHeight : 480,
-          background: (backgroundColor as string) || "var(--card)",
+          ...(backgroundType === "gradient" && backgroundGradient
+          ? { background: backgroundGradient as string }
+          : backgroundType === "image" && backgroundImageUrl
+          ? {
+              backgroundImage: `url(${backgroundImageUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundColor: (backgroundColor as string) || "var(--card)",
+            }
+          : { background: (backgroundColor as string) || "var(--card)" }),
           color: (textColor as string) || undefined,
           borderRadius: 12,
           boxShadow: selected

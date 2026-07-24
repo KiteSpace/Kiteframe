@@ -559,6 +559,184 @@ function IconPickerProp({ value, onChange }: { value: string; onChange: (v: stri
 
 // ─── Component-specific props ─────────────────────────────────────────────────
 
+const BG_SWATCHES = ["#ffffff","#f8fafc","#1e293b","#0f172a","#000000","#3b82f6","#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899"];
+
+function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, any>; setProp: (k: string, v: any) => void }) {
+  const activeType: "color" | "gradient" | "image" = props.backgroundType ?? "color";
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [urlInput, setUrlInput] = useState<string>(props.backgroundImageUrl ?? "");
+
+  const switchType = (t: "color" | "gradient" | "image") => {
+    setProp("backgroundType", t);
+    if (t !== "gradient") setProp("backgroundGradient", undefined);
+    if (t !== "image") setProp("backgroundImageUrl", undefined);
+    if (t !== "color") setProp("backgroundColor", undefined);
+  };
+
+  const grad1 = props._gradStop1 ?? "#3b82f6";
+  const grad2 = props._gradStop2 ?? "#8b5cf6";
+  const gradAngle = props._gradAngle ?? 135;
+  const updateGradient = (stop1: string, stop2: string, angle: number) => {
+    setProp("_gradStop1", stop1);
+    setProp("_gradStop2", stop2);
+    setProp("_gradAngle", angle);
+    setProp("backgroundGradient", `linear-gradient(${angle}deg, ${stop1}, ${stop2})`);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      if (url) { setProp("backgroundImageUrl", url); setUrlInput(""); }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const applyUrl = () => {
+    const trimmed = urlInput.trim();
+    if (trimmed) { setProp("backgroundImageUrl", trimmed); }
+  };
+
+  const pill = (t: "color" | "gradient" | "image", label: string) => (
+    <button
+      onClick={() => switchType(t)}
+      className={`flex-1 py-0.5 text-[10px] font-medium rounded transition-colors ${
+        activeType === t
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <PropRow label="Background">
+      <div className="flex gap-0.5 rounded-md border border-border p-0.5 mb-2">
+        {pill("color", "Color")}
+        {pill("gradient", "Gradient")}
+        {pill("image", "Image")}
+      </div>
+
+      {activeType === "color" && (
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setProp("backgroundColor", undefined)}
+            title="Default"
+            style={{
+              backgroundImage: "linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%)",
+              backgroundSize: "6px 6px",
+              backgroundPosition: "0 0,0 3px,3px -3px,-3px 0px",
+              backgroundColor: "#fff",
+              boxShadow: !props.backgroundColor
+                ? "0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6"
+                : undefined,
+            }}
+            className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+          />
+          {BG_SWATCHES.map((hex) => (
+            <button
+              key={hex}
+              onClick={() => setProp("backgroundColor", hex)}
+              title={hex}
+              style={{
+                background: hex,
+                boxShadow: props.backgroundColor === hex
+                  ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
+                  : undefined,
+              }}
+              className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
+            />
+          ))}
+          <input
+            type="color"
+            value={props.backgroundColor && props.backgroundColor !== "transparent" ? props.backgroundColor : "#ffffff"}
+            onChange={(e) => setProp("backgroundColor", e.target.value)}
+            title="Custom color"
+            className="w-5 h-5 rounded-md border border-black/10 cursor-pointer flex-shrink-0 p-0"
+            style={{ appearance: "none", padding: 0 }}
+          />
+        </div>
+      )}
+
+      {activeType === "gradient" && (
+        <div className="flex flex-col gap-2">
+          <div
+            className="w-full h-8 rounded-md border border-border"
+            style={{ background: `linear-gradient(${gradAngle}deg, ${grad1}, ${grad2})` }}
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Stop 1</span>
+            <input type="color" value={grad1} onChange={(e) => updateGradient(e.target.value, grad2, gradAngle)}
+              className="w-6 h-5 rounded border border-black/10 cursor-pointer flex-shrink-0 p-0" />
+            <span className="text-[10px] font-mono text-muted-foreground">{grad1}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Stop 2</span>
+            <input type="color" value={grad2} onChange={(e) => updateGradient(grad1, e.target.value, gradAngle)}
+              className="w-6 h-5 rounded border border-black/10 cursor-pointer flex-shrink-0 p-0" />
+            <span className="text-[10px] font-mono text-muted-foreground">{grad2}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Angle</span>
+            <input
+              type="range" min={0} max={360} value={gradAngle}
+              onChange={(e) => updateGradient(grad1, grad2, Number(e.target.value))}
+              className="flex-1"
+            />
+            <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{gradAngle}°</span>
+          </div>
+        </div>
+      )}
+
+      {activeType === "image" && (
+        <div className="flex flex-col gap-2">
+          {props.backgroundImageUrl ? (
+            <>
+              <div className="relative w-full h-16 rounded-md border border-border overflow-hidden">
+                <img src={props.backgroundImageUrl} alt="bg" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => { setProp("backgroundImageUrl", undefined); setUrlInput(""); }}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] flex items-center justify-center hover:bg-black/80 transition-colors"
+                  title="Remove image"
+                >×</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2 text-[10px] rounded-md border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                ↑ Upload image
+              </button>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyUrl(); }}
+                  placeholder="Paste image URL…"
+                  className="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  onClick={applyUrl}
+                  className="px-2 py-1 text-[10px] rounded border border-border bg-muted hover:bg-accent transition-colors flex-shrink-0"
+                >Use</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </PropRow>
+  );
+}
+
 function ComponentProps({ displayName, props, setProp }: { displayName: string; props: Record<string, any>; setProp: (k: string, v: any) => void }) {
   if (displayName === "AstryxSection") return (
     <>
@@ -878,6 +1056,7 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
       <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
       <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
       <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 24} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
+      <ArtboardBackgroundPicker props={props} setProp={setProp} />
     </>
   );
 
