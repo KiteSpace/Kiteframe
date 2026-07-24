@@ -2633,13 +2633,6 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
-        <button
-          onClick={fitToContent}
-          className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all text-xs"
-          title="Reset view"
-        >
-          ⤢
-        </button>
       </div>
 
       {/* Pan hint */}
