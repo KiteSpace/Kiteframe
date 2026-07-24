@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Upload, X, ImageIcon, AlertCircle, Check, Link } from "lucide-react";
+import { Loader2, Upload, X, ImageIcon, AlertCircle, Check, Link, Link2, CheckCircle, Key } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { parseFigmaUrl } from "@/lib/integration/figmaUrl";
 import { callFigmaApi, discoverFrames, type FigmaFrame } from "@/lib/integration/figmaApi";
@@ -371,13 +371,49 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ done: number; total: number; frameName: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [figmaConnected, setFigmaConnected] = useState<boolean | null>(null);
+  const [figmaStatus, setFigmaStatus] = useState<{ connected: boolean; oauthAvailable: boolean } | null>(null);
+  const [oauthPending, setOauthPending] = useState(false);
 
-  useEffect(() => {
+  const queryFigmaStatus = useCallback(() => {
     fetch("/api/figma/status", { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setFigmaConnected(!!d.connected))
-      .catch(() => setFigmaConnected(false));
+      .then((d) => setFigmaStatus({ connected: !!d.connected, oauthAvailable: !!d.oauthAvailable }))
+      .catch(() => setFigmaStatus({ connected: false, oauthAvailable: false }));
+  }, []);
+
+  useEffect(() => { queryFigmaStatus(); }, [queryFigmaStatus]);
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.figmaAuth === "success") {
+        setOauthPending(false);
+        queryFigmaStatus();
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [queryFigmaStatus]);
+
+  const handleOAuthConnect = useCallback(() => {
+    if (figmaStatus?.connected) return;
+    setOauthPending(true);
+    const w = 600, h = 700;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open("/api/figma/auth", "figma-oauth", `width=${w},height=${h},left=${left},top=${top},popup=1`);
+    if (!popup) { setOauthPending(false); setError("Popup was blocked. Please allow popups for this site."); return; }
+    const check = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(check);
+        setTimeout(() => { setOauthPending(false); queryFigmaStatus(); }, 500);
+      }
+    }, 500);
+  }, [figmaStatus, queryFigmaStatus]);
+
+  const handleDisconnect = useCallback(async () => {
+    await fetch("/api/figma/disconnect", { method: "POST", credentials: "include" });
+    setFigmaStatus((prev) => prev ? { ...prev, connected: false } : null);
   }, []);
 
   const handleLoadFrames = async () => {
@@ -391,7 +427,7 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
     setFileKey(key);
     setIsLoadingFrames(true);
     try {
-      const token = patToken.trim() || null;
+      const token = figmaStatus?.connected ? undefined : (patToken.trim() || null);
       const fileData = await callFigmaApi(`files/${key}?depth=2`, token);
       const discovered = discoverFrames(fileData);
       if (discovered.length === 0) {
@@ -502,29 +538,52 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
           />
         </div>
 
-        {figmaConnected === false && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">
-              Personal Access Token
-              <span className="text-muted-foreground font-normal ml-1">(no Figma account connected)</span>
-            </label>
-            <input
-              value={patToken}
-              onChange={(e) => setPatToken(e.target.value)}
-              placeholder="figd_••••••••••••••••"
-              type="password"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary font-mono"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Get a token from Figma → Settings → Personal access tokens.
-            </p>
+        {figmaStatus?.connected ? (
+          <div className="flex items-center justify-between p-2.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle size={13} />
+              Connected to Figma via OAuth
+            </div>
+            <button
+              onClick={handleDisconnect}
+              className="text-emerald-700/60 dark:text-emerald-400/60 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+            >
+              Disconnect
+            </button>
           </div>
-        )}
-
-        {figmaConnected === true && (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-            <Check size={12} />
-            Figma connected via OAuth
+        ) : (
+          <div className="space-y-3">
+            {figmaStatus?.oauthAvailable && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOAuthConnect}
+                disabled={oauthPending}
+                className="w-full gap-2"
+              >
+                {oauthPending ? (
+                  <><Loader2 size={13} className="animate-spin" />Connecting…</>
+                ) : (
+                  <><SiFigma size={13} />Connect Figma account</>
+                )}
+              </Button>
+            )}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Key size={11} />
+                {figmaStatus?.oauthAvailable ? "Or use a Personal Access Token" : "Personal Access Token"}
+              </label>
+              <input
+                value={patToken}
+                onChange={(e) => setPatToken(e.target.value)}
+                placeholder="figd_••••••••••••••••"
+                type="password"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Get a token from Figma → Settings → Personal access tokens.
+              </p>
+            </div>
           </div>
         )}
 
