@@ -47,9 +47,10 @@ interface CraftDesignViewProps {
   design: Design;
   currentUserId: string | null;
   inline?: boolean;
+  onNavigateToWorkflow?: () => void;
 }
 
-function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps) {
+function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }: CraftDesignViewProps) {
   const qc = useQueryClient();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
   const [notesOpen, setNotesOpen] = useState(false);
@@ -134,9 +135,14 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
       {/* Header — only show when inline and generated from a workflow */}
       {inline && design.source === "workflow-bridge" && design.title && (
         <div className="h-10 flex items-center gap-3 px-4 border-b border-border shrink-0">
-          <span className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full truncate max-w-xs">
+          <button
+            onClick={onNavigateToWorkflow}
+            disabled={!onNavigateToWorkflow}
+            title={onNavigateToWorkflow ? `Go to workflow: ${design.title}` : design.title}
+            className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full truncate max-w-xs transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none"
+          >
             {design.title}
-          </span>
+          </button>
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
             {!canEdit && (
@@ -242,9 +248,10 @@ function CraftDesignView({ design, currentUserId, inline }: CraftDesignViewProps
 interface DesignTabViewProps {
   designId: string;
   onTitleLoaded?: (title: string) => void;
+  onNavigateToWorkflow?: (workflowName: string) => void;
 }
 
-export function DesignTabView({ designId, onTitleLoaded }: DesignTabViewProps) {
+export function DesignTabView({ designId, onTitleLoaded, onNavigateToWorkflow }: DesignTabViewProps) {
   const { data: design, isLoading: isDesignLoading, isError } = useQuery<Design>({
     queryKey: ['/api/designs', designId],
     enabled: !!designId,
@@ -277,6 +284,11 @@ export function DesignTabView({ designId, onTitleLoaded }: DesignTabViewProps) {
         design={design}
         currentUserId={user?.id ?? null}
         inline
+        onNavigateToWorkflow={
+          onNavigateToWorkflow && design.title
+            ? () => onNavigateToWorkflow(design.title!)
+            : undefined
+        }
       />
     );
   }

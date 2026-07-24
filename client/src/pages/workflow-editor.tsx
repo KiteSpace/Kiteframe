@@ -8572,6 +8572,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <DesignTabView
             designId={activeTab.designId}
             onTitleLoaded={(title) => updateActiveTab({ name: title })}
+            onNavigateToWorkflow={(workflowName) => {
+              const match = tabs.find((t) => !t.designId && t.name === workflowName);
+              if (match) {
+                setTabs((prev) => prev.map((t) => t.id === match.id ? { ...t, isOpen: true } : t));
+                setActiveTabId(match.id);
+              }
+            }}
           />
         ) : (
           <>
