@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, Layers, X, Sparkles, PenTool, ArrowLeft, Loader2 } from "lucide-react";
+import { GitBranch, Layers, X, Sparkles, PenTool, ArrowLeft, Loader2, Upload } from "lucide-react";
+import { ImportDesignModal } from "@/design/ImportDesignModal";
 
 type Step = "pick-type" | "pick-design-mode" | "generate-design";
 
@@ -21,6 +22,7 @@ export function NewTabTypePicker({
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -160,10 +162,10 @@ export function NewTabTypePicker({
               <p className="text-muted-foreground mt-2 text-sm">Generate from a description or start with a blank canvas</p>
             </div>
 
-            <div className="flex gap-6">
+            <div className="flex gap-6 flex-wrap justify-center">
               <button
                 onClick={() => setStep("generate-design")}
-                className="group flex flex-col items-center gap-4 w-48 p-8 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left"
+                className="group flex flex-col items-center gap-4 w-44 p-7 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left"
                 data-testid="button-new-tab-design-ai"
               >
                 <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900 transition-colors">
@@ -178,7 +180,7 @@ export function NewTabTypePicker({
               <button
                 onClick={handleBlankCanvas}
                 disabled={isCreatingBlank}
-                className="group flex flex-col items-center gap-4 w-48 p-8 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left disabled:opacity-60 disabled:cursor-not-allowed"
+                className="group flex flex-col items-center gap-4 w-44 p-7 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left disabled:opacity-60 disabled:cursor-not-allowed"
                 data-testid="button-new-tab-design-blank"
               >
                 <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900 transition-colors">
@@ -191,7 +193,42 @@ export function NewTabTypePicker({
                   <div className="text-xs text-muted-foreground mt-1">Drag-and-drop components yourself</div>
                 </div>
               </button>
+
+              <button
+                onClick={() => setImportModalOpen(true)}
+                className="group flex flex-col items-center gap-4 w-44 p-7 rounded-2xl border-2 border-border bg-card hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all cursor-pointer text-left"
+                data-testid="button-new-tab-design-import"
+              >
+                <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-950 flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-900 transition-colors">
+                  <Upload className="w-7 h-7 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-foreground">Import design</div>
+                  <div className="text-xs text-muted-foreground mt-1">From a screenshot or Figma file</div>
+                </div>
+              </button>
             </div>
+
+            <ImportDesignModal
+              open={importModalOpen}
+              onClose={() => setImportModalOpen(false)}
+              onImport={async (craftStateStr) => {
+                try {
+                  const createRes = await fetch("/api/designs", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ craftState: craftStateStr, source: "import" }),
+                  });
+                  const createData = await createRes.json();
+                  if (!createRes.ok) throw new Error(createData.error || "Failed to save design");
+                  setImportModalOpen(false);
+                  onOpenDesignById(createData.id, createData.title ?? "Imported Design");
+                } catch (e) {
+                  console.error("[NewTabTypePicker] Import create failed:", e);
+                }
+              }}
+            />
 
             <button
               onClick={() => setStep("pick-type")}

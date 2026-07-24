@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ import {
   CanvasZoomContext,
   SnapGuideContext,
 } from "./resolver";
+import { ImportDesignModal } from "./ImportDesignModal";
 import {
   AstryxButton as AstryxButtonBase,
   AstryxCard as AstryxCardBase,
@@ -2055,6 +2056,19 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
     }
   }, [actions, query, selectedArtboardId]);
 
+  const [importOpen, setImportOpen] = useState(false);
+  const handleImportResult = useCallback((craftStateStr: string) => {
+    try {
+      const parsed = JSON.parse(craftStateStr);
+      const spread = spreadArtboardsInState(parsed);
+      actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+    } catch (err) {
+      console.error("[ImportDesign] Failed to apply:", err);
+    }
+    setImportOpen(false);
+    setTimeout(onFitView, 80);
+  }, [actions, onFitView]);
+
   return (
     <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
       <button
@@ -2073,6 +2087,20 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
           ⧉ Duplicate
         </button>
       )}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
+        title="Import design from screenshot or Figma"
+      >
+        <Upload size={10} />
+        Import
+      </button>
+      <ImportDesignModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={handleImportResult}
+        currentCraftState={(() => { try { return query.serialize() || undefined; } catch { return undefined; } })()}
+      />
       <div className="flex-1" />
       <div className="flex items-center gap-0.5 mr-1.5">
         <button
@@ -2491,7 +2519,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
 // ─── AI drawer (right rail, collapsible) ─────────────────────────────────────
 
-interface AIMessage { role: "ai" | "user"; text: string; pinnedElement?: PinnedElement | null; }
+interface AIMessage { role: "ai" | "user"; text: string; pinnedElement?: PinnedElement | null; imagePreview?: string; }
 
 /**
  * Graph-aware merge for craft.js node maps.
@@ -2819,6 +2847,18 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const [prompt, setPrompt] = useState("");
   const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageAttach = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setAttachedImage({ base64: dataUrl.split(",")[1], mimeType: file.type || "image/png", preview: dataUrl });
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   const [localNotes, setLocalNotes] = useState(notes);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2848,7 +2888,55 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
 
   const handleGenerate = async () => {
     const trimmed = prompt.trim();
-    if (!trimmed || aiStatus === "loading") return;
+    if (aiStatus === "loading") return;
+
+    // ── Image attach fast path: route to vision endpoint ──────────────────────
+    if (attachedImage) {
+      const imageToSend = attachedImage;
+      setAttachedImage(null);
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: trimmed || "Import this design", imagePreview: imageToSend.preview },
+      ]);
+      setPrompt("");
+      setAiStatus("loading");
+      try {
+        let currentCraftState: string | undefined;
+        try { const s = query.serialize(); if (s && s.length > 10) currentCraftState = s; } catch {}
+        const res = await fetch("/api/ai/design-from-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: imageToSend.base64,
+            mimeType: imageToSend.mimeType,
+            frameLabel: trimmed || "Screen 1",
+            currentCraftState,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Import failed");
+        if (data.type === "message") {
+          setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+        } else {
+          const parsedRaw = (() => { try { return JSON.parse(data.craftState); } catch { return null; } })();
+          if (parsedRaw) {
+            let existingState: Record<string, unknown> = {};
+            try { if (currentCraftState) existingState = JSON.parse(currentCraftState); } catch {}
+            const spread = spreadArtboardsInState(parsedRaw, existingState);
+            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+          }
+          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+        }
+        setAiStatus("idle");
+      } catch (e: any) {
+        setAiStatus("error");
+        setMessages((prev) => [...prev, { role: "ai", text: `Import failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+        setTimeout(() => setAiStatus("idle"), 3000);
+      }
+      return;
+    }
+
+    if (!trimmed) return;
     setMessages((prev) => [...prev, { role: "user", text: trimmed, pinnedElement: pinned }]);
     setPrompt("");
     setAiStatus("loading");
@@ -3062,6 +3150,9 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                     ? "bg-primary text-primary-foreground rounded-br-sm shadow-sm"
                     : "bg-muted text-foreground rounded-bl-sm"
                 }`}>
+                  {m.imagePreview && (
+                    <img src={m.imagePreview} alt="Attached" className="mb-1.5 rounded-lg max-h-28 max-w-full object-cover" />
+                  )}
                   {m.text}
                   {m.role === "user" && m.pinnedElement && (
                     <div className="flex items-center gap-1 mt-1.5 bg-white/15 rounded-md px-1.5 py-0.5">
@@ -3106,20 +3197,53 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                 </button>
               </div>
             )}
-            <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-xl px-2.5 py-1.5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+            {attachedImage && (
+              <div className="flex items-center gap-2 mb-1.5 bg-muted/60 border border-border rounded-lg px-2 py-1.5">
+                <img src={attachedImage.preview} alt="Attached" className="w-8 h-8 object-cover rounded flex-shrink-0" />
+                <span className="text-[10px] text-muted-foreground flex-1 min-w-0 truncate">Image ready · will be imported as design</span>
+                <button onClick={() => setAttachedImage(null)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <div
+              className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-xl px-2.5 py-1.5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all"
+              onDragOver={(e) => { e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) handleImageAttach(f); }}
+            >
               <input
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenerate(); } }}
-                placeholder="Ask KiteAI to add or change something…"
+                onPaste={(e) => {
+                  const items = Array.from(e.clipboardData?.items || []);
+                  const imageItem = items.find((item) => item.type.startsWith("image/"));
+                  if (imageItem) { e.preventDefault(); const f = imageItem.getAsFile(); if (f) handleImageAttach(f); }
+                }}
+                placeholder={attachedImage ? "Optional: name this screen…" : "Ask KiteAI or drop a screenshot to import…"}
                 disabled={aiStatus === "loading"}
                 className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/50 disabled:opacity-50 min-w-0"
               />
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageAttach(f); e.target.value = ""; }}
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={aiStatus === "loading"}
+                className="w-5 h-5 rounded hover:bg-muted border border-transparent hover:border-border text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors flex-shrink-0 disabled:opacity-40"
+                title="Attach image to import as design"
+              >
+                <ImagePlus className="w-3 h-3" />
+              </button>
               {aiStatus === "loading" && <Loader2 className="w-3 h-3 animate-spin text-primary flex-shrink-0" />}
               {aiStatus === "error"   && <AlertCircle className="w-3 h-3 text-destructive flex-shrink-0" />}
               <button
                 onClick={handleGenerate}
-                disabled={!prompt.trim() || aiStatus === "loading"}
+                disabled={(!prompt.trim() && !attachedImage) || aiStatus === "loading"}
                 className="w-6 h-6 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground flex items-center justify-center transition-colors flex-shrink-0"
                 title="Send"
               >

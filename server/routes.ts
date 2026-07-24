@@ -41,7 +41,7 @@ import {
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState } from "./lib/designSchema";
-import { DESIGN_SYSTEM_PROMPT } from "./lib/designPrompt";
+import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
 import { mergeDesignPatch } from "./lib/designPatchMerge";
 import crypto from 'crypto';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
@@ -2329,6 +2329,256 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: stateMessage });
     } catch (err: any) {
       console.error('Design generation error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Design from image (vision) ────────────────────────────────────────────
+  // Accepts a base64-encoded screenshot and generates a single Astryx artboard.
+  // Reuses the same JSON parsing / response routing as /api/ai/design.
+  app.post('/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        imageBase64: z.string().min(1),
+        mimeType: z.string().default('image/png'),
+        frameLabel: z.string().max(200).optional().default('Screen 1'),
+        currentCraftState: z.string().max(40000).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request: ' + parsed.error.issues[0]?.message });
+      }
+      const { imageBase64, mimeType, frameLabel, currentCraftState } = parsed.data;
+
+      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
+
+      const userContent: any[] = [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: mimeType, data: imageBase64 },
+        },
+        {
+          type: 'text',
+          text: `Analyze this UI screenshot and generate Astryx craft.js state.\nFrame label: "${frameLabel}"${currentCraftState && currentCraftState.trim().length > 2 ? `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>` : ''}`,
+        },
+      ];
+
+      const result = await executeAiChat({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-5-20250929',
+        maxTokens: 12000,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: '{' },
+        ],
+      });
+
+      if (!result.ok) {
+        return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
+      }
+      if (result.json?.stop_reason === 'max_tokens') {
+        return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
+      }
+
+      const raw = ('{' + (result.text || '')).trim();
+      const jsonEnd = raw.lastIndexOf('}');
+      if (jsonEnd === -1) {
+        return res.status(500).json({ error: 'AI returned incomplete response' });
+      }
+      let parsedResponse: any;
+      try {
+        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
+      } catch {
+        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
+        try { parsedResponse = JSON.parse(repaired); } catch {
+          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        }
+      }
+
+      const responseType = parsedResponse?.type;
+      if (responseType === 'message') {
+        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+      }
+      if (responseType === 'patch') {
+        if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
+          return res.status(500).json({ error: 'AI returned an invalid patch' });
+        }
+        if (currentCraftState && currentCraftState.trim().length > 2) {
+          try {
+            const existing: Record<string, unknown> = JSON.parse(currentCraftState);
+            const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
+            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+          } catch { /* fall through to raw patch */ }
+        }
+        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+      }
+      const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
+      if (!craftStateObj || typeof craftStateObj !== 'object') {
+        return res.status(500).json({ error: 'AI returned an invalid design state' });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+    } catch (err: any) {
+      console.error('[design-from-image] error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Design from Figma frames (vision) ────────────────────────────────────
+  // Fetches frame thumbnails from Figma REST API, fans out to vision for each
+  // frame (up to 8), and merges all resulting artboards into one craft.js state.
+  app.post('/api/ai/design-from-figma', aiRateLimiter, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        fileKey: z.string().min(1),
+        frameIds: z.array(z.string()).min(1).max(8),
+        patToken: z.string().optional(),
+        currentCraftState: z.string().max(40000).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request: ' + parsed.error.issues[0]?.message });
+      }
+      const { fileKey, frameIds, patToken, currentCraftState } = parsed.data;
+
+      // Resolve Figma access token (PAT preferred, then session OAuth)
+      const accessToken = patToken || req.session?.figmaAccessToken;
+      if (!accessToken) {
+        return res.status(401).json({ error: 'No Figma access token. Please connect Figma or provide a Personal Access Token.' });
+      }
+
+      const FIGMA_API = 'https://api.figma.com/v1';
+      const figmaHeaders = { Authorization: `Bearer ${accessToken}` };
+
+      // 1. Fetch thumbnail render URLs for selected frames
+      const thumbUrl = `${FIGMA_API}/images/${fileKey}?ids=${encodeURIComponent(frameIds.join(','))}&format=png&scale=2`;
+      const thumbRes = await fetch(thumbUrl, { headers: figmaHeaders });
+      if (!thumbRes.ok) {
+        const errData = await thumbRes.json().catch(() => ({}));
+        return res.status(thumbRes.status).json({ error: (errData as any).message || 'Figma thumbnail fetch failed' });
+      }
+      const thumbData: { images: Record<string, string | null> } = await thumbRes.json();
+      const thumbnailUrls = thumbData.images || {};
+
+      // 2. Optionally fetch frame node names for artboard labels
+      let frameNames: Record<string, string> = {};
+      try {
+        const nodesUrl = `${FIGMA_API}/files/${fileKey}/nodes?ids=${encodeURIComponent(frameIds.join(','))}&depth=1`;
+        const nodesRes = await fetch(nodesUrl, { headers: figmaHeaders });
+        if (nodesRes.ok) {
+          const nodesData: { nodes: Record<string, { document?: { name?: string } }> } = await nodesRes.json();
+          for (const [nodeId, nodeWrapper] of Object.entries(nodesData.nodes || {})) {
+            if (nodeWrapper?.document?.name) {
+              frameNames[nodeId] = nodeWrapper.document.name;
+            }
+          }
+        }
+      } catch { /* names are optional */ }
+
+      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
+
+      // 3. Fan out: download each thumbnail image and call Claude vision
+      const frameResults = await Promise.all(
+        frameIds.map(async (frameId, idx) => {
+          const url = thumbnailUrls[frameId];
+          if (!url) return null;
+          try {
+            const imgRes = await fetch(url);
+            if (!imgRes.ok) return null;
+            const buffer = await imgRes.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString('base64');
+            const mimeType = imgRes.headers.get('content-type') || 'image/png';
+            const label = frameNames[frameId] || `Screen ${idx + 1}`;
+
+            const aiResult = await executeAiChat({
+              provider: 'anthropic',
+              model: 'claude-sonnet-4-5-20250929',
+              maxTokens: 8000,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+                    { type: 'text', text: `Analyze this Figma frame and generate Astryx craft.js state.\nFrame label: "${label}"` },
+                  ],
+                },
+                { role: 'assistant', content: '{' },
+              ],
+            });
+            if (!aiResult.ok) return null;
+            const raw = ('{' + (aiResult.text || '')).trim();
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonEnd === -1) return null;
+            let parsedFrame: any;
+            try { parsedFrame = JSON.parse(raw.slice(0, jsonEnd + 1)); }
+            catch { const rep = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1'); try { parsedFrame = JSON.parse(rep); } catch { return null; } }
+            const craftState = parsedFrame?.type === 'state' ? parsedFrame.craftState : (parsedFrame?.type ? null : parsedFrame);
+            if (!craftState || typeof craftState !== 'object') return null;
+            return { craftState, label };
+          } catch { return null; }
+        })
+      );
+
+      // 4. Merge all artboard states into a single combined state
+      const validResults = frameResults.filter(Boolean) as { craftState: Record<string, any>; label: string }[];
+      if (validResults.length === 0) {
+        return res.status(500).json({ error: 'Could not generate designs from the selected frames' });
+      }
+
+      const combined: Record<string, any> = {
+        ROOT: {
+          type: { resolvedName: 'AstryxSection' },
+          isCanvas: true,
+          props: { direction: 'row', gap: 80, padding: 0 },
+          displayName: 'AstryxSection',
+          custom: {},
+          parent: null,
+          hidden: false,
+          nodes: [],
+          linkedNodes: {},
+        },
+      };
+
+      for (let i = 0; i < validResults.length; i++) {
+        const { craftState, label } = validResults[i];
+        const prefix = `fi${i}_`;
+        const remap = (id: string) => (id === 'ROOT' ? 'ROOT' : prefix + id);
+        const srcRoot = craftState['ROOT'] as any;
+        if (!srcRoot) continue;
+        const artboardIds: string[] = srcRoot.nodes || [];
+        for (const abId of artboardIds) {
+          combined.ROOT.nodes.push(remap(abId));
+        }
+        for (const [nodeId, node] of Object.entries(craftState)) {
+          if (nodeId === 'ROOT') continue;
+          const n = node as any;
+          const newId = remap(nodeId);
+          combined[newId] = {
+            ...n,
+            parent: n.parent === 'ROOT' ? 'ROOT' : remap(n.parent),
+            nodes: (n.nodes || []).map(remap),
+            linkedNodes: Object.fromEntries(
+              Object.entries(n.linkedNodes || {}).map(([k, v]) => [k, remap(v as string)])
+            ),
+          };
+          // Override artboard labels with Figma frame names
+          if (artboardIds.includes(nodeId)) {
+            combined[newId].props = { ...combined[newId].props, label };
+          }
+        }
+      }
+
+      // If there's only one frame, unwrap the section into the artboard directly
+      const finalState = combined;
+
+      return res.json({
+        type: 'state',
+        craftState: JSON.stringify(finalState),
+        message: `Imported ${validResults.length} frame${validResults.length > 1 ? 's' : ''} from Figma`,
+      });
+    } catch (err: any) {
+      console.error('[design-from-figma] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });

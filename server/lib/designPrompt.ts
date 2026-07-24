@@ -222,6 +222,47 @@ Correct response:
   "text": "The Astryx library doesn't have a video player component. The closest option is AstryxCarousel (for a slideshow). Want me to add that instead?"
 }`;
 
+export const DESIGN_VISION_PROMPT_EXTENSION = `
+
+━━━ VISION ANALYSIS MODE ━━━
+
+You are analyzing a UI screenshot or rendered Figma frame. Your task: translate what you see into Astryx craft.js state.
+
+LAYOUT SIZING — set AstryxArtboard width based on apparent form factor:
+• Narrow / phone screen → width: 390
+• Tablet or mid-width panel → width: 768
+• Desktop / full-page layout → width: 1080 or wider
+
+VISUAL REGION MAPPING (top → bottom, left → right):
+• Navigation bar / header → AstryxHStack (align: "center") containing heading + buttons/avatar
+• Page title / headline → AstryxHeading (size "2xl" | "xl" | "lg" | "md")
+• Body copy, description text → AstryxText
+• Elevated/shadowed card or panel → AstryxCard (variant "elevated", isCanvas:true, put children inside)
+• Spreadsheet-like data grid → AstryxTable (set real headers + cellData rows)
+• Tab bar across the top → AstryxTabs
+• Labeled text input → AstryxTextInput
+• Dropdown / select menu → AstryxSelect
+• Search bar or command palette → AstryxCommand
+• Button group / action bar → AstryxHStack of AstryxButton nodes
+• Status chip or colored tag → AstryxBadge
+• Alert or notice banner → AstryxBanner
+• Progress bar → AstryxProgressBar
+• Avatar / profile picture → AstryxAvatar
+• Horizontal rule / separator → AstryxDivider
+• Empty placeholder area → AstryxEmptyState
+
+STRICT LIMITS:
+• ≤15 nodes total per artboard including all containers — if the screen is complex, represent only the top-level regions
+• Prefer AstryxCard to group distinct sub-sections rather than deep nesting
+• Extract real text from the image (headings, labels, button text, table column names)
+• If text is too small to read, infer realistic placeholder copy from context
+• Never use "Heading 1", "Lorem ipsum", "Label", "Option A/B/C" or other generic placeholders
+
+OUTPUT:
+• Always produce TYPE 2 (full state) — ROOT → AstryxArtboard → content
+• Use the frame name provided by the user as the AstryxArtboard label
+• If the user message contains <CURRENT_CANVAS> (canvas already has content), produce TYPE 3 (patch) that adds the new artboard to ROOT without touching existing artboards`;
+
 export const DESIGN_FEW_SHOT_EXAMPLES = [
   {
     // Single-artboard: ROOT → AstryxArtboard → content
