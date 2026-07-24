@@ -7,17 +7,15 @@
  * override — necessary because those base components render `text-gray-900`
  * via Tailwind which CSS cascade from the parent cannot override.
  *
- * Containers that propagate `textColor` via CSS inheritance:
- *   AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard
+ * Sentinel: `_autoColor: true` is written alongside any auto-set `color`
+ * value on a leaf text node. This lets subsequent background changes
+ * re-apply contrast even if the node already has a color (auto-set).
+ * When the user manually changes a text node's color via the inspector,
+ * `_autoColor` is cleared (set to false) so auto-contrast no longer
+ * overwrites their choice.
  *
- * Rules:
- * - Only solid hex / named colors are evaluated; gradients, CSS vars,
- *   "transparent", and undefined are skipped gracefully.
- * - Container `textColor` is always recomputed whenever `backgroundColor`
- *   is present and parseable — no stale sentinel logic.
- * - Leaf text nodes (`AstryxText`, `AstryxHeading`) get `color` set to the
- *   contrast value derived from their nearest ancestor with a backgroundColor,
- *   but only when they currently have no explicit `color` prop.
+ * Containers that carry `textColor`:
+ *   AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard
  */
 
 export const CONTRAST_CONTAINERS = new Set([
@@ -113,18 +111,23 @@ function resolvedName(node: CraftNode): string {
 }
 
 /**
- * Walk a flat craft.js node map and apply contrast colors:
+ * Walk a flat craft.js node map and apply contrast colors.
  *
- * Pass 1 — Containers: for every container with a parseable solid backgroundColor,
- *   set textColor to the contrast value (always recomputed, never stale).
+ * Pass 1 — Containers:
+ *   For every container (Artboard/Section/Stack/HStack/Card) with a parseable
+ *   solid backgroundColor, set textColor to the contrast value. Always
+ *   recomputed — no stale sentinel logic.
  *
- * Pass 2 — Leaf text nodes: for every AstryxText/AstryxHeading without an
- *   explicit color prop, walk up the parent chain to find the nearest container
- *   with backgroundColor and apply the same contrast color as an explicit `color`
- *   prop — required because those components render text-gray-900 via Tailwind
- *   which CSS cascade alone cannot override.
+ * Pass 2 — Leaf text nodes (AstryxText, AstryxHeading):
+ *   Walk up the parent chain to find the nearest ancestor with a backgroundColor.
+ *   This correctly handles nested containers (dark parent, light nested container).
+ *   - If the node has NO color → always set auto color.
+ *   - If the node has a color AND `_autoColor === true` → it was auto-set before;
+ *     re-apply the new contrast so it stays synchronized with background changes.
+ *   - If the node has a color AND `_autoColor` is falsy → user explicitly set it;
+ *     skip to preserve their choice.
  *
- * Returns a new node map — original objects are not mutated.
+ * Returns a new node map — originals are not mutated.
  */
 export function applyContrastColors(
   nodes: Record<string, CraftNode>
@@ -149,26 +152,36 @@ export function applyContrastColors(
 
   // Pass 2: leaf text nodes → explicit color override
   // Walk up the parent chain to find the nearest ancestor's contrast color.
+  // This respects nested containers — a light inner container within a dark outer
+  // one will correctly derive its contrast from the inner background, not the outer.
   const getInheritedContrast = (nodeId: string, depth = 0): string | null => {
     if (depth > 20) return null; // cycle guard
     const node = nodes[nodeId];
     if (!node) return null;
     const parentId = node.parent as string | undefined;
     if (!parentId || parentId === nodeId) return null;
-    if (bgContrastMap[parentId]) return bgContrastMap[parentId];
+    if (bgContrastMap[parentId] !== undefined) return bgContrastMap[parentId];
     return getInheritedContrast(parentId, depth + 1);
   };
 
   for (const [id, node] of Object.entries(nodes)) {
     const name = resolvedName(node);
     if (!LEAF_TEXT_NODES.has(name)) continue;
-    // Preserve explicitly set user colors
-    if (node.props?.color) continue;
+
+    // If the user manually set color (_autoColor is falsy but color exists), preserve it.
+    const existingColor = node.props?.color as string | undefined;
+    const wasAutoSet = !!node.props?._autoColor;
+    if (existingColor && !wasAutoSet) continue;
+
     const inheritedColor = getInheritedContrast(id);
     if (!inheritedColor) continue;
+
+    // Skip if already correct (no-op avoids unnecessary writes)
+    if (existingColor === inheritedColor) continue;
+
     result[id] = {
       ...node,
-      props: { ...(node.props ?? {}), color: inheritedColor },
+      props: { ...(node.props ?? {}), color: inheritedColor, _autoColor: true },
     };
   }
 

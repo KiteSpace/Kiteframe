@@ -1115,36 +1115,60 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
 
   const setProp = useCallback(
     (key: string, value: any) => {
-      actions.setProp(selected.id, (p: any) => { p[key] = value; });
+      actions.setProp(selected.id, (p: any) => {
+        p[key] = value;
+        // When the user manually sets a text color, mark it as user-owned so
+        // auto-contrast won't overwrite it on future background changes.
+        if (key === "color") p._autoColor = false;
+      });
 
       // Auto-apply contrast whenever backgroundColor changes on a container.
-      // Uses history.ignore() so auto-textColor doesn't pollute the undo stack.
+      // Uses history.ignore() so auto-contrast changes don't pollute the undo stack.
       if (key === "backgroundColor" && typeof value === "string" && value !== "transparent") {
         const isContainerNode = IS_CONTAINER.has(selected.displayName) || selected.displayName === "AstryxCard";
         if (isContainerNode) {
-          const autoColor = contrastTextFor(value);
-          if (autoColor) {
-            actions.history.ignore().setProp(selected.id, (p: any) => { p.textColor = autoColor; });
-            // Also set `color` on descendant leaf text nodes — their base component
-            // renders `text-gray-900` via Tailwind which CSS cascade cannot override.
-            try {
-              const allNodes = JSON.parse(query.serialize()) as Record<string, any>;
-              const visited = new Set<string>();
-              const queue: string[] = [...(allNodes[selected.id]?.nodes ?? [])];
-              while (queue.length > 0) {
-                const nodeId = queue.shift()!;
-                if (visited.has(nodeId)) continue;
-                visited.add(nodeId);
-                const n = allNodes[nodeId];
-                if (!n) continue;
-                const nName: string = (n.type?.resolvedName ?? n.displayName ?? "") as string;
-                if ((nName === "AstryxText" || nName === "AstryxHeading") && !n.props?.color) {
-                  actions.history.ignore().setProp(nodeId, (p: any) => { p.color = autoColor; });
-                }
-                if (Array.isArray(n.nodes)) queue.push(...n.nodes);
+          try {
+            // Build a patched snapshot of the canvas with the new backgroundColor applied,
+            // then run applyContrastColors on the full subtree so nested containers are
+            // respected — each text leaf derives its color from its nearest ancestor's BG.
+            const allNodes = JSON.parse(query.serialize()) as Record<string, any>;
+            allNodes[selected.id] = {
+              ...allNodes[selected.id],
+              props: { ...(allNodes[selected.id]?.props ?? {}), backgroundColor: value },
+            };
+
+            // Collect subtree node IDs (selected + all descendants)
+            const subtreeIds = new Set<string>();
+            const queue: string[] = [selected.id];
+            while (queue.length > 0) {
+              const nId = queue.shift()!;
+              subtreeIds.add(nId);
+              const n = allNodes[nId];
+              if (Array.isArray(n?.nodes)) queue.push(...n.nodes);
+            }
+            const subtree: Record<string, any> = {};
+            for (const id of subtreeIds) subtree[id] = allNodes[id];
+
+            // applyContrastColors correctly walks parent chains, so each leaf text
+            // node gets the contrast of its nearest background-owning ancestor.
+            const updated = applyContrastColors(subtree);
+
+            // Apply only the changed props via history.ignore()
+            for (const [nodeId, updatedNode] of Object.entries(updated)) {
+              const origNode = subtree[nodeId];
+              const uProps = (updatedNode as any).props ?? {};
+              const oProps = origNode?.props ?? {};
+              if (uProps.textColor !== oProps.textColor) {
+                const tc = uProps.textColor;
+                actions.history.ignore().setProp(nodeId, (p: any) => { p.textColor = tc; });
               }
-            } catch { /* ignore — canvas state may not be serializable during initial load */ }
-          }
+              if (uProps.color !== oProps.color) {
+                const c = uProps.color;
+                const ac = uProps._autoColor;
+                actions.history.ignore().setProp(nodeId, (p: any) => { p.color = c; p._autoColor = ac; });
+              }
+            }
+          } catch { /* ignore — canvas state may not be serializable during initial load */ }
         }
       }
     },
