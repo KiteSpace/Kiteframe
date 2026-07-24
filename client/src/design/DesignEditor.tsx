@@ -1147,7 +1147,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       </div>
 
       {/* ── Color ────────────────────────────────────────────────── */}
-      <section className="px-3 py-3 border-b border-border">
+      {dn !== "AstryxArtboard" && <section className="px-3 py-3 border-b border-border">
         <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
 
         {/* Background swatches — universal */}
@@ -1293,7 +1293,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             ))}
           </div>
         )}
-      </section>
+      </section>}
 
       {/* ── Background (artboard only) ───────────────────────────── */}
       {dn === "AstryxArtboard" && (
