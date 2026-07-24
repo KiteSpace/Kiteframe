@@ -2715,20 +2715,41 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         }
       } catch { /* names are optional */ }
 
+      // Switch to SSE so the client gets per-frame progress
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      const sendEvent = (event: string, data: unknown) => {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      const total = frameIds.length;
+      let done = 0;
+
       const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
 
       // 3. Fan out: download each thumbnail image and call Claude vision
       const frameResults = await Promise.all(
         frameIds.map(async (frameId, idx) => {
           const url = thumbnailUrls[frameId];
-          if (!url) return null;
+          const label = frameNames[frameId] || `Screen ${idx + 1}`;
+          if (!url) {
+            done++;
+            sendEvent('progress', { done, total, frameName: label, skipped: true });
+            return null;
+          }
           try {
             const imgRes = await fetch(url);
-            if (!imgRes.ok) return null;
+            if (!imgRes.ok) {
+              done++;
+              sendEvent('progress', { done, total, frameName: label, skipped: true });
+              return null;
+            }
             const buffer = await imgRes.arrayBuffer();
             const base64 = Buffer.from(buffer).toString('base64');
             const mimeType = imgRes.headers.get('content-type') || 'image/png';
-            const label = frameNames[frameId] || `Screen ${idx + 1}`;
 
             const aiResult = await executeAiChat({
               provider: 'anthropic',
@@ -2746,7 +2767,12 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
                 { role: 'assistant', content: '{' },
               ],
             });
-            if (!aiResult.ok) return null;
+            done++;
+            if (!aiResult.ok) {
+              sendEvent('progress', { done, total, frameName: label, skipped: true });
+              return null;
+            }
+            sendEvent('progress', { done, total, frameName: label });
             const raw = ('{' + (aiResult.text || '')).trim();
             const jsonEnd = raw.lastIndexOf('}');
             if (jsonEnd === -1) return null;
@@ -2756,14 +2782,20 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
             const craftState = parsedFrame?.type === 'state' ? parsedFrame.craftState : (parsedFrame?.type ? null : parsedFrame);
             if (!craftState || typeof craftState !== 'object') return null;
             return { craftState, label };
-          } catch { return null; }
+          } catch {
+            done++;
+            sendEvent('progress', { done, total, frameName: label, skipped: true });
+            return null;
+          }
         })
       );
 
       // 4. Merge all artboard states into a single combined state
       const validResults = frameResults.filter(Boolean) as { craftState: Record<string, any>; label: string }[];
       if (validResults.length === 0) {
-        return res.status(500).json({ error: 'Could not generate designs from the selected frames' });
+        sendEvent('error', { error: 'Could not generate designs from the selected frames' });
+        res.end();
+        return;
       }
 
       const combined: Record<string, any> = {
@@ -2809,17 +2841,22 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         }
       }
 
-      // If there's only one frame, unwrap the section into the artboard directly
       const finalState = combined;
 
-      return res.json({
+      sendEvent('complete', {
         type: 'state',
         craftState: JSON.stringify(finalState),
         message: `Imported ${validResults.length} frame${validResults.length > 1 ? 's' : ''} from Figma`,
       });
+      res.end();
     } catch (err: any) {
       console.error('[design-from-figma] error:', err);
-      return res.status(500).json({ error: 'Internal server error' });
+      try {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Internal server error' })}\n\n`);
+        res.end();
+      } catch {
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
   });
 

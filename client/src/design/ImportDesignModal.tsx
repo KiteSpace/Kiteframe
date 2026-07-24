@@ -369,6 +369,7 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
   const [fileKey, setFileKey] = useState<string | null>(null);
   const [isLoadingFrames, setIsLoadingFrames] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number; frameName: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [figmaConnected, setFigmaConnected] = useState<boolean | null>(null);
 
@@ -422,6 +423,7 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
   const handleImport = async () => {
     if (!fileKey || selectedIds.size === 0) return;
     setIsImporting(true);
+    setImportProgress(null);
     setError(null);
     try {
       const res = await fetch("/api/ai/design-from-figma", {
@@ -435,14 +437,54 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
           currentCraftState,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
-      onImport(data.craftState, data.message);
-      onClose();
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as any).error || "Import failed");
+      }
+
+      // Parse the SSE stream
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const lines = part.trim().split("\n");
+          let eventName = "message";
+          let dataStr = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+            else if (line.startsWith("data: ")) dataStr = line.slice(6).trim();
+          }
+          if (!dataStr) continue;
+          let payload: any;
+          try { payload = JSON.parse(dataStr); } catch { continue; }
+
+          if (eventName === "progress") {
+            setImportProgress({ done: payload.done, total: payload.total, frameName: payload.frameName });
+          } else if (eventName === "complete") {
+            onImport(payload.craftState, payload.message);
+            onClose();
+            return;
+          } else if (eventName === "error") {
+            throw new Error(payload.error || "Import failed");
+          }
+        }
+      }
     } catch (e: any) {
       setError(e.message || "Import failed");
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -570,6 +612,34 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
         </div>
       </ScrollArea>
 
+      {isImporting && importProgress && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="truncate max-w-[70%]">
+              Importing <span className="font-medium text-foreground">{importProgress.frameName}</span>
+            </span>
+            <span>{importProgress.done} of {importProgress.total}</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${(importProgress.done / importProgress.total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {isImporting && !importProgress && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Preparing frames…</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary/40 animate-pulse w-1/3" />
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
           <AlertCircle size={14} className="shrink-0" />
@@ -586,7 +656,7 @@ function FigmaTab({ currentCraftState, onImport, onClose }: FigmaTabProps) {
           className="gap-1.5"
         >
           {isImporting ? (
-            <><Loader2 size={13} className="animate-spin" />Importing…</>
+            <><Loader2 size={13} className="animate-spin" />{importProgress ? `${importProgress.done} of ${importProgress.total} done…` : "Starting…"}</>
           ) : (
             <><SiFigma size={11} />Import {selectedIds.size} frame{selectedIds.size !== 1 ? "s" : ""}</>
           )}
