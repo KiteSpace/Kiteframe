@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Upload, X, ImageIcon, AlertCircle, Check } from "lucide-react";
+import { Loader2, Upload, X, ImageIcon, AlertCircle, Check, Link } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { parseFigmaUrl } from "@/lib/integration/figmaUrl";
 import { callFigmaApi, discoverFrames, type FigmaFrame } from "@/lib/integration/figmaApi";
@@ -79,12 +79,16 @@ interface ScreenshotTabProps {
   onClose: () => void;
 }
 
+type ScreenshotInputMode = "upload" | "url";
+
 function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabProps) {
+  const [inputMode, setInputMode] = useState<ScreenshotInputMode>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFile = useCallback((f: File) => {
@@ -106,7 +110,7 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
     if (f) loadFile(f);
   }, [loadFile]);
 
-  const handleImport = async () => {
+  const handleImportFile = async () => {
     if (!file || !preview) return;
     setIsLoading(true);
     setError(null);
@@ -139,44 +143,125 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
     }
   };
 
+  const handleImportUrl = async () => {
+    const trimmed = imageUrl.trim();
+    if (!trimmed) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/ai/design-from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ imageUrl: trimmed, currentCraftState }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      if (data.type === "message") {
+        setError(data.text || "AI couldn't generate a design from this image");
+        return;
+      }
+      onImport(data.craftState, data.message);
+      onClose();
+    } catch (e: any) {
+      setError(e.message || "Import failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const switchMode = (mode: ScreenshotInputMode) => {
+    setInputMode(mode);
+    setError(null);
+    setFile(null);
+    setPreview(null);
+    setImageUrl("");
+  };
+
+  const canImport = inputMode === "upload" ? !!file : imageUrl.trim().length > 0;
+
   return (
     <div className="p-5 space-y-4">
-      {!preview ? (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors min-h-[200px] ${
-            isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/50 hover:bg-accent/30"
+      <div className="flex gap-1 p-0.5 bg-muted rounded-lg w-fit">
+        <button
+          onClick={() => switchMode("upload")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            inputMode === "upload"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <Upload size={20} className="text-muted-foreground" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-foreground">Drop a screenshot here</p>
-            <p className="text-xs text-muted-foreground mt-0.5">or click to browse · PNG, JPG, WebP, GIF</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ""; }}
-          />
-        </div>
+          <Upload size={12} />
+          Upload file
+        </button>
+        <button
+          onClick={() => switchMode("url")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            inputMode === "url"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Link size={12} />
+          Paste URL
+        </button>
+      </div>
+
+      {inputMode === "upload" ? (
+        <>
+          {!preview ? (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={onDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors min-h-[180px] ${
+                isDragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-accent/30"
+              }`}
+            >
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <Upload size={20} className="text-muted-foreground" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">Drop a screenshot here</p>
+                <p className="text-xs text-muted-foreground mt-0.5">or click to browse · PNG, JPG, WebP, GIF</p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f); e.target.value = ""; }}
+              />
+            </div>
+          ) : (
+            <div className="relative rounded-xl overflow-hidden border border-border bg-muted/30">
+              <img src={preview} alt="Preview" className="w-full max-h-64 object-contain" />
+              <button
+                onClick={() => { setFile(null); setPreview(null); setError(null); }}
+                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-background/80 border border-border flex items-center justify-center hover:bg-background transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="relative rounded-xl overflow-hidden border border-border bg-muted/30">
-          <img src={preview} alt="Preview" className="w-full max-h-64 object-contain" />
-          <button
-            onClick={() => { setFile(null); setPreview(null); setError(null); }}
-            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-background/80 border border-border flex items-center justify-center hover:bg-background transition-colors"
-          >
-            <X size={12} />
-          </button>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground">Image URL</label>
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && imageUrl.trim()) handleImportUrl(); }}
+            placeholder="https://example.com/screenshot.png"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+            autoFocus
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Supports direct image links from Loom, Notion, Slack, and most image hosts.
+          </p>
         </div>
       )}
 
@@ -193,8 +278,8 @@ function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabPr
         </Button>
         <Button
           size="sm"
-          onClick={handleImport}
-          disabled={!file || isLoading}
+          onClick={inputMode === "upload" ? handleImportFile : handleImportUrl}
+          disabled={!canImport || isLoading}
           className="gap-1.5"
         >
           {isLoading ? (

@@ -44,6 +44,7 @@ import { validateCraftState } from "./lib/designSchema";
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
 import { mergeDesignPatch } from "./lib/designPatchMerge";
 import crypto from 'crypto';
+import dns from 'dns';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
 import { requireUSOnly } from "./middleware/regionLock";
@@ -436,6 +437,126 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
     warnings,
     cleanedData
   };
+}
+
+/** Returns true if the IPv4/IPv6 address is in a private/reserved range. */
+function isPrivateIp(ip: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (v4) {
+    const [, a, b, c, d] = v4.map(Number);
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 0) return true;
+    if (a >= 224) return true;
+    return false;
+  }
+  const lower = ip.toLowerCase();
+  if (lower === '::1') return true;
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
+  if (lower.startsWith('fe80')) return true;
+  if (lower === '::' || lower === '0:0:0:0:0:0:0:0') return true;
+  return false;
+}
+
+/** Resolves a hostname to its IP and throws if the IP is private/reserved (SSRF guard). */
+async function assertPublicHost(hostname: string): Promise<void> {
+  let address: string;
+  try {
+    const result = await dns.promises.lookup(hostname, { all: false });
+    address = result.address;
+  } catch {
+    throw new Error('Could not resolve hostname');
+  }
+  if (isPrivateIp(address)) {
+    throw new Error('URL resolves to a private/reserved address');
+  }
+}
+
+const ALLOWED_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif']);
+const EXT_TO_MIME: Record<string, string> = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  webp: 'image/webp', gif: 'image/gif', avif: 'image/avif',
+};
+const IMAGE_MAGIC: Array<{ bytes: number[]; mime: string }> = [
+  { bytes: [0x89, 0x50, 0x4e, 0x47], mime: 'image/png' },
+  { bytes: [0xff, 0xd8, 0xff], mime: 'image/jpeg' },
+  { bytes: [0x47, 0x49, 0x46], mime: 'image/gif' },
+  { bytes: [0x52, 0x49, 0x46, 0x46], mime: 'image/webp' },
+];
+
+/** Fetches an image URL safely with SSRF protection and manual redirect following. */
+async function fetchRemoteImage(
+  rawUrl: string,
+  signal: AbortSignal,
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  const MAX_REDIRECTS = 5;
+  let currentUrl = rawUrl;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const parsed = new URL(currentUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('URL protocol must be http or https');
+    }
+    await assertPublicHost(parsed.hostname);
+
+    const resp = await fetch(currentUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      signal,
+      headers: { 'User-Agent': 'KiteframeImporter/1.0' },
+    });
+
+    if (resp.status >= 300 && resp.status < 400) {
+      const location = resp.headers.get('location');
+      if (!location) throw new Error('Redirect with no Location header');
+      currentUrl = new URL(location, currentUrl).href;
+      continue;
+    }
+
+    if (!resp.ok) {
+      throw new Error(`Remote server responded with ${resp.status}`);
+    }
+
+    const contentType = resp.headers.get('content-type') || '';
+    const mainType = contentType.split(';')[0].trim().toLowerCase();
+    let mimeType: string | undefined;
+
+    if (mainType && ALLOWED_IMAGE_MIMES.has(mainType)) {
+      mimeType = mainType;
+    }
+
+    const arrayBuffer = await resp.arrayBuffer();
+    if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+      throw new Error('Image is too large (max 10 MB)');
+    }
+    const buffer = Buffer.from(arrayBuffer);
+
+    if (!mimeType) {
+      const ext = parsed.pathname.split('.').pop()?.toLowerCase();
+      if (ext && EXT_TO_MIME[ext]) {
+        mimeType = EXT_TO_MIME[ext];
+      }
+    }
+
+    if (!mimeType) {
+      for (const sig of IMAGE_MAGIC) {
+        if (sig.bytes.every((b, i) => buffer[i] === b)) {
+          mimeType = sig.mime;
+          break;
+        }
+      }
+    }
+
+    if (!mimeType) {
+      throw new Error('URL does not point to a supported image (PNG, JPG, WebP, GIF)');
+    }
+
+    return { buffer, mimeType };
+  }
+  throw new Error('Too many redirects');
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2420,6 +2541,124 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
     } catch (err: any) {
       console.error('[design-from-image] error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Design from image URL (server-side fetch) ─────────────────────────────
+  app.post('/api/ai/design-from-url', aiRateLimiter, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        imageUrl: z.string().url('Must be a valid URL').max(2000),
+        frameLabel: z.string().max(200).optional().default('Screen 1'),
+        currentCraftState: z.string().max(40000).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request: ' + parsed.error.issues[0]?.message });
+      }
+      const { imageUrl: rawUrl, frameLabel, currentCraftState } = parsed.data;
+
+      let parsedRawUrl: URL;
+      try {
+        parsedRawUrl = new URL(rawUrl);
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL' });
+      }
+      if (!['http:', 'https:'].includes(parsedRawUrl.protocol)) {
+        return res.status(400).json({ error: 'Only http and https URLs are supported' });
+      }
+
+      let imageBuffer: Buffer;
+      let mimeType: string;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+          const result = await fetchRemoteImage(rawUrl, controller.signal);
+          imageBuffer = result.buffer;
+          mimeType = result.mimeType;
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (fetchErr: any) {
+        if (fetchErr.name === 'AbortError') {
+          return res.status(422).json({ error: 'Request timed out fetching the image URL' });
+        }
+        const msg = fetchErr.message || '';
+        if (msg.includes('private') || msg.includes('reserved') || msg.includes('resolve')) {
+          return res.status(422).json({ error: 'That URL is not publicly accessible' });
+        }
+        return res.status(422).json({ error: msg || 'Could not fetch the image. Check the URL is publicly accessible.' });
+      }
+
+      const imageBase64 = imageBuffer.toString('base64');
+      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
+      const userContent: any[] = [
+        { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
+        {
+          type: 'text',
+          text: `Analyze this UI screenshot and generate Astryx craft.js state.\nFrame label: "${frameLabel}"${currentCraftState && currentCraftState.trim().length > 2 ? `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>` : ''}`,
+        },
+      ];
+
+      const result = await executeAiChat({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-5-20250929',
+        maxTokens: 12000,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: '{' },
+        ],
+      });
+
+      if (!result.ok) {
+        return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
+      }
+      if (result.json?.stop_reason === 'max_tokens') {
+        return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
+      }
+
+      const raw = ('{' + (result.text || '')).trim();
+      const jsonEnd = raw.lastIndexOf('}');
+      if (jsonEnd === -1) {
+        return res.status(500).json({ error: 'AI returned incomplete response' });
+      }
+      let parsedResponse: any;
+      try {
+        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
+      } catch {
+        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
+        try { parsedResponse = JSON.parse(repaired); } catch {
+          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        }
+      }
+
+      const responseType = parsedResponse?.type;
+      if (responseType === 'message') {
+        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+      }
+      if (responseType === 'patch') {
+        if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
+          return res.status(500).json({ error: 'AI returned an invalid patch' });
+        }
+        if (currentCraftState && currentCraftState.trim().length > 2) {
+          try {
+            const existing: Record<string, unknown> = JSON.parse(currentCraftState);
+            const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
+            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+          } catch { /* fall through to raw patch */ }
+        }
+        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+      }
+      const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
+      if (!craftStateObj || typeof craftStateObj !== 'object') {
+        return res.status(500).json({ error: 'AI returned an invalid design state' });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+    } catch (err: any) {
+      console.error('[design-from-url] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });
