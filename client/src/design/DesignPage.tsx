@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote } from "lucide-react";
+import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
@@ -139,8 +139,9 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
             onClick={onNavigateToWorkflow}
             disabled={!onNavigateToWorkflow}
             title={onNavigateToWorkflow ? `Go to workflow: ${design.title}` : design.title}
-            className="text-xs font-medium bg-muted text-muted-foreground px-2.5 py-0.5 rounded-full truncate max-w-xs transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none"
+            className="flex items-center gap-1.5 text-xs font-medium bg-blue-600 text-white px-2.5 py-0.5 rounded-full truncate max-w-xs transition-colors hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-70"
           >
+            <Workflow className="w-3 h-3 shrink-0" />
             {design.title}
           </button>
           <div className="flex items-center gap-2">
