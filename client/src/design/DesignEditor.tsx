@@ -2496,23 +2496,65 @@ function diffCraftStates(
   return { added, modified, removed };
 }
 
-function spreadArtboardsInState(state: Record<string, any>): Record<string, any> {
+function spreadArtboardsInState(
+  state: Record<string, any>,
+  existingState?: Record<string, any>,
+): Record<string, any> {
   const artboardEntries = Object.entries(state).filter(
     ([, n]: [string, any]) => n?.type?.resolvedName === "AstryxArtboard"
   );
-  if (artboardEntries.length < 2) return state;
-  artboardEntries.sort(([, a]: [string, any], [, b]: [string, any]) =>
-    (Number(a.props?.x) || 0) - (Number(b.props?.x) || 0)
-  );
-  const result = { ...state };
-  let curX = 64;
-  const baseY = Number(artboardEntries[0][1].props?.y) || 64;
-  for (const [id, node] of artboardEntries) {
-    const width = Number(node.props?.width) || 390;
-    result[id] = { ...node, props: { ...node.props, x: curX, y: baseY } };
-    curX += width + 80;
+
+  if (existingState) {
+    // Patch mode: only position new artboards; preserve user-moved positions of existing ones.
+    const existingArtboardIds = new Set(
+      Object.keys(existingState).filter(
+        (id) => (existingState[id] as any)?.type?.resolvedName === "AstryxArtboard"
+      )
+    );
+    const newArtboards = artboardEntries.filter(([id]) => !existingArtboardIds.has(id));
+    if (newArtboards.length === 0) return state;
+
+    // Find rightmost edge & baseline Y from existing artboards in the merged state.
+    const existingInMerged = artboardEntries.filter(([id]) => existingArtboardIds.has(id));
+    let maxRight = 64;
+    let baseY = 64;
+    if (existingInMerged.length > 0) {
+      // Use the leftmost existing artboard's Y as the row baseline.
+      const leftmost = existingInMerged.reduce((best, cur) =>
+        (Number((cur[1] as any).props?.x) || 0) < (Number((best[1] as any).props?.x) || 0) ? cur : best
+      );
+      baseY = Number((leftmost[1] as any).props?.y) || 64;
+      for (const [, node] of existingInMerged) {
+        const x = Number((node as any).props?.x) || 0;
+        const w = Number((node as any).props?.width) || 390;
+        maxRight = Math.max(maxRight, x + w);
+      }
+    }
+
+    const result = { ...state };
+    let curX = maxRight + 80;
+    for (const [id, node] of newArtboards) {
+      const width = Number((node as any).props?.width) || 390;
+      result[id] = { ...(node as any), props: { ...(node as any).props, x: curX, y: baseY } };
+      curX += width + 80;
+    }
+    return result;
+  } else {
+    // Full replace mode: lay all artboards out left-to-right from x=64.
+    if (artboardEntries.length < 2) return state;
+    artboardEntries.sort(([, a]: [string, any], [, b]: [string, any]) =>
+      (Number(a.props?.x) || 0) - (Number(b.props?.x) || 0)
+    );
+    const result = { ...state };
+    let curX = 64;
+    const baseY = Number(artboardEntries[0][1].props?.y) || 64;
+    for (const [id, node] of artboardEntries) {
+      const width = Number(node.props?.width) || 390;
+      result[id] = { ...node, props: { ...node.props, x: curX, y: baseY } };
+      curX += width + 80;
+    }
+    return result;
   }
-  return result;
 }
 
 function describeValidationError(errors: string[]): string {
@@ -2686,7 +2728,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
         } else {
-          const spread = spreadArtboardsInState(merged);
+          const spread = spreadArtboardsInState(merged, existingState);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(existingState, merged);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
@@ -2705,9 +2747,9 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
-          const spread = spreadArtboardsInState(parsedForValidation);
+          const spread = spreadArtboardsInState(parsedForValidation!);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-          const diff = diffCraftStates(existingStateForReplace, parsedForValidation);
+          const diff = diffCraftStates(existingStateForReplace, parsedForValidation!);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
