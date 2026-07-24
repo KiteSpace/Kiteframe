@@ -2452,9 +2452,14 @@ function SnapGuideOverlay() {
 
 function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void; fitTrigger?: number }) {
   const [pan, setPan] = useState({ x: 80, y: 80 });
+  const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const spaceDown = useRef(false);
+  const hasFitOnMount = useRef(false);
+
+  // Access craft.js query to read artboard node positions from serialized state.
+  const { query } = useEditor();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -2507,15 +2512,87 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
   const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
 
-  const resetView = useCallback(() => { setPan({ x: 80, y: 80 }); onZoom(() => 0.75); }, [onZoom]);
+  // Parse all AstryxArtboard bounding boxes (canvas-unit coordinates) from the
+  // current craft.js serialized state. Returns null when no artboards exist.
+  const getArtboardBounds = useCallback((): { minX: number; minY: number; maxX: number; maxY: number } | null => {
+    try {
+      const serialized = query.serialize();
+      if (!serialized) return null;
+      const state = JSON.parse(serialized) as Record<string, any>;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let found = false;
+      for (const node of Object.values(state)) {
+        if (node?.type?.resolvedName === "AstryxArtboard") {
+          const x = Number(node.props?.x) || 64;
+          const y = Number(node.props?.y) || 64;
+          const w = Number(node.props?.width) || 390;
+          // Use explicit height prop when set; otherwise assume a typical mobile
+          // screen aspect ratio (≈ 2:1 h/w) as a best-effort estimate so the
+          // fit is approximately correct even for content-sized artboards.
+          const h = node.props?.height != null ? Number(node.props.height) : Math.round(w * 1.9);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x + w);
+          maxY = Math.max(maxY, y + h);
+          found = true;
+        }
+      }
+      return found ? { minX, minY, maxX, maxY } : null;
+    } catch {
+      return null;
+    }
+  }, [query]);
 
-  // Reset view whenever a new artboard is added (fitTrigger increments)
+  // Centre all artboards in the visible canvas viewport at the largest zoom
+  // level that fits them with 60 px padding on all sides.
+  const fitToContent = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const bounds = getArtboardBounds();
+    if (!bounds) {
+      // No artboards yet — fall back to a sensible default position.
+      setPan({ x: 80, y: 80 });
+      onZoom(() => 0.75);
+      return;
+    }
+    const { minX, minY, maxX, maxY } = bounds;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const { width: vpW, height: vpH } = container.getBoundingClientRect();
+    if (vpW === 0 || vpH === 0) return; // container not yet laid out
+    const pad = 60;
+    const zoomFit = Math.min(
+      (vpW - pad * 2) / contentW,
+      (vpH - pad * 2) / contentH,
+      1.5  // never zoom in further than 150 % to avoid jarring initial view
+    );
+    const clampedZoom = Math.max(0.25, Math.min(2, zoomFit));
+    // Pan so the content bounding-box centre aligns with the viewport centre.
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    onZoom(() => clampedZoom);
+    setPan({ x: vpW / 2 - centerX * clampedZoom, y: vpH / 2 - centerY * clampedZoom });
+  }, [getArtboardBounds, onZoom]);
+
+  // Auto-fit once after craft.js has hydrated the Frame on initial mount.
+  // A 200 ms delay lets the Frame deserialise the craft state before we measure.
   useEffect(() => {
-    if (fitTrigger && fitTrigger > 0) resetView();
+    if (hasFitOnMount.current) return;
+    const timer = setTimeout(() => {
+      hasFitOnMount.current = true;
+      fitToContent();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fit whenever the toolbar "Fit View" button fires or a new artboard is added.
+  useEffect(() => {
+    if (fitTrigger && fitTrigger > 0) fitToContent();
   }, [fitTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
+      ref={containerRef}
       className="h-full w-full relative overflow-hidden"
       style={{
         backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 1.5px, transparent 1.5px)",
@@ -2566,14 +2643,14 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={resetView}
+          onClick={fitToContent}
           className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all"
           title="Fit view"
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={resetView}
+          onClick={fitToContent}
           className="w-7 h-7 bg-background border border-border rounded-xl shadow-sm flex items-center justify-center text-muted-foreground hover:bg-accent hover:shadow-md transition-all text-xs"
           title="Reset view"
         >
