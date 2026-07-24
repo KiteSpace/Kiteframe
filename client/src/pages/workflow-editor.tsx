@@ -153,6 +153,7 @@ import {
   GitBranch,
   WandSparkles,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { FigmaImportModal } from "@/components/modals/FigmaImportModal";
@@ -3178,6 +3179,74 @@ function WorkflowEditorContent({
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [generateTabId, tabs]);
+
+  // Shared generation function: build a new design tab from any workflow tab.
+  // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
+  // (from stale design tab banner). Always creates a new design + new tab;
+  // version-names if prior designs from the same workflow already exist.
+  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab) => {
+    if (isGeneratingInterface) return;
+    if (isOutOfCredits) {
+      if (ctaAction === "signup") openSignup();
+      else openCreditsDialog();
+      return;
+    }
+    try {
+      const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
+      if (sessionRes.status === 401) { openSignup(); return; }
+    } catch { /* network error — let main call handle it */ }
+    setIsGeneratingInterface(true);
+    try {
+      // Version naming: count existing design tabs linked to this source workflow
+      const sourceWorkflowId = sourceTab.cloudProjectId ?? null;
+      const linkedDesignTabs = tabs.filter(
+        (t) => !!t.designId && !!t.designSourceWorkflowId && t.designSourceWorkflowId === sourceWorkflowId,
+      );
+      const baseName = sourceTab.name ? `${sourceTab.name} — Interface` : "Untitled Interface";
+      const tabTitle = linkedDesignTabs.length === 0
+        ? baseName
+        : `${baseName} v${linkedDesignTabs.length + 1}`;
+
+      const prompt = buildInterfacePromptFromWorkflow(sourceTab.nodes, sourceTab.edges, sourceTab.name);
+      const genRes = await fetch("/api/ai/design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt }),
+      });
+      if (genRes.status === 401) { openSignup(); return; }
+      const genData = await genRes.json();
+      if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      const createRes = await fetch("/api/designs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          craftState: genData.craftState,
+          source: "workflow-bridge",
+          title: sourceTab.name ?? null,
+          sourceWorkflowId: sourceWorkflowId,
+        }),
+      });
+      if (createRes.status === 401) { openSignup(); return; }
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+      openDesignTab(
+        createData.id,
+        tabTitle,
+        {
+          syncedAt: createData.workflowSyncedAt ?? null,
+          isStale: false,
+          sourceWorkflowId: createData.sourceWorkflowId ?? null,
+        },
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not generate interface";
+      toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
+    } finally {
+      setIsGeneratingInterface(false);
+    }
+  }, [isGeneratingInterface, isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, setIsGeneratingInterface]);
 
   const closeTab = useCallback(
     (tabId: string) => {
@@ -8027,6 +8096,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             ? `${tab.name.substring(0, 10)}...`
                             : tab.name}
                         </span>
+                        {tab.designIsStale && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0 ring-1 ring-orange-300"
+                            title="Interface is out of date — workflow has been updated"
+                          />
+                        )}
                       </div>
                     )}
                     <button
@@ -8579,18 +8654,48 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           
           </>
         ) : activeTab?.designId ? (
-          <DesignTabView
-            key={activeTab.designId}
-            designId={activeTab.designId}
-            onTitleLoaded={(title) => updateActiveTab({ name: title })}
-            onNavigateToWorkflow={(workflowName) => {
-              const match = tabs.find((t) => !t.designId && t.name === workflowName);
-              if (match) {
-                setTabs((prev) => prev.map((t) => t.id === match.id ? { ...t, isOpen: true } : t));
-                setActiveTabId(match.id);
-              }
-            }}
-          />
+          <div className="flex flex-col h-full">
+            {activeTab.designIsStale && activeTab.designSourceWorkflowId && !effectiveReadOnly && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2 bg-orange-50 dark:bg-orange-950/40 border-b border-orange-200 dark:border-orange-800 flex-shrink-0">
+                <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300">
+                  <RefreshCw size={14} className="flex-shrink-0" />
+                  <span>The source workflow has been updated. Regenerate to get a fresh interface.</span>
+                </div>
+                <button
+                  disabled={isGeneratingInterface}
+                  onClick={() => {
+                    const sourceTab = tabs.find(
+                      (t) => !t.designId && t.cloudProjectId === activeTab.designSourceWorkflowId,
+                    );
+                    if (!sourceTab) {
+                      toast({ title: "Source workflow not found", description: "Open the source workflow tab to update this interface.", variant: "destructive" });
+                      return;
+                    }
+                    generateInterfaceFromWorkflow(sourceTab);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-60 transition-colors flex-shrink-0"
+                >
+                  {isGeneratingInterface
+                    ? <Loader2 size={12} className="animate-spin" />
+                    : <RefreshCw size={12} />
+                  }
+                  {isGeneratingInterface ? "Generating…" : "Update Interface"}
+                </button>
+              </div>
+            )}
+            <DesignTabView
+              key={activeTab.designId}
+              designId={activeTab.designId}
+              onTitleLoaded={(title) => updateActiveTab({ name: title })}
+              onNavigateToWorkflow={(workflowName) => {
+                const match = tabs.find((t) => !t.designId && t.name === workflowName);
+                if (match) {
+                  setTabs((prev) => prev.map((t) => t.id === match.id ? { ...t, isOpen: true } : t));
+                  setActiveTabId(match.id);
+                }
+              }}
+            />
+          </div>
         ) : (
           <>
             {/* Sidebar - takes no space when collapsed, toolbar floats over canvas */}
@@ -10632,57 +10737,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     commentModeActive={commentPlacing}
                     onToggleCommentMode={() => setCommentPlacing((p) => !p)}
                     onGenerateInterface={effectiveReadOnly ? undefined : async () => {
-                      if (isGeneratingInterface) return;
-                      if (isOutOfCredits) {
-                        if (ctaAction === "signup") openSignup();
-                        else openCreditsDialog();
-                        return;
-                      }
-                      try {
-                        const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
-                        if (sessionRes.status === 401) { openSignup(); return; }
-                      } catch { /* network error — let main call handle it */ }
-                      setIsGeneratingInterface(true);
-                      try {
-                        const prompt = buildInterfacePromptFromWorkflow(nodes, edges, activeTab?.name);
-                        const genRes = await fetch("/api/ai/design", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                          body: JSON.stringify({ prompt }),
-                        });
-                        if (genRes.status === 401) { openSignup(); return; }
-                        const genData = await genRes.json();
-                        if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
-                        const createRes = await fetch("/api/designs", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                          body: JSON.stringify({
-                            craftState: genData.craftState,
-                            source: "workflow-bridge",
-                            title: activeTab?.name ?? null,
-                            sourceWorkflowId: activeTab?.cloudProjectId ?? null,
-                          }),
-                        });
-                        if (createRes.status === 401) { openSignup(); return; }
-                        const createData = await createRes.json();
-                        if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-                        openDesignTab(
-                          createData.id,
-                          activeTab?.name ? `${activeTab.name} — Interface` : "Untitled Interface",
-                          {
-                            syncedAt: createData.workflowSyncedAt ?? null,
-                            isStale: false,
-                            sourceWorkflowId: createData.sourceWorkflowId ?? null,
-                          },
-                        );
-                      } catch (e: unknown) {
-                        const msg = e instanceof Error ? e.message : "Could not generate interface";
-                        toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
-                      } finally {
-                        setIsGeneratingInterface(false);
-                      }
+                      if (activeTab) generateInterfaceFromWorkflow(activeTab);
                     }}
                     isGeneratingInterface={isGeneratingInterface}
                     onViewportChange={setViewport}
