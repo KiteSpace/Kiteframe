@@ -2459,16 +2459,20 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Reuses the same JSON parsing / response routing as /api/ai/design.
   app.post('/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
     try {
-      const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024; // 2 MB base64
+      const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024; // 10 MB base64 chars
+      const imageBase64Raw = typeof req.body?.imageBase64 === 'string' ? req.body.imageBase64 : '';
+      console.log(`[design-from-image] imageBase64 length: ${imageBase64Raw.length} chars (~${(imageBase64Raw.length * 3 / 4 / 1024).toFixed(0)} KB raw)`);
       const schema = z.object({
-        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_BYTES, `Image payload must be under 2 MB. Please resize your image before uploading.`),
+        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_CHARS, `Image payload must be under 10 MB. Please use a smaller image.`),
         mimeType: z.string().default('image/png'),
         frameLabel: z.string().max(200).optional().default('Screen 1'),
         currentCraftState: z.string().max(40000).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' });
+        const msg = parsed.error.issues[0]?.message ?? 'Invalid request';
+        console.log(`[design-from-image] validation failed: ${msg} (issues: ${JSON.stringify(parsed.error.issues.map(i => ({ path: i.path, msg: i.message })))})`);
+        return res.status(400).json({ error: msg });
       }
       const { imageBase64, mimeType, frameLabel, currentCraftState } = parsed.data;
 
