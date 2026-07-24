@@ -784,10 +784,13 @@ export const designs = pgTable("designs", {
   craftState: jsonb("craft_state").notNull(),
   title: text("title"),
   notes: text("notes"),
+  sourceWorkflowId: varchar("source_workflow_id"),
+  workflowSyncedAt: timestamp("workflow_synced_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("IDX_designs_claimed_by_user").on(table.claimedByUserId),
+  index("IDX_designs_source_workflow").on(table.sourceWorkflowId),
 ]);
 
 export const insertDesignSchema = createInsertSchema(designs).omit({

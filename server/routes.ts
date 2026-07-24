@@ -7502,7 +7502,7 @@ jane@example.com,Jane,Smith,pro,GroupC
   app.post('/api/designs', isAuthenticated, projectRateLimiter, async (req: any, res) => {
     try {
       const userId = getUserIdFromRequest(req.user);
-      const { craftState, title, source } = req.body ?? {};
+      const { craftState, title, source, sourceWorkflowId } = req.body ?? {};
       let state: unknown = craftState ?? EMPTY_CRAFT_STATE;
       if (typeof state === 'string') {
         try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
@@ -7511,13 +7511,23 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
       const allowedSources = ['native', 'home-ai', 'workflow-bridge'];
       const resolvedSource = typeof source === 'string' && allowedSources.includes(source) ? source : 'native';
+      const resolvedSourceWorkflowId = typeof sourceWorkflowId === 'string' && sourceWorkflowId.length > 0
+        ? sourceWorkflowId : null;
       const design = await storage.createDesign({
         claimedByUserId: userId,
         source: resolvedSource,
         craftState: state as any,
         title: typeof title === 'string' ? title : null,
+        sourceWorkflowId: resolvedSourceWorkflowId,
+        workflowSyncedAt: resolvedSourceWorkflowId ? new Date() : null,
       });
-      res.status(201).json({ id: design.id, url: `/designs/${design.id}` });
+      res.status(201).json({
+        id: design.id,
+        url: `/designs/${design.id}`,
+        sourceWorkflowId: design.sourceWorkflowId ?? null,
+        workflowSyncedAt: design.workflowSyncedAt?.toISOString() ?? null,
+        isStale: false,
+      });
     } catch (err) {
       console.error('[designs] POST failed:', err);
       res.status(500).json({ error: 'Failed to create design.' });
@@ -7529,7 +7539,19 @@ jane@example.com,Jane,Smith,pro,GroupC
     try {
       const design = await storage.getDesign(req.params.designId);
       if (!design) return res.status(404).json({ error: 'Design not found.' });
-      res.json(design);
+      // Compute staleness: compare workflowSyncedAt against the source workflow's updatedAt
+      let isStale = false;
+      if (design.sourceWorkflowId && design.workflowSyncedAt) {
+        const workflowUpdatedAt = await storage.getWorkflowUpdatedAt(design.sourceWorkflowId);
+        if (workflowUpdatedAt && workflowUpdatedAt > design.workflowSyncedAt) {
+          isStale = true;
+        }
+      }
+      res.json({
+        ...design,
+        isStale,
+        workflowSyncedAt: design.workflowSyncedAt?.toISOString() ?? null,
+      });
     } catch (err) {
       console.error('[designs] GET failed:', err);
       res.status(500).json({ error: 'Failed to fetch design.' });

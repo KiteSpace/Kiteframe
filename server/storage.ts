@@ -96,6 +96,8 @@ export interface IStorage {
   getDesign(id: string): Promise<Design | undefined>;
   updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined>;
   claimDesign(id: string, userId: string): Promise<Design | undefined>;
+  /** Returns the updatedAt timestamp of the saved_project with the given ID, or null if not found. */
+  getWorkflowUpdatedAt(projectId: string): Promise<Date | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -627,6 +629,15 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(designs.id, id), sql`claimed_by_user_id IS NULL`))
       .returning();
     return row;
+  }
+
+  async getWorkflowUpdatedAt(projectId: string): Promise<Date | null> {
+    const [row] = await db
+      .select({ updatedAt: savedProjects.updatedAt })
+      .from(savedProjects)
+      .where(eq(savedProjects.id, projectId))
+      .limit(1);
+    return row?.updatedAt ?? null;
   }
 }
 

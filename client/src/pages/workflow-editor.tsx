@@ -294,6 +294,9 @@ interface WorkflowTab {
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
   sketchStrokes?: import('@/components/SketchCanvas').SketchStroke[]; // World-space drawing annotations
   designId?: string; // Set for design tabs — renders DesignTabView inline instead of workflow canvas
+  designSyncedAt?: string; // ISO timestamp: when the design was last synced from its source workflow
+  designIsStale?: boolean; // True when the source workflow has been edited since last sync
+  designSourceWorkflowId?: string; // cloudProjectId of the workflow that generated this design
 }
 
 // Helper to get node position and dimensions (handles different node structures)
@@ -3136,7 +3139,11 @@ function WorkflowEditorContent({
     setForcePanelTab("kite-ai");
   }, [createBlankTab]);
 
-  const openDesignTab = useCallback((designId: string, title?: string) => {
+  const openDesignTab = useCallback((
+    designId: string,
+    title?: string,
+    syncMeta?: { syncedAt?: string | null; isStale?: boolean; sourceWorkflowId?: string | null },
+  ) => {
     // If a tab for this design already exists, just switch to it.
     const existing = tabs.find((t) => t.designId === designId);
     if (existing) {
@@ -3164,6 +3171,9 @@ function WorkflowEditorContent({
       isOpen: true,
       lastModified: Date.now(),
       designId,
+      designSyncedAt: syncMeta?.syncedAt ?? undefined,
+      designIsStale: syncMeta?.isStale ?? false,
+      designSourceWorkflowId: syncMeta?.sourceWorkflowId ?? undefined,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -10648,12 +10658,25 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           credentials: "include",
-                          body: JSON.stringify({ craftState: genData.craftState, source: "workflow-bridge", title: activeTab?.name ?? null }),
+                          body: JSON.stringify({
+                            craftState: genData.craftState,
+                            source: "workflow-bridge",
+                            title: activeTab?.name ?? null,
+                            sourceWorkflowId: activeTab?.cloudProjectId ?? null,
+                          }),
                         });
                         if (createRes.status === 401) { openSignup(); return; }
                         const createData = await createRes.json();
                         if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-                        openDesignTab(createData.id, activeTab?.name ? `${activeTab.name} — Interface` : "Untitled Interface");
+                        openDesignTab(
+                          createData.id,
+                          activeTab?.name ? `${activeTab.name} — Interface` : "Untitled Interface",
+                          {
+                            syncedAt: createData.workflowSyncedAt ?? null,
+                            isStale: false,
+                            sourceWorkflowId: createData.sourceWorkflowId ?? null,
+                          },
+                        );
                       } catch (e: unknown) {
                         const msg = e instanceof Error ? e.message : "Could not generate interface";
                         toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
