@@ -2981,7 +2981,7 @@ const INITIAL_MESSAGES: AIMessage[] = [
 
 // ─── Design panel (unified right rail: KiteAI · Layers · Notes) ──────────────
 
-type DesignPanelTab = "kite-ai" | "layers" | "notes";
+type DesignPanelTab = "kite-ai" | "layers";
 
 const DESIGN_PANEL_COLLAPSED_KEY = "kiteframe-design-panel-collapsed";
 const DESIGN_PANEL_ACTIVE_TAB_KEY = "kiteframe-design-panel-active-tab";
@@ -3003,7 +3003,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const [activeTab, setActiveTab] = useState<DesignPanelTab>(() => {
     try {
       const s = localStorage.getItem(DESIGN_PANEL_ACTIVE_TAB_KEY);
-      return (s === "kite-ai" || s === "layers" || s === "notes") ? s : "kite-ai";
+      return (s === "kite-ai" || s === "layers") ? s : "kite-ai";
     } catch { return "kite-ai"; }
   });
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -3034,10 +3034,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     };
     reader.readAsDataURL(file);
   }, []);
-
-  const [localNotes, setLocalNotes] = useState(notes);
-  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => { setLocalNotes(notes); }, [notes]);
 
   useEffect(() => { try { localStorage.setItem(DESIGN_PANEL_COLLAPSED_KEY, String(isCollapsed)); } catch {} }, [isCollapsed]);
   useEffect(() => { try { localStorage.setItem(DESIGN_PANEL_ACTIVE_TAB_KEY, activeTab); } catch {} }, [activeTab]);
@@ -3238,12 +3234,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     }
   };
 
-  const handleNotesChange = (value: string) => {
-    setLocalNotes(value);
-    if (!onNotesChange) return;
-    if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
-    notesTimerRef.current = setTimeout(() => { onNotesChange(value); }, 600);
-  };
 
   if (isCollapsed) {
     return (
@@ -3263,7 +3253,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
             {([
               { id: "kite-ai" as const, icon: Sparkles, label: "KiteAI", cls: "text-purple-500" },
               { id: "layers"  as const, icon: ListTree, label: "Layers",  cls: "" },
-              { id: "notes"   as const, icon: StickyNote, label: "Notes", cls: "" },
             ] as const).map(({ id, icon: Icon, label, cls }) => (
               <Tooltip key={id}>
                 <TooltipTrigger asChild>
@@ -3313,9 +3302,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
               </TabsTrigger>
               <TabsTrigger value="layers" className="text-xs px-3 gap-1.5 data-[state=active]:bg-background">
                 <ListTree size={14} />Layers
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="text-xs px-3 gap-1.5 data-[state=active]:bg-background">
-                <StickyNote size={14} />Notes
               </TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" className="h-1.5" />
@@ -3443,32 +3429,6 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           <LayersView />
         </TabsContent>
 
-        {/* Notes tab */}
-        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <div className="flex-1 flex flex-col p-3 min-h-0">
-            {editable ? (
-              <textarea
-                value={localNotes}
-                onChange={(e) => handleNotesChange(e.target.value)}
-                placeholder="Add design notes, decisions, or handoff context here…"
-                className="flex-1 w-full text-[12px] leading-relaxed bg-transparent resize-none border-none outline-none text-foreground placeholder:text-muted-foreground/50"
-                spellCheck
-              />
-            ) : (
-              <div className="flex-1 overflow-y-auto">
-                {localNotes
-                  ? <p className="text-[12px] leading-relaxed text-foreground whitespace-pre-wrap">{localNotes}</p>
-                  : <p className="text-[12px] text-muted-foreground/50 italic">No notes have been added to this design.</p>
-                }
-              </div>
-            )}
-          </div>
-          {editable && (
-            <div className="px-3 py-2 border-t border-border shrink-0">
-              <p className="text-[10px] text-muted-foreground/50">Notes save automatically as you type.</p>
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );
