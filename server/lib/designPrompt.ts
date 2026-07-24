@@ -77,6 +77,7 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number }
 • AstryxStack    vertical stack           props: { gap:number }
 • AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end" }
+• AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost" }
 
 — TYPOGRAPHY —
 • AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl" }
@@ -114,7 +115,6 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxResizable split panel props: { direction:"horizontal"|"vertical" }
 
 — CONTENT —
-• AstryxCard        content card      props: { variant:"elevated"|"outlined"|"ghost" }
 • AstryxChatMessage chat bubble       props: { children:string, sender:string, timestamp:string (optional), isOwn:boolean }
 • AstryxEmptyState  empty placeholder props: { title:string, description:string (optional), action:string (optional) }
 • AstryxToken       removable chip    props: { children:string }
@@ -148,8 +148,8 @@ Every node (whether in craftState or a patch) must follow this shape:
 NESTING RULES:
 • ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
 • AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
-• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack. All others are leaves (isCanvas:false, nodes:[]).
-• AstryxCard is always a leaf in generated JSON (isCanvas:false, nodes:[]) — even though the editor allows dropping into it, never give it children.
+• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard. All others are leaves (isCanvas:false, nodes:[]).
+• AstryxCard is a container (isCanvas:true) — give it a nodes[] array with its child components (typically a Stack or HStack wrapping its content). Use it to group related content in a styled box.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.
 • For patch:
   - When adding content to a named screen (e.g. "Screen 1"), target ONLY that AstryxArtboard node — include it in the patch with its updated "nodes" array.

@@ -1296,7 +1296,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
     </div>
   );
 }
-(AstryxCard as any).craft = { displayName: "AstryxCard", rules: { canMoveIn: () => true } };
+(AstryxCard as any).craft = { displayName: "AstryxCard", isCanvas: true, rules: { canMoveIn: () => true } };
 
 // ─── Artboard ─────────────────────────────────────────────────────────────────
 // Named canvas frame — the top-level screen container in the design editor.

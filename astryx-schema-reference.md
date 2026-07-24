@@ -93,17 +93,17 @@ server-side 422.
 
 ## Q3 — Containers vs leaves
 
-Exactly **four** containers (`isCanvas: true`, accept children via `nodes[]`):
+Exactly **five** containers (`isCanvas: true`, accept children via `nodes[]`):
 
 ```
-AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack
+AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard
 ```
 
 Everything else is a **leaf** (`isCanvas: false, nodes: []`).
 
-> **AstryxCard nuance:** the editor's drag-and-drop rules allow dropping into it
-> (`canMoveIn: () => true`), but the AI system prompt treats it as a leaf. Skill
-> JSON should treat it as a leaf.
+> **AstryxCard** is a full container — set `isCanvas: true` and give it children
+> (typically a Stack or HStack). The editor, AI prompt, and craft.js config all
+> treat it as a canvas.
 
 ### Mandatory tree structure
 
@@ -239,4 +239,4 @@ Safe to write against.
 |---|---|
 | `AstryxImage` in AI prompt but not in server validator | **Fixed** — `AstryxImage` has been removed from `DESIGN_SYSTEM_PROMPT` and `ASTRYX_COMPONENT_LIST` in `server/lib/designPrompt.ts`; it was never in `SERVER_ALLOWED_CRAFT_COMPONENTS` |
 | `/api/external/designs` didn't exist | **Fixed** — route now exists in `server/externalWorkflowRoutes.ts` |
-| `AstryxCard` container behaviour ambiguous | **Documented** — treat as leaf in skill-generated JSON (server doesn't reject children, but skill convention is leaf-only) |
+| `AstryxCard` is now a full container | **Fixed** — `isCanvas: true` added to `AstryxCard.craft` config; AI prompt updated to treat it as a container that can hold children |

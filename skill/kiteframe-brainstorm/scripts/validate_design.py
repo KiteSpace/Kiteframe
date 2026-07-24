@@ -16,9 +16,8 @@ Mirrors server-side validateCraftState():
      mandatory "screen" layer) -- this is a Kiteframe convention, not
      enforced by the generic node-shape rules alone, but required by the
      design system prompt's structural rule.
-  7. AstryxCard nodes should have no children (treated as a leaf in
-     skill-generated JSON, per Kiteframe's convention) -- this is a
-     warning, not a hard failure, since the server itself doesn't reject it.
+  7. AstryxCard is a container (isCanvas: true) and may have children --
+     give it a Stack or HStack wrapping its content.
 
 Usage:
   python3 validate_design.py --schema '<output_schema JSON string>' --craft-state '<tree JSON string>'
@@ -78,8 +77,8 @@ def validate_design(tree: dict, allowed_components):
             if child_id not in node_ids:
                 errors.append(f"Node '{node_id}': child '{child_id}' does not reference an existing node")
 
-        if resolved_name == "AstryxCard" and node.get("nodes"):
-            warnings.append(f"Node '{node_id}': AstryxCard has children -- treat as a leaf in generated JSON")
+        if resolved_name == "AstryxCard" and not node.get("isCanvas"):
+            warnings.append(f"Node '{node_id}': AstryxCard should have isCanvas:true (it is a container)")
 
     # Cycle detection (simple DFS from ROOT)
     visited = set()
