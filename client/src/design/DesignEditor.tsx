@@ -2279,22 +2279,6 @@ function KeyboardHandler() {
 // ─── Canvas selection hints (shown over the canvas) ──────────────────────────
 
 function CanvasHints() {
-  const { hasSelection } = useEditor((state) => {
-    const sel = state.events.selected;
-    return { hasSelection: !!(sel && sel.size > 0) };
-  });
-
-  if (hasSelection) {
-    return (
-      <div className="absolute bottom-14 left-4 z-10 pointer-events-none">
-        <div className="flex items-center gap-2 bg-primary text-primary-foreground text-[9.5px] px-3 py-1.5 rounded-full shadow-lg shadow-primary/20 font-medium">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 animate-pulse" />
-          Properties visible in left panel
-        </div>
-      </div>
-    );
-  }
-
   return null;
 }
 
