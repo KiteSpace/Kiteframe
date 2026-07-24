@@ -3224,7 +3224,8 @@ function WorkflowEditorContent({
         body: JSON.stringify({
           craftState: genData.craftState,
           source: "workflow-bridge",
-          title: sourceTab.name ?? null,
+          // Use the versioned tab title so onTitleLoaded syncs back the correct name
+          title: tabTitle,
           sourceWorkflowId: sourceWorkflowId,
         }),
       });
@@ -8663,15 +8664,42 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 </div>
                 <button
                   disabled={isGeneratingInterface}
-                  onClick={() => {
-                    const sourceTab = tabs.find(
+                  onClick={async () => {
+                    // 1. Try local tab first (already-open workflow)
+                    const localSourceTab = tabs.find(
                       (t) => !t.designId && t.cloudProjectId === activeTab.designSourceWorkflowId,
                     );
-                    if (!sourceTab) {
-                      toast({ title: "Source workflow not found", description: "Open the source workflow tab to update this interface.", variant: "destructive" });
+                    if (localSourceTab) {
+                      generateInterfaceFromWorkflow(localSourceTab);
                       return;
                     }
-                    generateInterfaceFromWorkflow(sourceTab);
+                    // 2. Fallback: fetch the workflow from the server by cloud project ID
+                    try {
+                      const projRes = await fetch(`/api/projects/${activeTab.designSourceWorkflowId}`, { credentials: "include" });
+                      if (projRes.status === 401) { openSignup(); return; }
+                      if (!projRes.ok) throw new Error("Project not found");
+                      const { project } = await projRes.json();
+                      const wfData = project?.workflowData ?? {};
+                      const syntheticTab: WorkflowTab = {
+                        id: `__fetch_${activeTab.designSourceWorkflowId}`,
+                        name: project?.name ?? "Untitled Workflow",
+                        nodes: wfData.nodes ?? [],
+                        edges: wfData.edges ?? [],
+                        canvasObjects: wfData.canvasObjects ?? [],
+                        viewport: wfData.viewport ?? { x: 0, y: 0, zoom: 1 },
+                        selectedNodeId: "",
+                        selectedEdgeId: "",
+                        history: [],
+                        historyIndex: 0,
+                        showImageModal: null,
+                        metadata: { name: project?.name ?? "", description: "", links: [], linksFormat: "text", categories: [] },
+                        cloudProjectId: activeTab.designSourceWorkflowId,
+                        isOpen: false,
+                      };
+                      generateInterfaceFromWorkflow(syntheticTab);
+                    } catch {
+                      toast({ title: "Could not load source workflow", description: "The workflow could not be fetched from the server.", variant: "destructive" });
+                    }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-60 transition-colors flex-shrink-0"
                 >
