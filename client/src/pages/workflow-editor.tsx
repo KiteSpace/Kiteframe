@@ -8673,7 +8673,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           
           </>
         ) : activeTab?.designId ? (
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full w-full">
             {activeTab.designIsStale && activeTab.designSourceWorkflowId && !effectiveReadOnly && (
               <div className="flex items-center justify-between gap-3 px-4 py-2 bg-orange-50 dark:bg-orange-950/40 border-b border-orange-200 dark:border-orange-800 flex-shrink-0">
                 <div className="flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300">
