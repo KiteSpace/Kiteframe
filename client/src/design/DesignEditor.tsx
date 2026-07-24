@@ -1031,7 +1031,23 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
   if (displayName === "AstryxArtboard") return (
     <>
       <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
-      <PropRow label="Width (px)"><NumberProp value={props.width ?? 390} onChange={(v) => setProp("width", v)} min={100} /></PropRow>
+      <PropRow label="Width (px)">
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {(props.width != null && props.width !== "auto") && (
+            <NumberProp value={Number(props.width)} onChange={(v) => setProp("width", v)} min={100} />
+          )}
+          <button
+            onClick={() => setProp("width", (props.width == null || props.width === "auto") ? 390 : undefined)}
+            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
+              props.width == null || props.width === "auto"
+                ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
+            }`}
+          >
+            Auto
+          </button>
+        </div>
+      </PropRow>
       <PropRow label="Height (px)">
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {props.height != null && (
@@ -1056,7 +1072,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
       <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
       <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
       <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 24} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
-      <ArtboardBackgroundPicker props={props} setProp={setProp} />
     </>
   );
 
@@ -1279,6 +1294,14 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
           </div>
         )}
       </section>
+
+      {/* ── Background (artboard only) ───────────────────────────── */}
+      {dn === "AstryxArtboard" && (
+        <section className="px-3 py-3 border-b border-border">
+          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Background</div>
+          <ArtboardBackgroundPicker props={selected.props} setProp={setProp} />
+        </section>
+      )}
 
       {/* ── Size & Shape ─────────────────────────────────────────── */}
       <section className="px-3 py-3 border-b border-border">
