@@ -2459,9 +2459,9 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Reuses the same JSON parsing / response routing as /api/ai/design.
   app.post('/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
     try {
-      const MAX_IMAGE_BASE64_BYTES = 400 * 1024; // 400 KB base64
+      const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024; // 2 MB base64
       const schema = z.object({
-        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_BYTES, `Image payload must be under 400 KB. Please resize your image before uploading.`),
+        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_BYTES, `Image payload must be under 2 MB. Please resize your image before uploading.`),
         mimeType: z.string().default('image/png'),
         frameLabel: z.string().max(200).optional().default('Screen 1'),
         currentCraftState: z.string().max(40000).optional(),
