@@ -8570,6 +8570,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </>
         ) : activeTab?.designId ? (
           <DesignTabView
+            key={activeTab.designId}
             designId={activeTab.designId}
             onTitleLoaded={(title) => updateActiveTab({ name: title })}
             onNavigateToWorkflow={(workflowName) => {
