@@ -2504,9 +2504,24 @@ function WorkflowEditorContent({
   // Update current tab
   const updateActiveTab = useCallback(
     (updates: Partial<WorkflowTab>) => {
+      // Stamp lastModified whenever meaningful content changes so the home
+      // screen "last edited" time and LWW cloud sync stay accurate.
+      const contentFields: (keyof WorkflowTab)[] = [
+        "nodes",
+        "edges",
+        "canvasObjects",
+        "name",
+      ];
+      const touchesContent = contentFields.some((f) => f in updates);
       setTabs((prev) =>
         prev.map((tab) =>
-          tab.id === activeTabId ? { ...tab, ...updates } : tab,
+          tab.id === activeTabId
+            ? {
+                ...tab,
+                ...updates,
+                ...(touchesContent ? { lastModified: Date.now() } : {}),
+              }
+            : tab,
         ),
       );
     },
@@ -8068,16 +8083,36 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         onChange={(e) => setWorkflowNameInput(e.target.value)}
                         onBlur={() => {
                           if (workflowNameInput.trim()) {
-                            updateActiveTab({ name: workflowNameInput.trim() });
+                            const trimmedName = workflowNameInput.trim();
+                            updateActiveTab({ name: trimmedName });
+                            // For design tabs, also persist the title to the
+                            // design record so it survives a page reload and
+                            // onTitleLoaded doesn't revert it to the old name.
+                            if (activeTab?.designId) {
+                              fetch(`/api/designs/${activeTab.designId}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ title: trimmedName }),
+                                credentials: "include",
+                              }).catch(() => { /* best-effort */ });
+                            }
                           }
                           setIsEditingWorkflowName(false);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             if (workflowNameInput.trim()) {
-                              updateActiveTab({
-                                name: workflowNameInput.trim(),
-                              });
+                              const trimmedName = workflowNameInput.trim();
+                              updateActiveTab({ name: trimmedName });
+                              // Same design-title persistence as onBlur above.
+                              if (activeTab?.designId) {
+                                fetch(`/api/designs/${activeTab.designId}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ title: trimmedName }),
+                                  credentials: "include",
+                                }).catch(() => { /* best-effort */ });
+                              }
                             }
                             setIsEditingWorkflowName(false);
                           } else if (e.key === "Escape") {

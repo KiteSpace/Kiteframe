@@ -170,12 +170,18 @@ function SaveWatcher({ onSave, onBeforeUnloadSave }: SaveWatcherProps) {
     };
 
     // Called when the component unmounts (tab hidden, editor closed).
-    // The page isn't navigating away, so a regular fetch is fine.
+    // Prefer the keepalive transport (same as beforeunload) so that a fast
+    // navigation — e.g. switching to the home screen before the 800 ms debounce
+    // fires — doesn't silently drop a pending craft-state save.
     const flushOnUnmount = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (pendingSave.current) {
-        try { onSaveRef.current(pendingSave.current); } catch { /* ignore */ }
+        const state = pendingSave.current;
         pendingSave.current = null;
+        try {
+          const flushFn = onBeforeUnloadSaveRef.current ?? onSaveRef.current;
+          flushFn(state);
+        } catch { /* ignore */ }
       }
     };
 
