@@ -1,12 +1,21 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow } from "lucide-react";
+import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
 import { sanitizeCraftState } from "./resolver";
+import { useToast } from "@/hooks/use-toast";
 import type { Design } from "@shared/schema";
+
+// ─── Large-save constants ─────────────────────────────────────────────────────
+
+/** Browser-enforced keepalive body cap is ~64 KB; use 50 KB as a safe ceiling. */
+const KEEPALIVE_SIZE_LIMIT = 50 * 1024;
+
+/** sessionStorage key used to signal an incomplete large-state save across loads. */
+const incompleteSaveKey = (designId: string) => `driftline_large_save_${designId}`;
 
 // Lazy-load the legacy viewer — only used for old external_entities records
 const LegacyViewer = lazy(() => import("@/pages/DesignCanvasViewer"));
@@ -52,8 +61,21 @@ interface CraftDesignViewProps {
 
 function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }: CraftDesignViewProps) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
   const [notesOpen, setNotesOpen] = useState(false);
+  const [incompleteSaveWarning, setIncompleteSaveWarning] = useState(false);
+
+  // On mount, check whether a previous large-state save was still in-flight when
+  // the user navigated away.  If so, show a one-time banner so they know the last
+  // edit may not have been persisted.
+  useEffect(() => {
+    const key = incompleteSaveKey(design.id);
+    if (sessionStorage.getItem(key)) {
+      sessionStorage.removeItem(key);
+      setIncompleteSaveWarning(true);
+    }
+  }, [design.id]);
 
   const isOwner = !!(currentUserId && design.claimedByUserId === currentUserId);
   const isUnclaimed = !design.claimedByUserId;
@@ -103,19 +125,56 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
   // Called only from the beforeunload flush in SaveWatcher.
   // Uses fetch({ keepalive: true }) so the browser does NOT cancel the request
   // when the user navigates away (Cmd+R / link click) before it completes.
-  // This is the targeted fix for the race condition where reloading within the
-  // 800 ms debounce window silently dropped the pending craft-state save.
-  // Note: keepalive requests have a ~64 KB body cap; suitable for typical
-  // designs but very large ones should warn the user before closing the tab.
+  //
+  // The browser enforces a ~64 KB body cap on keepalive requests.  When the
+  // serialized craft state exceeds 50 KB we fall back to a regular fetch
+  // (which works fine for SPA navigation) and:
+  //   1. Show a "Saving…" toast so the user knows not to close the tab.
+  //   2. Write a sessionStorage flag so the *next* load can warn that the
+  //      previous save may have been incomplete (covers hard-reload / tab-close).
   const handleBeforeUnloadSave = useCallback((state: string) => {
-    fetch(`/api/designs/${designIdRef.current}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ craftState: state }),
-      keepalive: true,
-      credentials: "include",
-    }).catch(() => { /* fire-and-forget; best-effort on unload */ });
-  }, []); // stable — reads design id from ref
+    const id = designIdRef.current;
+    const bytes = new TextEncoder().encode(state).length;
+
+    if (bytes > KEEPALIVE_SIZE_LIMIT) {
+      // Mark as potentially incomplete so the next page load can warn the user.
+      const key = incompleteSaveKey(id);
+      sessionStorage.setItem(key, "1");
+
+      // Regular fetch — survives SPA navigation but not hard tab-close.
+      fetch(`/api/designs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ craftState: state }),
+        credentials: "include",
+      }).then((res) => {
+        if (res.ok) {
+          // Save confirmed — clear the pending-warning flag so the banner
+          // doesn't appear on reload when the save actually worked.
+          sessionStorage.removeItem(key);
+        }
+        // Non-2xx: leave the flag set so the next load shows the warning banner.
+      }).catch(() => {
+        // Network error: flag stays set — next load will warn the user.
+      });
+
+      // Toast only displays for SPA navigation (React tree still alive).
+      toast({
+        title: "Saving large design…",
+        description: "Your design is too large for instant save. Please wait before closing this tab.",
+        duration: 6000,
+      });
+    } else {
+      // Normal path — keepalive so the request survives hard navigation.
+      fetch(`/api/designs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ craftState: state }),
+        keepalive: true,
+        credentials: "include",
+      }).catch(() => { /* fire-and-forget; best-effort on unload */ });
+    }
+  }, [toast]); // toast ref is stable; design id is read from ref
 
   const handleNotesChange = useCallback((notes: string) => {
     notesMutation.mutate(notes);
@@ -224,6 +283,24 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Incomplete-save warning banner — shown when a previous large-state save
+          was still in-flight when the user navigated away or closed the tab. */}
+      {incompleteSaveWarning && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs shrink-0 dark:bg-amber-950/30 dark:border-amber-800/40 dark:text-amber-300">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span className="flex-1">
+            Your last edit was too large to save instantly. It may not have been saved — please check your design and save again if needed.
+          </span>
+          <button
+            onClick={() => setIncompleteSaveWarning(false)}
+            className="shrink-0 p-0.5 rounded hover:bg-amber-200/60 dark:hover:bg-amber-800/40 transition-colors"
+            title="Dismiss"
+          >
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
 
