@@ -40,7 +40,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Cloud, Save, Trash2, MoreVertical, Loader2, Lock, Edit2 } from 'lucide-react';
+import { Cloud, Save, Trash2, MoreVertical, Loader2, Lock, Edit2, FolderOpen, Clock } from 'lucide-react';
+import { formatDate } from '@/lib/utils/formatDate';
 import type { SavedProject } from '@shared/schema';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { ProjectPRD } from '@/ai/prdEngine';
@@ -195,17 +196,6 @@ export function SavedProjectsDrawer({
     });
   };
 
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return 'Unknown';
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   if (!isAuthenticated) {
     return (
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -340,7 +330,7 @@ export function SavedProjectsDrawer({
                           )}
                           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            {formatDate(project.updatedAt)}
+                            {formatDate(project.updatedAt, { includeTime: true, fallback: 'Unknown' })}
                           </div>
                         </div>
                         <DropdownMenu>

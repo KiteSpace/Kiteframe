@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, User, Trash2, Save, Activity, BarChart3, Clock, Shield, LogIn } from 'lucide-react';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const SUBSCRIPTION_TIERS = ['free', 'advanced', 'pro'] as const;
@@ -198,12 +199,8 @@ export default function AdminUserDetails() {
   const user = userData?.user;
   const activity = activityData?.activity;
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Never';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-  };
+  const formatDate = (dateStr: string | null) =>
+    sharedFormatDate(dateStr, { includeTime: true, fallback: 'Never' });
 
   const featureChartData = activity?.featureBreakdown
     ? Object.entries(activity.featureBreakdown).map(([name, value]) => ({ name, value, fill: FEATURE_COLORS[name] || '#888' }))

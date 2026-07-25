@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { Copy, Key, Shield, Ban, RotateCcw, BarChart3, Users, FolderTree, Upload, Search, Plus, Trash2, Edit, UserPlus, Download, ChevronLeft, ChevronRight, Star, UserMinus, ClipboardList, Check, X, ExternalLink, FileText, Send, Flag, UserX, Settings, Megaphone, Info, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import AdminAnalytics from './AdminAnalytics';
@@ -226,14 +227,7 @@ function WaitlistTab({ authHeader }: { authHeader: string }) {
   const stats = waitlistData?.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
   const conversionRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  const formatDate = (dateStr: string | null) => sharedFormatDate(dateStr);
 
   return (
     <div className="space-y-6">
@@ -2752,10 +2746,7 @@ function BannedTab({ authHeader }: { authHeader: string }) {
     setUnbanDialogOpen(true);
   };
 
-  const formatDate = (d: string | null) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const formatDate = (d: string | null) => sharedFormatDate(d, { fallback: '—' });
 
   return (
     <div className="space-y-6">

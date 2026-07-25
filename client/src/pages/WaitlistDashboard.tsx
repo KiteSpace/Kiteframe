@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { apiRequest, getQueryFn } from '@/lib/queryClient';
 
 const FloatingShapes = lazy(() => import('@/components/landing/FloatingShapes'));
@@ -85,14 +86,8 @@ export default function WaitlistDashboard() {
     return <Redirect to="/app" />;
   }
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'Not recorded';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  const formatDate = (dateString: string | null | undefined) =>
+    sharedFormatDate(dateString, { longMonth: true, fallback: 'Not recorded' });
 
   return (
     <div className="min-h-screen relative bg-white dark:bg-slate-950">

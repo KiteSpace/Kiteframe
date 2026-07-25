@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FolderOpen, Calendar, Tag, X, Plus } from 'lucide-react';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 
 interface ProjectDetails {
   name: string;
@@ -99,16 +100,8 @@ export function ProjectDetailsTab({ projectId, projectName, onProjectNameChange 
     setDetails(prev => ({ ...prev, categories: prev.categories.filter(c => c !== category) }));
   };
 
-  const formatDate = (timestamp?: number) => {
-    if (!timestamp) return 'Unknown';
-    return new Date(timestamp).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = (timestamp?: number) =>
+    sharedFormatDate(timestamp, { includeTime: true, fallback: 'Unknown' });
 
   if (!projectId) {
     return (

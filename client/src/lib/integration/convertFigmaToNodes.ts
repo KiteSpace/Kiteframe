@@ -1,5 +1,6 @@
 import type { FigmaFrame } from './figmaApi';
 import type { FigmaSemanticMetadata } from './figmaSemanticTypes';
+import { generateId as generateIdBase } from '@/lib/utils/generateId';
 
 export interface KiteframeNode {
   id: string;
@@ -15,9 +16,7 @@ export interface ConversionResult {
   edges: any[];
 }
 
-function generateId(): string {
-  return `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+const generateId = () => generateIdBase('figma');
 
 export function convertFigmaFrameToNodes(
   frame: FigmaFrame,

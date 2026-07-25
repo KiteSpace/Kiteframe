@@ -1,11 +1,8 @@
 import type { DataTable, DataTableColumn, DataTableRow, DataTableColumnType, DataTableMeta } from '../types';
 import { sanitizeText } from './validation';
+import { generateId } from '@/lib/utils/generateId';
 
 const MAX_ROWS = 50;
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
 
 function inferColumnType(values: (string | number | boolean | null)[]): DataTableColumnType {
   const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');

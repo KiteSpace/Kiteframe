@@ -76,15 +76,6 @@ export function runWorkflowRepairs(
         }
       }
       
-      // Phase 0.2: High-signal logging for repair debugging
-      console.log('[WorkflowLifecycle] Decision repairs applied:', {
-        count: repairsApplied.decisionRepairs.length,
-        nodes: decisionResult.repairsApplied.map(r => r.decisionNodeId),
-        labelsAssigned: decisionResult.repairsApplied.flatMap(r => r.labelsAssigned),
-        edgesAdded: decisionResult.repairsApplied.reduce((sum, r) => sum + r.edgesAdded, 0),
-        nodesCreated: decisionResult.repairsApplied.flatMap(r => r.nodesCreated),
-        issuesResolved: decisionResult.repairsApplied.flatMap(r => r.issuesResolved),
-      });
     }
   }
   

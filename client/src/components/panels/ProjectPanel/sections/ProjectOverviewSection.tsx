@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Calendar, Tag, X, Plus, ChevronDown, ChevronRight, Edit3, Sparkles, Loader2, Check, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { useAi } from '@/ai/AiProvider';
 import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
 import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
@@ -366,14 +367,8 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     setDetails(prev => ({ ...prev, categories: prev.categories.filter(c => c !== category) }));
   };
 
-  const formatDate = (timestamp?: number) => {
-    if (!timestamp) return 'Unknown';
-    return new Date(timestamp).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (timestamp?: number) =>
+    sharedFormatDate(timestamp, { fallback: 'Unknown' });
 
   const buildWorkflowContext = useCallback(() => {
     if (!nodes || nodes.length === 0) return '';

@@ -2,6 +2,7 @@ import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { FigmaFrame } from '@/lib/integration/figmaApi';
 import type { FigmaSemanticMetadata } from '@/lib/integration/figmaSemanticTypes';
 import type { FigmaImportMode } from '@/components/modals/FigmaFramePicker';
+import { generateId as generateIdBase } from '@/lib/utils/generateId';
 
 export interface WorkflowData {
   nodes: Node[];
@@ -21,9 +22,7 @@ export interface FigmaBuildOptions {
   figmaLastModified?: string;
 }
 
-function generateId(): string {
-  return `figma-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+const generateId = () => generateIdBase('figma');
 
 export function buildFigmaFrameWorkflow(
   framesWithThumbnails: FigmaFrameWithThumbnail[],

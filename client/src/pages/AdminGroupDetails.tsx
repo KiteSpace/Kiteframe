@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FolderTree, Trash2, Save, Users, Settings, UserMinus } from 'lucide-react';
+import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 
 interface GroupAccessControls {
   unlimitedCredits?: boolean;
@@ -153,12 +154,8 @@ export default function AdminGroupDetails() {
   const group = groupData?.group;
   const members: GroupMember[] = group?.members || [];
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric'
-    });
-  };
+  const formatDate = (dateStr: string | null) =>
+    sharedFormatDate(dateStr);
 
   if (!groupId) {
     return <div className="p-8">Group ID not found</div>;
