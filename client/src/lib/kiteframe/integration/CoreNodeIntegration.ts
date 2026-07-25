@@ -3,8 +3,8 @@ import { ImageNode } from '../components/ImageNode';
 
 /**
  * Core Node Integration Plugin
- * Registers ImageNode as custom renderer in the KiteFrame system
- * Note: BasicNode was deprecated and removed - use 'process' type nodes instead
+ * Registers ImageNode as custom renderer in the KiteFrame system.
+ * All node types use the canvas fallback renderer; no custom renderers are needed.
  */
 export const coreNodeIntegrationPlugin: KiteFramePlugin = {
   name: 'core-node-integration',
