@@ -1394,8 +1394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
-      console.log(`📝 [PROJECT UPDATE BY ID] Updating project ID: ${id}`);
-
       // Sanitize all input data
       const sanitizedName = name ? sanitizeNodeLabel(name) : undefined;
       const sanitizedDescription = description ? sanitizeText(description) : undefined;
@@ -1413,27 +1411,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!project) {
-        console.log(`📝 [PROJECT UPDATE BY ID] Project not found: ${id}`);
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      console.log(`📝 [PROJECT UPDATE BY ID] Project ${id} saved to database. shareUuid: ${project.shareUuid}, isShareEnabled: ${project.isShareEnabled}`);
-
       // If sharing is enabled, broadcast update to viewers
       if (project.isShareEnabled && project.shareUuid) {
-        console.log(`📡 [BROADCAST BY ID] Sharing enabled, broadcasting to shareUuid: ${project.shareUuid}`);
         const broadcastFn = (req.app as any).broadcastShareUpdate;
         if (broadcastFn && sanitizedWorkflowData) {
           const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
-          const nodeCount = nodes?.length || 0;
-          const edgeCount = edges?.length || 0;
-          console.log(`📡 [BROADCAST BY ID] Broadcasting ${nodeCount} nodes, ${edgeCount} edges to viewers`);
           broadcastFn(project.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
-        } else {
-          console.log(`📡 [BROADCAST BY ID] No broadcast function or workflowData - broadcastFn: ${!!broadcastFn}, workflowData: ${!!sanitizedWorkflowData}`);
         }
-      } else {
-        console.log(`📡 [BROADCAST BY ID] Not broadcasting - isShareEnabled: ${project.isShareEnabled}, shareUuid: ${project.shareUuid}`);
       }
 
       res.json({ project });
@@ -1747,15 +1734,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { projectUuid } = req.params;
       const userId = getUserIdFromRequest(req.user);
       
-      console.log(`📝 [PROJECT UPDATE] Received update for projectUuid: ${projectUuid}`);
-      
       const project = await storage.getProjectByProjectUuid(projectUuid);
       if (!project) {
-        console.log(`📝 [PROJECT UPDATE] Project not found: ${projectUuid}`);
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      console.log(`📝 [PROJECT UPDATE] Found project ID: ${project.id}, shareUuid: ${project.shareUuid}, isShareEnabled: ${project.isShareEnabled}`);
       
       if (project.userId !== userId) {
         return res.status(403).json({ error: 'Not authorized to edit this project' });
@@ -1780,27 +1762,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!updated) {
-        console.log(`📝 [PROJECT UPDATE] Update failed for project: ${project.id}`);
         return res.status(404).json({ error: 'Project not found' });
       }
-      
-      console.log(`📝 [PROJECT UPDATE] Project ${project.id} saved to database successfully`);
 
       // If sharing is enabled, broadcast update to viewers
       if (updated.isShareEnabled && updated.shareUuid) {
-        console.log(`📡 [BROADCAST] Sharing enabled, broadcasting to shareUuid: ${updated.shareUuid}`);
         const broadcastFn = (req.app as any).broadcastShareUpdate;
         if (broadcastFn && sanitizedWorkflowData) {
           const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
-          const nodeCount = nodes?.length || 0;
-          const edgeCount = edges?.length || 0;
-          console.log(`📡 [BROADCAST] Broadcasting ${nodeCount} nodes, ${edgeCount} edges to viewers`);
           broadcastFn(updated.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
-        } else {
-          console.log(`📡 [BROADCAST] No broadcast function or no workflowData - broadcastFn: ${!!broadcastFn}, workflowData: ${!!sanitizedWorkflowData}`);
         }
-      } else {
-        console.log(`📡 [BROADCAST] Not broadcasting - isShareEnabled: ${updated.isShareEnabled}, shareUuid: ${updated.shareUuid}`);
       }
 
       res.json({ project: updated });
@@ -7661,9 +7632,7 @@ jane@example.com,Jane,Smith,pro,GroupC
     detailsData?: string | null;
   }) => {
     const subscribers = shareSubscriptions.get(shareId);
-    console.log(`📡 [WS BROADCAST] shareId: ${shareId}, subscribers: ${subscribers?.size || 0}`);
     if (!subscribers || subscribers.size === 0) {
-      console.log(`📡 [WS BROADCAST] No subscribers for shareId: ${shareId}`);
       return;
     }
     
@@ -7673,14 +7642,11 @@ jane@example.com,Jane,Smith,pro,GroupC
       ...data
     });
     
-    let sentCount = 0;
     subscribers.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
-        sentCount++;
       }
     });
-    console.log(`📡 [WS BROADCAST] Sent update to ${sentCount} clients for shareId: ${shareId}`);
   };
   
   // Expose broadcastShareUpdate on app for use in routes
@@ -7701,7 +7667,6 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
     });
     shareSubscriptions.delete(shareId);
-    console.log(`📡 Purged all viewers for share: ${shareId}`);
   };
   (app as any).purgeShareSubscriptions = purgeShareSubscriptions;
 
@@ -7726,7 +7691,6 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
     }
     if (subscribers.size === 0) commentSubscriptions.delete(projectId);
-    console.log(`📡 Purged ${toPurge.length} share-based comment subscriber(s) for project: ${projectId}`);
   };
   (app as any).purgeCommentSubscriptionsForProject = purgeCommentSubscriptionsForProject;
 
@@ -7862,8 +7826,6 @@ jane@example.com,Jane,Smith,pro,GroupC
               // Track for this client
               clientSubscriptions.get(ws)?.add(shareId);
               
-              console.log(`📡 Client subscribed to share: ${shareId}`);
-              
               ws.send(JSON.stringify({
                 type: 'share_subscribed',
                 shareId
@@ -7882,8 +7844,6 @@ jane@example.com,Jane,Smith,pro,GroupC
               if (shareSubscriptions.get(shareId)?.size === 0) {
                 shareSubscriptions.delete(shareId);
               }
-              
-              console.log(`📡 Client unsubscribed from share: ${shareId}`);
               
               ws.send(JSON.stringify({
                 type: 'share_unsubscribed',

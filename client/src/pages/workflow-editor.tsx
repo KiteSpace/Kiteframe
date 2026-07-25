@@ -4051,7 +4051,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         setTabs(prevTabs => {
           const targetTab = prevTabs.find(t => t.id === targetTabId);
           if (!targetTab) {
-            console.log(`[ACTIVITY] ⚠️ Tab no longer exists, discarding snapshot for: "${actionLabel}"`);
             return prevTabs;
           }
 
@@ -4068,7 +4067,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           );
 
           if (isIdentical) {
-            console.log(`[ACTIVITY] ⏭️ SKIPPED (no change): "${actionLabel}"`);
             return prevTabs;
           }
 
@@ -4085,27 +4083,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               ? newHistory.slice(-maxHistorySize)
               : newHistory;
           const newHistoryIndex = trimmedHistory.length - 1;
-
-          // Detailed activity tracking log
-          const nodeDiff = newHistoryState.nodes.length - (lastState?.nodes.length || 0);
-          const edgeDiff = newHistoryState.edges.length - (lastState?.edges.length || 0);
-          const objDiff = newHistoryState.canvasObjects.length - (lastState?.canvasObjects?.length || 0);
-          
-          console.log(`[ACTIVITY] 💾 SAVED: "${actionLabel}"`, {
-            tabId: targetTabId,
-            historyIndex: `${currentHistoryIndex} → ${newHistoryIndex}`,
-            historyLength: trimmedHistory.length,
-            state: {
-              nodes: newHistoryState.nodes.length,
-              edges: newHistoryState.edges.length,
-              objects: newHistoryState.canvasObjects.length,
-            },
-            diff: {
-              nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
-              edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
-              objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
-            },
-          });
 
           return prevTabs.map(tab =>
             tab.id === targetTabId
@@ -4913,30 +4890,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const targetState = history[newIndex];
       const currentState = history[historyIndex];
 
-      // Detailed undo tracking log
-      const nodeDiff = targetState.nodes.length - (currentState?.nodes.length || 0);
-      const edgeDiff = targetState.edges.length - (currentState?.edges.length || 0);
-      const objDiff = (targetState.canvasObjects?.length || 0) - (currentState?.canvasObjects?.length || 0);
-
-      console.log(`[UNDO] ⬅️ UNDO: historyIndex ${historyIndex} → ${newIndex}`, {
-        historyLength: history.length,
-        before: {
-          nodes: currentState?.nodes.length || 0,
-          edges: currentState?.edges.length || 0,
-          objects: currentState?.canvasObjects?.length || 0,
-        },
-        after: {
-          nodes: targetState.nodes.length,
-          edges: targetState.edges.length,
-          objects: targetState.canvasObjects?.length || 0,
-        },
-        diff: {
-          nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
-          edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
-          objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
-        },
-      });
-
       updateActiveTab({
         nodes: [...targetState.nodes],
         edges: [...targetState.edges],
@@ -4947,8 +4900,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       
       // Record undo for session signal tracking (detects immediate undo after accept)
       recordUndo();
-    } else {
-      console.log(`[UNDO] ⚠️ UNDO blocked: historyIndex=${historyIndex}, historyLength=${history.length}`);
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
@@ -4960,30 +4911,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       const targetState = history[newIndex];
       const currentState = history[historyIndex];
 
-      // Detailed redo tracking log
-      const nodeDiff = targetState.nodes.length - (currentState?.nodes.length || 0);
-      const edgeDiff = targetState.edges.length - (currentState?.edges.length || 0);
-      const objDiff = (targetState.canvasObjects?.length || 0) - (currentState?.canvasObjects?.length || 0);
-
-      console.log(`[REDO] ➡️ REDO: historyIndex ${historyIndex} → ${newIndex}`, {
-        historyLength: history.length,
-        before: {
-          nodes: currentState?.nodes.length || 0,
-          edges: currentState?.edges.length || 0,
-          objects: currentState?.canvasObjects?.length || 0,
-        },
-        after: {
-          nodes: targetState.nodes.length,
-          edges: targetState.edges.length,
-          objects: targetState.canvasObjects?.length || 0,
-        },
-        diff: {
-          nodes: nodeDiff >= 0 ? `+${nodeDiff}` : `${nodeDiff}`,
-          edges: edgeDiff >= 0 ? `+${edgeDiff}` : `${edgeDiff}`,
-          objects: objDiff >= 0 ? `+${objDiff}` : `${objDiff}`,
-        },
-      });
-
       updateActiveTab({
         nodes: [...targetState.nodes],
         edges: [...targetState.edges],
@@ -4991,8 +4918,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         viewport: { ...targetState.viewport },
         historyIndex: newIndex,
       });
-    } else {
-      console.log(`[REDO] ⚠️ REDO blocked: historyIndex=${historyIndex}, historyLength=${history.length}`);
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
@@ -12848,15 +12773,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             style: { ...(e.style || {}), strokeOpacity: 0.8, strokeDasharray: '5,5' }
                           }));
                           
-                          console.log('[EXPERIMENT] Generation storing IDs', {
-                            nodeId,
-                            generatedNodeIds,
-                            generatedEdgeIds,
-                            generatedAt,
-                            experimentId,
-                            promptContent
-                          });
-                          
                           logPreviewTopology({
                             previewAnchorNodeId: nodeId,
                             originNodeId: anchorNodeId,
@@ -12927,8 +12843,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             return [...filtered, ...previewEdges];
                           });
                           
-                          console.log('[EXPERIMENT] Generation complete - IDs stored in node.data.generation and node.meta.experiment');
-                          
                           logRenderedGraph({
                             nodes: previewNodes.map(n => ({
                               id: n.id,
@@ -12997,24 +12911,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }
                     }}
                     onExperimentAdoptBranch={(nodeId: string) => {
-                      console.log('[EXPERIMENT] Adopt handler fired', { nodeId });
-                      
                       const rawNode = nodes.find(n => n.id === nodeId);
-                      console.log('[EXPERIMENT] Raw node lookup', { 
-                        found: !!rawNode, 
-                        type: rawNode?.type,
-                        hasGeneration: !!(rawNode?.data as any)?.generation,
-                        rawNodeSnapshot: rawNode ? JSON.stringify({
-                          id: rawNode.id,
-                          type: rawNode.type,
-                          dataKeys: Object.keys(rawNode.data || {}),
-                          generation: (rawNode.data as any)?.generation,
-                          metaExperiment: rawNode.meta?.experiment
-                        }) : null
-                      });
-                      
                       if (!rawNode || rawNode.type !== 'experiment') {
-                        console.log('[EXPERIMENT] Early return: node not found or wrong type');
                         return;
                       }
                       
@@ -13023,18 +12921,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const generatedNodeIds = data.generation?.generatedNodeIds || [];
                       const generatedEdgeIds = data.generation?.generatedEdgeIds || [];
                       
-                      console.log('[EXPERIMENT] Adopt precheck', {
-                        nodeId,
-                        genNodes: generatedNodeIds.length,
-                        genEdges: generatedEdgeIds.length,
-                        generationStatus: data.generation?.status,
-                        userPrompt: data.userPrompt,
-                        selectedOptionLabel: data.selectedOptionLabel,
-                        selectedOptionDescription: data.selectedOptionDescription
-                      });
-                      
                       if (generatedNodeIds.length === 0 && generatedEdgeIds.length === 0) {
-                        console.log('[EXPERIMENT] Early return: no generated nodes/edges');
                         toast({
                           title: "No branch to adopt",
                           description: "Generate a branch first before accepting.",
@@ -13050,13 +12937,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       });
                       
                       const experimentContent = data.userPrompt || data.selectedOptionDescription || data.selectedOptionLabel || '';
-                      if (!experimentContent.trim()) {
-                        console.log('[EXPERIMENT] Warning: experimentContent is empty', {
-                          userPrompt: data.userPrompt,
-                          selectedOptionDescription: data.selectedOptionDescription,
-                          selectedOptionLabel: data.selectedOptionLabel
-                        });
-                      }
                       
                       const nodeIdSet = new Set(generatedNodeIds);
                       const edgeIdSet = new Set(generatedEdgeIds);
@@ -13079,14 +12959,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         || experimentMeta?.originNodeId 
                         || (node.meta as any)?.generatedFrom?.nodeId
                         || incomingEdge?.source;
-                      
-                      console.log('[EXPERIMENT] Accept - anchorNodeId resolution', {
-                        fromDataAnchor: data.anchor?.anchorNodeId,
-                        fromExperimentMeta: experimentMeta?.originNodeId,
-                        fromGeneratedFrom: (node.meta as any)?.generatedFrom?.nodeId,
-                        fromIncomingEdge: incomingEdge?.source,
-                        resolved: anchorNodeId,
-                      });
                       
                       const commitTimestamp = Date.now();
                       const nodeIdRemap = new Map<string, string>();
@@ -13134,25 +13006,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       });
                       
                       setEdges(prev => {
-                        console.log('[EXPERIMENT] Edge remapping - before filter', {
-                          totalEdges: prev.length,
-                          edgesInGenSet: prev.filter(e => edgeIdSet.has(e.id)).map(e => ({
-                            id: e.id,
-                            source: e.source,
-                            target: e.target,
-                            originalSource: (e.meta as any)?.originalSource,
-                          })),
-                        });
-                        
                         const filteredEdges = prev.filter(e => {
                           if (e.target === nodeId) return false;
                           if (e.source === nodeId && !edgeIdSet.has(e.id)) return false;
                           return true;
-                        });
-                        
-                        console.log('[EXPERIMENT] Edge remapping - after filter', {
-                          filteredCount: filteredEdges.length,
-                          keptGeneratedEdges: filteredEdges.filter(e => edgeIdSet.has(e.id)).length,
                         });
                         
                         const remappedEdges = filteredEdges.map(e => {
@@ -13202,14 +13059,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           ? remappedEdges.filter(e => e.source === anchorNodeId && e.target === firstCommittedNodeId)
                           : [];
                         
-                        console.log('[EXPERIMENT] Edge remapping - final result', {
-                          remappedCount: remappedEdges.length,
-                          anchorEdgesCount: anchorEdges.length,
-                          anchorNodeId,
-                          firstCommittedNodeId,
-                          allRemappedEdges: remappedEdges.map(e => ({ id: e.id, source: e.source, target: e.target })),
-                        });
-                        
                         return remappedEdges;
                       });
                       
@@ -13232,13 +13081,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             target: nodeIdRemap.get(edge?.target || '') || edge?.target || '' 
                           };
                         }),
-                      });
-                      
-                      console.log('[EXPERIMENT] Adopt completed - experiment node removed, branch re-parented', { 
-                        removedNodeId: nodeId,
-                        anchorNodeId,
-                        newNodeIds: Array.from(nodeIdRemap.values()),
-                        newEdgeIds: Array.from(edgeIdRemap.values()),
                       });
                       
                       toast({
@@ -13600,14 +13442,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               currentTool.selectedOption?.label || 
                               currentTool.userPrompt || '';
                             
-                            console.log('[ExperimentTool] Generation started:', {
-                              alertTitle: (anchorNodeData.data as any)?.label || anchorNodeData.type,
-                              alertDescription: currentTool.meta.issueDescription || 'No description',
-                              fixType: currentTool.mode,
-                              selectedSuggestion: currentTool.selectedOption,
-                              userPrompt: currentTool.userPrompt,
-                            });
-                            
                             const context = buildExperimentContext({
                               experimentNodeId: currentTool.anchorNodeId,
                               nodes,
@@ -13942,8 +13776,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // the proposal BESIDE the existing workflow as its own separate
                     // group. Nothing is destroyed — the user can delete either one.
                     if (mutationResult.requiresConfirmation) {
-                      console.log('[Task #137] Full graph detected - adding as a new workflow beside the existing one (non-destructive)');
-
                       const newWorkflowNodes = workflow.nodes;
                       const newWorkflowEdges = workflow.edges;
                       // Place the new workflow to the RIGHT of existing content
@@ -14086,23 +13918,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     return; // Canvas unchanged on mutation failure
                   }
                   
-                  // Phase 6.5: Log merge/branch decision for audit
-                  if (mutationResult.mergeBranchDecision) {
-                    console.log('[Phase 6.5] Merge/Branch decision applied:', {
-                      intent: mutationResult.mergeBranchDecision.intent,
-                      resolvedIntent: mutationResult.mergeBranchDecision.resolvedIntent,
-                      confidence: mutationResult.mergeBranchDecision.confidence,
-                      signals: mutationResult.mergeBranchDecision.detectedSignals
-                    });
-                  }
-                  
-                  // Log repair info if decision repair was applied
-                  if (mutationResult.safetyReport.decisionRepairApplied) {
-                    console.log('[MergeSafe] Decision Repair applied:', {
-                      repairedNodeIds: mutationResult.repairInfo.repairedNodeIds,
-                      repairedIssueTypes: mutationResult.repairInfo.repairedIssueTypes,
-                    });
-                  }
                   
                   // Use validated and repaired nodes/edges from mutation result
                   const workflowNodes = mutationResult.mutatedNodes;
@@ -14548,7 +14363,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   const workflows = importedData.projectData?.workflows || importedData.workflows;
                   const projectName = importedData.projectData?.projectName || importedData.project?.name || importedData.projectName;
                   const importedProjectId = importedData.projectData?.projectId || importedData.project?.id;
-                  console.log('[Import] Processing AssembledProjectPRD with', workflows.length, 'workflows (format:', hasNestedWorkflows ? 'nested' : 'flat', ')');
                   
                   // Merge all workflows onto a single canvas (current active tab)
                   // This preserves the original project layout with all workflows together
@@ -14590,11 +14404,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         sections: workflow.prdSections,
                         workflowName: workflow.workflowName
                       };
-                      console.log('[Import] Stored PRD sections for workflow:', workflow.workflowName, '(id:', workflow.workflowId, ')');
                     }
                   }
                   
-                  console.log('[Import] Merged', allNodes.length, 'nodes,', allEdges.length, 'edges,', allCanvasObjects.length, 'canvas objects');
                   
                   // Use the imported project ID for consistency with export
                   // This ensures PRD storage keys match between export and import
@@ -14639,7 +14451,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // and re-map PRD sections using the _importedWorkflowId tags (deterministic)
                     setTimeout(() => {
                       const detectedFlows = FlowDetection.detectFlows(allNodes, allEdges);
-                      console.log('[Import] FlowDetection found', detectedFlows.length, 'flows after merge');
                       
                       // Track which original workflow IDs have been mapped
                       const mappedWorkflowIds = new Set<string>();
@@ -14677,7 +14488,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             generatedAt: Date.now(),
                           });
                           mappedWorkflowIds.add(bestOriginalId);
-                          console.log('[Import] Mapped PRD for', prdData.workflowName, 'to flow', flow.id, '(', bestCount, 'nodes matched)');
                         }
                       }
                     }, 100);
@@ -14692,7 +14502,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         version: projectPRD.version || 1,
                         generatedAt: projectPRD.generatedAt || Date.now(),
                       });
-                      console.log('[Import] Saved project PRD with', projectPRD.sections.length, 'sections');
                     }
                     
                     // Save project overview details to localStorage (for ProjectOverviewSection)
@@ -14716,7 +14525,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           updatedAt: Date.now(),
                         };
                         localStorage.setItem(detailsKey, JSON.stringify(updatedDetails));
-                        console.log('[Import] Saved project details to localStorage');
                       } catch (e) {
                         console.warn('[Import] Failed to save project details:', e);
                       }
@@ -15237,24 +15045,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         isOpen={showFigmaModal}
         onClose={() => setShowFigmaModal(false)}
         onImport={async (framesWithThumbnails, mode, figmaInfo, importMode) => {
-          console.log(
-            "[WorkflowEditor] onImport received:",
-            framesWithThumbnails.length,
-            "frames, mode:",
-            mode,
-            "importMode:",
-            importMode,
-          );
-          console.log(
-            "[WorkflowEditor] Frame details:",
-            framesWithThumbnails.map((f) => ({
-              name: f.frame.name,
-              id: f.frame.id,
-              hasThumbnail: !!f.thumbnailUrl,
-              hasSemantic: !!f.figmaSemantic,
-            })),
-          );
-
           if (framesWithThumbnails.length === 0) {
             toast({
               title: "No frames selected",
@@ -15267,23 +15057,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           let importedNodeIds: string[] = [];
 
           if (mode === "new-project") {
-            console.log(
-              "[WorkflowEditor] Creating new project with",
-              framesWithThumbnails.length,
-              "frames",
-            );
             const workflowData = buildFigmaFrameWorkflow(
               framesWithThumbnails,
               { x: 100, y: 100 },
               50,
               figmaInfo?.fileKey,
               { importMode },
-            );
-            console.log(
-              "[WorkflowEditor] Built workflow data - nodes:",
-              workflowData.nodes.length,
-              "edges:",
-              workflowData.edges.length,
             );
             importedNodeIds = workflowData.nodes.map((n) => n.id);
             const name = generateCuteName();
@@ -15342,11 +15121,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }, 300);
             }
           } else {
-            console.log(
-              "[WorkflowEditor] Inserting into existing project with",
-              framesWithThumbnails.length,
-              "frames",
-            );
             saveToHistory("Import Figma frames");
             const newNodes = insertFigmaFrames(
               nodes,
@@ -15356,7 +15130,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               { importMode },
             );
             importedNodeIds = newNodes.map((n) => n.id);
-            console.log("[WorkflowEditor] Created new nodes:", newNodes.length);
             setNodes((prev) => [...prev, ...newNodes]);
 
             if (figmaInfo) {
@@ -15539,13 +15312,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               const figmaWorkflowName =
                 generatedNodes[0]?.data?.label || "Figma Workflow";
 
-              console.log(
-                "[Figma] Starting afterWorkflowCreation for Figma workflow, projectId:",
-                effectiveProjectId,
-                "workflowId:",
-                figmaWorkflowGroupId,
-              );
-
               afterWorkflowCreation({
                 projectId: effectiveProjectId,
                 workflows: [
@@ -15560,10 +15326,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 generatePRD: true,
                 aiClient: routerAiClient,
                 onPRDGenerated: (workflowId, prd) => {
-                  console.log(
-                    "[Figma] PRD generated for workflow:",
-                    workflowId,
-                  );
                   toast({
                     title: "PRD Generated",
                     description:
@@ -15571,10 +15333,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                 },
                 onProjectDetailsGenerated: (details) => {
-                  console.log(
-                    "[Figma] Project details generated:",
-                    details.title,
-                  );
                 },
                 onError: (error, context) => {
                   console.error(
@@ -15949,30 +15707,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           onViewSemanticData={
             contextMenu.node?.type === "image" &&
             contextMenu.node?.data?.figmaSemantic
-              ? () => {
-                  console.log("=== Figma Semantic Data ===");
-                  console.log("Node:", contextMenu.node?.data?.label);
-                  console.log("Figma ID:", contextMenu.node?.data?.figmaId);
-                  console.log(
-                    "Semantic Metadata:",
-                    contextMenu.node?.data?.figmaSemantic,
-                  );
-                  console.log(
-                    "Elements:",
-                    contextMenu.node?.data?.figmaSemantic?.elements?.length ||
-                      0,
-                  );
-                  console.log(
-                    "Forms:",
-                    contextMenu.node?.data?.figmaSemantic?.forms?.length || 0,
-                  );
-                  console.log(
-                    "Navigation Targets:",
-                    contextMenu.node?.data?.figmaSemantic?.navigationTargets
-                      ?.length || 0,
-                  );
-                  console.log("===========================");
-                }
+              ? () => { /* semantic data available via node.data.figmaSemantic */ }
               : undefined
           }
           node={contextMenu.node}
@@ -16730,13 +16465,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   });
                   const singleFigmaWorkflowGroupId = `workflow-${singleFigmaRootNodeId}`;
 
-                  console.log(
-                    "[Figma Single] Starting afterWorkflowCreation, projectId:",
-                    effectiveProjectId,
-                    "workflowId:",
-                    singleFigmaWorkflowGroupId,
-                  );
-
                   await afterWorkflowCreation({
                     projectId: effectiveProjectId,
                     workflows: [
@@ -16751,10 +16479,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     generatePRD: true,
                     aiClient: routerAiClient,
                     onPRDGenerated: (workflowId, prd) => {
-                      console.log(
-                        "[Figma Single] PRD generated for workflow:",
-                        workflowId,
-                      );
                       toast({
                         title: "PRD Generated",
                         description:
