@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -451,6 +451,31 @@ function DraggableItem({ item, connectors }: { item: ToolboxItem; connectors: an
         </PreviewThumbnail>
       </div>
       <span className="text-[9.5px] text-muted-foreground group-hover:text-primary font-medium leading-none">{item.name}</span>
+    </div>
+  );
+}
+
+// ─── Draggable list-row (used in list view) ────────────────────────────────────
+
+function DraggableListItem({ item, connectors }: { item: ToolboxItem; connectors: any }) {
+  return (
+    <div
+      ref={(ref) => { if (ref) connectors.create(ref, item.getElement()); }}
+      title={item.description}
+      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 cursor-grab active:cursor-grabbing transition-all group select-none"
+    >
+      {/* Miniature preview thumbnail */}
+      <div className="w-10 h-7 shrink-0 rounded border border-border/60 bg-muted/30 overflow-hidden flex items-center justify-center" style={{ pointerEvents: "none" }}>
+        <PreviewErrorBoundary name={item.name}>
+          <div style={{ transform: "scale(0.38)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", userSelect: "none" }}>
+            {item.preview}
+          </div>
+        </PreviewErrorBoundary>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10.5px] font-medium text-foreground group-hover:text-primary leading-tight truncate">{item.name}</div>
+        <div className="text-[9px] text-muted-foreground/70 leading-tight truncate">{item.description}</div>
+      </div>
     </div>
   );
 }
@@ -1727,6 +1752,7 @@ function LeftRail() {
 
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   // When user explicitly hits "← Back", force components view even if selection is active
   const [forceComponents, setForceComponents] = useState(false);
 
@@ -1775,7 +1801,15 @@ function LeftRail() {
               ← Back
             </button>
           ) : (
-            <button className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground text-sm" title="Grid view">⊞</button>
+            <button
+              onClick={() => setViewMode((v) => v === "grid" ? "list" : "grid")}
+              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors"
+              title={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+            >
+              {viewMode === "grid"
+                ? <LayoutList className="w-3.5 h-3.5" />
+                : <LayoutGrid className="w-3.5 h-3.5" />}
+            </button>
           )}
         </div>
         {!showInspect && (
@@ -1804,18 +1838,24 @@ function LeftRail() {
         {showInspect ? (
           <InspectPanel selected={selected!} actions={actions} />
         ) : trimmed ? (
-          // Search results
+          // Search results — grid or list
           searchResults.length === 0 ? (
             <p className="text-[11px] text-muted-foreground text-center py-8">No matches</p>
-          ) : (
+          ) : viewMode === "grid" ? (
             <div className="grid grid-cols-2 gap-1.5 p-2.5 pt-2">
               {searchResults.map((item) => (
                 <DraggableItem key={item.name} item={item} connectors={connectors} />
               ))}
             </div>
+          ) : (
+            <div className="flex flex-col gap-0.5 p-2">
+              {searchResults.map((item) => (
+                <DraggableListItem key={item.name} item={item} connectors={connectors} />
+              ))}
+            </div>
           )
-        ) : (
-          // Category list
+        ) : viewMode === "grid" ? (
+          // Grid view — 2-col tiles grouped by category
           <div className="p-2.5 space-y-3.5">
             {TOOLBOX_CATEGORIES.map((cat) => {
               const isOpen = !collapsed.has(cat.name);
@@ -1833,6 +1873,34 @@ function LeftRail() {
                     <div className="grid grid-cols-2 gap-1.5">
                       {cat.items.map((item) => (
                         <DraggableItem key={item.name} item={item} connectors={connectors} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // List view — accordions by category, each item as a compact draggable row
+          <div className="p-2 space-y-1">
+            {TOOLBOX_CATEGORIES.map((cat) => {
+              const isOpen = !collapsed.has(cat.name);
+              return (
+                <div key={cat.name} className="rounded-xl border border-border/60 overflow-hidden">
+                  <button
+                    onClick={() => toggleCategory(cat.name)}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/60 transition-colors"
+                  >
+                    <span className="text-[10px] font-semibold text-foreground flex-1 text-left">{cat.name}</span>
+                    <span className="text-[9px] text-muted-foreground/50">{cat.items.length}</span>
+                    {isOpen
+                      ? <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                      : <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />}
+                  </button>
+                  {isOpen && (
+                    <div className="flex flex-col gap-0 divide-y divide-border/40">
+                      {cat.items.map((item) => (
+                        <DraggableListItem key={item.name} item={item} connectors={connectors} />
                       ))}
                     </div>
                   )}
