@@ -225,7 +225,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
     const notifySelectionMulti = useCallback((indices: Set<number>) => {
       const strokes = strokesRef.current;
-      const valid = [...indices].filter(i => i >= 0 && i < strokes.length);
+      const valid = Array.from(indices).filter(i => i >= 0 && i < strokes.length);
       if (valid.length === 0) {
         selectedStrokeIndicesRef.current = new Set();
         onSelectionChangeRef.current?.(null);
@@ -309,7 +309,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       const selIndices = selectedStrokeIndicesRef.current;
       const isMulti = selIndices.size > 1;
 
-      for (const selIdx of selIndices) {
+      for (const selIdx of Array.from(selIndices)) {
         if (selIdx < 0 || selIdx >= strokes.length) continue;
         if (hiddenSet.has(selIdx)) continue;
         const stroke = strokes[selIdx];
@@ -325,7 +325,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       }
 
       if (!isMulti && selIndices.size === 1) {
-        const [selIdx] = selIndices;
+        const [selIdx] = Array.from(selIndices);
         if (selIdx >= 0 && selIdx < strokes.length) {
           const stroke = strokes[selIdx];
           ctx.globalAlpha = 1;
@@ -415,7 +415,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
       if (toolRef.current === 'cursor') {
         const isShift = (e instanceof MouseEvent) ? e.shiftKey : false;
-        const excludeSet = new Set<number>([...hiddenRef.current, ...lockedRef.current]);
+        const excludeSet = new Set<number>([...Array.from(hiddenRef.current), ...Array.from(lockedRef.current)]);
         const hitIdx = findNearestStroke(pos.x, pos.y, strokesRef.current, zoom, excludeSet);
 
         if (isShift) {
@@ -437,7 +437,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
         const selIndices = selectedStrokeIndicesRef.current;
         if (selIndices.size === 1) {
-          const [selIdx] = selIndices;
+          const [selIdx] = Array.from(selIndices);
           if (selIdx >= 0 && selIdx < strokesRef.current.length) {
             const vIdx = findNearestVertex(pos.x, pos.y, strokesRef.current[selIdx], zoom);
             if (vIdx >= 0) {
@@ -498,7 +498,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
 
         let strokes: SketchStroke[];
         if (cursorDragMode.current === 'vertex' && selIndices.size === 1) {
-          const [selIdx] = selIndices;
+          const [selIdx] = Array.from(selIndices);
           const vIdx = cursorDragVertexIdx.current;
           strokes = strokesRef.current.map((s, i) => {
             if (i !== selIdx) return s;
@@ -563,7 +563,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
           onStrokesChange?.(strokesRef.current);
           const selIndices = selectedStrokeIndicesRef.current;
           if (selIndices.size > 0) {
-            const valid = [...selIndices].filter(i => i >= 0 && i < strokesRef.current.length);
+            const valid = Array.from(selIndices).filter(i => i >= 0 && i < strokesRef.current.length);
             if (valid.length > 0) {
               const pos = strokesSelectionCenter(valid, strokesRef.current, viewportRef.current);
               onSelectionChangeRef.current?.({
@@ -642,7 +642,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
     }, [redrawAll]);
 
     const copySelection = useCallback((): boolean => {
-      const indices = [...selectedStrokeIndicesRef.current];
+      const indices = Array.from(selectedStrokeIndicesRef.current);
       if (indices.length === 0) return false;
       const strokes = strokesRef.current;
       const valid = indices.filter(i => i >= 0 && i < strokes.length);
@@ -737,7 +737,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       if (ctx) redrawAll(ctx, viewport, strokesRef.current, currentStrokePoints.current);
       const selIndices = selectedStrokeIndicesRef.current;
       if (selIndices.size > 0) {
-        const valid = [...selIndices].filter(i => i >= 0 && i < strokesRef.current.length);
+        const valid = Array.from(selIndices).filter(i => i >= 0 && i < strokesRef.current.length);
         if (valid.length > 0) {
           const pos = strokesSelectionCenter(valid, strokesRef.current, viewport);
           onSelectionChangeRef.current?.({
@@ -795,7 +795,7 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       if (initialStrokes) {
         strokesRef.current = initialStrokes;
         const maxIdx = initialStrokes.length - 1;
-        const next = new Set([...selectedStrokeIndicesRef.current].filter(i => i <= maxIdx));
+        const next = new Set(Array.from(selectedStrokeIndicesRef.current).filter(i => i <= maxIdx));
         selectedStrokeIndicesRef.current = next;
         if (next.size === 0) onSelectionChangeRef.current?.(null);
         const ctx = getCtx();

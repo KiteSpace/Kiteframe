@@ -35,8 +35,6 @@ import { DesignTabView } from "@/design/DesignPage";
 import {
   PluginProvider,
   layoutPlugin,
-  consolePlugin,
-  testPlugin,
   advancedInteractionsPlugin,
   useInsights,
 } from "@/lib/kiteframe";
@@ -3163,7 +3161,7 @@ function WorkflowEditorContent({
   const createNewDesignTab = useCallback(() => {
     const newTab = createBlankTab();
     setTabs((prev) => [...prev, newTab]);
-    setDesignModeTabIds((prev) => new Set([...prev, newTab.id]));
+    setDesignModeTabIds((prev) => new Set([...Array.from(prev), newTab.id]));
     setActiveTabId(newTab.id);
     setForcePanelTab("kite-ai");
   }, [createBlankTab]);
@@ -5751,12 +5749,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if (!core.getPlugin?.("layout")) {
         core.use(layoutPlugin);
       }
-      if (!core.getPlugin?.("console-demo")) {
-        core.use(consolePlugin);
-      }
-      if (!core.getPlugin?.("test-demo")) {
-        core.use(testPlugin);
-      }
       if (!core.getPlugin?.("advanced-interactions-pro")) {
         core.use(advancedInteractionsPlugin);
       }
@@ -6920,14 +6912,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       try {
         const {
           kiteFrameCore,
-          consolePlugin,
-          testPlugin,
           advancedInteractionsPlugin,
           versionControlPlugin,
           smartConnectPlugin,
         } = await import("@/lib/kiteframe");
-        kiteFrameCore.use(consolePlugin);
-        kiteFrameCore.use(testPlugin);
         kiteFrameCore.use(advancedInteractionsPlugin);
         kiteFrameCore.use(versionControlPlugin);
         // Re-enabled SmartConnect plugin for auto-connect functionality
@@ -17181,7 +17169,7 @@ function ShortcutRow({
   );
 }
 
-// Export WorkflowEditorContent for use by ViewOnlyEditor
+// WorkflowEditorContent is used by external view/embed pages
 export { WorkflowEditorContent };
 export type { WorkflowEditorContentProps };
 

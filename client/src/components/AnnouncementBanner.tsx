@@ -89,7 +89,7 @@ export function AnnouncementBanner() {
   });
 
   const handleDismiss = (id: string) => {
-    setLocallyDismissed(prev => new Set([...prev, id]));
+    setLocallyDismissed(prev => new Set([...Array.from(prev), id]));
     dismissMutation.mutate(id);
   };
 

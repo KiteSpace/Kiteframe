@@ -192,7 +192,7 @@ describe('ImageNode Component', () => {
   });
 
   it('shows upload progress state', async () => {
-    const onImageUpload = vi.fn(() => new Promise(resolve => setTimeout(() => resolve('url'), 100)));
+    const onImageUpload = vi.fn((_nodeId: string, _file: File): Promise<string> => new Promise(resolve => setTimeout(() => resolve('url'), 100)));
     const node = createMockImageNode();
 
     renderWithProviders(

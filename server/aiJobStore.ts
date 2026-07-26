@@ -78,7 +78,7 @@ function decActive(userIdentifier: string) {
 
 function cleanStale() {
   const now = Date.now();
-  for (const [id, job] of jobs) {
+  for (const [id, job] of Array.from(jobs)) {
     if ((job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') && now - job.updatedAt > COMPLETED_TTL_MS) {
       jobs.delete(id);
     } else if ((job.status === 'pending' || job.status === 'running') && now - job.updatedAt > RUNNING_TIMEOUT_MS) {

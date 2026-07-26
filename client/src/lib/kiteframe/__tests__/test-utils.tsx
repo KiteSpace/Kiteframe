@@ -3,7 +3,7 @@ import { render, RenderOptions } from '@testing-library/react';
 import { vi } from 'vitest';
 import { KiteFrameCore } from '../core/KiteFrameCore';
 import { PluginProvider } from '../core/PluginProvider';
-import type { Node, Edge } from '../types';
+import type { Node, Edge, ImageNode } from '../types';
 
 // Mock data factories
 export const createMockNode = (overrides?: Partial<Node>): Node => ({
@@ -21,9 +21,9 @@ export const createMockNode = (overrides?: Partial<Node>): Node => ({
   ...overrides
 });
 
-export const createMockImageNode = (overrides?: Partial<Node>): Node => ({
+export const createMockImageNode = (overrides?: Partial<Node>): ImageNode => ({
   id: 'image-node-1',
-  type: 'image',
+  type: 'image' as const,
   position: { x: 200, y: 200 },
   data: {
     label: 'Image Node',
@@ -35,7 +35,7 @@ export const createMockImageNode = (overrides?: Partial<Node>): Node => ({
   height: 150,
   selected: false,
   ...overrides
-});
+} as ImageNode);
 
 export const createMockEdge = (overrides?: Partial<Edge>): Edge => ({
   id: 'edge-1',

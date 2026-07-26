@@ -28,7 +28,7 @@ declare global {
 const handoffTokens = new Map<string, { user: any; expiresAt: number }>();
 setInterval(() => {
   const now = Date.now();
-  for (const [token, data] of handoffTokens.entries()) {
+  for (const [token, data] of Array.from(handoffTokens.entries())) {
     if (data.expiresAt < now) handoffTokens.delete(token);
   }
 }, 60_000);
@@ -42,7 +42,7 @@ const BAN_CACHE_TTL_MS = 60_000;
 
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of banCache.entries()) {
+  for (const [key, entry] of Array.from(banCache.entries())) {
     if (entry.expiresAt < now) banCache.delete(key);
   }
 }, 60_000);

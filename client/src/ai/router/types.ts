@@ -15,6 +15,25 @@ export interface ModelPolicy {
   fallbackModel?: string;
 }
 
+export interface SessionModelLock {
+  provider: string;
+  model: string;
+  lockedAt: number;
+}
+
+export interface RouterMetadata {
+  taskType?: TaskType;
+  sessionId?: string;
+  requestId?: string;
+  providerUsed?: string;
+  modelUsed?: string;
+  usedSessionLock?: boolean;
+  usedFallback?: boolean;
+  fallbackModelUsed?: string;
+  retryCount?: number;
+  durationMs?: number;
+}
+
 export interface RouterRequest {
   taskType?: TaskType;
   model?: string;
@@ -23,8 +42,10 @@ export interface RouterRequest {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  sessionId?: string;
   optimizationSessionId?: string;
   signal?: AbortSignal;
+  metadata?: RouterMetadata;
 }
 
 export interface RouterResponse {
@@ -32,6 +53,7 @@ export interface RouterResponse {
   model?: string;
   provider?: string;
   requestId?: string;
+  metadata?: RouterMetadata;
 }
 
 export interface RouterState {

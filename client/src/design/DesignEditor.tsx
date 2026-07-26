@@ -1153,7 +1153,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
               if (Array.isArray(n?.nodes)) queue.push(...n.nodes);
             }
             const subtree: Record<string, any> = {};
-            for (const id of subtreeIds) subtree[id] = allNodes[id];
+            for (const id of Array.from(subtreeIds)) subtree[id] = allNodes[id];
 
             // applyContrastColors correctly walks parent chains, so each leaf text
             // node gets the contrast of its nearest background-owning ancestor.
@@ -2712,7 +2712,7 @@ function mergeIntoCanvas(
   if (existingRoot && incomingRoot) {
     const existingRootNodes = Array.isArray(existingRoot.nodes) ? (existingRoot.nodes as string[]) : [];
     const incomingRootNodes = Array.isArray(incomingRoot.nodes) ? (incomingRoot.nodes as string[]) : [];
-    const combined = [...new Set([...existingRootNodes, ...incomingRootNodes])];
+    const combined = Array.from(new Set([...existingRootNodes, ...incomingRootNodes]));
     merged["ROOT"] = { ...incomingRoot, nodes: combined };
   }
 
@@ -3001,7 +3001,7 @@ interface DesignPanelProps {
 
 function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const { actions, query, selectedNodeId } = useEditor((state) => ({
-    selectedNodeId: state.events.selected ? [...state.events.selected][0] : undefined,
+    selectedNodeId: state.events.selected ? Array.from(state.events.selected)[0] : undefined,
   }));
 
   const { pinned, setPinned } = useContext(PinnedElementContext);

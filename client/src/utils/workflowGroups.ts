@@ -44,7 +44,7 @@ export function detectWorkflowGroups(nodes: Node[], edges: Edge[]): WorkflowGrou
       visited.add(current);
       const neighbors = adjacency.get(current);
       if (neighbors) {
-        for (const n of neighbors) {
+        for (const n of Array.from(neighbors)) {
           if (!component.has(n)) queue.push(n);
         }
       }
@@ -58,7 +58,7 @@ export function detectWorkflowGroups(nodes: Node[], edges: Edge[]): WorkflowGrou
     }
 
     const incomingCount = new Map<string, number>();
-    for (const nid of component) incomingCount.set(nid, 0);
+    for (const nid of Array.from(component)) incomingCount.set(nid, 0);
     for (const edge of edges) {
       if (component.has(edge.target) && component.has(edge.source)) {
         incomingCount.set(edge.target, (incomingCount.get(edge.target) || 0) + 1);
@@ -66,10 +66,10 @@ export function detectWorkflowGroups(nodes: Node[], edges: Edge[]): WorkflowGrou
     }
 
     let startNodeId: string | undefined;
-    for (const [nid, count] of incomingCount) {
+    for (const [nid, count] of Array.from(incomingCount)) {
       if (count === 0) { startNodeId = nid; break; }
     }
-    if (!startNodeId) startNodeId = [...component][0];
+    if (!startNodeId) startNodeId = Array.from(component)[0];
 
     const startNode = nodes.find(n => n.id === startNodeId);
     const label = (startNode?.data as any)?.label || `Workflow ${groupIndex + 1}`;

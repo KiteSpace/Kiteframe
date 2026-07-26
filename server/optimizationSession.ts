@@ -22,7 +22,7 @@ const SESSION_TTL_MS = 60 * 60 * 1000;
 
 function cleanExpiredSessions(): void {
   const now = Date.now();
-  for (const [id, session] of sessions) {
+  for (const [id, session] of Array.from(sessions)) {
     if (now - session.lastUsed > SESSION_TTL_MS) {
       sessions.delete(id);
     }

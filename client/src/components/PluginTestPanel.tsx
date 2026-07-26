@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { usePluginSystem, usePluginContext, testPlugin } from '@/lib/kiteframe';
+import { usePluginSystem, usePluginContext } from '@/lib/kiteframe';
 import { Cpu, Activity, Zap, Layout, Users, TestTube } from 'lucide-react';
 
 interface PluginTestPanelProps {
@@ -18,12 +18,7 @@ export function PluginTestPanel({ onClose, nodes, edges }: PluginTestPanelProps)
   const [testResults, setTestResults] = useState<string[]>([]);
 
   useEffect(() => {
-    // Auto-register test plugin for demonstration
-    try {
-      core.use(testPlugin);
-    } catch (error) {
-      console.log('Test plugin already registered');
-    }
+    // Plugin system initialised via PluginProvider
   }, [core]);
 
   const addTestResult = (result: string) => {
@@ -41,15 +36,7 @@ export function PluginTestPanel({ onClose, nodes, edges }: PluginTestPanelProps)
     emit('test:nodeCount', nodes.length);
     addTestResult(`✅ Event system: Emitted node count (${nodes.length})`);
     
-    // Test 3: Plugin Communication
-    const testPluginInstance = core.getPlugin('test-demo');
-    if (testPluginInstance && (core as any).testPlugin) {
-      const stats = (core as any).testPlugin.getStats();
-      setTestStats(stats);
-      addTestResult(`✅ Plugin API: Retrieved test plugin stats`);
-    }
-    
-    // Test 4: Hook System Test
+    // Test 3: Hook System Test
     addTestResult(`✅ Hook system: Active with ${Object.keys(core.getHooks()).length} hooks`);
     
     addTestResult('🎉 All tests completed successfully!');
@@ -68,12 +55,8 @@ export function PluginTestPanel({ onClose, nodes, edges }: PluginTestPanelProps)
   };
 
   const simulatePluginAction = () => {
-    if ((core as any).testPlugin) {
-      (core as any).testPlugin.simulateNodeClick();
-      const newStats = (core as any).testPlugin.getStats();
-      setTestStats(newStats);
-      addTestResult(`✅ Plugin Action: Simulated node click`);
-    }
+    emit('test:simulateAction', { timestamp: Date.now() });
+    addTestResult(`✅ Plugin Action: Emitted simulate action event`);
   };
 
   return (

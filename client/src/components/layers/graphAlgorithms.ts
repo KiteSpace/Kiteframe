@@ -29,7 +29,7 @@ export function topoLevels(nodes:any[], edges:any[]){
     }
   }
   const cycles = new Set<string>(nodes.map(n=>n.id).filter(id => !order.includes(id)));
-  for(const id of cycles){
+  for(const id of Array.from(cycles)){
     const preds = edges.filter(e=>e.target===id).map(e=>level.get(e.source)??0);
     level.set(id, (preds.length?Math.max(...preds):0)+1);
   }
