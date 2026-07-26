@@ -87,8 +87,12 @@ const MAX_RESIZE_PX = 1920; // resize target max dimension
 
 async function resizeImageDataUrl(dataUrl: string, maxPx: number): Promise<string> {
   return new Promise((resolve, reject) => {
+    // Guard against onload/onerror never firing (corrupt data URL, browser quirk)
+    const timer = setTimeout(() => reject(new Error("Image resize timed out")), 8000);
+
     const img = new Image();
     img.onload = () => {
+      clearTimeout(timer);
       const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -100,7 +104,7 @@ async function resizeImageDataUrl(dataUrl: string, maxPx: number): Promise<strin
       ctx.drawImage(img, 0, 0, w, h);
       resolve(canvas.toDataURL("image/jpeg", 0.85));
     };
-    img.onerror = () => reject(new Error("Failed to load image for resize"));
+    img.onerror = () => { clearTimeout(timer); reject(new Error("Failed to load image for resize")); };
     img.src = dataUrl;
   });
 }

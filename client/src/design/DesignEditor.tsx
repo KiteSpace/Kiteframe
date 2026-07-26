@@ -3443,8 +3443,16 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
 // ─── Canvas drop area ─────────────────────────────────────────────────────────
 
 function CanvasArea({ craftState }: { craftState: string | null }) {
-  if (craftState) {
-    return <Frame data={sanitizeCraftState(craftState)} />;
+  // Validate before handing to craft.js — a malformed/truncated string would
+  // produce a blank canvas with no error indicator rather than falling back to
+  // the default artboard. If parsing fails, treat it as absent and render the
+  // safe default.
+  const validState = craftState
+    ? (() => { try { JSON.parse(craftState); return craftState; } catch { return null; } })()
+    : null;
+
+  if (validState) {
+    return <Frame data={sanitizeCraftState(validState)} />;
   }
   return (
     <Frame>

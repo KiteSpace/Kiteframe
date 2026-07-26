@@ -1211,23 +1211,34 @@ export function KiteAIChatBrain({
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
       let responseText = response.text;
 
+      // Scan forward through all '{' positions, skipping ones that aren't
+      // the start of a real JSON object (e.g. template literals, prose like
+      // "the {node} is…"). Real JSON objects always start with {"key":…}.
       const extractJsonObject = (text: string): string | null => {
-        const start = text.indexOf('{');
-        if (start === -1) return null;
-        let depth = 0;
-        let inString = false;
-        let escape = false;
-        for (let i = start; i < text.length; i++) {
-          const ch = text[i];
-          if (escape) { escape = false; continue; }
-          if (ch === '\\' && inString) { escape = true; continue; }
-          if (ch === '"') { inString = !inString; continue; }
-          if (inString) continue;
-          if (ch === '{') depth++;
-          else if (ch === '}') {
-            depth--;
-            if (depth === 0) return text.slice(start, i + 1);
+        let searchFrom = 0;
+        while (searchFrom < text.length) {
+          const start = text.indexOf('{', searchFrom);
+          if (start === -1) return null;
+
+          // Valid JSON objects open with { followed by optional whitespace then "
+          const snippet = text.slice(start + 1, start + 20).trimStart();
+          if (!snippet.startsWith('"')) { searchFrom = start + 1; continue; }
+
+          let depth = 0, inString = false, escape = false, endIdx = -1;
+          for (let i = start; i < text.length; i++) {
+            const ch = text[i];
+            if (escape) { escape = false; continue; }
+            if (ch === '\\' && inString) { escape = true; continue; }
+            if (ch === '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (ch === '{') depth++;
+            else if (ch === '}') { depth--; if (depth === 0) { endIdx = i + 1; break; } }
           }
+
+          if (endIdx === -1) { searchFrom = start + 1; continue; }
+          const candidate = text.slice(start, endIdx);
+          if (candidate.includes('"nodes"') && candidate.includes('"edges"')) return candidate;
+          searchFrom = endIdx; // this object didn't have nodes+edges; keep scanning
         }
         return null;
       };
@@ -1239,13 +1250,6 @@ export function KiteAIChatBrain({
         .replace(/^```(?:json)?\s*\n?/i, '')
         .replace(/\n?```\s*$/i, '');
       const rawJson = extractJsonObject(textForExtraction);
-      console.log('[KiteAI] JSON extraction:', {
-        responseLength: response.text.length,
-        rawJsonLength: rawJson?.length ?? 0,
-        hasNodes: rawJson?.includes('"nodes"') ?? false,
-        hasEdges: rawJson?.includes('"edges"') ?? false,
-        responseStart: response.text.slice(0, 80).replace(/\n/g, '↵'),
-      });
 
 
       const jsonMatch = rawJson && rawJson.includes('"nodes"') && rawJson.includes('"edges"') ? [rawJson] : null;

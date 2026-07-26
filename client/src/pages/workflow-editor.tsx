@@ -13921,6 +13921,40 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const newId = `node-${batchId}-${index}`;
                       nodeIdMapping[oldId] = newId;
 
+                      // #301: When the AI updates a table node (same original ID as
+                      // an existing node), carry the existing tableId forward and
+                      // merge cell content — preserving rows/values the user already
+                      // entered while applying the AI's structural changes (row/column
+                      // count, column names, etc.).
+                      let nodeData: Record<string, unknown> = { ...(node.data as Record<string, unknown>) };
+                      if (node.type === 'table') {
+                        const existingNode = nodes.find(n => n.id === oldId && n.type === 'table');
+                        const existingTableId = existingNode?.data?.tableId as string | undefined;
+                        const existingTable = existingTableId ? tableData[existingTableId] : undefined;
+                        if (existingTable && existingTableId) {
+                          const aiTable = nodeData.table as { columns?: any[]; rows?: any[] } | undefined;
+                          const newColCount = aiTable?.columns?.length ?? existingTable.columns.length;
+                          const newRowCount = aiTable?.rows?.length ?? existingTable.rows.length;
+                          // Preserve existing columns up to new count; add empty columns for additions
+                          const mergedColumns = existingTable.columns.slice(0, newColCount);
+                          while (mergedColumns.length < newColCount) {
+                            mergedColumns.push({ id: `col-${Date.now()}-${mergedColumns.length}`, name: `Column ${mergedColumns.length + 1}`, width: 150, type: 'string' as const });
+                          }
+                          // Preserve existing rows (with their cell values) up to new count; add empty rows for additions
+                          const mergedRows = existingTable.rows.slice(0, newRowCount);
+                          while (mergedRows.length < newRowCount) {
+                            const values: Record<string, string> = {};
+                            mergedColumns.forEach((col: any) => { values[col.id] = ''; });
+                            mergedRows.push({ id: `row-${Date.now()}-${mergedRows.length}`, values });
+                          }
+                          nodeData = {
+                            ...nodeData,
+                            tableId: existingTableId,
+                            table: { ...existingTable, columns: mergedColumns, rows: mergedRows },
+                          };
+                        }
+                      }
+
                       return {
                         ...node,
                         id: newId,
@@ -13930,9 +13964,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         },
                         selected: false,
                         data: {
-                          ...node.data,
+                          ...nodeData,
                           meta: {
-                            ...(node.data as any)?.meta,
+                            ...(nodeData as any)?.meta,
                             createdAt: Date.now(),
                             // V1: Stamp nodes with merge/branch decision from merge-safe mutation
                             ...(mutationResult.mergeBranchDecision && {
@@ -15053,7 +15087,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               { importMode },
             );
             importedNodeIds = workflowData.nodes.map((n) => n.id);
-            const name = generateCuteName();
+            // Use the Figma frame/file name as the tab name so the tab
+            // immediately reflects what was imported rather than always
+            // showing a random cute name (task #366).
+            const name =
+              framesWithThumbnails.length === 1
+                ? (framesWithThumbnails[0].frame.name || figmaInfo?.fileName || generateCuteName())
+                : (figmaInfo?.fileName || generateCuteName());
             const newTabId = generateTabId();
             const projectUuid = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             const newTab: WorkflowTab = {
