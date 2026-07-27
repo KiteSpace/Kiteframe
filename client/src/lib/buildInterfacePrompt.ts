@@ -2,6 +2,26 @@ import type { Node, Edge } from '@/lib/kiteframe/types';
 
 const PROMPT_CHAR_BUDGET = 7500;
 
+// ─── Node role for prompt enrichment ─────────────────────────────────────────
+//
+// Nodes carry a `type` field with values like input, process, condition, error,
+// output, ai. We deliberately do NOT use this field for screen-boundary detection
+// (it is unreliable for that purpose), but it IS useful for telling the AI which
+// nodes represent primary result/outcome screens and which are error paths.
+//
+// 'primary'  — output / ai nodes: the payoff screens users see (results, charts)
+// 'error'    — error nodes: failure/retry paths — should be compact in the UI
+// 'standard' — everything else: setup, navigation, process steps
+//
+type NodeRole = 'primary' | 'error' | 'standard';
+
+function getNodeRole(node: Node): NodeRole {
+  const t = node.type || '';
+  if (t === 'output' || t === 'ai') return 'primary';
+  if (t === 'error') return 'error';
+  return 'standard';
+}
+
 // ─── Screen-cluster detection ─────────────────────────────────────────────────
 //
 // Groups workflow nodes into logical UI screens using a type-agnostic approach:
@@ -11,8 +31,7 @@ const PROMPT_CHAR_BUDGET = 7500;
 //   4. Each chunk becomes a screen named after its first node's label.
 //   5. Returns null for workflows with fewer than 6 nodes — use single artboard.
 //
-// This deliberately avoids any node.type checks because nodes are content-agnostic
-// (no 'input' / 'output' / 'ai' semantics exist on real workflow nodes).
+// This deliberately avoids any node.type checks for boundary decisions.
 //
 function detectScreenClusters(
   nodes: Node[],
@@ -100,6 +119,10 @@ export function analyzeWorkflowScreens(
  * generate one AstryxArtboard per screen. Small workflows fall back to a
  * single-artboard instruction.
  *
+ * Nodes typed `output` or `ai` are marked as primary result screens and receive
+ * explicit component guidance (tables, progress bars, metric cards). Nodes typed
+ * `error` are flagged as compact error states.
+ *
  * Pass `selectedClusters` to override auto-detection with a user-chosen subset
  * of screens (e.g. from the InterfaceScreenPickerModal). Pass `null` to force
  * the single-screen path. Omit (undefined) to auto-detect.
@@ -130,7 +153,9 @@ export function buildInterfacePromptFromWorkflow(
     nodeById.set(node.id, node);
   }
 
-  // Format a single node into a description line
+  // Format a single node into a description line.
+  // Appends a role marker so the AI knows which nodes are payoff screens (★)
+  // and which are error paths (⚠) that should get minimal UI treatment.
   function formatNode(node: Node): string {
     const label = node.data?.label || node.id;
     const description = node.data?.description ? ` — ${node.data.description}` : '';
@@ -147,7 +172,11 @@ export function buildInterfacePromptFromWorkflow(
               return edgeLabel ? `${targetLabel} (${edgeLabel})` : targetLabel;
             })
             .join(', ');
-    return `[${type}] ${label}${description}${connections}`;
+    const base = `[${type}] ${label}${description}${connections}`;
+    const role = getNodeRole(node);
+    if (role === 'primary') return base + '  ★ primary result screen';
+    if (role === 'error') return base + '  ⚠ error state';
+    return base;
   }
 
   // Resolve clusters: explicit override → auto-detect → null (single-screen)
@@ -162,6 +191,22 @@ export function buildInterfacePromptFromWorkflow(
   // so the prompt only references the selected screens
   const effectiveNodes = isMultiScreen ? clusters!.flatMap((c) => c.nodes) : nodes;
 
+  // ── Identify primary screens ──────────────────────────────────────────────
+  // For multi-screen: find which cluster names contain at least one primary node.
+  // For single-screen: find the primary nodes directly.
+  const primaryScreenNames: string[] = [];
+  if (isMultiScreen) {
+    for (const cluster of clusters!) {
+      if (cluster.nodes.some((n) => getNodeRole(n) === 'primary')) {
+        primaryScreenNames.push(cluster.name);
+      }
+    }
+  }
+  const singleScreenPrimaryNodes = !isMultiScreen
+    ? effectiveNodes.filter((n) => getNodeRole(n) === 'primary')
+    : [];
+  const hasPrimary = primaryScreenNames.length > 0 || singleScreenPrimaryNodes.length > 0;
+
   const nodeCount = nodes.length;
   const edgeCount = edges.filter((e) => e.source && e.target).length;
 
@@ -174,6 +219,14 @@ export function buildInterfacePromptFromWorkflow(
       `This interface is based on a workflow with ${nodeCount} steps and ${edgeCount} connections. ` +
       `Design a clean, modern interface that visually represents these workflow steps as an interactive UI:\n\n`;
 
+  // ── Primary screens callout (inserted into SCREEN MAPPING block) ──────────
+  const primaryCallout =
+    isMultiScreen && primaryScreenNames.length > 0
+      ? `\nPRIMARY SCREENS (render these richly — use data tables, metric cards, status indicators, not just headings):\n` +
+        primaryScreenNames.map((n) => `• "${n}"`).join('\n') +
+        '\n'
+      : '';
+
   // ── Screen Mapping section (multi-screen only) ────────────────────────────
   const screenMappingSection = isMultiScreen
     ? `SCREEN MAPPING:\n` +
@@ -185,7 +238,17 @@ export function buildInterfacePromptFromWorkflow(
               .join(', ')}`,
         )
         .join('\n') +
+      primaryCallout +
       `\n\nWorkflow steps:\n`
+    : '';
+
+  // ── Component guidance note (appended to footer) ──────────────────────────
+  const primaryFooterNote = hasPrimary
+    ? `\n• Steps marked ★ are primary result screens — build them with AstryxTable, ` +
+      `AstryxProgressBar, AstryxBadge, and AstryxCard to show real data and outcomes; ` +
+      `avoid layouts that only contain headings and buttons` +
+      `\n• Steps marked ⚠ are error/failure paths — keep them compact: ` +
+      `one AstryxBanner + heading + one action button is sufficient`
     : '';
 
   // ── Footer ────────────────────────────────────────────────────────────────
@@ -196,10 +259,16 @@ export function buildInterfacePromptFromWorkflow(
       `• Keep each artboard to 4–12 nodes — apply this cap per artboard, not across the whole design\n` +
       `• Show navigation context: where screen A leads to screen B, include a Button in screen A ` +
       `whose label implies the transition (e.g. "Sign In", "Go to ${clusters![1].name}", "Continue")\n` +
-      `• The design should feel polished and production-ready`
+      `• The design should feel polished and production-ready` +
+      primaryFooterNote
     : `\n\nCreate a clean, polished interface design that a user would see when interacting with this product. ` +
       `Use cards, sections, and appropriate Astryx components to represent each step. ` +
-      `The design should feel production-ready.`;
+      `The design should feel production-ready.` +
+      (hasPrimary
+        ? `\n• For steps marked ★, use AstryxTable, AstryxProgressBar, AstryxBadge, and AstryxCard ` +
+          `to display data and outcomes — not just a heading and button.` +
+          `\n• For steps marked ⚠, keep the layout minimal: one AstryxBanner, a heading, and one action button.`
+        : '');
 
   // ── Build node lines ──────────────────────────────────────────────────────
   const allLines = effectiveNodes.map(formatNode);
