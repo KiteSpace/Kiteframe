@@ -123,7 +123,8 @@ import {
   getOppositeTextColor,
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
-import { buildInterfacePromptFromWorkflow } from "@/lib/buildInterfacePrompt";
+import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens } from "@/lib/buildInterfacePrompt";
+import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
 import {
@@ -2269,6 +2270,10 @@ function WorkflowEditorContent({
   const [interfacePickerOpen, setInterfacePickerOpen] = useState(false);
   const [interfacePickerSourceTab, setInterfacePickerSourceTab] = useState<WorkflowTab | null>(null);
   const [interfacePickerRemember, setInterfacePickerRemember] = useState(false);
+  const [screenPickerOpen, setScreenPickerOpen] = useState(false);
+  const [screenPickerClusters, setScreenPickerClusters] = useState<Array<{ name: string; nodes: Node[] }>>([]);
+  const [screenPickerSourceTab, setScreenPickerSourceTab] = useState<WorkflowTab | null>(null);
+  const [screenPickerDestination, setScreenPickerDestination] = useState<"project" | "standalone">("project");
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
@@ -3210,7 +3215,7 @@ function WorkflowEditorContent({
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
   // destination: "project" = add as a tab here (default), "standalone" = open in a new browser tab
-  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, destination: "project" | "standalone" = "project") => {
+  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, destination: "project" | "standalone" = "project", selectedClusters?: Array<{ name: string; nodes: Node[] }> | null) => {
     if (isGeneratingInterface) return;
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
@@ -3233,7 +3238,7 @@ function WorkflowEditorContent({
         ? baseName
         : `${baseName} v${linkedDesignTabs.length + 1}`;
 
-      const prompt = buildInterfacePromptFromWorkflow(sourceTab.nodes, sourceTab.edges, sourceTab.name);
+      const prompt = buildInterfacePromptFromWorkflow(sourceTab.nodes, sourceTab.edges, sourceTab.name, selectedClusters);
       const genRes = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -10778,7 +10783,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       const projectKey = activeTab.cloudProjectId?.toString() || activeTabId;
                       const saved = localStorage.getItem(`kf_iface_dest_${projectKey}`);
                       if (saved === "project" || saved === "standalone") {
-                        generateInterfaceFromWorkflow(activeTab, saved);
+                        const clusters = analyzeWorkflowScreens(activeTab.nodes, activeTab.edges);
+                        if (clusters && clusters.length > 5) {
+                          setScreenPickerClusters(clusters);
+                          setScreenPickerSourceTab(activeTab);
+                          setScreenPickerDestination(saved);
+                          setScreenPickerOpen(true);
+                        } else {
+                          generateInterfaceFromWorkflow(activeTab, saved, clusters);
+                        }
                       } else {
                         setInterfacePickerSourceTab(activeTab);
                         setInterfacePickerRemember(false);
@@ -14842,7 +14855,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   localStorage.setItem(`kf_iface_dest_${projectKey}`, "project");
                 }
                 setInterfacePickerOpen(false);
-                if (interfacePickerSourceTab) generateInterfaceFromWorkflow(interfacePickerSourceTab, "project");
+                if (!interfacePickerSourceTab) return;
+                const clustersForProject = analyzeWorkflowScreens(interfacePickerSourceTab.nodes, interfacePickerSourceTab.edges);
+                if (clustersForProject && clustersForProject.length > 5) {
+                  setScreenPickerClusters(clustersForProject);
+                  setScreenPickerSourceTab(interfacePickerSourceTab);
+                  setScreenPickerDestination("project");
+                  setScreenPickerOpen(true);
+                } else {
+                  generateInterfaceFromWorkflow(interfacePickerSourceTab, "project", clustersForProject);
+                }
               }}
               className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors text-left"
             >
@@ -14861,7 +14883,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   localStorage.setItem(`kf_iface_dest_${projectKey}`, "standalone");
                 }
                 setInterfacePickerOpen(false);
-                if (interfacePickerSourceTab) generateInterfaceFromWorkflow(interfacePickerSourceTab, "standalone");
+                if (!interfacePickerSourceTab) return;
+                const clustersForStandalone = analyzeWorkflowScreens(interfacePickerSourceTab.nodes, interfacePickerSourceTab.edges);
+                if (clustersForStandalone && clustersForStandalone.length > 5) {
+                  setScreenPickerClusters(clustersForStandalone);
+                  setScreenPickerSourceTab(interfacePickerSourceTab);
+                  setScreenPickerDestination("standalone");
+                  setScreenPickerOpen(true);
+                } else {
+                  generateInterfaceFromWorkflow(interfacePickerSourceTab, "standalone", clustersForStandalone);
+                }
               }}
               className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors text-left"
             >
@@ -14886,6 +14917,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           </div>
         </DialogContent>
       </Dialog>
+
+      <InterfaceScreenPickerModal
+        open={screenPickerOpen}
+        onOpenChange={(open) => { if (!open) setScreenPickerOpen(false); }}
+        clusters={screenPickerClusters}
+        onConfirm={(selected) => {
+          setScreenPickerOpen(false);
+          if (screenPickerSourceTab) {
+            generateInterfaceFromWorkflow(screenPickerSourceTab, screenPickerDestination, selected);
+          }
+        }}
+      />
 
       {/* Table Link Picker for FormNode */}
       {tableLinkPicker && (

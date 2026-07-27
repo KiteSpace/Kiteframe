@@ -4,120 +4,114 @@ const PROMPT_CHAR_BUDGET = 7500;
 
 // ─── Screen-cluster detection ─────────────────────────────────────────────────
 //
-// Analyses the workflow graph to find logical groups of nodes that belong to
-// the same UI screen.  The heuristic:
-//   • Any `input`-type node is treated as a screen entry-point (new screen start).
-//   • A BFS from each entry-point collects all reachable nodes, stopping when it
-//     would cross into another entry-point's territory.
-//   • If the workflow has fewer than 2 input nodes we don't try to segment — the
-//     single-artboard path is safer than making up boundaries.
+// Groups workflow nodes into logical UI screens using a type-agnostic approach:
+//   1. Topological sort (Kahn's algorithm) orders nodes by dependency.
+//   2. The sorted list is divided into equal-sized chunks.
+//   3. targetScreenCount = clamp(ceil(N / 4), 2, 5) keeps groups meaningful.
+//   4. Each chunk becomes a screen named after its first node's label.
+//   5. Returns null for workflows with fewer than 6 nodes — use single artboard.
 //
-// Returns an array of { name, nodes } clusters, one per detected screen.
-// Returns null when multi-screen detection is not applicable (use single artboard).
+// This deliberately avoids any node.type checks because nodes are content-agnostic
+// (no 'input' / 'output' / 'ai' semantics exist on real workflow nodes).
 //
 function detectScreenClusters(
   nodes: Node[],
   edges: Edge[],
 ): Array<{ name: string; nodes: Node[] }> | null {
-  if (nodes.length === 0) return null;
+  if (nodes.length < 6) return null;
 
-  // Build forward adjacency map
-  const forward = new Map<string, string[]>();
-  for (const edge of edges) {
-    if (!edge.source || !edge.target) continue;
-    const list = forward.get(edge.source) ?? [];
-    list.push(edge.target);
-    forward.set(edge.source, list);
+  const nodeSet = new Set(nodes.map((n) => n.id));
+  const inDegree = new Map<string, number>(nodes.map((n) => [n.id, 0]));
+  const children = new Map<string, string[]>();
+
+  for (const e of edges) {
+    if (!e.source || !e.target) continue;
+    if (!nodeSet.has(e.source) || !nodeSet.has(e.target)) continue;
+    const ch = children.get(e.source) ?? [];
+    ch.push(e.target);
+    children.set(e.source, ch);
+    inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
   }
 
-  const nodeById = new Map<string, Node>();
-  for (const node of nodes) nodeById.set(node.id, node);
-
-  // Find input-type nodes — these are the natural screen entry points
-  const inputNodes = nodes.filter((n) => n.type === 'input');
-
-  // Need at least 2 input nodes to produce a meaningful multi-screen layout.
-  // With 0 or 1, fall back to single-screen.
-  if (inputNodes.length < 2) return null;
-
-  const entryIds = new Set(inputNodes.map((n) => n.id));
-  const assigned = new Set<string>();
-  const clusters: Array<{ name: string; nodeIds: string[] }> = [];
-
-  // BFS from each entry point, stopping at other entry points
-  for (const entry of inputNodes) {
-    const clusterIds: string[] = [];
-    const queue: string[] = [entry.id];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
-      if (visited.has(curr)) continue;
-      visited.add(curr);
-
-      // Stop if this node is another screen's entry point (but still enter our own)
-      if (entryIds.has(curr) && curr !== entry.id) continue;
-
-      // Skip nodes already claimed by an earlier screen
-      if (assigned.has(curr)) continue;
-
-      clusterIds.push(curr);
-      assigned.add(curr);
-
-      for (const nextId of forward.get(curr) ?? []) {
-        if (!visited.has(nextId)) {
-          // Only expand through non-entry nodes (entries stop the BFS)
-          if (!entryIds.has(nextId)) {
-            queue.push(nextId);
-          }
-        }
-      }
-    }
-
-    const name = entry.data?.label || entry.id;
-    clusters.push({ name, nodeIds: clusterIds });
+  // Kahn's topological sort — seed queue with all zero-in-degree nodes
+  const queue: string[] = [];
+  for (const n of nodes) {
+    if ((inDegree.get(n.id) ?? 0) === 0) queue.push(n.id);
   }
+  const sorted: string[] = [];
+  const visited = new Set<string>();
 
-  // Assign any nodes that were never reached (e.g. isolated sub-graphs) to the
-  // last cluster so they still appear somewhere in the output
-  const lastCluster = clusters[clusters.length - 1];
-  if (lastCluster) {
-    for (const node of nodes) {
-      if (!assigned.has(node.id)) {
-        lastCluster.nodeIds.push(node.id);
-      }
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    if (visited.has(curr)) continue;
+    visited.add(curr);
+    sorted.push(curr);
+    for (const child of children.get(curr) ?? []) {
+      const newDeg = (inDegree.get(child) ?? 1) - 1;
+      inDegree.set(child, newDeg);
+      if (newDeg === 0 && !visited.has(child)) queue.push(child);
     }
   }
 
-  // Convert nodeIds → Node objects, drop empty clusters
-  const result = clusters
-    .map((c) => ({
-      name: c.name,
-      nodes: c.nodeIds.map((id) => nodeById.get(id)!).filter(Boolean),
-    }))
-    .filter((c) => c.nodes.length > 0);
+  // Append any nodes not reached (cycles, disconnected sub-graphs)
+  for (const n of nodes) {
+    if (!visited.has(n.id)) sorted.push(n.id);
+  }
 
-  // If clustering collapsed everything into 1 group, treat as single-screen
-  return result.length >= 2 ? result : null;
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const N = sorted.length;
+  const targetScreenCount = Math.min(5, Math.max(2, Math.ceil(N / 4)));
+  const chunkSize = Math.ceil(N / targetScreenCount);
+
+  const clusters: Array<{ name: string; nodes: Node[] }> = [];
+  for (let i = 0; i < sorted.length; i += chunkSize) {
+    const chunk = sorted
+      .slice(i, i + chunkSize)
+      .map((id) => nodeById.get(id))
+      .filter((n): n is Node => n !== undefined);
+    if (chunk.length === 0) continue;
+    const firstName = chunk[0].data?.label || chunk[0].id;
+    clusters.push({ name: firstName, nodes: chunk });
+  }
+
+  return clusters.length >= 2 ? clusters : null;
+}
+
+/**
+ * Returns the auto-detected screen clusters for a workflow without building
+ * a full prompt string. The generation flow calls this first to decide whether
+ * a screen-picker modal is needed before the API call.
+ *
+ * Returns null when the workflow is too small for multi-screen detection.
+ */
+export function analyzeWorkflowScreens(
+  nodes: Node[],
+  edges: Edge[],
+): Array<{ name: string; nodes: Node[] }> | null {
+  return detectScreenClusters(nodes, edges);
 }
 
 /**
  * Converts the current workflow's nodes and edges into a plain-English prompt
  * describing the user flow, suitable for the /api/ai/design endpoint.
  *
- * When the workflow has 2+ `input`-type nodes the function runs a
- * screen-clustering pass and emits an explicit SCREEN MAPPING section that
- * instructs the AI to generate one AstryxArtboard per screen.  Single-screen
- * (or ambiguous) workflows fall back to a single-artboard instruction.
+ * When the workflow has enough nodes (≥ 6) the function runs a screen-clustering
+ * pass and emits an explicit SCREEN MAPPING section that instructs the AI to
+ * generate one AstryxArtboard per screen. Small workflows fall back to a
+ * single-artboard instruction.
+ *
+ * Pass `selectedClusters` to override auto-detection with a user-chosen subset
+ * of screens (e.g. from the InterfaceScreenPickerModal). Pass `null` to force
+ * the single-screen path. Omit (undefined) to auto-detect.
  *
  * For large workflows that would exceed the server's character limit the node
- * list is trimmed: "input", "output", and "condition" typed nodes are always
- * kept, then as many remaining nodes as fit within the budget are appended.
+ * list is trimmed from the end, preserving topological order.
  */
 export function buildInterfacePromptFromWorkflow(
   nodes: Node[],
   edges: Edge[],
   workflowName?: string,
+  selectedClusters?: Array<{ name: string; nodes: Node[] }> | null,
 ): string {
   const name = workflowName?.trim() || 'Untitled Workflow';
 
@@ -156,9 +150,17 @@ export function buildInterfacePromptFromWorkflow(
     return `[${type}] ${label}${description}${connections}`;
   }
 
-  // Detect screen clusters
-  const clusters = detectScreenClusters(nodes, edges);
+  // Resolve clusters: explicit override → auto-detect → null (single-screen)
+  const clusters =
+    selectedClusters !== undefined
+      ? selectedClusters
+      : detectScreenClusters(nodes, edges);
+
   const isMultiScreen = clusters !== null && clusters.length >= 2;
+
+  // Effective nodes for the body: restrict to cluster nodes when multi-screen
+  // so the prompt only references the selected screens
+  const effectiveNodes = isMultiScreen ? clusters!.flatMap((c) => c.nodes) : nodes;
 
   const nodeCount = nodes.length;
   const edgeCount = edges.filter((e) => e.source && e.target).length;
@@ -200,49 +202,36 @@ export function buildInterfacePromptFromWorkflow(
       `The design should feel production-ready.`;
 
   // ── Build node lines ──────────────────────────────────────────────────────
-  const allLines = nodes.map(formatNode);
+  const allLines = effectiveNodes.map(formatNode);
   const fullBody = allLines.join('\n');
 
   // Fast path: fits within budget
   if (
-    header.length +
-      screenMappingSection.length +
-      fullBody.length +
-      footer.length <=
+    header.length + screenMappingSection.length + fullBody.length + footer.length <=
     PROMPT_CHAR_BUDGET
   ) {
     return header + screenMappingSection + fullBody + footer;
   }
 
-  // Trimming path: prioritise input/output/condition nodes, then fill remaining budget
-  const PRIORITY_TYPES = new Set(['input', 'output', 'condition']);
-  const priorityNodes = nodes.filter((n) => PRIORITY_TYPES.has(n.type || ''));
-  const otherNodes = nodes.filter((n) => !PRIORITY_TYPES.has(n.type || ''));
-
+  // Trimming path: preserve topological order, trim from the end
   const overhead = header.length + screenMappingSection.length + footer.length + 60;
   const bodyBudget = PROMPT_CHAR_BUDGET - overhead;
-  const keptLines: string[] = priorityNodes.map(formatNode);
-  let used = keptLines.join('\n').length;
+  const keptLines: string[] = [];
+  let used = 0;
 
-  for (const node of otherNodes) {
+  for (const node of effectiveNodes) {
     const line = formatNode(node);
-    const needed = (keptLines.length > 0 ? 1 : 0) + line.length; // +1 for '\n'
+    const needed = (keptLines.length > 0 ? 1 : 0) + line.length;
     if (used + needed > bodyBudget) break;
     keptLines.push(line);
     used += needed;
   }
 
-  const condensedCount = nodeCount - keptLines.length;
+  const condensedCount = effectiveNodes.length - keptLines.length;
   const condensedNote =
     condensedCount > 0
       ? `\n(+ ${condensedCount} additional step${condensedCount === 1 ? '' : 's'} condensed)`
       : '';
 
-  return (
-    header +
-    screenMappingSection +
-    keptLines.join('\n') +
-    condensedNote +
-    footer
-  );
+  return header + screenMappingSection + keptLines.join('\n') + condensedNote + footer;
 }
