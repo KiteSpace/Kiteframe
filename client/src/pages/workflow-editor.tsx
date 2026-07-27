@@ -3523,7 +3523,7 @@ function WorkflowEditorContent({
 
   // Direct AI generation function
   const generateWorkflowFromPrompt = useCallback(
-    async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[] }> => {
+    async (prompt: string): Promise<{ nodes: Node[]; edges: Edge[]; generatedTitle: string | null }> => {
       // Check credits before AI operation
       if (isOutOfCredits) {
         toast({
@@ -3538,7 +3538,9 @@ function WorkflowEditorContent({
 
       const systemPrompt = `You are a workflow generator. Create a visual workflow based on the user's description. 
 
-Return ONLY a valid JSON object with "nodes" and "edges" arrays. Keep descriptions short and concise.
+Return ONLY a valid JSON object with "title", "nodes", and "edges". Keep descriptions short and concise.
+
+The "title" field must be a 3-4 word name that summarizes the workflow concept (e.g. "API Test Automation", "User Onboarding Flow", "Payment Processing Pipeline"). Capitalize each word.
 
 Each node should have:
 - id: unique string (like "node-1", "node-2", etc.)
@@ -3641,9 +3643,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // Apply minimum spacing between nodes
         const spacedNodes = enforceMinimumNodeSpacing(workflowData.nodes, 16);
 
+        // Sanitise the AI-generated title: trim, collapse whitespace, cap at 60 chars
+        const rawTitle = typeof workflowData.title === 'string' ? workflowData.title : '';
+        const generatedTitle = rawTitle.trim().replace(/\s+/g, ' ').slice(0, 60) || null;
+
         return {
           ...workflowData,
           nodes: spacedNodes,
+          generatedTitle,
         };
       } else {
         throw new Error("Invalid workflow structure returned");
@@ -3881,12 +3888,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // Generate workflow directly using AI
         const generatedWorkflow = await generateWorkflowFromPrompt(prompt);
 
-        // Update the new tab with generated nodes and edges
+        // Update the new tab with generated nodes, edges, and AI-derived name
+        const tabName = generatedWorkflow.generatedTitle ?? generateCuteName();
         setTabs((prev) =>
           prev.map((tab) =>
             tab.id === newTab.id
               ? {
                   ...tab,
+                  name: tabName,
+                  metadata: { ...tab.metadata, name: tabName },
                   nodes: generatedWorkflow.nodes.map((node) => ({
                     ...node,
                     selected: false,
