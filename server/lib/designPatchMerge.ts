@@ -97,3 +97,61 @@ export function mergeDesignPatch(
 
   return { merged, orphansRemoved };
 }
+
+/**
+ * Lay out all AstryxArtboard children of ROOT in left-to-right order.
+ *
+ * Each artboard gets `x = sum of preceding artboard widths + 40 px per gap`
+ * and `y = 0`. Artboards without an explicit `width` prop are treated as
+ * 390 px wide (a sensible mobile-frame default). Non-artboard ROOT children
+ * (e.g. free-floating components) are left untouched.
+ *
+ * Call this after every AI generation or patch-merge before returning the
+ * craftState to the client so multi-screen designs always open spread out.
+ */
+const ARTBOARD_GAP = 40;
+const DEFAULT_ARTBOARD_WIDTH = 390;
+
+export function layoutArtboards(state: CraftState): CraftState {
+  const root = state['ROOT'];
+  if (!root || typeof root !== 'object') return state;
+
+  const rootNode = root as Record<string, unknown>;
+  if (!Array.isArray(rootNode.nodes) || rootNode.nodes.length === 0) return state;
+
+  const childIds = rootNode.nodes as string[];
+
+  // Collect artboard IDs (order matters — matches SCREEN MAPPING order)
+  const artboardIds = childIds.filter((id) => {
+    const node = state[id];
+    if (!node || typeof node !== 'object') return false;
+    const n = node as Record<string, unknown>;
+    const t = n.type;
+    if (!t || typeof t !== 'object') return false;
+    return (t as Record<string, unknown>).resolvedName === 'AstryxArtboard';
+  });
+
+  if (artboardIds.length <= 1) return state; // Nothing to lay out
+
+  let cursor = 0;
+  const updates: CraftState = {};
+
+  for (const id of artboardIds) {
+    const node = state[id] as Record<string, unknown>;
+    const props = (node.props && typeof node.props === 'object'
+      ? node.props
+      : {}) as Record<string, unknown>;
+    const width = typeof props.width === 'number' && props.width > 0
+      ? props.width
+      : DEFAULT_ARTBOARD_WIDTH;
+
+    updates[id] = {
+      ...node,
+      props: { ...props, x: cursor, y: 0 },
+    };
+
+    cursor += width + ARTBOARD_GAP;
+  }
+
+  return { ...state, ...updates };
+}

@@ -42,7 +42,7 @@ import {
 import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState } from "./lib/designSchema";
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
-import { mergeDesignPatch } from "./lib/designPatchMerge";
+import { mergeDesignPatch, layoutArtboards, type CraftState } from "./lib/designPatchMerge";
 import crypto from 'crypto';
 import dns from 'dns';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
@@ -2410,7 +2410,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
             if (orphansRemoved > 0) {
               console.warn(`[design/patch] Removed ${orphansRemoved} orphan child ref(s) after merge`);
             }
-            return res.json({ type: 'state', craftState: JSON.stringify(merged), message });
+            return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(merged)), message });
           } catch (mergeErr) {
             console.warn('[design/patch] Server-side merge failed, falling back to raw patch:', mergeErr);
           }
@@ -2426,7 +2426,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         return res.status(500).json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
       }
       const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: stateMessage });
+      return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(craftStateObj as CraftState)), message: stateMessage });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });
