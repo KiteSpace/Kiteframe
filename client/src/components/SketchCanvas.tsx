@@ -23,6 +23,8 @@ export interface SketchCanvasHandle {
   copySelection: () => boolean;
   paste: () => boolean;
   canPaste: () => boolean;
+  /** Programmatically select strokes by index (works even if isActive is false). */
+  selectStroke: (indices: number[]) => void;
 }
 
 interface SketchClipboard {
@@ -75,7 +77,7 @@ function hitTestStroke(wx: number, wy: number, stroke: SketchStroke, zoom: numbe
   return false;
 }
 
-function findNearestStroke(wx: number, wy: number, strokes: SketchStroke[], zoom: number, exclude?: ReadonlySet<number>): number {
+export function findNearestStroke(wx: number, wy: number, strokes: SketchStroke[], zoom: number, exclude?: ReadonlySet<number>): number {
   for (let i = strokes.length - 1; i >= 0; i--) {
     if (strokes[i].tool === 'eraser') continue;
     if (exclude?.has(i)) continue;
@@ -701,6 +703,13 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       return true;
     }, [onStrokesChange, notifySelectionMulti, redrawAll, notifyHistory]);
 
+    const selectStroke = useCallback((indices: number[]) => {
+      const valid = new Set(indices.filter(i => i >= 0 && i < strokesRef.current.length));
+      notifySelectionMulti(valid);
+      const ctx = getCtx();
+      if (ctx) redrawAll(ctx, viewportRef.current, strokesRef.current, []);
+    }, [notifySelectionMulti, redrawAll]);
+
     useImperativeHandle(ref, () => ({
       undo, redo,
       canUndo: () => undoStack.current.length > 0,
@@ -712,7 +721,8 @@ export const SketchCanvas = forwardRef<SketchCanvasHandle, SketchCanvasProps>(
       copySelection,
       paste,
       canPaste: () => (clipboardRef.current?.strokes.length ?? 0) > 0,
-    }), [undo, redo, clear, clearSelection, copySelection, paste]);
+      selectStroke,
+    }), [undo, redo, clear, clearSelection, copySelection, paste, selectStroke]);
 
     useEffect(() => {
       const canvas = canvasRef.current;

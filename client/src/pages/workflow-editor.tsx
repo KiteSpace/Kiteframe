@@ -50,7 +50,7 @@ import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
-import { SketchCanvas, type SketchCanvasHandle, type SketchSelection } from "@/components/SketchCanvas";
+import { SketchCanvas, findNearestStroke, type SketchCanvasHandle, type SketchSelection } from "@/components/SketchCanvas";
 import { SketchFloatingBar } from "@/components/SketchFloatingBar";
 import { BugReportModal } from "@/components/BugReportModal";
 import { FeatureUpsellDialog } from "@/components/FeatureUpsellDialog";
@@ -5131,6 +5131,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [sketchCanUndo, setSketchCanUndo] = useState(false);
   const [sketchCanRedo, setSketchCanRedo] = useState(false);
   const sketchCanvasRef = useRef<SketchCanvasHandle>(null);
+  /** Tracks the last known pointer position in client (screen) coordinates for stroke hit-testing. */
+  const lastPointerClientRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  useEffect(() => {
+    const handler = (e: PointerEvent) => {
+      lastPointerClientRef.current = { clientX: e.clientX, clientY: e.clientY };
+    };
+    window.addEventListener('pointermove', handler, { passive: true });
+    return () => window.removeEventListener('pointermove', handler);
+  }, []);
 
   // Subscribe to VLStore changes so sketch hide/lock toggles re-render the canvas
   const [vlVersion, bumpVL] = useState(0);
@@ -5209,8 +5218,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       if (e.key === "Delete" || e.key === "Backspace") {
         // Do not allow deletion while a mockup node is in refine-prompt mode
         if (refineMockupNodeId) return;
-        // Sketch mode: delete selected strokes
-        if (isSketchMode && sketchCanvasRef.current?.hasSelection() && sketchSelection) {
+        // Sketch strokes: delete selected strokes (works whether or not sketch mode is active)
+        if (sketchCanvasRef.current?.hasSelection() && sketchSelection) {
           e.preventDefault();
           const indices = new Set(sketchSelection.strokeIndices);
           setSketchStrokes(sketchStrokes.filter((_, i) => !indices.has(i)));
@@ -11756,6 +11765,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       ) {
                         return;
                       }
+
+                      // Hit-test sketch strokes when not in sketch mode.
+                      // If the click lands on a stroke, enter sketch mode and select it.
+                      if (!isSketchMode && sketchStrokes.length > 0) {
+                        const ptr = lastPointerClientRef.current;
+                        const canvasEl = document.querySelector<HTMLElement>('[data-testid="workflow-canvas"]');
+                        if (ptr && canvasEl) {
+                          const rect = canvasEl.getBoundingClientRect();
+                          const wx = (ptr.clientX - rect.left - viewport.x) / viewport.zoom;
+                          const wy = (ptr.clientY - rect.top - viewport.y) / viewport.zoom;
+                          const hitIdx = findNearestStroke(wx, wy, sketchStrokes, viewport.zoom, lockedStrokeIndices);
+                          if (hitIdx >= 0) {
+                            setIsSketchMode(true);
+                            setSketchTool('cursor');
+                            // Defer one tick so SketchCanvas re-renders as active before we select
+                            setTimeout(() => {
+                              sketchCanvasRef.current?.selectStroke([hitIdx]);
+                            }, 0);
+                            return;
+                          }
+                        }
+                      }
+
                       setNodes((prev) =>
                         prev.map((n) => ({ ...n, selected: false })),
                       );
@@ -13875,6 +13907,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 commentWorkflowId={activeTab?.projectUuid}
                 commentShareId={activeShareId ?? undefined}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
+                onStrokeSelect={(idx) => {
+                  setIsSketchMode(true);
+                  setSketchTool('cursor');
+                  setTimeout(() => {
+                    sketchCanvasRef.current?.selectStroke([idx]);
+                  }, 0);
+                }}
                 onApplyWorkflow={(workflow) => {
                   // Non-destructive mode: add modified workflow as new copy alongside original
                   if (workflow.nonDestructive) {

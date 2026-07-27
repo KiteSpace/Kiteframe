@@ -40,6 +40,7 @@ interface ProjectPanelProps {
   commentShareId?: string | null;
   cloudProjectId?: number | null;
   onShareCreated?: (shareUuid: string) => void;
+  onStrokeSelect?: (index: number) => void;
   insights?: Insight[];
   insightsLoading?: boolean;
   insightsLastRunAt?: number | null;
@@ -95,6 +96,7 @@ export function ProjectPanel({
   commentShareId,
   cloudProjectId,
   onShareCreated,
+  onStrokeSelect,
   insights = [],
   insightsLoading = false,
   insightsLastRunAt,
@@ -380,6 +382,7 @@ export function ProjectPanel({
             sketchStrokes={sketchStrokes}
             projectId={projectId}
             isReadOnly={isReadOnly}
+            onStrokeSelect={onStrokeSelect}
           />
         </TabsContent>
         

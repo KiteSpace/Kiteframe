@@ -25,9 +25,10 @@ interface LayersTabProps {
   sketchStrokes?: SketchStroke[];
   projectId?: string;
   isReadOnly?: boolean;
+  onStrokeSelect?: (index: number) => void;
 }
 
-export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, projectId, isReadOnly = false }: LayersTabProps) {
+export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, projectId, isReadOnly = false, onStrokeSelect }: LayersTabProps) {
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapseVersion, forceCollapseUpdate] = useReducer((x: number) => x + 1, 0);
@@ -276,6 +277,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                   const idx = parseInt(id.slice(7), 10);
                   const stroke = (sketchStrokes ?? [])[idx];
                   if (!stroke || !stroke.points || stroke.points.length === 0) return;
+                  // Pan the canvas to the stroke's bounding box
                   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                   for (const p of stroke.points) {
                     if (p.x < minX) minX = p.x;
@@ -288,6 +290,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                     width: Math.max(maxX - minX, 1),
                     height: Math.max(maxY - minY, 1),
                   }, { padding: 150 });
+                  // Enter sketch mode and select this stroke
+                  onStrokeSelect?.(idx);
                 }
               };
 
