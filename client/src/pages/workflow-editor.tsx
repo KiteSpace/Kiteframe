@@ -158,7 +158,6 @@ import {
   RotateCcw,
   Rocket,
   GitBranch,
-  WandSparkles,
   Loader2,
   RefreshCw,
   ExternalLink,
@@ -2270,8 +2269,6 @@ function WorkflowEditorContent({
   const [interfacePickerOpen, setInterfacePickerOpen] = useState(false);
   const [interfacePickerSourceTab, setInterfacePickerSourceTab] = useState<WorkflowTab | null>(null);
   const [interfacePickerRemember, setInterfacePickerRemember] = useState(false);
-  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number; errors: number } | null>(null);
   const [workflowTools, setWorkflowTools] = useState<WorkflowTool[]>([]);
   
   const projectIdentifier = activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId || 'default';
@@ -3282,160 +3279,6 @@ function WorkflowEditorContent({
     }
   }, [isGeneratingInterface, isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, setIsGeneratingInterface]);
 
-  /**
-   * Batch-generate one design tab for every open workflow tab.
-   * Skips workflow tabs that already have a linked design tab
-   * (identified by designSourceWorkflowId === tab.cloudProjectId).
-   * Tracks progress with batchProgress state and shows per-workflow
-   * error toasts without blocking the rest of the batch.
-   */
-  const generateAllInterfaces = useCallback(async () => {
-    if (isBatchGenerating || isGeneratingInterface) return;
-    if (isOutOfCredits) {
-      if (ctaAction === "signup") openSignup();
-      else openCreditsDialog();
-      return;
-    }
-    try {
-      const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
-      if (sessionRes.status === 401) { openSignup(); return; }
-    } catch { /* let individual calls surface network errors */ }
-
-    // Collect all open workflow tabs that have content and no linked design yet
-    const allOpenWorkflowTabs = tabs.filter(
-      (t) => !t.designId && t.isOpen !== false && (t.nodes.length > 0 || t.edges.length > 0),
-    );
-    if (allOpenWorkflowTabs.length === 0) {
-      toast({ title: "No workflows found", description: "Open at least one workflow tab with nodes to generate interfaces." });
-      return;
-    }
-
-    // Split into tabs that already have a design (skip) and ones that need generation
-    const workflowsNeedingGeneration = allOpenWorkflowTabs.filter((sourceTab) => {
-      const sourceWorkflowId = sourceTab.cloudProjectId ?? null;
-      if (!sourceWorkflowId) return true; // local-only tabs always generate
-      return !tabs.some(
-        (t) => !!t.designId && t.designSourceWorkflowId === sourceWorkflowId,
-      );
-    });
-    const alreadyLinkedCount = allOpenWorkflowTabs.length - workflowsNeedingGeneration.length;
-
-    if (workflowsNeedingGeneration.length === 0) {
-      toast({
-        title: "All workflows already have interfaces",
-        description: `${alreadyLinkedCount} workflow${alreadyLinkedCount === 1 ? "" : "s"} already linked to a design tab.`,
-      });
-      return;
-    }
-
-    setIsBatchGenerating(true);
-    setBatchProgress({ done: 0, total: workflowsNeedingGeneration.length, errors: 0 });
-
-    let errors = 0;
-    let firstCreatedDesignId: string | null = null;
-
-    for (let i = 0; i < workflowsNeedingGeneration.length; i++) {
-      const sourceTab = workflowsNeedingGeneration[i];
-      try {
-        const sourceWorkflowId = sourceTab.cloudProjectId ?? null;
-        // Count any existing linked designs for versioned naming
-        const linkedDesignTabs = tabs.filter(
-          (t) => !!t.designId && !!t.designSourceWorkflowId && t.designSourceWorkflowId === sourceWorkflowId,
-        );
-        const baseName = sourceTab.name ? `${sourceTab.name} — Interface` : "Untitled Interface";
-        const tabTitle =
-          linkedDesignTabs.length === 0
-            ? baseName
-            : `${baseName} v${linkedDesignTabs.length + 1}`;
-
-        const prompt = buildInterfacePromptFromWorkflow(sourceTab.nodes, sourceTab.edges, sourceTab.name);
-        const genRes = await fetch("/api/ai/design", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ prompt, source: "workflow" }),
-        });
-        if (genRes.status === 401) { openSignup(); break; }
-        const genData = await genRes.json();
-        if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
-
-        const createRes = await fetch("/api/designs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            craftState: genData.craftState,
-            source: "workflow-bridge",
-            title: tabTitle,
-            sourceWorkflowId: sourceWorkflowId,
-          }),
-        });
-        if (createRes.status === 401) { openSignup(); break; }
-        const createData = await createRes.json();
-        if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
-
-        if (firstCreatedDesignId === null) firstCreatedDesignId = createData.id;
-
-        openDesignTab(createData.id, tabTitle, {
-          syncedAt: createData.workflowSyncedAt ?? null,
-          isStale: false,
-          sourceWorkflowId: createData.sourceWorkflowId ?? null,
-        });
-      } catch (e: unknown) {
-        errors++;
-        const msg = e instanceof Error ? e.message : "Could not generate interface";
-        toast({
-          title: `Failed: ${sourceTab.name || "Untitled"}`,
-          description: msg,
-          variant: "destructive",
-        });
-      }
-      setBatchProgress({ done: i + 1, total: workflowsNeedingGeneration.length, errors });
-    }
-
-    setIsBatchGenerating(false);
-
-    const succeeded = workflowsNeedingGeneration.length - errors;
-    if (errors === 0) {
-      const skippedNote = alreadyLinkedCount > 0 ? ` (${alreadyLinkedCount} already linked, skipped)` : "";
-      toast({
-        title: "All interfaces generated",
-        description: `${succeeded} design tab${succeeded === 1 ? "" : "s"} created.${skippedNote}`,
-      });
-    } else if (succeeded > 0) {
-      toast({
-        title: "Batch complete with errors",
-        description: `${succeeded} succeeded, ${errors} failed.`,
-        variant: "destructive",
-      });
-    }
-
-    // Navigate to the first newly-created design tab
-    if (firstCreatedDesignId !== null) {
-      setTabs((prev) => {
-        const match = prev.find((t) => t.designId === firstCreatedDesignId);
-        if (match) {
-          setTimeout(() => setActiveTabId(match.id), 0);
-        }
-        return prev;
-      });
-    }
-
-    // Clear the progress pill after a short display period
-    setTimeout(() => setBatchProgress(null), 4000);
-  }, [
-    isBatchGenerating,
-    isGeneratingInterface,
-    isOutOfCredits,
-    ctaAction,
-    openSignup,
-    openCreditsDialog,
-    tabs,
-    openDesignTab,
-    toast,
-    setTabs,
-    setActiveTabId,
-  ]);
 
   const closeTab = useCallback(
     (tabId: string) => {
@@ -8259,42 +8102,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               >
                 <Plus size={16} />
               </button>
-            )}
-            {/* Generate All Interfaces button — shown when ≥1 open workflow tab exists */}
-            {!effectiveReadOnly && tabs.filter((t) => !t.designId && t.isOpen !== false && (t.nodes.length > 0 || t.edges.length > 0)).length >= 1 && (
-              batchProgress ? (
-                /* Progress pill shown while batch is running */
-                <div
-                  data-testid="batch-generate-progress"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 flex-shrink-0 select-none"
-                >
-                  {isBatchGenerating ? (
-                    <Loader2 size={12} className="animate-spin flex-shrink-0" />
-                  ) : batchProgress.errors > 0 ? (
-                    <span className="text-destructive">⚠</span>
-                  ) : (
-                    <WandSparkles size={12} className="flex-shrink-0" />
-                  )}
-                  <span>
-                    {isBatchGenerating
-                      ? `Generating ${batchProgress.done} / ${batchProgress.total}…`
-                      : batchProgress.errors > 0
-                      ? `${batchProgress.total - batchProgress.errors} done, ${batchProgress.errors} failed`
-                      : `${batchProgress.total} done`}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  data-testid="button-generate-all-interfaces"
-                  disabled={isBatchGenerating || isGeneratingInterface}
-                  onClick={generateAllInterfaces}
-                  title="Generate interfaces for all open workflow tabs"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
-                >
-                  <WandSparkles size={13} />
-                  <span>Generate All</span>
-                </button>
-              )
             )}
             {/* View mode: show project name */}
             {effectiveReadOnly && initialProjectName && (
