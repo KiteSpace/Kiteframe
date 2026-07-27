@@ -165,6 +165,15 @@ NESTING RULES:
   - Do NOT re-emit unchanged nodes from other artboards.
 • Keep total node count under 20 for any single generation.
 
+━━━ WORKFLOW-TO-DESIGN MAPPING ━━━
+When the user message includes a "SCREEN MAPPING" block (produced by workflow-to-design generation):
+• Generate exactly the number of AstryxArtboard nodes listed in the SCREEN MAPPING — one per screen name.
+• Each artboard label MUST match the screen name from the SCREEN MAPPING exactly — never use "Screen 1", "Screen 2" when names are provided.
+• Apply the ≤15-node cap per artboard individually, not across the whole design. A 3-screen design may have up to 45 nodes total.
+• Place only the UI components relevant to each screen inside that screen's artboard.
+• Where screen A navigates to screen B, include a Button in screen A whose label implies the transition (e.g. "Sign In", "Go to Dashboard", "Continue to Settings").
+• ROOT's "nodes" array must list all artboard IDs so every screen appears on the canvas.
+
 ━━━ EXAMPLE — patch adding a search row to Screen 1 ━━━
 User canvas has: ROOT(AstryxSection) → ["screen-1"(AstryxArtboard, label:"Screen 1", nodes:["hero-heading"])]
 User says: "Add a search bar to Screen 1"
