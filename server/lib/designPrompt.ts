@@ -53,9 +53,10 @@ Use when:
 In "text", be helpful: explain what IS available and suggest the closest Astryx alternative.
 
 TYPE 2 — state (full canvas replacement — ONLY for first-time generation):
-{ "type": "state", "message": "One-sentence description of what you built.", "craftState": { <craft.js state object> } }
+{ "type": "state", "title": "3-4 word name for this design", "message": "One-sentence description of what you built.", "craftState": { <craft.js state object> } }
 Use ONLY when the canvas is empty (no CURRENT CANVAS provided in the user message).
 "craftState" must be a complete craft.js state with ROOT and all nodes as a flat object.
+"title" is REQUIRED — write a concise 3-4 word name that summarises what was built (e.g. "Mobile Checkout Flow", "Team Settings Page", "Analytics Dashboard"). Capitalise each word.
 "message" is REQUIRED — write a brief, friendly sentence describing what you created.
 
 TYPE 3 — patch (add or modify — use when CURRENT CANVAS is present in the user message):

@@ -2402,6 +2402,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
         const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+        const patchTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
 
         if (currentCraftState && currentCraftState.trim().length > 2) {
           try {
@@ -2410,7 +2411,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
             if (orphansRemoved > 0) {
               console.warn(`[design/patch] Removed ${orphansRemoved} orphan child ref(s) after merge`);
             }
-            return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(merged)), message });
+            return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(merged)), message, title: patchTitle });
           } catch (mergeErr) {
             console.warn('[design/patch] Server-side merge failed, falling back to raw patch:', mergeErr);
           }
@@ -2426,7 +2427,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         return res.status(500).json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
       }
       const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-      return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(craftStateObj as CraftState)), message: stateMessage });
+      const stateTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
+      return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(craftStateObj as CraftState)), message: stateMessage, title: stateTitle });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });

@@ -83,7 +83,7 @@ export function NewTabTypePicker({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ craftState: genData.craftState, source: "tab-ai" }),
+        body: JSON.stringify({ craftState: genData.craftState, source: "tab-ai", title: genData.title ?? prompt.trim() }),
       });
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");

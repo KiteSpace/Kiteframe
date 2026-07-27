@@ -3233,7 +3233,7 @@ function WorkflowEditorContent({
       const linkedDesignTabs = tabs.filter(
         (t) => !!t.designId && !!t.designSourceWorkflowId && t.designSourceWorkflowId === sourceWorkflowId,
       );
-      const baseName = sourceTab.name ? `${sourceTab.name} — Interface` : "Untitled Interface";
+      const baseName = sourceTab.name || "Untitled Design";
       const tabTitle = linkedDesignTabs.length === 0
         ? baseName
         : `${baseName} v${linkedDesignTabs.length + 1}`;

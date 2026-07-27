@@ -297,7 +297,7 @@ export function HomeScreen({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ craftState: genData.craftState, source: "home-ai" }),
+            body: JSON.stringify({ craftState: genData.craftState, source: "home-ai", title: genData.title }),
           });
           if (createRes.status === 401) {
             openSignup();
