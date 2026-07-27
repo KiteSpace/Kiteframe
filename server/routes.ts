@@ -2314,6 +2314,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         prompt: z.string().min(1).max(8000),
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
+        source: z.enum(['workflow', 'chat']).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -2321,7 +2322,8 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
         const field = firstIssue?.path.join('.') || 'request';
         return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
-      const { prompt, currentCraftState, targetArtboardLabel } = parsed.data;
+      const { prompt, currentCraftState, targetArtboardLabel, source } = parsed.data;
+      const isWorkflowGeneration = source === 'workflow';
 
       // Build a context-aware user message. Include the FULL current canvas state so the
       // model knows every existing node and can patch without dropping any existing children.
@@ -2337,10 +2339,13 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       // Use Anthropic assistant-prefill to force JSON output: the assistant message
       // starts with '{' so Claude is constrained to continue with the JSON body.
       // We then prepend '{' to the returned text to reconstruct the full object.
+      // Workflow-to-design calls produce more nodes (≤15 per artboard × N screens) so give
+      // them a higher token budget to avoid spurious truncation errors.
+      const maxTokens = isWorkflowGeneration ? 24000 : 16000;
       const result = await executeAiChat({
         provider: 'anthropic',
         model: 'claude-sonnet-4-5-20250929',
-        maxTokens: 16000,
+        maxTokens,
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
@@ -2353,8 +2358,11 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       // Detect truncation: if the model hit its token limit the JSON is cut off
       const stopReason = result.json?.stop_reason;
       if (stopReason === 'max_tokens') {
-        console.error('[design] response truncated by max_tokens limit');
-        return res.status(500).json({ error: 'Design was too complex — try a simpler prompt with fewer components' });
+        console.error('[design] response truncated by max_tokens limit (source=%s)', source ?? 'chat');
+        const errorMessage = isWorkflowGeneration
+          ? 'This workflow has too many screens to generate at once — try splitting it into smaller workflows or reducing the number of steps'
+          : 'Design was too complex — try a simpler prompt with fewer components';
+        return res.status(500).json({ error: errorMessage });
       }
       // Reconstruct: prefill started with '{', model continues from there
       const raw = ('{' + (result.text || '')).trim();

@@ -3241,7 +3241,7 @@ function WorkflowEditorContent({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, source: "workflow" }),
       });
       if (genRes.status === 401) { openSignup(); return; }
       const genData = await genRes.json();
@@ -3353,7 +3353,7 @@ function WorkflowEditorContent({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ prompt, source: "workflow" }),
         });
         if (genRes.status === 401) { openSignup(); break; }
         const genData = await genRes.json();
