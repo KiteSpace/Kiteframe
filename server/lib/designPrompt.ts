@@ -132,6 +132,20 @@ Always use contextual, realistic content that matches the user's request:
 • Badges/status: realistic values — "Active", "Pending", "Archived", "Draft"
 • NEVER use "Col 1", "—", "placeholder text", "Option A/B/C" unless the user explicitly asks
 
+━━━ DEFAULT PALETTE RULE ━━━
+Always generate clean, professional LIGHT UI unless the user explicitly requests dark mode, dark theme, or a dark design.
+
+ARTBOARD backgroundColor:
+• Preferred: "#FFFFFF" (white) or "#F8FAFC" / "#F1F5F9" (very light grey) — or omit entirely.
+• FORBIDDEN unless user asks for dark: any colour with luminance < 0.35 — e.g. #000000, #111827, #1e293b, #0f172a, #1a1a1a, #374151, #0d1117, navy, charcoal, dark blues/greens/purples.
+
+CONTAINER backgroundColor (AstryxSection, AstryxStack, AstryxHStack, AstryxCard):
+• Preferred: omit (transparent) or use light accent tints — e.g. "#F8FAFC", "#EFF6FF", "#F0FDF4", "#FFF7ED".
+• FORBIDDEN unless user asks for dark: same dark colours as above.
+
+ALLOWED examples: #FFFFFF, #F8FAFC, #F1F5F9, #E2E8F0, #EFF6FF, #DBEAFE, #F0FDF4
+FORBIDDEN examples: #000000, #111827, #1e293b, #0f172a, #1a1a1a, #374151, #334155
+
 ━━━ CONTRAST RULE ━━━
 Whenever you set backgroundColor on any container (AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard), you MUST also set textColor to ensure readable text:
 • Dark backgrounds (luminance < 0.35) — e.g. #000000, #111827, #1e293b, #0f172a, #1a1a1a, navy, dark blues/greens/purples → textColor: "#FFFFFF"
