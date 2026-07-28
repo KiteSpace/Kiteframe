@@ -1260,6 +1260,14 @@ export const ConnectionEdge: React.FC<{
         const displayLabel = getDisplayLabel(edge.label);
         const shouldShowLabel = displayLabel || isEditing;
         if (!shouldShowLabel) return null;
+
+        // Use the true geometric midpoint of the rendered path so the label
+        // tracks with the stroke after segment drags on stepped/orthogonal edges.
+        // Falls back to the chord midpoint for curved/bezier edges.
+        const labelMid: { x: number; y: number } =
+          renderedCorners && renderedCorners.length >= 2
+            ? polylineMidpoint(renderedCorners)
+            : { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
         
         return (
           <g 
@@ -1272,8 +1280,8 @@ export const ConnectionEdge: React.FC<{
             {isEditing ? (
               <EdgeLabelEditor
                 edge={edge}
-                x={(s.x + t.x) / 2}
-                y={(s.y + t.y) / 2}
+                x={labelMid.x}
+                y={labelMid.y}
                 strokeColor={strokeColor}
                 backgroundColor={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
                 textColor={sourceNode.data?.colors?.bodyTextColor || edge.labelStyle?.fontColor || '#64748b'}
@@ -1284,8 +1292,8 @@ export const ConnectionEdge: React.FC<{
               <>
                 {/* Label background with source node body color and edge-colored border */}
                 <rect
-                  x={(s.x + t.x) / 2 - (displayLabel.length * 4 + 6)}
-                  y={(s.y + t.y) / 2 - 10}
+                  x={labelMid.x - (displayLabel.length * 4 + 6)}
+                  y={labelMid.y - 10}
                   width={displayLabel.length * 8 + 12}
                   height={20}
                   fill={sourceNode.data?.colors?.bodyBackground || edge.labelStyle?.backgroundColor || '#ffffff'}
@@ -1295,8 +1303,8 @@ export const ConnectionEdge: React.FC<{
                   style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))', pointerEvents: 'auto' }}
                 />
                 <text 
-                  x={(s.x + t.x) / 2} 
-                  y={(s.y + t.y) / 2} 
+                  x={labelMid.x}
+                  y={labelMid.y}
                   textAnchor="middle" 
                   dominantBaseline="middle"
                   fontSize={edge.labelStyle?.fontSize || 11}
