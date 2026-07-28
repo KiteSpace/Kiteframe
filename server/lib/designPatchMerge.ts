@@ -109,7 +109,9 @@ export function mergeDesignPatch(
  * Call this after every AI generation or patch-merge before returning the
  * craftState to the client so multi-screen designs always open spread out.
  */
-const ARTBOARD_GAP = 40;
+const ARTBOARD_GAP = 80;       // matches spreadArtboardsInState on the client
+const ARTBOARD_START_X = 64;   // non-zero so craft.js never treats it as "absent"
+const ARTBOARD_START_Y = 64;
 const DEFAULT_ARTBOARD_WIDTH = 390;
 
 export function layoutArtboards(state: CraftState): CraftState {
@@ -131,9 +133,9 @@ export function layoutArtboards(state: CraftState): CraftState {
     return (t as Record<string, unknown>).resolvedName === 'AstryxArtboard';
   });
 
-  if (artboardIds.length <= 1) return state; // Nothing to lay out
+  if (artboardIds.length < 1) return state; // Nothing to lay out
 
-  let cursor = 0;
+  let cursor = ARTBOARD_START_X;
   const updates: CraftState = {};
 
   for (const id of artboardIds) {
@@ -147,7 +149,7 @@ export function layoutArtboards(state: CraftState): CraftState {
 
     updates[id] = {
       ...node,
-      props: { ...props, x: cursor, y: 0 },
+      props: { ...props, x: cursor, y: ARTBOARD_START_Y },
     };
 
     cursor += width + ARTBOARD_GAP;

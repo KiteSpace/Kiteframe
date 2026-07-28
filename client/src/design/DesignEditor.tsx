@@ -3510,13 +3510,53 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
 
 // ─── Canvas drop area ─────────────────────────────────────────────────────────
 
+/**
+ * If all artboards in `state` share the same x position (within `tol` px),
+ * spread them left-to-right from x=64 with 80 px gaps — matching
+ * spreadArtboardsInState's full-replace behaviour.
+ * Returns the same object reference unchanged when no spreading is needed.
+ */
+function destackArtboards(state: Record<string, any>): Record<string, any> {
+  const artboardEntries = Object.entries(state).filter(
+    ([, n]: [string, any]) => n?.type?.resolvedName === "AstryxArtboard"
+  );
+  if (artboardEntries.length < 2) return state;
+
+  const xs = artboardEntries.map(([, n]: [string, any]) => Number(n.props?.x) || 0);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  // Only spread when artboards appear stacked (within 10 px of each other)
+  if (maxX - minX > 10) return state;
+
+  // Sort by existing x so relative order is preserved
+  artboardEntries.sort(([, a]: [string, any], [, b]: [string, any]) =>
+    (Number(a.props?.x) || 0) - (Number(b.props?.x) || 0)
+  );
+  const result = { ...state };
+  let curX = 64;
+  const baseY = Number(artboardEntries[0][1].props?.y) || 64;
+  for (const [id, node] of artboardEntries) {
+    const width = Number(node.props?.width) || 390;
+    result[id] = { ...node, props: { ...node.props, x: curX, y: baseY } };
+    curX += width + 80;
+  }
+  return result;
+}
+
 function CanvasArea({ craftState }: { craftState: string | null }) {
   // Validate before handing to craft.js — a malformed/truncated string would
   // produce a blank canvas with no error indicator rather than falling back to
   // the default artboard. If parsing fails, treat it as absent and render the
   // safe default.
   const validState = craftState
-    ? (() => { try { JSON.parse(craftState); return craftState; } catch { return null; } })()
+    ? (() => {
+        try {
+          const parsed = JSON.parse(craftState);
+          const destacked = destackArtboards(parsed);
+          // Only re-stringify if destacking actually changed something
+          return destacked === parsed ? craftState : JSON.stringify(destacked);
+        } catch { return null; }
+      })()
     : null;
 
   if (validState) {
