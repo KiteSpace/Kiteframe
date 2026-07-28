@@ -285,6 +285,7 @@ interface WorkflowTab {
   viewport: { x: number; y: number; zoom: number };
   selectedNodeId: string;
   selectedEdgeId: string;
+  selectedEdgeIds?: string[]; // Multi-select edge IDs (Shift+click)
   history: Array<{
     nodes: Node[];
     edges: Edge[];
@@ -2237,6 +2238,7 @@ function WorkflowEditorContent({
   const viewport = activeTab?.viewport || { x: 0, y: 0, zoom: 1 };
   const selectedNodeId = activeTab?.selectedNodeId || "";
   const selectedEdgeId = activeTab?.selectedEdgeId || "";
+  const selectedEdgeIds = activeTab?.selectedEdgeIds ?? [];
 
   // Experiment options for predictive AI suggestions
   const {
@@ -2953,7 +2955,7 @@ function WorkflowEditorContent({
     if (selectedCanvasObjects.length > 0) {
       setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
       setEdges((prev) => prev.map((e) => ({ ...e, selected: false })));
-      updateActiveTab({ selectedNodeId: "", selectedEdgeId: "" });
+      updateActiveTab({ selectedNodeId: "", selectedEdgeId: "", selectedEdgeIds: [] });
     }
   }, [selectedCanvasObjects.length, updateActiveTab]);
 
@@ -3124,6 +3126,13 @@ function WorkflowEditorContent({
   const setSelectedEdgeId = useCallback(
     (id: string) => {
       updateActiveTab({ selectedEdgeId: id });
+    },
+    [updateActiveTab],
+  );
+
+  const setSelectedEdgeIds = useCallback(
+    (ids: string[]) => {
+      updateActiveTab({ selectedEdgeIds: ids });
     },
     [updateActiveTab],
   );
@@ -5046,6 +5055,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         setEdges((prev) => prev.map((edge) => ({ ...edge, selected: false })));
         setSelectedNodeId("");
         setSelectedEdgeId("");
+        setSelectedEdgeIds([]);
         setLinearToolbar(null);
         // Also blur any focused input
         if (isInputFocused) {
@@ -5139,6 +5149,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           // Only clear selection if ALL selected edges were deleted
           if (lockedEdgesCount === 0) {
             setSelectedEdgeId("");
+            setSelectedEdgeIds([]);
             setLinearToolbar(null);
           }
         }
@@ -10334,6 +10345,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     setEdges([]);
                     setSelectedNodeId("");
                     setSelectedEdgeId("");
+                    setSelectedEdgeIds([]);
                   }}
                   onExport={() => {
                     try {
@@ -10435,6 +10447,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }}
                   onDeselectNode={() => {
                     setSelectedNodeId("");
+                    setSelectedEdgeIds([]);
                     setNodes((prev) =>
                       prev.map((n) => ({ ...n, selected: false })),
                     );
@@ -11390,8 +11403,11 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }, 150); // 150ms delay to detect drag
                       }
 
+                      // Preserve Shift+clicked edges visually so node Edge submenu sees them.
+                      // Only deselect edges that are not in the multi-select set.
+                      const shiftSelected = activeTab?.selectedEdgeIds ?? [];
                       setEdges((prev) =>
-                        prev.map((e) => ({ ...e, selected: false })),
+                        prev.map((e) => ({ ...e, selected: shiftSelected.includes(e.id) })),
                       );
                       const updatedObjects = canvasObjects.map((obj) => ({
                         ...obj,
@@ -11399,6 +11415,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       }));
                       updateActiveTab({ canvasObjects: updatedObjects });
                       setSelectedEdgeId("");
+                      // Do NOT clear selectedEdgeIds here — the user may want to bulk-edit
+                      // those Shift+clicked edges via the node's Edge submenu.
                       setContextMenu(null);
                       // Only clear inline editing if clicking a different node
                       if (inlineEditing?.nodeId !== node.id) {
@@ -11466,13 +11484,36 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       });
                       setContextMenu(null);
                     }}
-                    onEdgeClick={(edge: Edge) => {
+                    onEdgeClick={(edge: Edge, clickEvent?: React.MouseEvent) => {
                       // Clear any existing click delay timer
                       if (clickDelayTimeoutRef.current) {
                         clearTimeout(clickDelayTimeoutRef.current);
                         clickDelayTimeoutRef.current = null;
                       }
 
+                      const isShift = clickEvent?.shiftKey ?? false;
+
+                      if (isShift) {
+                        // Additive Shift+click: toggle this edge in selectedEdgeIds
+                        const current = activeTab?.selectedEdgeIds ?? [];
+                        const next = current.includes(edge.id)
+                          ? current.filter((id) => id !== edge.id)
+                          : [...current, edge.id];
+                        setSelectedEdgeIds(next);
+                        // Mark the edge selected visually too
+                        setEdges((prev) =>
+                          prev.map((e) =>
+                            e.id === edge.id ? { ...e, selected: !current.includes(edge.id) } : e,
+                          ),
+                        );
+                        // Close toolbar when doing multi-select
+                        setLinearToolbar(null);
+                        setContextMenu(null);
+                        return;
+                      }
+
+                      // Regular (non-shift) click — clear multi-select, do single selection
+                      setSelectedEdgeIds([]);
                       setNodes((prev) =>
                         prev.map((n) => ({ ...n, selected: false })),
                       );
@@ -11626,6 +11667,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       );
                       setSelectedNodeId("");
                       setSelectedEdgeId("");
+                      setSelectedEdgeIds([]);
                       setContextMenu(null);
                       setLinearToolbar(null);
                       setInlineEditing(null);
@@ -11653,7 +11695,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       if (e.shiftKey) {
                         // Shift+click for multi-select - immediate action, handled by KiteFrameCanvas
                       } else {
-                        // Regular click - selection already handled by KiteFrameCanvas
+                        // Regular click — clear edge multi-select since we're focusing a canvas object
+                        setSelectedEdgeIds([]);
                         // Reset drag detection
                         isDraggingRef.current = false;
 
@@ -11830,6 +11873,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                           })),
                         );
                         setSelectedEdgeId("");
+                        // Box-select or other framework-driven deselect — clear Shift+click set too
+                        setSelectedEdgeIds([]);
                       }
                     }}
                     inlineEditing={isPhoneViewOnly ? null : inlineEditing}
@@ -16326,6 +16371,60 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 }),
               );
             }
+          }}
+          selectedNodes={nodes.filter((n) => n.selected)}
+          allEdges={edges}
+          additionalSelectedEdgeIds={selectedEdgeIds}
+          onBulkEdgeStyleChange={(style) => {
+            // Compute affected edge IDs: connected to any selected node + Shift+clicked
+            const selectedNodeIdSet = new Set(
+              nodes.filter((n) => n.selected).map((n) => n.id)
+            );
+            // Also include the node the toolbar is anchored to (handles single-click case)
+            if (linearToolbar.node) selectedNodeIdSet.add(linearToolbar.node.id);
+            const byNode = edges
+              .filter((e) => selectedNodeIdSet.has(e.source) || selectedNodeIdSet.has(e.target))
+              .map((e) => e.id);
+            const affectedIds = new Set([...byNode, ...selectedEdgeIds]);
+
+            if (affectedIds.size === 0) return;
+            saveToHistory("Bulk edit edges");
+
+            const strokeConfig: Record<string, { dasharray: string | undefined; linecap: string }> = {
+              solid: { dasharray: undefined, linecap: "butt" },
+              dashed: { dasharray: "8 4", linecap: "butt" },
+              dotted: { dasharray: "0.1 6", linecap: "round" },
+            };
+
+            setEdges((prev) =>
+              prev.map((e) => {
+                if (!affectedIds.has(e.id)) return e;
+                const updated = { ...e };
+                if (style.color !== undefined) {
+                  updated.style = { ...updated.style, strokeColor: style.color, stroke: style.color };
+                }
+                if (style.strokeStyle !== undefined) {
+                  const cfg = strokeConfig[style.strokeStyle];
+                  updated.style = { ...updated.style, strokeDasharray: cfg.dasharray, strokeLinecap: cfg.linecap as any };
+                }
+                if (style.strokeWidth !== undefined) {
+                  updated.style = { ...updated.style, strokeWidth: style.strokeWidth };
+                }
+                if (style.lineType !== undefined) {
+                  updated.type = style.lineType as any;
+                }
+                if (style.markerStart !== undefined) {
+                  updated.markerStart = style.markerStart;
+                }
+                if (style.markerEnd !== undefined) {
+                  updated.markerEnd = style.markerEnd;
+                }
+                if (style.animated !== undefined) {
+                  updated.animated = style.animated;
+                }
+                return updated;
+              })
+            );
           }}
           onDelete={() => {
             if (linearToolbar.node) {

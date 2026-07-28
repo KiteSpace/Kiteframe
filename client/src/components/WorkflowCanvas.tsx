@@ -21,7 +21,7 @@ interface WorkflowCanvasProps {
   onConnect: (connection: { source: string; target: string }) => void;
   onNodeClick?: (e: React.MouseEvent, node: Node) => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: Node, part?: 'header' | 'body') => void;
-  onEdgeClick?: (edge: Edge) => void;
+  onEdgeClick?: (edge: Edge, event?: React.MouseEvent) => void;
   onEdgeDoubleClick?: (edge: Edge) => void;
   onCanvasClick?: () => void;
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
@@ -648,7 +648,7 @@ export function WorkflowCanvas({
         onConnect={onConnectGuarded}
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClickGuarded}
-        onEdgeClick={(e, edge) => onEdgeClick?.(edge)}
+        onEdgeClick={(e, edge) => onEdgeClick?.(edge, e)}
         onEdgeDoubleClick={(e, edge) => onEdgeDoubleClickGuarded?.(edge)}
         onCanvasClick={onCanvasClick}
         onNodeRightClick={onNodeRightClickGuarded}

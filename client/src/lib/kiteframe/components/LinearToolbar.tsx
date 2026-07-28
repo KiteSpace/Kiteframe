@@ -36,7 +36,8 @@ import {
   Hexagon,
   PenTool,
   Plus,
-  Lock
+  Lock,
+  Route
 } from 'lucide-react';
 import type { Node, Edge, NodeColors, CanvasObject, EdgeMarker, NodeHyperlink, OgMetadata } from '../types';
 import { getOptimalTextColor } from '../utils/colorUtils';
@@ -131,6 +132,19 @@ interface LinearToolbarProps {
   } | null) => void; // Callback for text object hyperlink changes
   onOpenComponentMenu?: () => void; // Callback for compound nodes to open component menu
   edgeTargetNodeType?: string; // Type of node that edge targets (for special toolbar behavior)
+  // Multi-edge editing props (for node toolbar → Edge submenu)
+  selectedNodes?: Node[]; // All currently selected nodes (may be >1)
+  allEdges?: Edge[]; // Full edge list so we can find connected edges
+  additionalSelectedEdgeIds?: string[]; // Edges Shift+clicked by the user
+  onBulkEdgeStyleChange?: (style: {
+    strokeStyle?: 'solid' | 'dashed' | 'dotted';
+    strokeWidth?: number;
+    lineType?: 'straight' | 'bezier' | 'step' | 'orthogonal' | 'curved';
+    markerStart?: EdgeMarker | boolean;
+    markerEnd?: EdgeMarker | boolean;
+    animated?: boolean;
+    color?: string;
+  }) => void;
 }
 
 type EndpointType = 'none' | 'arrow' | 'circle' | 'diamond';
@@ -245,7 +259,11 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   initialSubmenu = null,
   onTextObjectHyperlinkChange,
   onOpenComponentMenu,
-  edgeTargetNodeType
+  edgeTargetNodeType,
+  selectedNodes = [],
+  allEdges = [],
+  additionalSelectedEdgeIds = [],
+  onBulkEdgeStyleChange,
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
@@ -554,6 +572,18 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         );
       }
       
+      // Edges submenu button — shown for all node types that can have edges
+      if (node?.type !== 'code' && node?.type !== 'experiment') {
+        baseButtons.push({
+          id: 'edges',
+          icon: <Route size={18} />,
+          label: 'Edit Edges',
+          color: 'bg-teal-500',
+          hoverColor: 'hover:bg-teal-600',
+          hasSubmenu: true,
+        });
+      }
+
       baseButtons.push({
         id: 'delete',
         icon: <Trash2 size={18} />,
@@ -1221,6 +1251,279 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
               </button>
             ))}
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Compute the set of edges affected by the node "Edges" submenu:
+  // all edges connected to any selected node, plus any Shift+clicked edge IDs.
+  const getAffectedEdges = (): Edge[] => {
+    const selectedNodeIdSet = new Set(
+      selectedNodes.length > 0
+        ? selectedNodes.map((n) => n.id)
+        : node
+          ? [node.id]
+          : []
+    );
+    const byNode = allEdges.filter(
+      (e) => selectedNodeIdSet.has(e.source) || selectedNodeIdSet.has(e.target)
+    );
+    const additionalSet = new Set(additionalSelectedEdgeIds);
+    const byClick = allEdges.filter((e) => additionalSet.has(e.id));
+    // Union — deduplicate by id
+    const seen = new Set<string>();
+    const result: Edge[] = [];
+    for (const e of [...byNode, ...byClick]) {
+      if (!seen.has(e.id)) { seen.add(e.id); result.push(e); }
+    }
+    return result;
+  };
+
+  // Returns true if all edges in the set agree on the value, false if mixed.
+  const isMixed = <T,>(edges: Edge[], getter: (e: Edge) => T): boolean => {
+    if (edges.length === 0) return false;
+    const first = getter(edges[0]);
+    return edges.some((e) => getter(e) !== first);
+  };
+
+  const getEdgeDashStyle = (e: Edge): string => {
+    const da = e.style?.strokeDasharray;
+    const lc = e.style?.strokeLinecap;
+    if (!da || da === 'none') return 'solid';
+    if (lc === 'round' || da.includes('0.1')) return 'dotted';
+    return 'dashed';
+  };
+
+  const renderNodeEdgesSubmenu = () => {
+    const affected = getAffectedEdges();
+    const count = affected.length;
+
+    // Per-property mix detection
+    const colorMixed = isMixed(affected, (e) => e.style?.strokeColor ?? '#64748b');
+    const commonColor = count > 0 && !colorMixed ? (affected[0].style?.strokeColor ?? '#64748b') : null;
+
+    const dashMixed = isMixed(affected, getEdgeDashStyle);
+    const commonDash = count > 0 && !dashMixed ? getEdgeDashStyle(affected[0]) : null;
+
+    const widthMixed = isMixed(affected, (e) => e.style?.strokeWidth ?? 2);
+    const commonWidth = count > 0 && !widthMixed ? (affected[0].style?.strokeWidth ?? 2) : null;
+
+    const typeMixed = isMixed(affected, (e) => e.type ?? 'bezier');
+    const commonType = count > 0 && !typeMixed ? (affected[0].type ?? 'bezier') : null;
+
+    const animMixed = isMixed(affected, (e) => e.animated ?? false);
+    const commonAnim = count > 0 && !animMixed ? (affected[0].animated ?? false) : null;
+
+    const resolveMarkerType = (m: EdgeMarker | boolean | undefined): string => {
+      if (m === undefined || m === false) return 'none';
+      if (m === true) return 'arrow';
+      return (m as EdgeMarker).type ?? 'arrow';
+    };
+    const markerEndMixed = isMixed(affected, (e) => resolveMarkerType(e.markerEnd));
+    const commonMarkerEnd = count > 0 && !markerEndMixed
+      ? resolveMarkerType(affected[0].markerEnd)
+      : null;
+
+    const createMarkerValue = (type: string): EdgeMarker | boolean => {
+      if (type === 'none') return false;
+      if (type === 'arrow') return true;
+      return { type: type as EdgeMarker['type'], size: 8 };
+    };
+
+    return (
+      <div
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[260px]",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+      >
+        <div className="space-y-3">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+              <Route size={12} />
+              Edit Edges
+            </div>
+            {count > 0 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500">{count} edge{count !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+
+          {count === 0 && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 py-1">No edges connected to this node.</p>
+          )}
+
+          {count > 0 && (
+            <>
+              {/* Color row */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  Color{colorMixed && <span className="ml-1 text-gray-400 dark:text-gray-500 font-normal italic">— mixed</span>}
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {COLOR_PALETTE.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={cn(
+                        "w-6 h-6 rounded-full border-2 transition-transform hover:scale-125",
+                        color === '#ffffff' ? 'border-gray-300' : 'border-transparent',
+                        commonColor === color && "ring-2 ring-offset-1 ring-blue-500"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ color }); }}
+                      data-testid={`bulk-edge-color-${color.replace('#', '')}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Stroke style */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  Stroke{dashMixed && <span className="ml-1 text-gray-400 dark:text-gray-500 font-normal italic">— mixed</span>}
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'solid', dasharray: undefined, linecap: 'butt' as const },
+                    { id: 'dashed', dasharray: '8 4', linecap: 'butt' as const },
+                    { id: 'dotted', dasharray: '0.1 6', linecap: 'round' as const },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={cn(
+                        "w-12 h-8 rounded bg-gray-50 dark:bg-gray-700 flex items-center justify-center transition-all hover:scale-110",
+                        commonDash === s.id && "ring-2 ring-blue-500"
+                      )}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ strokeStyle: s.id as 'solid' | 'dashed' | 'dotted' }); }}
+                      title={s.id}
+                      data-testid={`bulk-edge-stroke-${s.id}`}
+                    >
+                      <svg width="40" height="6" viewBox="0 0 40 6" className="pointer-events-none">
+                        <line x1="2" y1="3" x2="38" y2="3" stroke="currentColor" strokeWidth="3"
+                          strokeLinecap={s.linecap}
+                          strokeDasharray={s.dasharray} />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stroke width */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  Width{widthMixed && <span className="ml-1 text-gray-400 dark:text-gray-500 font-normal italic">— mixed</span>}
+                </div>
+                <div className="flex gap-2 items-center">
+                  {STROKE_WIDTHS.map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      className={cn(
+                        "w-8 h-8 rounded flex items-center justify-center bg-gray-50 dark:bg-gray-700 transition-all hover:scale-110",
+                        commonWidth === w && "ring-2 ring-blue-500"
+                      )}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ strokeWidth: w }); }}
+                      data-testid={`bulk-edge-width-${w}`}
+                    >
+                      <div className="bg-gray-600 dark:bg-gray-300 rounded-full w-full" style={{ height: `${w}px` }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Line type */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  Line type{typeMixed && <span className="ml-1 text-gray-400 dark:text-gray-500 font-normal italic">— mixed</span>}
+                </div>
+                <div className="flex gap-2 items-center flex-wrap">
+                  {[
+                    { id: 'bezier', path: 'M4 20 C 8 20, 8 4, 12 4 C 16 4, 16 20, 20 20' },
+                    { id: 'step', path: 'M4 20 L4 12 L20 12 L20 4' },
+                    { id: 'straight', path: 'M4 20 L20 4' },
+                    { id: 'orthogonal', path: 'M4 12 L12 12 L12 4 L20 4' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={cn(
+                        "w-10 h-9 rounded bg-gray-50 dark:bg-gray-700 flex items-center justify-center transition-all hover:scale-110",
+                        commonType === t.id && "ring-2 ring-blue-500"
+                      )}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ lineType: t.id as any }); }}
+                      title={t.id}
+                      data-testid={`bulk-edge-type-${t.id}`}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d={t.path} />
+                      </svg>
+                    </button>
+                  ))}
+
+                  {/* Animated toggle */}
+                  <div className="w-px h-8 bg-gray-200 dark:bg-gray-600 mx-1" />
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors",
+                      commonAnim === true
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                        : animMixed
+                          ? "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                    )}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ animated: !(commonAnim === true) }); }}
+                    title={commonAnim === true ? "Turn off animation" : "Turn on animation"}
+                    data-testid="bulk-edge-animated"
+                  >
+                    <Zap size={13} className={cn("pointer-events-none", commonAnim === true && "fill-current")} />
+                    <span className="text-xs font-medium pointer-events-none">
+                      {animMixed ? 'Mixed' : commonAnim ? 'On' : 'Off'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* End arrowhead */}
+              <div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  End arrow{markerEndMixed && <span className="ml-1 text-gray-400 dark:text-gray-500 font-normal italic">— mixed</span>}
+                </div>
+                <div className="flex gap-1">
+                  {[
+                    { id: 'none', icon: <Minus size={15} /> },
+                    { id: 'arrow', icon: <ArrowRight size={15} /> },
+                    { id: 'circle', icon: <Circle size={13} /> },
+                    { id: 'diamond', icon: <Diamond size={13} /> },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={cn(
+                        "w-9 h-8 rounded bg-gray-50 dark:bg-gray-700 flex items-center justify-center transition-all hover:scale-110",
+                        commonMarkerEnd === opt.id && "ring-2 ring-blue-500"
+                      )}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onBulkEdgeStyleChange?.({ markerEnd: createMarkerValue(opt.id) }); }}
+                      title={opt.id}
+                      data-testid={`bulk-edge-end-${opt.id}`}
+                    >
+                      <span className="pointer-events-none">{opt.icon}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -2538,6 +2841,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'endpoints' && renderEndpointsSubmenu()}
         {activeSubmenu === 'fillStyle' && renderFillStyleSubmenu()}
         {activeSubmenu === 'shapeType' && renderShapeTypeSubmenu()}
+        {activeSubmenu === 'edges' && renderNodeEdgesSubmenu()}
         </>
         )}
       </div>
