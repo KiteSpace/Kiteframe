@@ -2516,6 +2516,20 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
   const spaceDown = useRef(false);
   const hasFitOnMount = useRef(false);
 
+  // Refs that mirror state/prop for use inside native event handlers (avoid stale closures).
+  const panRef = useRef({ x: 80, y: 80 });
+  const zoomRef = useRef(zoom);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  // Touch tracking refs for pointer-based pan / pinch-zoom.
+  const touchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const touchPinchStartRef = useRef<{
+    dist: number; midX: number; midY: number;
+    panX: number; panY: number; zoom: number;
+  } | null>(null);
+  const touchPanStartRef = useRef<{ offsetX: number; offsetY: number } | null>(null);
+
   // Access craft.js query to read artboard node positions from serialized state.
   const { query } = useEditor();
 
@@ -2541,15 +2555,127 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
     };
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // Native wheel handler — cursor-anchored zoom for all scroll/pinch events,
+  // matching the workflow canvas behaviour exactly.
+  // Uses the same exponential scaling as KiteFrameCanvas: exp(-deltaY * 0.00225 * 0.2).
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (e.ctrlKey) {
-      const factor = e.deltaY < 0 ? 1.08 : 0.92;
-      onZoom((z) => Math.min(2, Math.max(0.25, z * factor)));
-    } else {
-      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const currentZoom = zoomRef.current;
+    const currentPan = panRef.current;
+
+    const factor = Math.exp(-e.deltaY * 0.00045);
+    const newZoom = Math.min(2, Math.max(0.25, currentZoom * factor));
+    // Compute world-space point under the cursor and keep it fixed after zoom.
+    const worldX = (e.clientX - rect.left - currentPan.x) / currentZoom;
+    const worldY = (e.clientY - rect.top - currentPan.y) / currentZoom;
+    const newPanX = e.clientX - rect.left - worldX * newZoom;
+    const newPanY = e.clientY - rect.top - worldY * newZoom;
+
+    // Update ref immediately so back-to-back wheel events see the latest values.
+    panRef.current = { x: newPanX, y: newPanY };
+    setPan({ x: newPanX, y: newPanY });
+    onZoom(() => newZoom);
+  }, [onZoom]); // panRef / zoomRef are refs — intentionally omitted from deps
+
+  // Attach the wheel listener as non-passive so preventDefault() is honoured.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
+
+  // Prevent Safari's native pinch-zoom/rotate gestures conflicting with our handler.
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault();
+    document.addEventListener('gesturestart', prevent, { passive: false });
+    document.addEventListener('gesturechange', prevent, { passive: false });
+    return () => {
+      document.removeEventListener('gesturestart', prevent);
+      document.removeEventListener('gesturechange', prevent);
+    };
+  }, []);
+
+  // ── Touch pointer handlers ──────────────────────────────────────────────────
+  // Single-finger → pan.  Two-finger → pinch-zoom (midpoint-anchored).
+  // Pen events are intentionally ignored so stylus work is unaffected.
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    e.preventDefault();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (_) {}
+    touchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const fingers = Array.from(touchPointersRef.current.values());
+    if (fingers.length >= 2) {
+      // Second finger down — switch to pinch mode.
+      touchPanStartRef.current = null;
+      const dist = Math.hypot(fingers[1].x - fingers[0].x, fingers[1].y - fingers[0].y);
+      touchPinchStartRef.current = {
+        dist: Math.max(dist, 1),
+        midX: (fingers[0].x + fingers[1].x) / 2,
+        midY: (fingers[0].y + fingers[1].y) / 2,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+        zoom: zoomRef.current,
+      };
+      return;
+    }
+
+    // Single finger — prepare for pan.
+    touchPinchStartRef.current = null;
+    touchPanStartRef.current = {
+      offsetX: e.clientX - panRef.current.x,
+      offsetY: e.clientY - panRef.current.y,
+    };
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    e.preventDefault();
+    touchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const fingers = Array.from(touchPointersRef.current.values());
+
+    // Pinch zoom (two fingers, midpoint-anchored).
+    if (touchPinchStartRef.current && fingers.length >= 2) {
+      if (!containerRef.current) return;
+      const pinch = touchPinchStartRef.current;
+      const dist = Math.hypot(fingers[1].x - fingers[0].x, fingers[1].y - fingers[0].y);
+      const midX = (fingers[0].x + fingers[1].x) / 2;
+      const midY = (fingers[0].y + fingers[1].y) / 2;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newZoom = Math.min(2, Math.max(0.25, pinch.zoom * dist / pinch.dist));
+      // Keep the world-space point that was under the initial pinch midpoint fixed.
+      const midWorldX = (pinch.midX - rect.left - pinch.panX) / pinch.zoom;
+      const midWorldY = (pinch.midY - rect.top - pinch.panY) / pinch.zoom;
+      const newPanX = midX - rect.left - midWorldX * newZoom;
+      const newPanY = midY - rect.top - midWorldY * newZoom;
+      panRef.current = { x: newPanX, y: newPanY };
+      setPan({ x: newPanX, y: newPanY });
+      onZoom(() => newZoom);
+      return;
+    }
+
+    // Single-finger pan.
+    if (touchPanStartRef.current) {
+      const newPan = {
+        x: e.clientX - touchPanStartRef.current.offsetX,
+        y: e.clientY - touchPanStartRef.current.offsetY,
+      };
+      panRef.current = newPan;
+      setPan(newPan);
     }
   }, [onZoom]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    touchPointersRef.current.delete(e.pointerId);
+    const remaining = touchPointersRef.current.size;
+    if (remaining < 2) touchPinchStartRef.current = null;
+    if (remaining === 0) touchPanStartRef.current = null;
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const clickedBackground = e.target === e.currentTarget;
@@ -2656,12 +2782,17 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
         backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 1.5px, transparent 1.5px)",
         backgroundSize: "20px 20px",
         backgroundColor: "var(--muted)",
+        // Disable native browser pan/zoom on touch so our pointer handlers take full control.
+        touchAction: "none",
       }}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       <div
         style={{
@@ -2711,7 +2842,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
       {/* Pan hint */}
       <div className="absolute bottom-4 left-4 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-10">
-        Two-finger scroll to pan · Ctrl+scroll to zoom · Space+drag to pan
+        Scroll to zoom · Space+drag or drag background to pan · Pinch to zoom on touch
       </div>
     </div>
   );
