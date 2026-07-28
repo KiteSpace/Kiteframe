@@ -2307,6 +2307,282 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
     }
   });
 
+  // ── Interface proposal — generates SVG wireframe previews for workflow screens ──
+  // Called before full interface generation so users can review / refine proposals.
+  // The client pre-computes screen clusters and sends them; this endpoint generates
+  // a description and SVG wireframe thumbnail for each cluster in parallel.
+  app.post('/api/ai/interface-proposal', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        workflowName: z.string().max(200).optional(),
+        screens: z.array(z.object({
+          id: z.string().max(50),
+          name: z.string().max(200),
+          nodeLabels: z.array(z.string().max(100)).max(15),
+        })).min(1).max(12),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request', details: parsed.error.issues });
+      }
+      const { workflowName, screens } = parsed.data;
+      const safeWorkflowName = (workflowName || 'App').replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, 100);
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return res.status(401).json({ error: 'AI API key not configured' });
+
+      // Fallback SVG when AI fails for a screen
+      const fallbackSvg = (name: string) => {
+        const safe = name.replace(/[<>&"']/g, '').slice(0, 30);
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/><rect x="0" y="0" width="400" height="44" fill="#ddd"/><rect x="16" y="12" width="120" height="20" rx="3" fill="#bbb"/><rect x="20" y="64" width="360" height="12" rx="2" fill="#e0e0e0"/><rect x="20" y="84" width="280" height="12" rx="2" fill="#e8e8e8"/><rect x="20" y="112" width="360" height="80" rx="4" fill="#e8e8e8"/><text x="200" y="157" text-anchor="middle" fill="#999" font-size="12" font-family="sans-serif">${safe}</text><rect x="20" y="208" width="120" height="36" rx="4" fill="#ccc"/><rect x="148" y="208" width="120" height="36" rx="4" fill="#e0e0e0"/></svg>`;
+      };
+
+      // Classify modal-like screens so the SVG prompt generates an overlay
+      const isStateChange = (name: string) =>
+        /modal|dialog|confirm|popup|overlay|loading|spinner|alert|warning/i.test(name);
+
+      // Generate description + SVG for each screen in parallel
+      const results = await Promise.all(
+        screens.map(async (screen) => {
+          const nodeList = screen.nodeLabels.join(', ') || screen.name;
+          const stateChange = isStateChange(screen.name);
+
+          const svgSystemPrompt = 'You are a UI wireframe designer. Return ONLY SVG code starting with <svg and ending with </svg>, nothing else.';
+          const svgPrompt = stateChange
+            ? `Create a wireframe for a modal dialog called "${screen.name}" in "${safeWorkflowName}". Steps: ${nodeList}. 400x300 viewBox. Show centered modal with semi-transparent background overlay, a title bar, content area, and action buttons. Use grayscale: #333, #666, #999, #ddd, #f5f5f5.`
+            : `Create a wireframe for a full app screen called "${screen.name}" in "${safeWorkflowName}". Steps covered: ${nodeList}. 400x300 viewBox. Include a top nav bar, content sections, and appropriate UI controls. Use grayscale: #333, #666, #999, #ddd, #f5f5f5. Keep it simple and professional.`;
+
+          const descSystemPrompt = 'You are a UX writer. Return ONLY a single concise sentence, nothing else.';
+          const descPrompt = `In one sentence, describe what a user does on the "${screen.name}" screen of "${safeWorkflowName}" (covers: ${nodeList}).`;
+
+          const callAnthropic = (systemPrompt: string, userContent: string, maxTok: number) =>
+            fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-5-20250929',
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userContent }],
+                max_tokens: maxTok,
+                temperature: 0.5,
+              }),
+            });
+
+          const [svgRes, descRes] = await Promise.all([
+            callAnthropic(svgSystemPrompt, svgPrompt, 2000),
+            callAnthropic(descSystemPrompt, descPrompt, 120),
+          ]);
+
+          const svgJson = svgRes.ok ? await svgRes.json() : null;
+          const descJson = descRes.ok ? await descRes.json() : null;
+
+          const svgRaw: string = svgJson?.content?.[0]?.text || '';
+          const svgMatch = svgRaw.match(/<svg[\s\S]*?<\/svg>/i);
+          const svgWireframe = svgMatch ? svgMatch[0] : fallbackSvg(screen.name);
+
+          const description: string =
+            descJson?.content?.[0]?.text?.trim() ||
+            `Users interact with ${screen.name} during the workflow.`;
+
+          return { id: screen.id, name: screen.name, description, svgWireframe };
+        }),
+      );
+
+      // Track usage
+      const userIdentifier = creditService.getUserIdentifier(req);
+      analyticsService.trackAIRequest(userIdentifier, undefined, 'anthropic').catch(console.error);
+
+      res.json({ screens: results });
+    } catch (err: any) {
+      console.error('[interface-proposal] error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ── Interface proposal refine — applies user chat changes to screen proposals ──
+  // The AI returns a structured diff (rename / modify / remove / add), the server
+  // regenerates SVG wireframes for any modified or added screens, and returns
+  // the full updated proposal list together with a plain-language summary.
+  app.post('/api/ai/interface-proposal-refine', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+    try {
+      const screenSchema = z.object({
+        id: z.string().max(50),
+        name: z.string().max(200),
+        description: z.string().max(400),
+        svgWireframe: z.string().max(20000),
+        selected: z.boolean().optional(),
+      });
+      const schema = z.object({
+        workflowName: z.string().max(200).optional(),
+        screens: z.array(screenSchema).min(1).max(12),
+        userMessage: z.string().min(1).max(1000),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid request', details: parsed.error.issues });
+      }
+      const { workflowName, screens, userMessage } = parsed.data;
+      const safeWorkflowName = (workflowName || 'App').replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, 100);
+      const safeUserMessage = userMessage.replace(/[\x00-\x1F\x7F]/g, '').trim();
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return res.status(401).json({ error: 'AI API key not configured' });
+
+      // Step 1: Ask AI what changes to make
+      const screenSummary = screens
+        .map((s) => `- ID "${s.id}", Name: "${s.name}", Description: "${s.description}"`)
+        .join('\n');
+
+      const changeSystemPrompt = `You are a UI design assistant helping plan an interface from a workflow.
+You are given proposed screens and a user request. Return ONLY valid JSON with this structure:
+{
+  "message": "Brief explanation of changes made",
+  "changes": [
+    {"id": "screen-0", "action": "rename", "newName": "New Name"},
+    {"id": "screen-1", "action": "modify", "name": "Screen Name", "description": "Updated description", "designNotes": "Specific UI instructions for wireframe regeneration"},
+    {"id": "screen-2", "action": "remove"},
+    {"action": "add", "name": "New Screen", "description": "What this screen does", "designNotes": "What to show in the wireframe"}
+  ]
+}
+Only include screens that need changes. "modify" requires both description and designNotes.`;
+
+      const changeUserContent = `Screens in "${safeWorkflowName}":\n${screenSummary}\n\nUser request: "${safeUserMessage}"`;
+
+      const changeRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5-20250929',
+          system: changeSystemPrompt,
+          messages: [
+            { role: 'user', content: changeUserContent },
+            { role: 'assistant', content: '{' },
+          ],
+          max_tokens: 1200,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!changeRes.ok) {
+        const errText = await changeRes.text();
+        console.error('[interface-proposal-refine] AI change request failed:', errText);
+        return res.status(500).json({ error: 'AI change request failed' });
+      }
+
+      const changeJson = await changeRes.json();
+      const rawChange = ('{' + (changeJson.content?.[0]?.text || '')).trim();
+      let changesData: { message: string; changes: any[] };
+      try {
+        const jsonEnd = rawChange.lastIndexOf('}');
+        changesData = JSON.parse(jsonEnd >= 0 ? rawChange.slice(0, jsonEnd + 1) : rawChange);
+      } catch {
+        const repaired = rawChange.replace(/,(\s*[}\]])/g, '$1');
+        try { changesData = JSON.parse(repaired); }
+        catch { return res.status(500).json({ error: 'AI returned invalid response — try again' }); }
+      }
+
+      const changes: any[] = Array.isArray(changesData.changes) ? changesData.changes : [];
+      const aiMessage: string = typeof changesData.message === 'string' ? changesData.message : 'Changes applied.';
+
+      // Step 2: Apply changes to the screens array
+      let updatedScreens = [...screens] as Array<typeof screens[0] & { designNotes?: string }>;
+
+      for (const change of changes) {
+        if (change.action === 'rename' && change.id && change.newName) {
+          updatedScreens = updatedScreens.map((s) =>
+            s.id === change.id ? { ...s, name: String(change.newName).slice(0, 200) } : s,
+          );
+        } else if (change.action === 'remove' && change.id) {
+          updatedScreens = updatedScreens.filter((s) => s.id !== change.id);
+        } else if (change.action === 'modify' && change.id) {
+          updatedScreens = updatedScreens.map((s) =>
+            s.id === change.id
+              ? {
+                  ...s,
+                  name: change.name ? String(change.name).slice(0, 200) : s.name,
+                  description: change.description ? String(change.description).slice(0, 400) : s.description,
+                  designNotes: change.designNotes ? String(change.designNotes).slice(0, 500) : undefined,
+                }
+              : s,
+          );
+        } else if (change.action === 'add' && change.name) {
+          const newId = `screen-added-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          updatedScreens.push({
+            id: newId,
+            name: String(change.name).slice(0, 200),
+            description: change.description ? String(change.description).slice(0, 400) : '',
+            svgWireframe: '',
+            selected: true,
+            designNotes: change.designNotes ? String(change.designNotes).slice(0, 500) : undefined,
+          });
+        }
+      }
+
+      // Step 3: Regenerate SVGs for screens that were modified or added (missing wireframe)
+      const fallbackSvg = (name: string) => {
+        const safe = name.replace(/[<>&"']/g, '').slice(0, 30);
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f5f5" stroke="#ddd" stroke-width="1"/><rect x="0" y="0" width="400" height="44" fill="#ddd"/><rect x="16" y="12" width="120" height="20" rx="3" fill="#bbb"/><rect x="20" y="64" width="360" height="140" rx="4" fill="#e8e8e8"/><text x="200" y="137" text-anchor="middle" fill="#999" font-size="12" font-family="sans-serif">${safe}</text><rect x="20" y="216" width="120" height="36" rx="4" fill="#ccc"/></svg>`;
+      };
+
+      const needsSvg = updatedScreens.filter(
+        (s) => !s.svgWireframe || (s as any).designNotes,
+      );
+
+      if (needsSvg.length > 0) {
+        const regenResults = await Promise.all(
+          needsSvg.map(async (s) => {
+            const notes = (s as any).designNotes || '';
+            const prompt = `Create a wireframe for a screen called "${s.name}" in "${safeWorkflowName}". ${notes ? `Design notes: ${notes}` : `Description: ${s.description}`} 400x300 viewBox. Grayscale (#333, #666, #999, #ddd, #f5f5f5). Return ONLY SVG code.`;
+            const svgRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-5-20250929',
+                system: 'You are a UI wireframe designer. Return ONLY SVG code starting with <svg and ending with </svg>.',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 2000,
+                temperature: 0.5,
+              }),
+            });
+            const svgJson = svgRes.ok ? await svgRes.json() : null;
+            const svgRaw: string = svgJson?.content?.[0]?.text || '';
+            const svgMatch = svgRaw.match(/<svg[\s\S]*?<\/svg>/i);
+            return { id: s.id, svgWireframe: svgMatch ? svgMatch[0] : fallbackSvg(s.name) };
+          }),
+        );
+        const newSvgMap = new Map(regenResults.map((r) => [r.id, r.svgWireframe]));
+        updatedScreens = updatedScreens.map((s) => ({
+          ...s,
+          svgWireframe: newSvgMap.get(s.id) ?? s.svgWireframe,
+        }));
+      }
+
+      // Strip internal designNotes before sending to client
+      const cleanScreens = updatedScreens.map(({ designNotes: _dn, ...rest }: any) => rest);
+
+      // Track usage
+      const userIdentifier = creditService.getUserIdentifier(req);
+      analyticsService.trackAIRequest(userIdentifier, undefined, 'anthropic').catch(console.error);
+
+      res.json({ screens: cleanScreens, aiMessage });
+    } catch (err: any) {
+      console.error('[interface-proposal-refine] error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Design generation endpoint — converts a text prompt into a craft.js state JSON
   app.post('/api/ai/design', aiRateLimiter, async (req: any, res) => {
     try {
