@@ -736,6 +736,9 @@ type Props = {
   onEdgeControlPointDragStart?: (edgeId: string) => void;
   onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
 
+  /** IDs of edges in the Shift+click multi-select set — rendered with a distinct highlight. */
+  selectedEdgeIds?: string[];
+
   // Generate interface button shown in the floating workflow name pill
   onGenerateInterface?: () => void;
   isGeneratingInterface?: boolean;
@@ -3377,6 +3380,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onControlPointChange={props.onEdgeControlPointChange}
                     onControlPointDragStart={props.onEdgeControlPointDragStart}
                     onWaypointsChange={props.onEdgeWaypointsChange}
+                    isMultiSelected={props.selectedEdgeIds?.includes(e.id) ?? false}
                   />
                 );
               });

@@ -96,6 +96,9 @@ interface WorkflowCanvasProps {
   onEdgeControlPointDragStart?: (edgeId: string) => void;
   onEdgeWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
 
+  /** IDs of Shift+clicked edges — forwarded to ConnectionEdge for a distinct multi-select highlight. */
+  selectedEdgeIds?: string[];
+
   // Share controls shown in the floating toolbar
   shareEnabled?: boolean;
   isShareLocked?: boolean;
@@ -187,6 +190,7 @@ export function WorkflowCanvas({
   onEdgeControlPointChange,
   onEdgeControlPointDragStart,
   onEdgeWaypointsChange,
+  selectedEdgeIds,
   shareEnabled,
   isShareLocked,
   shareViewerCount,
@@ -710,6 +714,7 @@ export function WorkflowCanvas({
         onEdgeControlPointChange={onEdgeControlPointChange}
         onEdgeControlPointDragStart={onEdgeControlPointDragStart}
         onEdgeWaypointsChange={onEdgeWaypointsChange}
+        selectedEdgeIds={selectedEdgeIds}
         onGenerateInterface={onGenerateInterface}
         isGeneratingInterface={isGeneratingInterface}
         className="w-full h-full"

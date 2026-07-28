@@ -574,10 +574,20 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       
       // Edges submenu button — shown for all node types that can have edges
       if (node?.type !== 'code' && node?.type !== 'experiment') {
+        const shiftEdgeCount = additionalSelectedEdgeIds.length;
         baseButtons.push({
           id: 'edges',
-          icon: <Route size={18} />,
-          label: 'Edit Edges',
+          icon: (
+            <span className="relative inline-flex items-center justify-center">
+              <Route size={18} />
+              {shiftEdgeCount > 0 && (
+                <span className="absolute -top-2 -right-2.5 min-w-[14px] h-[14px] rounded-full bg-white text-teal-700 text-[9px] font-bold leading-none flex items-center justify-center px-0.5 ring-1 ring-teal-500 pointer-events-none">
+                  {shiftEdgeCount > 9 ? '9+' : shiftEdgeCount}
+                </span>
+              )}
+            </span>
+          ),
+          label: shiftEdgeCount > 0 ? `Edit Edges (${shiftEdgeCount} selected)` : 'Edit Edges',
           color: 'bg-teal-500',
           hoverColor: 'hover:bg-teal-600',
           hasSubmenu: true,

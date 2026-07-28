@@ -10793,6 +10793,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     edges={edges}
                     canvasObjects={canvasObjects}
                     viewport={viewport}
+                    selectedEdgeIds={selectedEdgeIds}
                     isSketchMode={isSketchMode}
                     isReadOnly={effectiveReadOnly}
                     shareEnabled={!!activeShareId}

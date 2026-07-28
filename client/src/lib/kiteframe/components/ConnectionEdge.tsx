@@ -648,6 +648,8 @@ export const ConnectionEdge: React.FC<{
   onControlPointChange?: (edgeId: string, cp: { x: number; y: number } | null) => void;
   onControlPointDragStart?: (edgeId: string) => void;
   onWaypointsChange?: (edgeId: string, waypoints: { x: number; y: number }[] | null) => void;
+  /** True when this edge is in the Shift+click multi-select set. */
+  isMultiSelected?: boolean;
 }> = ({
   edge,
   sourceNode,
@@ -661,6 +663,7 @@ export const ConnectionEdge: React.FC<{
   onControlPointChange,
   onControlPointDragStart,
   onWaypointsChange,
+  isMultiSelected = false,
 }) => {
   // isHovered tracks whether pointer is over the edge path OR the handle circle.
   // React 18 automatic batching ensures that path-mouseLeave + handle-mouseEnter
@@ -1163,6 +1166,20 @@ export const ConnectionEdge: React.FC<{
         }}
       />
       
+      {/* Multi-select outline — blue dashed halo rendered beneath the main path */}
+      {isMultiSelected && (
+        <path
+          d={pathData}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={strokeWidth + 4}
+          strokeOpacity={0.55}
+          strokeDasharray="6 4"
+          strokeLinecap="round"
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+
       {/* Main edge path */}
       <path 
         d={pathData} 
