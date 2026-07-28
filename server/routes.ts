@@ -2807,6 +2807,111 @@ Only include screens that need changes. "modify" requires both description and d
     }
   });
 
+  // ── Design edit using image as visual reference ───────────────────────────
+  // Unlike design-from-image (which always imports a new artboard), this endpoint
+  // takes an existing canvas + a user instruction + a reference image and patches
+  // the canvas to match the style / layout shown in the image.
+  app.post('/api/ai/design-edit-from-image', aiRateLimiter, async (req: any, res) => {
+    try {
+      const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024;
+      const schema = z.object({
+        imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_CHARS, 'Image payload must be under 10 MB. Please use a smaller image.'),
+        mimeType: z.string().default('image/png'),
+        prompt: z.string().min(1).max(4000),
+        currentCraftState: z.string().max(40000).optional(),
+        targetArtboardLabel: z.string().max(200).optional(),
+        selectedElement: z.object({
+          displayName: z.string(),
+          nodeId: z.string(),
+          props: z.record(z.unknown()),
+        }).optional(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        const msg = parsed.error.issues[0]?.message ?? 'Invalid request';
+        return res.status(400).json({ error: msg });
+      }
+      const { imageBase64, mimeType, prompt, currentCraftState, targetArtboardLabel, selectedElement } = parsed.data;
+
+      // Build text content: instruction + current canvas context + optional pinned element
+      let textContent = `User instruction: "${prompt}"`;
+      if (currentCraftState && currentCraftState.trim().length > 2) {
+        textContent += `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>`;
+        if (targetArtboardLabel) {
+          textContent += `\n\nTarget artboard: "${targetArtboardLabel}"`;
+        }
+      }
+      if (selectedElement) {
+        textContent += `\n\nPinned element (apply changes to this specific element):\n- Component: ${selectedElement.displayName}\n- Node ID: ${selectedElement.nodeId}\n- Current props: ${JSON.stringify(selectedElement.props).slice(0, 500)}`;
+      }
+      textContent += '\n\nThe attached image is a VISUAL REFERENCE only. Patch the existing canvas to match the style, layout, or content shown — do NOT import it as a new artboard unless the instruction explicitly says so. Use a "patch" response when changing specific nodes, or a "state" response if a broader redesign is needed.';
+
+      const userContent: any[] = [
+        { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
+        { type: 'text', text: textContent },
+      ];
+
+      const result = await executeAiChat({
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-5-20250929',
+        maxTokens: 16000,
+        messages: [
+          { role: 'system', content: DESIGN_SYSTEM_PROMPT },
+          { role: 'user', content: userContent },
+          { role: 'assistant', content: '{' },
+        ],
+      });
+
+      if (!result.ok) {
+        return res.status(result.status || 500).json({ error: result.error || 'Reference edit failed' });
+      }
+      if (result.json?.stop_reason === 'max_tokens') {
+        return res.status(500).json({ error: 'Design was too complex — try a simpler reference image or prompt' });
+      }
+
+      const raw = ('{' + (result.text || '')).trim();
+      const jsonEnd = raw.lastIndexOf('}');
+      if (jsonEnd === -1) {
+        return res.status(500).json({ error: 'AI returned incomplete response' });
+      }
+      let parsedResponse: any;
+      try {
+        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
+      } catch {
+        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
+        try { parsedResponse = JSON.parse(repaired); } catch {
+          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        }
+      }
+
+      const responseType = parsedResponse?.type;
+      if (responseType === 'message') {
+        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+      }
+      if (responseType === 'patch') {
+        if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
+          return res.status(500).json({ error: 'AI returned an invalid patch' });
+        }
+        if (currentCraftState && currentCraftState.trim().length > 2) {
+          try {
+            const existing: Record<string, unknown> = JSON.parse(currentCraftState);
+            const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
+            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+          } catch { /* fall through to raw patch */ }
+        }
+        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+      }
+      const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
+      if (!craftStateObj || typeof craftStateObj !== 'object') {
+        return res.status(500).json({ error: 'AI returned an invalid design state' });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+    } catch (err: any) {
+      console.error('[design-edit-from-image] error:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // ── Design from image URL (server-side fetch) ─────────────────────────────
   app.post('/api/ai/design-from-url', aiRateLimiter, async (req: any, res) => {
     try {

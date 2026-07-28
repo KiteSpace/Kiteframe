@@ -3266,9 +3266,12 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     const trimmed = prompt.trim();
     if (aiStatus === "loading") return;
 
-    // ── Image attach fast path: route to vision endpoint ──────────────────────
+    // ── Image attach path: import OR reference-edit based on prompt intent ───
     if (attachedImage) {
       const imageToSend = attachedImage;
+      // A meaningful instruction (>10 chars) signals "use as reference to edit the canvas".
+      // A short label or no text signals "import as a new screen" (original behaviour).
+      const isReferenceEdit = trimmed.length > 10;
       setAttachedImage(null);
       setMessages((prev) => [
         ...prev,
@@ -3276,46 +3279,148 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       ]);
       setPrompt("");
       setAiStatus("loading");
+
+      if (!isReferenceEdit) {
+        // ── Original import path ─────────────────────────────────────────────
+        try {
+          let currentCraftState: string | undefined;
+          try { currentCraftState = skeletonizeCraftState(query.serialize() ?? ''); } catch {}
+          const res = await fetch("/api/ai/design-from-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              imageBase64: imageToSend.base64,
+              mimeType: imageToSend.mimeType,
+              frameLabel: trimmed || "Screen 1",
+              currentCraftState,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Import failed");
+          if (data.type === "message") {
+            setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+          } else {
+            const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(data.craftState)); } catch { return null; } })();
+            if (parsedRaw) {
+              const validation = validateCraftState(parsedRaw);
+              if (!validation.valid) {
+                const hint = describeValidationError(validation.errors);
+                setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
+              } else {
+                let fullExisting: Record<string, unknown> = {};
+                try { fullExisting = JSON.parse(query.serialize()); } catch {}
+                const merged = mergeIntoCanvas(fullExisting, parsedRaw);
+                const spread = spreadArtboardsInState(merged, fullExisting);
+                actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+                setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+              }
+            } else {
+              setMessages((prev) => [...prev, { role: "ai", text: "I couldn't parse the image response. Try again or use a different image." }]);
+            }
+          }
+          setAiStatus("idle");
+        } catch (e: any) {
+          setAiStatus("error");
+          setMessages((prev) => [...prev, { role: "ai", text: `Import failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+          setTimeout(() => setAiStatus("idle"), 3000);
+        }
+        return;
+      }
+
+      // ── Reference-edit path: image guides changes to existing canvas ─────
       try {
         let currentCraftState: string | undefined;
-        try { currentCraftState = skeletonizeCraftState(query.serialize() ?? ''); } catch {}
-        const res = await fetch("/api/ai/design-from-image", {
+        let targetArtboardLabel: string | undefined;
+        try {
+          const serialized = query.serialize();
+          if (serialized && serialized.length > 10) {
+            currentCraftState = skeletonizeCraftState(serialized);
+            const state = JSON.parse(serialized) as Record<string, unknown>;
+            const artboardLabels = Object.values(state)
+              .filter((n): n is Record<string, unknown> => !!n && typeof n === "object")
+              .filter((n) => (n.type as any)?.resolvedName === "AstryxArtboard")
+              .map((n) => (n.props as any)?.label as string | undefined)
+              .filter((l): l is string => typeof l === "string" && l.length > 0);
+            const lowerPrompt = trimmed.toLowerCase();
+            const matched = artboardLabels.find((label) => lowerPrompt.includes(label.toLowerCase()));
+            if (matched) {
+              targetArtboardLabel = matched;
+            } else if (artboardLabels.length === 1) {
+              targetArtboardLabel = artboardLabels[0];
+            } else if (selectedNodeId && artboardLabels.length > 1) {
+              const findArtboardLabel = (nodeId: string): string | undefined => {
+                const node = state[nodeId] as Record<string, unknown> | undefined;
+                if (!node) return undefined;
+                if ((node.type as any)?.resolvedName === "AstryxArtboard") {
+                  return (node.props as any)?.label as string | undefined;
+                }
+                const parentId = node.parent as string | undefined;
+                if (!parentId || parentId === nodeId) return undefined;
+                return findArtboardLabel(parentId);
+              };
+              targetArtboardLabel = findArtboardLabel(selectedNodeId);
+            }
+          }
+        } catch { /* ignore */ }
+
+        const res = await fetch("/api/ai/design-edit-from-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             imageBase64: imageToSend.base64,
             mimeType: imageToSend.mimeType,
-            frameLabel: trimmed || "Screen 1",
+            prompt: trimmed,
             currentCraftState,
+            targetArtboardLabel,
+            selectedElement: pinned
+              ? { displayName: pinned.displayName, props: pinned.props, nodeId: pinned.nodeId }
+              : undefined,
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Import failed");
+        if (!res.ok) throw new Error(data.error || "Reference edit failed");
+
+        setPinned(null);
+
         if (data.type === "message") {
           setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
-        } else {
-          const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(data.craftState)); } catch { return null; } })();
-          if (parsedRaw) {
-            const validation = validateCraftState(parsedRaw);
-            if (!validation.valid) {
-              const hint = describeValidationError(validation.errors);
-              setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
-            } else {
-              let fullExisting: Record<string, unknown> = {};
-              try { fullExisting = JSON.parse(query.serialize()); } catch {}
-              const merged = mergeIntoCanvas(fullExisting, parsedRaw);
-              const spread = spreadArtboardsInState(merged, fullExisting);
-              actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-              setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
-            }
+        } else if (data.type === "patch") {
+          const patchNodes: Record<string, unknown> = JSON.parse(data.nodes);
+          let existingState: Record<string, unknown> = {};
+          try { existingState = JSON.parse(query.serialize()); } catch {}
+          const mergedRaw = mergeGraphAware(existingState, patchNodes);
+          const merged = applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId));
+          const validation = validateCraftState(merged);
+          if (!validation.valid) {
+            const hint = describeValidationError(validation.errors);
+            setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
           } else {
-            setMessages((prev) => [...prev, { role: "ai", text: "I couldn't parse the image response. Try again or use a different image." }]);
+            const spread = spreadArtboardsInState(merged, existingState);
+            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
+          }
+        } else {
+          const craftStateStr = data.craftState ?? data;
+          const stateJson = typeof craftStateStr === "string" ? craftStateStr : JSON.stringify(craftStateStr);
+          const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(stateJson)); } catch { return null; } })();
+          let fullExisting: Record<string, unknown> = {};
+          try { fullExisting = JSON.parse(query.serialize()); } catch {}
+          const parsedForValidation = parsedRaw ? preserveTableCellData(fullExisting, parsedRaw, pinned?.nodeId) : null;
+          const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
+          if (!validation.valid) {
+            const hint = describeValidationError(validation.errors);
+            setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that change — ${hint} Try rephrasing or using a different reference.` }]);
+          } else {
+            const mergedForApply = mergeIntoCanvas(fullExisting, parsedForValidation!);
+            const spread = spreadArtboardsInState(mergedForApply, fullExisting);
+            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas to match the reference.") + " ✓" }]);
           }
         }
         setAiStatus("idle");
       } catch (e: any) {
         setAiStatus("error");
-        setMessages((prev) => [...prev, { role: "ai", text: `Import failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+        setMessages((prev) => [...prev, { role: "ai", text: `Reference edit failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
         setTimeout(() => setAiStatus("idle"), 3000);
       }
       return;
@@ -3576,7 +3681,9 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
             {attachedImage && (
               <div className="flex items-center gap-2 mb-1.5 bg-muted/60 border border-border rounded-lg px-2 py-1.5">
                 <img src={attachedImage.preview} alt="Attached" className="w-8 h-8 object-cover rounded flex-shrink-0" />
-                <span className="text-[10px] text-muted-foreground flex-1 min-w-0 truncate">Image ready · will be imported as design</span>
+                <span className="text-[10px] text-muted-foreground flex-1 min-w-0 truncate">
+                  {prompt.trim().length > 10 ? "Reference ready · changes will be applied to canvas" : "Image ready · will be imported as new screen"}
+                </span>
                 <button onClick={() => setAttachedImage(null)} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                   <X className="w-3 h-3" />
                 </button>
