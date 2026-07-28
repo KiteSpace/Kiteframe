@@ -370,6 +370,62 @@ function orthogonalCorners(
   }
 }
 
+// Snap distance (in canvas units) at which a dragged segment magnetises to an
+// adjacent parallel segment's coordinate, giving visual feedback before the merge.
+const SEGMENT_SNAP_PX = 8;
+
+// Return the axis-coordinates of the adjacent parallel segments that the dragged
+// segment at index `k` could merge into if dragged to alignment.
+// For a vertical segment (axis='x') at k→k+1: the parallel neighbours live at
+// baseFull[k-1][axis] (the corner before the drag bar) and baseFull[k+2][axis].
+function getSegmentSnapTargets(
+  full: { x: number; y: number }[],
+  k: number,
+  axis: 'x' | 'y',
+): number[] {
+  const targets: number[] = [];
+  if (k > 0) targets.push(full[k - 1][axis]);
+  if (k + 2 < full.length) targets.push(full[k + 2][axis]);
+  return targets;
+}
+
+// Snap `val` to the nearest target when within `threshold`; otherwise return `val`.
+function snapToSegment(val: number, targets: number[], threshold: number): number {
+  for (const t of targets) {
+    if (Math.abs(val - t) <= threshold) return t;
+  }
+  return val;
+}
+
+// Walk the full corner list and collapse any interior vertex whose neighbouring
+// segments both lie on the same axis line (i.e. the vertex is the shared corner of
+// two collinear/zero-length legs). This is used after a segment drag so that
+// pulling a vertical segment onto another vertical segment (same X) removes the
+// redundant bend point and the two segments merge into one.
+function mergeCollinearWaypoints(
+  full: { x: number; y: number }[],
+  tolerance = 1,
+): { x: number; y: number }[] {
+  if (full.length <= 2) return full;
+  const out: { x: number; y: number }[] = [full[0]];
+  for (let i = 1; i < full.length - 1; i++) {
+    const prev = out[out.length - 1];
+    const cur = full[i];
+    const next = full[i + 1];
+    // If prev→cur and cur→next are both on the same vertical line, cur is redundant.
+    const bothVertical =
+      Math.abs(prev.x - cur.x) <= tolerance &&
+      Math.abs(cur.x - next.x) <= tolerance;
+    // If prev→cur and cur→next are both on the same horizontal line, cur is redundant.
+    const bothHorizontal =
+      Math.abs(prev.y - cur.y) <= tolerance &&
+      Math.abs(cur.y - next.y) <= tolerance;
+    if (!bothVertical && !bothHorizontal) out.push(cur);
+  }
+  out.push(full[full.length - 1]);
+  return out;
+}
+
 // Move one segment of an orthogonal corner list perpendicular to its direction by
 // rewriting the two corners that bound it to a new value on `axis` ('y' for a
 // horizontal segment, 'x' for a vertical one). The source (index 0) and target
@@ -967,18 +1023,26 @@ export const ConnectionEdge: React.FC<{
       });
     }
     let saved = false;
+    // Pre-compute snap targets once — they're fixed relative to baseFull.
+    const snapTargets = getSegmentSnapTargets(baseFull, bar.k, bar.axis);
+    const sc0 = canvasScale || 1; // capture scale at drag start; rarely changes mid-drag
     const onMove = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
       if (!saved) {
         saved = true;
         onControlPointDragStart?.(edge.id);
       }
-      const sc = canvasScale || 1;
+      const sc = canvasScale || sc0;
       const delta = bar.axis === 'y'
         ? (ev.clientY - startScreen.y) / sc
         : (ev.clientX - startScreen.x) / sc;
-      const nextFull = shiftOrthogonalSegment(baseFull, bar.k, bar.axis, bar.baseVal + delta);
-      const wps = nextFull.slice(1, nextFull.length - 1);
+      // Snap to adjacent parallel segments when within SEGMENT_SNAP_PX canvas units.
+      const rawVal = bar.baseVal + delta;
+      const snappedVal = snapToSegment(rawVal, snapTargets, SEGMENT_SNAP_PX / sc);
+      const nextFull = shiftOrthogonalSegment(baseFull, bar.k, bar.axis, snappedVal);
+      // Collapse any vertices made redundant by snapping to alignment.
+      const merged = mergeCollinearWaypoints(nextFull);
+      const wps = merged.slice(1, merged.length - 1);
       if (wps.length > MAX_WAYPOINTS) return; // refuse drags that would exceed the bend cap
       onWaypointsChange(edge.id, wps.length > 0 ? wps : null);
     };
