@@ -8,7 +8,7 @@ interface NewTabModalProps {
   onClose: () => void;
   onCreateBlank: () => void;
   onCreateFromPrompt: (prompt: string) => void;
-  onCreateFromFile: (data: { nodes: Node[]; edges: Edge[] }) => void;
+  onCreateFromFile: (data: any) => void;
   onCreateFromTemplate: (template: { name: string; nodes: Node[]; edges: Edge[] }) => void;
   onCreateFromImage?: (imageFile: File) => void;
 }
@@ -235,14 +235,11 @@ export function NewTabModal({ isOpen, onClose, onCreateBlank, onCreateFromPrompt
     }
   };
 
-  const handleImport = (importData: { 
-    nodes: Node[], 
-    edges: Edge[], 
-    canvasObjects: any[], 
-    viewport?: { x: number; y: number; zoom: number }, 
-    workflowMetadata?: any 
-  }) => {
-    onCreateFromFile({ nodes: importData.nodes, edges: importData.edges });
+  const handleImport = (importData: any) => {
+    // Pass the full import data through — workflow-editor.tsx handleCreateFromFile
+    // handles both kiteframe format (format === 'kiteframe-workflow') and extracted
+    // { nodes, edges, canvasObjects, viewport, workflowMetadata } JSON format.
+    onCreateFromFile(importData);
     setShowImportModal(false);
     onClose();
   };

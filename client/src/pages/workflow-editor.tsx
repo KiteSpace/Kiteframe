@@ -4023,37 +4023,89 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   );
 
   const handleCreateFromFile = useCallback(
-    (data: { nodes: Node[]; edges: Edge[] }) => {
-      const name = generateCuteName();
+    (data: any) => {
+      // ── Native .kiteframe format ─────────────────────────────────────────
+      if (data?.format === "kiteframe-workflow") {
+        const result = importWorkflow(data, { restoreDocumentation: true });
+        if (!result.success || !result.data) {
+          toast({
+            title: "Import Failed",
+            description: result.error || "Could not parse .kiteframe file.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const { data: wf } = result;
+        const tabName = wf.metadata.name || generateCuteName();
+        const initialState = {
+          nodes: (wf.nodes ?? []).map((n: any) => ({ ...n, selected: false })),
+          edges: (wf.edges ?? []).map((e: any) => ({ ...e, selected: false })),
+          canvasObjects: wf.canvasObjects ?? [],
+          viewport: wf.viewport ?? { x: 0, y: 0, zoom: 1 },
+        };
+        const newTab: WorkflowTab = {
+          id: generateTabId(),
+          name: tabName,
+          ...initialState,
+          selectedNodeId: "",
+          selectedEdgeId: "",
+          history: [initialState],
+          historyIndex: 0,
+          showImageModal: null,
+          metadata: {
+            name: tabName,
+            description: wf.metadata.description ?? "",
+            links: [],
+            linksFormat: "text",
+            categories: [],
+          },
+          sketchStrokes: wf.sketchStrokes ?? [],
+          flowSettings: {},
+          projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        };
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(newTab.id);
+        return;
+      }
+
+      // ── Extracted JSON format { nodes, edges, canvasObjects, viewport, workflowMetadata } ──
+      const nodes: Node[] = Array.isArray(data?.nodes) ? data.nodes : [];
+      const edges: Edge[] = Array.isArray(data?.edges) ? data.edges : [];
+      const canvasObjects: any[] = Array.isArray(data?.canvasObjects) ? data.canvasObjects : [];
+      const viewport = data?.viewport ?? { x: 0, y: 0, zoom: 1 };
+      const importedName = data?.workflowMetadata?.name || generateCuteName();
+
       const initialState = {
-        nodes: data.nodes.map((node) => ({ ...node, selected: false })),
-        edges: data.edges.map((edge) => ({ ...edge, selected: false })),
-        canvasObjects: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
+        nodes: nodes.map((node) => ({ ...node, selected: false })),
+        edges: edges.map((edge) => ({ ...edge, selected: false })),
+        canvasObjects,
+        viewport,
       };
 
       const newTab: WorkflowTab = {
         id: generateTabId(),
-        name,
+        name: importedName,
         ...initialState,
         selectedNodeId: "",
         selectedEdgeId: "",
-        history: [initialState], // Initialize with current state
-        historyIndex: 0, // Start at index 0, not -1
+        history: [initialState],
+        historyIndex: 0,
         showImageModal: null,
         metadata: {
-          name,
-          description: "",
-          links: [],
+          name: importedName,
+          description: data?.workflowMetadata?.description ?? "",
+          links: data?.workflowMetadata?.links ?? [],
           linksFormat: "text",
-          categories: [],
+          categories: data?.workflowMetadata?.categories ?? [],
         },
+        flowSettings: {},
+        sketchStrokes: [],
         projectUuid: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(newTab.id);
     },
-    [generateTabId, generateCuteName],
+    [generateTabId, generateCuteName, toast],
   );
 
   const handleCreateFromTemplate = useCallback(
