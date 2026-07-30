@@ -6288,9 +6288,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Ref to track share update debounce timer
   const shareUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync activeShareId with the active tab whenever the user switches tabs.
+  // activeShareId is global state, but nodes/edges are always the active tab's
+  // data. Without this sync, switching away from a shared tab would fire the
+  // share-update effect below with the new tab's (possibly empty) content
+  // while activeShareId still points to the old tab's share UUID.
+  useEffect(() => {
+    setActiveShareId(activeTab?.shareUuid ?? null);
+  }, [activeTabId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Effect to update shared project when nodes/edges change
   useEffect(() => {
     if (!activeShareId) return;
+    // Safety guard: only push updates when the active tab actually owns this
+    // share. Without this, a stale activeShareId from a previous tab could
+    // cause a brief window where another tab's content overwrites the share.
+    if (activeShareId !== activeTab?.shareUuid) return;
 
     // Debounce updates to avoid spamming the server
     if (shareUpdateTimeoutRef.current) {
