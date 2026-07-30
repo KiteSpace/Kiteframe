@@ -2900,6 +2900,78 @@ function mergeGraphAware(
  * - All other nodes: incoming wins for shared IDs (correct for modifications —
  *   e.g. AI regenerates an artboard with the same ID, it should replace it).
  */
+/**
+ * Re-assign every node ID in an incoming craft state to a fresh random ID so
+ * it cannot collide with IDs that already exist on the canvas. ROOT is the
+ * fixed craft.js canvas root and is intentionally left unchanged.
+ *
+ * Remaps ALL node ID references consistently:
+ *   - Object keys (the node IDs themselves)
+ *   - `nodes[]` child-reference arrays
+ *   - `parent` field
+ *   - `linkedNodes` value map
+ *
+ * Without this, uploading a second image would overwrite the first screen:
+ * the AI always generates the same fixed IDs ("artboard-1", "container-1",
+ * …), so `{ ...existingState, ...incoming }` silently replaces the first
+ * import's nodes, and Set-deduplication on ROOT.nodes collapses the two
+ * artboard references back to one.
+ */
+function reIdIncomingNodes(
+  state: Record<string, unknown>,
+): Record<string, unknown> {
+  const ts = Date.now();
+
+  // Build old-id → new-id map for every key except ROOT
+  const idMap: Record<string, string> = {};
+  let i = 0;
+  for (const key of Object.keys(state)) {
+    if (key === "ROOT") continue;
+    idMap[key] =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `node-${ts}-${i++}`;
+  }
+
+  const remapped: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(state)) {
+    const newKey = key === "ROOT" ? "ROOT" : (idMap[key] ?? key);
+
+    if (!value || typeof value !== "object") {
+      remapped[newKey] = value;
+      continue;
+    }
+
+    // Deep-clone so we don't mutate the original parsedRaw
+    const node = JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+
+    // Remap nodes[] child references
+    if (Array.isArray(node.nodes)) {
+      node.nodes = (node.nodes as string[]).map((c) => idMap[c] ?? c);
+    }
+
+    // Remap parent (ROOT stays "ROOT" since ROOT is excluded from idMap)
+    if (typeof node.parent === "string") {
+      node.parent = idMap[node.parent] ?? node.parent;
+    }
+
+    // Remap linkedNodes value map
+    if (node.linkedNodes && typeof node.linkedNodes === "object") {
+      const ln = node.linkedNodes as Record<string, string>;
+      const remappedLn: Record<string, string> = {};
+      for (const [slot, linkedId] of Object.entries(ln)) {
+        remappedLn[slot] = idMap[linkedId] ?? linkedId;
+      }
+      node.linkedNodes = remappedLn;
+    }
+
+    remapped[newKey] = node;
+  }
+
+  return remapped;
+}
+
 function mergeIntoCanvas(
   existingState: Record<string, unknown>,
   incoming: Record<string, unknown>,
@@ -3309,10 +3381,26 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
               } else {
                 let fullExisting: Record<string, unknown> = {};
                 try { fullExisting = JSON.parse(query.serialize()); } catch {}
-                const merged = mergeIntoCanvas(fullExisting, parsedRaw);
+                // Re-ID all nodes in the incoming state so they never collide
+                // with IDs already on the canvas. Without this, every image
+                // import uses the same AI-generated IDs ("artboard-1", etc.),
+                // causing the second upload to silently overwrite the first.
+                const reId = reIdIncomingNodes(parsedRaw);
+                const merged = mergeIntoCanvas(fullExisting, reId);
                 const spread = spreadArtboardsInState(merged, fullExisting);
-                actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-                setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+                // Validate the final merged+spread state before deserializing.
+                // reIdIncomingNodes remaps all ID references (nodes[], parent,
+                // linkedNodes) but a broken AI response could still produce
+                // an invalid state — catch it here rather than loading corrupt
+                // data into the canvas.
+                const postMergeValidation = validateCraftState(spread as Record<string, unknown>);
+                if (!postMergeValidation.valid) {
+                  const hint = describeValidationError(postMergeValidation.errors);
+                  setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
+                } else {
+                  actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+                  setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+                }
               }
             } else {
               setMessages((prev) => [...prev, { role: "ai", text: "I couldn't parse the image response. Try again or use a different image." }]);
