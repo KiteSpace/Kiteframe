@@ -268,20 +268,10 @@ function useLeafNode() {
         const dy = rawDy / z;
         const newX = Math.round(dragStartRef.current.sx + dx);
         const newY = Math.round(dragStartRef.current.sy + dy);
-        const elRect = elementRef.current?.getBoundingClientRect();
-        if (elRect) {
-          const nodes = queryRef.current.getSerializedNodes();
-          const { vGuide, hGuide } = computeAlignmentGuides(nodeIdRef.current, newX, newY, elRect, z, nodes);
-          setGuidesRef.current(hGuide, vGuide);
-          setProp((p: any) => { p.x = newX; p.y = newY; });
-        } else {
-          setGuidesRef.current(null, null);
-          setProp((p: any) => { p.x = newX; p.y = newY; });
-        }
+        setProp((p: any) => { p.x = newX; p.y = newY; });
       };
       const onUp = () => {
         dragStartRef.current = null;
-        setGuidesRef.current(null, null);
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
@@ -528,22 +518,10 @@ function useContainerNode(position: string, x: number, y: number) {
       const dy = rawDy / z;
       const newX = Math.round(dragStartRef.current.sx + dx);
       const newY = Math.round(dragStartRef.current.sy + dy);
-      const elRect = elementRef.current?.getBoundingClientRect();
-      if (elRect) {
-        const nodes = queryRef.current.getSerializedNodes();
-        const { vGuide, hGuide } = computeAlignmentGuides(
-          nodeIdRef.current, newX, newY, elRect, z, nodes,
-        );
-        setGuidesRef.current(hGuide, vGuide);
-        setProp((p: any) => { p.x = newX; p.y = newY; });
-      } else {
-        setGuidesRef.current(null, null);
-        setProp((p: any) => { p.x = newX; p.y = newY; });
-      }
+      setProp((p: any) => { p.x = newX; p.y = newY; });
     };
     const onUp = () => {
       dragStartRef.current = null;
-      setGuidesRef.current(null, null);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
