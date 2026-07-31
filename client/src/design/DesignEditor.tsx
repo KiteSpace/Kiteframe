@@ -3301,6 +3301,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const handleImageAttach = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -3720,7 +3721,16 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                     : "bg-muted text-foreground rounded-bl-sm"
                 }`}>
                   {m.imagePreview && (
-                    <img src={m.imagePreview} alt="Attached" className="mb-1.5 rounded-lg max-h-28 max-w-full object-cover" />
+                    <button
+                      onClick={() => setLightboxSrc(m.imagePreview!)}
+                      className="block mb-1.5 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-white/50 group relative"
+                      title="Click to view full image"
+                    >
+                      <img src={m.imagePreview} alt="Attached" className="max-h-28 max-w-full object-cover" />
+                      <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                      </span>
+                    </button>
                   )}
                   {m.text}
                   {m.role === "user" && m.pinnedElement && (
@@ -3975,6 +3985,27 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
         )}
         {editable && <KeyboardHandler />}
         {editable && <SelectionPinButton />}
+        {/* Lightbox for chat image previews */}
+        {lightboxSrc && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setLightboxSrc(null)}
+          >
+            <button
+              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors p-1"
+              onClick={() => setLightboxSrc(null)}
+              title="Close"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={lightboxSrc}
+              alt="Uploaded reference"
+              className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
         </HistoryProvider>
         </SnapGuideContext.Provider>
       </Editor>
