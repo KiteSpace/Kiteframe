@@ -91,11 +91,12 @@ mix them.
    - Every design needs at least one `AstryxArtboard` directly under
      `ROOT`, representing a distinct screen. Multi-screen designs have
      multiple artboards under `ROOT`.
-   - Only `AstryxArtboard`, `AstryxSection`, `AstryxStack`, and
-     `AstryxHStack` are containers (accept children via `nodes`).
+   - Containers (accept children via `nodes`): `AstryxArtboard`,
+     `AstryxSection`, `AstryxStack`, `AstryxHStack`, and `AstryxCard`.
      Everything else is a leaf.
-   - Treat `AstryxCard` as a leaf (no children) even though the editor
-     technically allows dropping into it.
+   - `AstryxCard` is a full container (`isCanvas: true`) — give it a
+     `nodes[]` array with its children (typically an `AstryxStack` or
+     `AstryxHStack` wrapping the card's content).
    - Never invent component names outside the enum returned in
      `output_schema` — if nothing fits well, pick the closest real
      component rather than making one up.
