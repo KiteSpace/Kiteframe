@@ -2591,6 +2591,19 @@ Only include screens that need changes. "modify" requires both description and d
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
         source: z.enum(['workflow', 'chat']).optional(),
+        // Pinned element context — the node the user explicitly selected in the UI.
+        // When present, the AI should target this node with a patch rather than
+        // attempting a full-canvas replacement.
+        selectedElement: z.object({
+          displayName: z.string().max(200),
+          nodeId: z.string().max(200),
+          props: z.record(z.unknown()),
+        }).optional(),
+        // Recent conversation turns so the AI can reference prior exchanges.
+        conversationHistory: z.array(z.object({
+          role: z.enum(['user', 'ai']),
+          text: z.string().max(2000),
+        })).max(20).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -2598,7 +2611,7 @@ Only include screens that need changes. "modify" requires both description and d
         const field = firstIssue?.path.join('.') || 'request';
         return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
-      const { prompt, currentCraftState, targetArtboardLabel, source } = parsed.data;
+      const { prompt, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory } = parsed.data;
       const isWorkflowGeneration = source === 'workflow';
 
       // Build a context-aware user message. Include the FULL current canvas state so the
@@ -2611,6 +2624,12 @@ Only include screens that need changes. "modify" requires both description and d
           userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
         }
       }
+      // When the user pinned a specific element, tell the AI exactly which node to
+      // target. Include its current props so the AI knows what values already exist
+      // (e.g. current colors) and can produce a minimal, accurate patch.
+      if (selectedElement) {
+        userMessage += `\n\n<PINNED_ELEMENT>\nThe user has selected this specific node — target it (and its descendants as needed) with a "patch" response rather than rewriting the whole canvas.\nNode ID: ${selectedElement.nodeId}\nComponent: ${selectedElement.displayName}\nCurrent props: ${JSON.stringify(selectedElement.props)}\n</PINNED_ELEMENT>`;
+      }
 
       // Use Anthropic assistant-prefill to force JSON output: the assistant message
       // starts with '{' so Claude is constrained to continue with the JSON body.
@@ -2618,14 +2637,25 @@ Only include screens that need changes. "modify" requires both description and d
       // Workflow-to-design calls produce more nodes (≤15 per artboard × N screens) so give
       // them a higher token budget to avoid spurious truncation errors.
       const maxTokens = isWorkflowGeneration ? 24000 : 16000;
+
+      // Build multi-turn message array. Prepend conversation history as alternating
+      // user/assistant turns so the AI can reference what was discussed before.
+      const chatMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+      if (conversationHistory && conversationHistory.length > 0) {
+        for (const turn of conversationHistory) {
+          chatMessages.push({ role: turn.role === 'ai' ? 'assistant' : 'user', content: turn.text });
+        }
+      }
+      chatMessages.push({ role: 'user', content: userMessage });
+      chatMessages.push({ role: 'assistant', content: '{' });
+
       const result = await executeAiChat({
         provider: 'anthropic',
         model: 'claude-sonnet-4-5-20250929',
         maxTokens,
         messages: [
           { role: 'system', content: DESIGN_SYSTEM_PROMPT },
-          { role: 'user', content: userMessage },
-          { role: 'assistant', content: '{' },
+          ...chatMessages,
         ],
       });
       if (!result.ok) {
@@ -2671,29 +2701,16 @@ Only include screens that need changes. "modify" requires both description and d
       }
 
       if (responseType === 'patch') {
-        // Additive patch — merge into existing canvas state server-side so the
-        // client receives a complete, ready-to-apply craft state (type: 'state').
         const patchNodes = parsedResponse.nodes;
         if (!patchNodes || typeof patchNodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
         const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-        const patchTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
-
-        if (currentCraftState && currentCraftState.trim().length > 2) {
-          try {
-            const existingState: Record<string, unknown> = JSON.parse(currentCraftState);
-            const { merged, orphansRemoved } = mergeDesignPatch(existingState, patchNodes as Record<string, unknown>);
-            if (orphansRemoved > 0) {
-              console.warn(`[design/patch] Removed ${orphansRemoved} orphan child ref(s) after merge`);
-            }
-            return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(merged)), message, title: patchTitle });
-          } catch (mergeErr) {
-            console.warn('[design/patch] Server-side merge failed, falling back to raw patch:', mergeErr);
-          }
-        }
-
-        // Fallback: no existing state available — return raw patch for client-side merge
+        // Always return the raw patch for client-side merge. The client holds the
+        // full in-memory craft state (with all props intact) and merges correctly
+        // via mergeGraphAware. Server-side merging was using `currentCraftState`
+        // (the skeletonized canvas) as the base, which produced structurally
+        // incomplete nodes and caused validateCraftState to fail on the client.
         return res.json({ type: 'patch', nodes: JSON.stringify(patchNodes), message });
       }
 
