@@ -2804,6 +2804,12 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
           minWidth: "100%",
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "0 0",
+          // pointer-events:none on this wrapper means clicks on empty canvas space
+          // pass through to the outer container's handleMouseDown (which checks
+          // e.target === e.currentTarget to detect background clicks for panning /
+          // deselection). Children (artboards, elements) default to pointer-events:auto
+          // so all interactions inside artboards are unaffected.
+          pointerEvents: "none",
         }}
       >
         <CanvasZoomContext.Provider value={zoom}>
@@ -3840,6 +3846,29 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         </TabsContent>
 
       </Tabs>
+      {/* Lightbox for chat image previews — rendered here so it is in the same
+          scope as the lightboxSrc state declared in DesignPanel. fixed positioning
+          means it overlays the full viewport regardless of DOM location. */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors p-1"
+            onClick={() => setLightboxSrc(null)}
+            title="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxSrc}
+            alt="Uploaded reference"
+            className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -3985,27 +4014,6 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
         )}
         {editable && <KeyboardHandler />}
         {editable && <SelectionPinButton />}
-        {/* Lightbox for chat image previews */}
-        {lightboxSrc && (
-          <div
-            className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4"
-            onClick={() => setLightboxSrc(null)}
-          >
-            <button
-              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors p-1"
-              onClick={() => setLightboxSrc(null)}
-              title="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img
-              src={lightboxSrc}
-              alt="Uploaded reference"
-              className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
         </HistoryProvider>
         </SnapGuideContext.Provider>
       </Editor>
