@@ -101,6 +101,24 @@ export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   "AstryxCarousel",
   // Layout
   "AstryxResizable",
+  // Navigation
+  "AstryxNavbar",
+  "AstryxSidebar",
+  "AstryxBreadcrumb",
+  // Overlays
+  "AstryxModal",
+  "AstryxDrawer",
+  "AstryxSheet",
+  // Charts
+  "AstryxBarChart",
+  "AstryxLineChart",
+  "AstryxPieChart",
+  // Media
+  "AstryxVideoPlayer",
+  "AstryxCodeBlock",
+  // List
+  "AstryxList",
+  "AstryxListItem",
   // Fallback
   "AstryxUnknown",
 ] as const;

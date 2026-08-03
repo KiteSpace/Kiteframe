@@ -40,6 +40,23 @@ import {
   AstryxCommand as AstryxCommandBase,
   AstryxCarousel as AstryxCarouselBase,
   AstryxResizable as AstryxResizableBase,
+  // Navigation
+  AstryxNavbar as AstryxNavbarBase,
+  AstryxSidebar as AstryxSidebarBase,
+  AstryxBreadcrumb as AstryxBreadcrumbBase,
+  // Overlays
+  AstryxModal as AstryxModalBase,
+  AstryxDrawer as AstryxDrawerBase,
+  AstryxSheet as AstryxSheetBase,
+  // Charts
+  AstryxBarChart as AstryxBarChartBase,
+  AstryxLineChart as AstryxLineChartBase,
+  AstryxPieChart as AstryxPieChartBase,
+  // Media
+  AstryxVideoPlayer as AstryxVideoPlayerBase,
+  AstryxCodeBlock as AstryxCodeBlockBase,
+  // List
+  AstryxListItem as AstryxListItemBase,
 } from "@/components/astryx";
 
 // Canvas zoom context — InfiniteCanvas provides the current scale so that
@@ -756,6 +773,175 @@ export function AstryxUnknown(props: AstryxProps) {
   );
 }
 (AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+
+export function AstryxNavbar(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxNavbarBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxNavbar as any).craft = { displayName: "AstryxNavbar", rules: { canMoveIn: () => false } };
+
+export function AstryxSidebar(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxSidebarBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxSidebar as any).craft = { displayName: "AstryxSidebar", rules: { canMoveIn: () => false } };
+
+export function AstryxBreadcrumb(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxBreadcrumbBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxBreadcrumb as any).craft = { displayName: "AstryxBreadcrumb", rules: { canMoveIn: () => false } };
+
+// ─── Overlays ─────────────────────────────────────────────────────────────────
+
+export function AstryxModal(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxModalBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxModal as any).craft = { displayName: "AstryxModal", rules: { canMoveIn: () => false } };
+
+export function AstryxDrawer(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxDrawerBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxDrawer as any).craft = { displayName: "AstryxDrawer", rules: { canMoveIn: () => false } };
+
+export function AstryxSheet(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxSheetBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxSheet as any).craft = { displayName: "AstryxSheet", rules: { canMoveIn: () => false } };
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+
+export function AstryxBarChart(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxBarChartBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxBarChart as any).craft = { displayName: "AstryxBarChart", rules: { canMoveIn: () => false } };
+
+export function AstryxLineChart(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxLineChartBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxLineChart as any).craft = { displayName: "AstryxLineChart", rules: { canMoveIn: () => false } };
+
+export function AstryxPieChart(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxPieChartBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxPieChart as any).craft = { displayName: "AstryxPieChart", rules: { canMoveIn: () => false } };
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export function AstryxVideoPlayer(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxVideoPlayerBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxVideoPlayer as any).craft = { displayName: "AstryxVideoPlayer", rules: { canMoveIn: () => false } };
+
+export function AstryxCodeBlock(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxCodeBlockBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxCodeBlock as any).craft = { displayName: "AstryxCodeBlock", rules: { canMoveIn: () => false } };
+
+// ─── List ─────────────────────────────────────────────────────────────────────
+
+export function AstryxList({ children, position = "flow", x = 0, y = 0 }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      className="w-full rounded-md border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100"
+      style={{
+        position: "relative",
+        minHeight: 48,
+        boxSizing: "border-box",
+        ...containerVisual,
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+      }}
+    >
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div> : children}
+    </div>
+  );
+}
+(AstryxList as any).craft = { displayName: "AstryxList", isCanvas: true, rules: { canMoveIn: () => true } };
+
+export function AstryxListItem(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("label", props.label ?? "List item");
+  return (
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}>
+        <AstryxListItemBase {...props} />
+      </div>
+      {editOverlay}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxListItem as any).craft = { displayName: "AstryxListItem", rules: { canMoveIn: () => false } };
 
 const CELL_EDIT_INPUT_STYLE: CSSProperties = {
   position: "absolute",
@@ -1520,6 +1706,24 @@ export const resolver = {
   AstryxCommand,
   AstryxCarousel,
   AstryxResizable,
+  // Navigation
+  AstryxNavbar,
+  AstryxSidebar,
+  AstryxBreadcrumb,
+  // Overlays
+  AstryxModal,
+  AstryxDrawer,
+  AstryxSheet,
+  // Charts
+  AstryxBarChart,
+  AstryxLineChart,
+  AstryxPieChart,
+  // Media
+  AstryxVideoPlayer,
+  AstryxCodeBlock,
+  // List
+  AstryxList,
+  AstryxListItem,
 };
 
 // ─── Alignment guard ───────────────────────────────────────────────────────────

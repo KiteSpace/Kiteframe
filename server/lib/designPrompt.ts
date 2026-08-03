@@ -33,6 +33,24 @@ export const ASTRYX_COMPONENT_LIST = [
   "AstryxEmptyState",
   "AstryxToken",
   "AstryxDivider",
+  // Navigation
+  "AstryxNavbar",
+  "AstryxSidebar",
+  "AstryxBreadcrumb",
+  // Overlays
+  "AstryxModal",
+  "AstryxDrawer",
+  "AstryxSheet",
+  // Charts
+  "AstryxBarChart",
+  "AstryxLineChart",
+  "AstryxPieChart",
+  // Media
+  "AstryxVideoPlayer",
+  "AstryxCodeBlock",
+  // List
+  "AstryxList",
+  "AstryxListItem",
 ] as const;
 
 export const DESIGN_SYSTEM_PROMPT = `You are KiteAI, a UI design assistant for the Astryx design system built on craft.js.
@@ -114,6 +132,29 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 
 — LAYOUT —
 • AstryxResizable split panel props: { direction:"horizontal"|"vertical" }
+
+— NAVIGATION —
+• AstryxNavbar    top nav bar  props: { logo:string, links:string (comma-separated nav links, e.g. "Home,Features,Pricing"), actions:string (comma-separated CTA labels, e.g. "Sign In,Get Started") }
+• AstryxSidebar   side nav     props: { logo:string, items:string (comma-separated nav items, e.g. "Dashboard,Analytics,Settings"), active:string (name of the active item) }
+• AstryxBreadcrumb breadcrumb trail props: { items:string (comma-separated path segments, e.g. "Home,Projects,Detail") }
+
+— OVERLAYS —
+• AstryxModal  dialog/modal  props: { title:string, description:string, confirmLabel:string (e.g. "Confirm"), cancelLabel:string (e.g. "Cancel") }
+• AstryxDrawer side drawer   props: { title:string, side:"left"|"right", description:string }
+• AstryxSheet  bottom sheet  props: { title:string, side:"bottom"|"top", description:string }
+
+— CHARTS —
+• AstryxBarChart  bar chart   props: { title?:string, data:string (comma-separated "label:value" pairs, e.g. "Jan:120,Feb:95,Mar:140"), color:"blue"|"green"|"red"|"amber" }
+• AstryxLineChart line chart  props: { title?:string, data:string (comma-separated "label:value" pairs, e.g. "Jan:120,Feb:95,Mar:140"), color:"blue"|"green"|"red"|"amber" }
+• AstryxPieChart  pie chart   props: { title?:string, data:string (comma-separated "label:value" pairs, e.g. "Mobile:45,Desktop:35,Tablet:20") }
+
+— MEDIA —
+• AstryxVideoPlayer video player props: { title:string, duration:string (e.g. "3:45") }
+• AstryxCodeBlock   code snippet props: { code:string (source code, use \\n for line breaks), language:string (e.g. "javascript", "python", "sql") }
+
+— LISTS (AstryxList is isCanvas:true — put AstryxListItem children inside it) —
+• AstryxList     scrollable list container   props: { divided:boolean (true = dividers between rows) }   isCanvas: true
+• AstryxListItem single list row (leaf)      props: { label:string, description?:string, icon?:string (unicode char or glyph, e.g. "★"), active?:boolean, meta?:string (right-side text, e.g. "2 min ago") }
 
 — CONTENT —
 • AstryxChatMessage chat bubble       props: { children:string, sender:string, timestamp:string (optional), isOwn:boolean }

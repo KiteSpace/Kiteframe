@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 
 type AstryxProps = Record<string, any>;
 
@@ -473,6 +477,248 @@ export function AstryxResizable({ direction = "horizontal" }: AstryxProps) {
   );
 }
 
+// ─── Navigation ───────────────────────────────────────────────────────────────
+
+export function AstryxNavbar({ logo = "AppName", links = "Home,Features,Pricing,About", actions = "Sign In,Get Started" }: AstryxProps) {
+  const linkList = String(links).split(",").map((s) => s.trim()).filter(Boolean);
+  const actionList = String(actions).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <nav className="w-full flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+      <span className="font-semibold text-gray-900 text-sm">{logo}</span>
+      <div className="flex items-center gap-5">
+        {linkList.map((l) => (
+          <span key={l} className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer">{l}</span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        {actionList.map((a, i) => (
+          <button key={a} className={`px-3 py-1.5 rounded-md text-sm font-medium ${i === actionList.length - 1 ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}>{a}</button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+export function AstryxSidebar({ logo = "App", items = "Dashboard,Analytics,Projects,Settings,Help", active = "Dashboard" }: AstryxProps) {
+  const itemList = String(items).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <div className="flex flex-col w-full min-h-48 bg-white border-r border-gray-200 py-3">
+      <div className="px-4 pb-3 mb-1 border-b border-gray-100">
+        <span className="font-semibold text-gray-900 text-sm">{logo}</span>
+      </div>
+      <nav className="flex flex-col gap-0.5 px-2 pt-2">
+        {itemList.map((item) => (
+          <div key={item} className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer ${item === active ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-100"}`}>
+            <span className="text-xs opacity-60">◈</span>
+            {item}
+          </div>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+export function AstryxBreadcrumb({ items = "Home,Projects,Current Page" }: AstryxProps) {
+  const itemList = String(items).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <nav className="w-full flex items-center gap-1.5 text-sm flex-wrap">
+      {itemList.map((item, i) => (
+        <span key={i} className="flex items-center gap-1.5">
+          <span className={i === itemList.length - 1 ? "text-gray-900 font-medium" : "text-blue-600 hover:underline cursor-pointer"}>{item}</span>
+          {i < itemList.length - 1 && <span className="text-gray-400 text-xs">›</span>}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+// ─── Overlays ─────────────────────────────────────────────────────────────────
+
+export function AstryxModal({ title = "Confirm Action", description = "Are you sure you want to continue? This action cannot be undone.", confirmLabel = "Confirm", cancelLabel = "Cancel" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg bg-white border border-gray-200 shadow-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      </div>
+      <div className="px-5 py-4">
+        <p className="text-sm text-gray-600">{description}</p>
+      </div>
+      <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+        <button className="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 border border-gray-300 bg-white">{cancelLabel}</button>
+        <button className="px-3 py-1.5 rounded-md text-sm font-medium text-white bg-blue-600">{confirmLabel}</button>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxDrawer({ title = "Drawer", side = "right", description = "Drawer content goes here." }: AstryxProps) {
+  return (
+    <div className={`flex ${side === "left" ? "flex-row" : "flex-row-reverse"} w-full min-h-40`}>
+      <div className="w-64 bg-white border-l border-gray-200 flex flex-col shadow-xl shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <button className="text-gray-400 text-xs">✕</button>
+        </div>
+        <div className="px-4 py-3 text-sm text-gray-600 flex-1">{description}</div>
+      </div>
+      <div className="flex-1 bg-gray-100 flex items-center justify-center text-xs text-gray-400 min-h-24">page content</div>
+    </div>
+  );
+}
+
+export function AstryxSheet({ title = "Sheet", side = "bottom", description = "Sheet content goes here." }: AstryxProps) {
+  return (
+    <div className={`flex ${side === "top" ? "flex-col" : "flex-col-reverse"} w-full min-h-40`}>
+      <div className="w-full bg-white border-t border-gray-200 rounded-t-xl shadow-xl">
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="w-8 h-1 rounded-full bg-gray-300" />
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <button className="text-gray-400 text-xs">✕</button>
+        </div>
+        <div className="px-4 py-3 text-sm text-gray-600">{description}</div>
+      </div>
+      <div className="flex-1 bg-gray-100 flex items-center justify-center text-xs text-gray-400 min-h-12">page content</div>
+    </div>
+  );
+}
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+
+function parseChartData(raw: string): { name: string; value: number }[] {
+  return String(raw).split(",").map((s) => {
+    const [n, v] = s.trim().split(":");
+    return { name: n?.trim() || "?", value: Number(v) || 0 };
+  }).filter((d) => d.name && d.name !== "?");
+}
+
+const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#6b7280"];
+
+function resolveColor(color: string) {
+  return color === "green" ? "#10b981" : color === "red" ? "#ef4444" : color === "amber" ? "#f59e0b" : "#3b82f6";
+}
+
+export function AstryxBarChart({ data = "Jan:120,Feb:95,Mar:140,Apr:110,May:160,Jun:130", color = "blue", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  const fill = resolveColor(color);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={parsed} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Bar dataKey="value" fill={fill} radius={[3, 3, 0, 0] as any} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function AstryxLineChart({ data = "Jan:120,Feb:95,Mar:140,Apr:110,May:160,Jun:130", color = "blue", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  const stroke = resolveColor(color);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={180}>
+        <LineChart data={parsed} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Line type="monotone" dataKey="value" stroke={stroke} strokeWidth={2} dot={{ r: 3, fill: stroke }} activeDot={{ r: 5 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function AstryxPieChart({ data = "Category A:40,Category B:30,Category C:20,Other:10", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie data={parsed} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={2}>
+            {parsed.map((_: any, i: number) => (
+              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 10, color: "#6b7280" }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export function AstryxVideoPlayer({ title = "Video Title", duration = "3:45" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-900">
+      <div className="relative w-full bg-gray-800 flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
+        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center cursor-pointer">
+          <span className="text-white text-xl ml-1">▶</span>
+        </div>
+        <div className="absolute bottom-2 right-2 text-xs text-white/70 bg-black/40 px-1.5 py-0.5 rounded">{duration}</div>
+      </div>
+      <div className="px-3 py-2 bg-white border-t border-gray-200">
+        <div className="flex items-center gap-2 mb-1.5">
+          <button className="text-gray-600 text-sm">▶</button>
+          <div className="flex-1 h-1 bg-gray-200 rounded-full">
+            <div className="w-1/3 h-full bg-blue-500 rounded-full" />
+          </div>
+          <span className="text-xs text-gray-500">{duration}</span>
+        </div>
+        {title && <p className="text-xs text-gray-700 font-medium truncate">{title}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCodeBlock({ code = 'function greet(name) {\n  return `Hello, ${name}!`;\n}', language = "javascript" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800 border-b border-gray-700">
+        <span className="text-xs text-gray-400 font-mono">{language}</span>
+        <span className="text-xs text-gray-500">copy</span>
+      </div>
+      <pre className="w-full bg-gray-900 px-4 py-3 text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed whitespace-pre-wrap">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+// ─── List ─────────────────────────────────────────────────────────────────────
+
+export function AstryxList({ children, divided = true }: AstryxProps) {
+  return (
+    <div className={`w-full rounded-md border border-gray-200 bg-white overflow-hidden ${divided ? "divide-y divide-gray-100" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
+export function AstryxListItem({ label = "List item", description, icon, active = false, meta }: AstryxProps) {
+  return (
+    <div className={`w-full flex items-center gap-3 px-4 py-3 ${active ? "bg-blue-50" : "hover:bg-gray-50"}`}>
+      {icon && <span className="text-base text-gray-400 shrink-0 w-5 text-center">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${active ? "text-blue-700" : "text-gray-900"}`}>{label}</p>
+        {description && <p className="text-xs text-gray-500 truncate mt-0.5">{description}</p>}
+      </div>
+      {meta && <span className="text-xs text-gray-400 shrink-0">{meta}</span>}
+    </div>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -505,4 +751,22 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   Command:     AstryxCommand,
   Carousel:    AstryxCarousel,
   Resizable:   AstryxResizable,
+  // Navigation
+  Navbar:      AstryxNavbar,
+  Sidebar:     AstryxSidebar,
+  Breadcrumb:  AstryxBreadcrumb,
+  // Overlays
+  Modal:       AstryxModal,
+  Drawer:      AstryxDrawer,
+  Sheet:       AstryxSheet,
+  // Charts
+  BarChart:    AstryxBarChart,
+  LineChart:   AstryxLineChart,
+  PieChart:    AstryxPieChart,
+  // Media
+  VideoPlayer: AstryxVideoPlayer,
+  CodeBlock:   AstryxCodeBlock,
+  // List
+  List:        AstryxList,
+  ListItem:    AstryxListItem,
 };
