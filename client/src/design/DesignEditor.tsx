@@ -2511,6 +2511,7 @@ function SnapGuideOverlay() {
 function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void; fitTrigger?: number }) {
   const [pan, setPan] = useState({ x: 80, y: 80 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const transformDivRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const spaceDown = useRef(false);
@@ -2678,7 +2679,9 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    const clickedBackground = e.target === e.currentTarget;
+    // Background = outer container itself, OR the transform wrapper div (empty canvas space
+    // between artboards). Artboards/components always bubble from a deeper target.
+    const clickedBackground = e.target === e.currentTarget || e.target === transformDivRef.current;
     if (e.button === 1 || spaceDown.current || (e.button === 0 && clickedBackground)) {
       e.preventDefault();
       isPanning.current = true;
@@ -2795,6 +2798,7 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
       onPointerCancel={handlePointerUp}
     >
       <div
+        ref={transformDivRef}
         style={{
           position: "absolute",
           // minHeight (not height) ensures craft.js Frame has a measurable
@@ -2804,12 +2808,8 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
           minWidth: "100%",
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: "0 0",
-          // pointer-events:none on this wrapper means clicks on empty canvas space
-          // pass through to the outer container's handleMouseDown (which checks
-          // e.target === e.currentTarget to detect background clicks for panning /
-          // deselection). Children (artboards, elements) default to pointer-events:auto
-          // so all interactions inside artboards are unaffected.
-          pointerEvents: "none",
+          // No pointer-events override here. Background-click detection is done
+          // by checking e.target === transformDivRef.current in handleMouseDown.
         }}
       >
         <CanvasZoomContext.Provider value={zoom}>
