@@ -1336,6 +1336,10 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         minWidth: "max(100%, 3000px)",
         minHeight: 2000,
         boxSizing: "border-box",
+        // Transparent to pointer events so empty-canvas clicks fall through to
+        // the InfiniteCanvas transform div and correctly trigger panning/deselection.
+        // Artboard children have pointer-events:auto by default (not inherited).
+        pointerEvents: "none",
       } : {
         display: "flex",
         flexDirection: direction as "row" | "column",
