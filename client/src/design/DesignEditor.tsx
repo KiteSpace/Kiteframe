@@ -2517,6 +2517,10 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
   const spaceDown = useRef(false);
   const hasFitOnMount = useRef(false);
 
+  const { actions: editorActions } = useEditor(() => ({}));
+  const editorActionsRef = useRef(editorActions);
+  editorActionsRef.current = editorActions;
+
   // Refs that mirror state/prop for use inside native event handlers (avoid stale closures).
   const panRef = useRef({ x: 80, y: 80 });
   const zoomRef = useRef(zoom);
@@ -2682,6 +2686,10 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
     // Background = outer container itself, OR the transform wrapper div (empty canvas space
     // between artboards). Artboards/components always bubble from a deeper target.
     const clickedBackground = e.target === e.currentTarget || e.target === transformDivRef.current;
+    if (e.button === 0 && clickedBackground) {
+      // Deselect any selected node when the user clicks empty canvas space.
+      editorActionsRef.current.selectNode(undefined as any);
+    }
     if (e.button === 1 || spaceDown.current || (e.button === 0 && clickedBackground)) {
       e.preventDefault();
       isPanning.current = true;
