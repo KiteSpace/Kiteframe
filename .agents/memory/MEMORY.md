@@ -3,4 +3,5 @@
 - [Dev/prod separate DBs & secret propagation lag](dev-prod-separate-databases.md) — dev/prod DBs are distinct (no data migration on publish); secrets may need delete+re-add+republish before prod actually sees them.
 - [Interface generation concurrency plan](interface-generation-concurrency.md) — useState guard has a race condition; fix with useRef mutex + optional AbortController for stale-request cancellation.
 - [craft.js pointer-events hit-testing](craftjs-pointer-events.md) — never set pointer-events:none on craft-connected elements/ancestors; it silently breaks selection & drag-drop (bit us twice).
+- [Browser e2e behind sign-in](browser-e2e-auth-bypass.md) — forge a connect.sid session cookie + nix chromium + playwright-core to drive the auth-gated editor; scripts/e2e-*.mjs are reusable.
 - [AstryxCard is a full container](astryx-card-container.md) — craft.js isCanvas must be set in the component's static craft config AND the AI prompt must agree; if only one side is set, AI-generated nodes silently become non-droppable.
