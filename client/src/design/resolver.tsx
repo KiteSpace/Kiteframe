@@ -311,6 +311,9 @@ function useLeafNode() {
   const makeResizeHandler = useCallback((dir: ResizeDir8) => (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    // Clicking a resize handle blocks the bubble-phase drag-to-move handler that normally
+    // resets _dragOccurred. Reset it here so subsequent double-clicks open the text editor.
+    _dragOccurred = false;
     const { zoom: z } = stateRef.current;
     const startMouseX = e.clientX;
     const startMouseY = e.clientY;
@@ -535,7 +538,10 @@ function useInlineEdit(propKey: string, currentValue: string) {
   const onDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     // Suppress edit mode if the user was dragging (mouse moved > threshold).
-    if (_dragOccurred) return;
+    // Always reset afterwards so a single blocked attempt doesn't permanently disable editing.
+    const wasDragging = _dragOccurred;
+    _dragOccurred = false;
+    if (wasDragging) return;
     setDraft(currentValue);
     setEditing(true);
   }, [currentValue]);

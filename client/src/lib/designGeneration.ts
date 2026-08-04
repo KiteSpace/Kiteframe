@@ -117,7 +117,7 @@ RULES:
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
 - CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
-- LEAVES (isCanvas=false, nodes=[]): all other 28 components.
+- LEAVES (isCanvas=false, nodes=[]): all remaining components (see quick-reference below).
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
 - Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
@@ -171,7 +171,33 @@ COMPONENT QUICK-REFERENCE:
 - AstryxChatMessage: chat bubble, props: { children: string, sender: string, timestamp: string (optional), isOwn: boolean }
 - AstryxEmptyState:  empty placeholder, props: { title: string, description: string (optional), action: string (optional) }
 - AstryxToken:       removable tag chip, props: { children: string }
-- AstryxDivider:     horizontal rule, props: { label: string (optional) }`;
+- AstryxDivider:     horizontal rule, props: { label: string (optional) }
+
+— NAVIGATION —
+- AstryxNavbar:     top navigation bar, props: { brand: string, links: string (comma-separated) }
+- AstryxSidebar:    vertical navigation panel, props: { items: string (comma-separated), active: string }
+- AstryxBreadcrumb: breadcrumb trail, props: { items: string (comma-separated) }
+
+— OVERLAYS —
+- AstryxModal:  dialog/modal overlay, props: { title: string, children: string }
+- AstryxDrawer: slide-in drawer panel, props: { title: string, side: "left"|"right" }
+- AstryxSheet:  bottom/side sheet, props: { title: string }
+
+— CHARTS —
+- AstryxBarChart:  bar chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+- AstryxLineChart: line chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+- AstryxPieChart:  pie/donut chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+
+— MEDIA & CODE —
+- AstryxVideoPlayer: video player, props: { src: string (optional), title: string (optional) }
+- AstryxCodeBlock:   syntax-highlighted code block, props: { code: string, language: string }
+
+— LIST —
+- AstryxList:     list container (isCanvas=true, holds AstryxListItem children), props: { gap: number }
+- AstryxListItem: single list row, props: { primary: string, secondary: string (optional), leading: string (optional) }
+
+— ARTBOARD (multi-screen use only) —
+- AstryxArtboard: named canvas frame for multi-screen editing (isCanvas=true); use only when the design spans multiple distinct screens`;
 
 // ─── craft.js types ────────────────────────────────────────────────────────────
 

@@ -55,6 +55,18 @@ const DOCUMENTED_COMPONENTS = [
   // Content
   'AstryxCard', 'AstryxChatMessage', 'AstryxEmptyState', 'AstryxToken',
   'AstryxDivider',
+  // Navigation
+  'AstryxNavbar', 'AstryxSidebar', 'AstryxBreadcrumb',
+  // Overlays
+  'AstryxModal', 'AstryxDrawer', 'AstryxSheet',
+  // Charts
+  'AstryxBarChart', 'AstryxLineChart', 'AstryxPieChart',
+  // Media & code
+  'AstryxVideoPlayer', 'AstryxCodeBlock',
+  // List
+  'AstryxList', 'AstryxListItem',
+  // Canvas frame
+  'AstryxArtboard',
 ] as const;
 
 // Full resolver set including the graceful-degradation placeholder
