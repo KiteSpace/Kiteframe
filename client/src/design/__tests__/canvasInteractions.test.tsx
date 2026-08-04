@@ -390,7 +390,8 @@ describe('Empty canvas background click → no selection + pan activates', () =>
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
       const clickedBackground =
         e.target === e.currentTarget ||
-        e.target === transformDivRef.current;
+        e.target === transformDivRef.current ||
+        (e.target instanceof HTMLElement && e.target.dataset.canvasRoot === 'true');
       if (e.button === 1 || (e.button === 0 && clickedBackground)) {
         e.preventDefault();
         isPanning.current = true;
@@ -411,7 +412,10 @@ describe('Empty canvas background click → no selection + pan activates', () =>
         onMouseUp={handleMouseUp}
       >
         <div ref={transformDivRef} data-testid="transform-div">
-          <div data-testid="artboard-mock">Artboard content</div>
+          {/* Mirrors the ROOT AstryxSection div (dead-zone space below/right of artboards) */}
+          <div data-testid="root-section" data-canvas-root="true">
+            <div data-testid="artboard-mock">Artboard content</div>
+          </div>
         </div>
         <div data-testid="pan-indicator" data-panning={String(panActivated)} />
       </div>
@@ -441,6 +445,20 @@ describe('Empty canvas background click → no selection + pan activates', () =>
       // The container's onMouseDown fires through bubbling, with
       // e.target === transformDiv and e.currentTarget === container.
       fireEvent.mouseDown(transformDiv, { button: 0 });
+    });
+
+    expect(screen.getByTestId('pan-indicator').getAttribute('data-panning')).toBe('true');
+  });
+
+  it('activates panning when mousedown fires on the ROOT section div (dead zone)', async () => {
+    render(<PanDetector />);
+
+    const rootSection = screen.getByTestId('root-section');
+
+    await act(async () => {
+      // Clicks on the ROOT section's own div (empty space below/right of
+      // artboards) are background clicks via the data-canvas-root marker.
+      fireEvent.mouseDown(rootSection, { button: 0 });
     });
 
     expect(screen.getByTestId('pan-indicator').getAttribute('data-panning')).toBe('true');

@@ -2,4 +2,5 @@
 - [saved_projects dual-write & placeholder names](saved-projects-dual-write.md) — two autosave paths write saved_projects (cloud-sync + snapshot mirror); a placeholder name must never clobber a real local name on pull.
 - [Dev/prod separate DBs & secret propagation lag](dev-prod-separate-databases.md) — dev/prod DBs are distinct (no data migration on publish); secrets may need delete+re-add+republish before prod actually sees them.
 - [Interface generation concurrency plan](interface-generation-concurrency.md) — useState guard has a race condition; fix with useRef mutex + optional AbortController for stale-request cancellation.
+- [craft.js pointer-events hit-testing](craftjs-pointer-events.md) — never set pointer-events:none on craft-connected elements/ancestors; it silently breaks selection & drag-drop (bit us twice).
 - [AstryxCard is a full container](astryx-card-container.md) — craft.js isCanvas must be set in the component's static craft config AND the AI prompt must agree; if only one side is set, AI-generated nodes silently become non-droppable.

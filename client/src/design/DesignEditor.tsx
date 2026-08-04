@@ -2683,9 +2683,13 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Background = outer container itself, OR the transform wrapper div (empty canvas space
-    // between artboards). Artboards/components always bubble from a deeper target.
-    const clickedBackground = e.target === e.currentTarget || e.target === transformDivRef.current;
+    // Background = outer container itself, the transform wrapper div (empty canvas space
+    // between artboards), OR the ROOT section's own div (empty space below/right of
+    // artboards). Artboards/components always bubble from a deeper target.
+    const clickedBackground =
+      e.target === e.currentTarget ||
+      e.target === transformDivRef.current ||
+      (e.target instanceof HTMLElement && e.target.dataset.canvasRoot === "true");
     if (e.button === 0 && clickedBackground) {
       // Deselect any selected node when the user clicks empty canvas space.
       editorActionsRef.current.selectNode(undefined as any);
