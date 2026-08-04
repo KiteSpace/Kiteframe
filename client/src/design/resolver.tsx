@@ -1475,6 +1475,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
   }));
+  const { actions: editorActions } = useEditor(() => ({}));
 
   const nodeIdRef = useRef(id);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -1486,6 +1487,8 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
   zoomRef.current = zoom;
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
+  const editorActionsRef = useRef(editorActions);
+  editorActionsRef.current = editorActions;
   // Live snapshot of current dimensions so resize handlers don't close over stale props
   const sizeRef = useRef({ w: Number(width) || 390, h: height != null ? Number(height) : undefined });
   sizeRef.current = { w: Number(width) || 390, h: height != null ? Number(height) : undefined };
@@ -1559,6 +1562,8 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     if (!el) return;
     const handle = (e: MouseEvent) => {
       e.stopPropagation();
+      // Select the artboard when its label is clicked or drag-started.
+      editorActionsRef.current.selectNode(nodeIdRef.current);
       const startMX = e.clientX;
       const startMY = e.clientY;
       const { x: startPX, y: startPY } = posRef.current;
