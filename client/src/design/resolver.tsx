@@ -244,9 +244,15 @@ function useLeafNode() {
   const isFullWidth = FULL_WIDTH_LEAF.has(displayName);
 
   const elementRef = useRef<HTMLElement | null>(null);
-  const handleERef = useRef<HTMLDivElement | null>(null);
-  const handleSRef = useRef<HTMLDivElement | null>(null);
+  const handleERef  = useRef<HTMLDivElement | null>(null);
+  const handleSRef  = useRef<HTMLDivElement | null>(null);
   const handleSERef = useRef<HTMLDivElement | null>(null);
+  // Additional handles for absolute-positioned nodes (top/left edges + missing corners).
+  const handleNRef  = useRef<HTMLDivElement | null>(null);
+  const handleWRef  = useRef<HTMLDivElement | null>(null);
+  const handleNWRef = useRef<HTMLDivElement | null>(null);
+  const handleNERef = useRef<HTMLDivElement | null>(null);
+  const handleSWRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
   const stateRef = useRef({ x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp });
   stateRef.current = { x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp };
@@ -299,22 +305,45 @@ function useLeafNode() {
     return () => el.removeEventListener("mousedown", handle);
   }, []);
 
-  // Stable factory for E/S/SE resize handlers — reads live values via refs.
-  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: MouseEvent) => {
+  // Stable factory for all 8 resize directions — reads live values via refs.
+  // n/w directions also shift x/y so the opposite edge stays fixed (absolute nodes only).
+  type ResizeDir8 = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
+  const makeResizeHandler = useCallback((dir: ResizeDir8) => (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const { zoom: z } = stateRef.current;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startW = sizeRef.current.w ?? Math.round((elementRef.current?.getBoundingClientRect().width ?? 100) / z);
-    const startH = sizeRef.current.h ?? Math.round((elementRef.current?.getBoundingClientRect().height ?? 40) / z);
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startW = sizeRef.current.w ?? Math.round((elementRef.current?.getBoundingClientRect().width  ?? 100) / z);
+    const startH = sizeRef.current.h ?? Math.round((elementRef.current?.getBoundingClientRect().height ?? 40)  / z);
+    // Capture start position so n/w handlers can shift x/y to keep the opposite edge fixed.
+    const startPX = stateRef.current.x;
+    const startPY = stateRef.current.y;
     const onMove = (ev: MouseEvent) => {
-      const { zoom: cz, setProp } = stateRef.current;
-      const dw = (ev.clientX - startX) / cz;
-      const dh = (ev.clientY - startY) / cz;
+      const { zoom: cz, setProp, isAbsolute } = stateRef.current;
+      const dw = (ev.clientX - startMouseX) / cz;
+      const dh = (ev.clientY - startMouseY) / cz;
       setProp((p: any) => {
-        if (dir === "e" || dir === "se") p.width  = Math.max(20, Math.round(startW + dw));
-        if (dir === "s" || dir === "se") p.height = Math.max(20, Math.round(startH + dh));
+        // East: right edge moves → width grows rightward
+        if (dir === "e" || dir === "se" || dir === "ne") {
+          p.width = Math.max(20, Math.round(startW + dw));
+        }
+        // South: bottom edge moves → height grows downward
+        if (dir === "s" || dir === "se" || dir === "sw") {
+          p.height = Math.max(20, Math.round(startH + dh));
+        }
+        // West: left edge moves → width grows leftward, x shifts right stays fixed
+        if (dir === "w" || dir === "nw" || dir === "sw") {
+          const newW = Math.max(20, Math.round(startW - dw));
+          p.width = newW;
+          if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
+        }
+        // North: top edge moves → height grows upward, y shifts so bottom stays fixed
+        if (dir === "n" || dir === "nw" || dir === "ne") {
+          const newH = Math.max(20, Math.round(startH - dh));
+          p.height = newH;
+          if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
+        }
       });
     };
     const onUp = () => {
@@ -327,20 +356,35 @@ function useLeafNode() {
 
   // Re-attach resize listeners whenever selection changes (handles conditionally mount).
   useEffect(() => {
-    const eEl = handleERef.current;
-    const sEl = handleSRef.current;
+    const eEl  = handleERef.current;
+    const sEl  = handleSRef.current;
     const seEl = handleSERef.current;
     if (!eEl || !sEl || !seEl) return;
-    const eH = makeResizeHandler("e");
-    const sH = makeResizeHandler("s");
-    const seH = makeResizeHandler("se");
-    eEl.addEventListener("mousedown", eH, { capture: true });
-    sEl.addEventListener("mousedown", sH, { capture: true });
-    seEl.addEventListener("mousedown", seH, { capture: true });
+
+    const pairs: [HTMLDivElement, ResizeDir8][] = [
+      [eEl,  "e"],
+      [sEl,  "s"],
+      [seEl, "se"],
+    ];
+    // Additional handles are only mounted for absolute nodes.
+    const extras: [React.RefObject<HTMLDivElement | null>, ResizeDir8][] = [
+      [handleNRef,  "n"],
+      [handleWRef,  "w"],
+      [handleNWRef, "nw"],
+      [handleNERef, "ne"],
+      [handleSWRef, "sw"],
+    ];
+    for (const [ref, dir] of extras) {
+      if (ref.current) pairs.push([ref.current, dir]);
+    }
+
+    const handlers = pairs.map(([el, dir]) => {
+      const h = makeResizeHandler(dir);
+      el.addEventListener("mousedown", h, { capture: true });
+      return [el, h] as [HTMLDivElement, (e: MouseEvent) => void];
+    });
     return () => {
-      eEl.removeEventListener("mousedown", eH, { capture: true });
-      sEl.removeEventListener("mousedown", sH, { capture: true });
-      seEl.removeEventListener("mousedown", seH, { capture: true });
+      for (const [el, h] of handlers) el.removeEventListener("mousedown", h, { capture: true });
     };
   }, [selected, makeResizeHandler]);
 
@@ -378,8 +422,10 @@ function useLeafNode() {
   };
 
   // Resize handles — rendered only when selected.
+  // Absolute nodes get all 8 directions; flow nodes get only E/S/SE.
   const resizeHandles = selected ? (
     <>
+      {/* ── always-visible handles (E / S / SE) ─────────────────────────── */}
       <div
         ref={handleERef}
         style={{ position: "absolute", top: 0, right: -4, width: 8, bottom: 0,
@@ -401,6 +447,46 @@ function useLeafNode() {
       >
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
       </div>
+      {/* ── absolute-only handles (N / W / NW / NE / SW) ─────────────────── */}
+      {isAbsolute && (
+        <>
+          <div
+            ref={handleNRef}
+            style={{ position: "absolute", left: 0, right: 0, top: -4, height: 8,
+                      cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20, transition: "background 0.12s" }} />
+          </div>
+          <div
+            ref={handleWRef}
+            style={{ position: "absolute", top: 0, left: -4, width: 8, bottom: 0,
+                      cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20, transition: "background 0.12s" }} />
+          </div>
+          <div
+            ref={handleNWRef}
+            style={{ position: "absolute", left: -5, top: -5, width: 12, height: 12,
+                      cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+          </div>
+          <div
+            ref={handleNERef}
+            style={{ position: "absolute", right: -5, top: -5, width: 12, height: 12,
+                      cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+          </div>
+          <div
+            ref={handleSWRef}
+            style={{ position: "absolute", left: -5, bottom: -5, width: 12, height: 12,
+                      cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+          </div>
+        </>
+      )}
     </>
   ) : null;
 
@@ -1484,9 +1570,14 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
   const nodeIdRef = useRef(id);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const labelRef = useRef<HTMLDivElement | null>(null);
-  const handleERef = useRef<HTMLDivElement | null>(null);
-  const handleSRef = useRef<HTMLDivElement | null>(null);
+  const handleERef  = useRef<HTMLDivElement | null>(null);
+  const handleSRef  = useRef<HTMLDivElement | null>(null);
   const handleSERef = useRef<HTMLDivElement | null>(null);
+  const handleNRef  = useRef<HTMLDivElement | null>(null);
+  const handleWRef  = useRef<HTMLDivElement | null>(null);
+  const handleNWRef = useRef<HTMLDivElement | null>(null);
+  const handleNERef = useRef<HTMLDivElement | null>(null);
+  const handleSWRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const actionsRef = useRef(actions);
@@ -1510,26 +1601,47 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     }
   }, [connect]);
 
-  // Returns a native mousedown handler for a resize direction.
-  // dir: "e" = right edge (width only), "s" = bottom edge (height only), "se" = corner (both)
-  // Uses native MouseEvent so the handler fires in the child bubble phase, before
-  // craft.js's native listener on the artboard frame element.
-  const makeResizeHandler = useCallback((dir: "e" | "s" | "se") => (e: MouseEvent) => {
+  // Returns a native mousedown handler for a resize direction (all 8 compass directions).
+  // n/w directions adjust position (x/y) so the opposite edge stays fixed.
+  // Uses native MouseEvent so the handler fires before craft.js's listener on the frame.
+  type ArtboardResizeDir = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
+  const makeResizeHandler = useCallback((dir: ArtboardResizeDir) => (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
     const startW = sizeRef.current.w;
     // Resolve starting height from the stored prop or the live DOM measurement
     const startH = sizeRef.current.h ?? Math.round((frameRef.current?.getBoundingClientRect().height ?? 480) / zoomRef.current);
+    // Capture start position so n/w handlers can shift the artboard origin
+    const startPX = posRef.current.x;
+    const startPY = posRef.current.y;
 
     const onMove = (ev: MouseEvent) => {
       const z = zoomRef.current;
-      const dw = (ev.clientX - startX) / z;
-      const dh = (ev.clientY - startY) / z;
+      const dw = (ev.clientX - startMouseX) / z;
+      const dh = (ev.clientY - startMouseY) / z;
       actionsRef.current.setProp((p: any) => {
-        if (dir === "e" || dir === "se") p.width  = Math.max(100, Math.round(startW + dw));
-        if (dir === "s" || dir === "se") p.height = Math.max(100, Math.round(startH + dh));
+        // East: right edge expands
+        if (dir === "e" || dir === "se" || dir === "ne") {
+          p.width = Math.max(100, Math.round(startW + dw));
+        }
+        // South: bottom edge expands
+        if (dir === "s" || dir === "se" || dir === "sw") {
+          p.height = Math.max(100, Math.round(startH + dh));
+        }
+        // West: left edge moves; x shifts so right edge is fixed
+        if (dir === "w" || dir === "nw" || dir === "sw") {
+          const newW = Math.max(100, Math.round(startW - dw));
+          p.width = newW;
+          p.x = Math.round(startPX + (startW - newW));
+        }
+        // North: top edge moves; y shifts so bottom edge is fixed
+        if (dir === "n" || dir === "nw" || dir === "ne") {
+          const newH = Math.max(100, Math.round(startH - dh));
+          p.height = newH;
+          p.y = Math.round(startPY + (startH - newH));
+        }
       });
     };
     const onUp = () => {
@@ -1540,23 +1652,36 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     window.addEventListener("mouseup", onUp);
   }, []);
 
-  // Attach native mousedown listeners to resize handle divs.
-  // Native child bubble fires before craft.js's native listener on the parent frame.
+  // Attach native mousedown listeners to all resize handle divs.
+  // Native child bubble fires before craft.js's listener on the parent frame.
   useEffect(() => {
-    const eEl = handleERef.current;
-    const sEl = handleSRef.current;
+    const eEl  = handleERef.current;
+    const sEl  = handleSRef.current;
     const seEl = handleSERef.current;
     if (!eEl || !sEl || !seEl) return;
-    const eH = makeResizeHandler("e");
-    const sH = makeResizeHandler("s");
-    const seH = makeResizeHandler("se");
-    eEl.addEventListener("mousedown", eH, { capture: true });
-    sEl.addEventListener("mousedown", sH, { capture: true });
-    seEl.addEventListener("mousedown", seH, { capture: true });
+
+    const pairs: [HTMLDivElement, ArtboardResizeDir][] = [
+      [eEl,  "e"],
+      [sEl,  "s"],
+      [seEl, "se"],
+    ];
+    const extras: [React.RefObject<HTMLDivElement | null>, ArtboardResizeDir][] = [
+      [handleNRef,  "n"],
+      [handleWRef,  "w"],
+      [handleNWRef, "nw"],
+      [handleNERef, "ne"],
+      [handleSWRef, "sw"],
+    ];
+    for (const [ref, dir] of extras) {
+      if (ref.current) pairs.push([ref.current, dir]);
+    }
+    const handlers = pairs.map(([el, dir]) => {
+      const h = makeResizeHandler(dir);
+      el.addEventListener("mousedown", h, { capture: true });
+      return [el, h] as [HTMLDivElement, (e: MouseEvent) => void];
+    });
     return () => {
-      eEl.removeEventListener("mousedown", eH, { capture: true });
-      sEl.removeEventListener("mousedown", sH, { capture: true });
-      seEl.removeEventListener("mousedown", seH, { capture: true });
+      for (const [el, h] of handlers) el.removeEventListener("mousedown", h, { capture: true });
     };
   }, [makeResizeHandler]);
 
@@ -1645,33 +1770,60 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
       >
         {children}
 
-        {/* Right-edge resize handle — uses native addEventListener (see useEffect above) */}
-        <div
-          ref={handleERef}
+        {/* ── edge handles ─────────────────────────────────────────────────── */}
+        {/* Right */}
+        <div ref={handleERef}
           style={{ position: "absolute", top: 0, right: -5, width: 10, bottom: 0, cursor: "ew-resize", zIndex: 20,
-                    display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ ...HANDLE_DOT, width: 4, height: 28, ...(handleColor ? { background: handleColor } : {}) }} />
         </div>
-
-        {/* Bottom-edge resize handle */}
-        <div
-          ref={handleSRef}
+        {/* Bottom */}
+        <div ref={handleSRef}
           style={{ position: "absolute", left: 0, right: 0, bottom: -5, height: 10, cursor: "ns-resize", zIndex: 20,
-                    display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ ...HANDLE_DOT, height: 4, width: 28, ...(handleColor ? { background: handleColor } : {}) }} />
+        </div>
+        {/* Left */}
+        <div ref={handleWRef}
+          style={{ position: "absolute", top: 0, left: -5, width: 10, bottom: 0, cursor: "ew-resize", zIndex: 20,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ ...HANDLE_DOT, width: 4, height: 28, ...(handleColor ? { background: handleColor } : {}) }} />
+        </div>
+        {/* Top */}
+        <div ref={handleNRef}
+          style={{ position: "absolute", left: 0, right: 0, top: -5, height: 10, cursor: "ns-resize", zIndex: 20,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ ...HANDLE_DOT, height: 4, width: 28, ...(handleColor ? { background: handleColor } : {}) }} />
         </div>
 
-        {/* Corner resize handle */}
-        <div
-          ref={handleSERef}
+        {/* ── corner handles ───────────────────────────────────────────────── */}
+        {/* SE (original) */}
+        <div ref={handleSERef}
           style={{ position: "absolute", right: -6, bottom: -6, width: 14, height: 14, cursor: "nwse-resize", zIndex: 21,
-                    display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%",
-                        background: handleColor ?? "rgba(0,0,0,0.22)",
-                        transition: "background 0.12s" }} />
+                        background: handleColor ?? "rgba(0,0,0,0.22)", transition: "background 0.12s" }} />
+        </div>
+        {/* NW */}
+        <div ref={handleNWRef}
+          style={{ position: "absolute", left: -6, top: -6, width: 14, height: 14, cursor: "nwse-resize", zIndex: 21,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%",
+                        background: handleColor ?? "rgba(0,0,0,0.22)", transition: "background 0.12s" }} />
+        </div>
+        {/* NE */}
+        <div ref={handleNERef}
+          style={{ position: "absolute", right: -6, top: -6, width: 14, height: 14, cursor: "nesw-resize", zIndex: 21,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%",
+                        background: handleColor ?? "rgba(0,0,0,0.22)", transition: "background 0.12s" }} />
+        </div>
+        {/* SW */}
+        <div ref={handleSWRef}
+          style={{ position: "absolute", left: -6, bottom: -6, width: 14, height: 14, cursor: "nesw-resize", zIndex: 21,
+                    display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%",
+                        background: handleColor ?? "rgba(0,0,0,0.22)", transition: "background 0.12s" }} />
         </div>
       </div>
     </div>
