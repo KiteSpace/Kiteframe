@@ -1643,7 +1643,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
           overflow: "visible",
         }}
       >
-        {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, margin: 8 }}>drop here</div> : children}
+        {children}
 
         {/* Right-edge resize handle — uses native addEventListener (see useEffect above) */}
         <div
