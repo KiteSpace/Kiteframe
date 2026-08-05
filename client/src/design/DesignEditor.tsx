@@ -1762,14 +1762,17 @@ function layerLabel(displayName: string, props: Record<string, any>): string {
 // ─── Layers tree view ─────────────────────────────────────────────────────────
 
 function LayersView() {
-  const { nodes, selectedIds, actions } = useEditor((state) => ({
+  const { nodes, selectedIds, actions, query } = useEditor((state) => ({
     nodes: state.nodes,
     selectedIds: state.events.selected,
   }));
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["ROOT"]));
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{
+    x: number; y: number; nodeId: string; isArtboard: boolean;
+    siblingIndex: number; siblingCount: number;
+  } | null>(null);
 
-  // Close context menu on any click elsewhere
+  // Close layers context menu on any click elsewhere.
   useEffect(() => {
     if (!ctxMenu) return;
     const close = () => setCtxMenu(null);
@@ -1790,45 +1793,37 @@ function LayersView() {
     });
   };
 
-  const selectNode = (id: string) => {
-    actions.selectNode(id);
-  };
-
-  const handleDeleteArtboard = (nodeId: string) => {
-    setCtxMenu(null);
-    try {
-      actions.delete(nodeId);
-    } catch (err) {
-      console.error("[LayersView] deleteArtboard failed:", err);
-    }
-  };
+  const selectNode = (id: string) => { actions.selectNode(id); };
 
   function renderNode(id: string, depth: number): ReactNode {
     const node = nodes[id];
     if (!node) return null;
     const dn = node.data.displayName as string;
     const props = (node.data.props ?? {}) as Record<string, any>;
-    const childIds: string[] = node.data.nodes ?? [];
+    const childIds: string[] = (node.data.nodes as string[]) ?? [];
     const isSelected = selectedIds?.has(id) ?? false;
     const hasChildren = childIds.length > 0;
     const isExpanded = expanded.has(id);
     const isArtboard = dn === "AstryxArtboard";
+    const parentId = node.data.parent as string | undefined;
+    const siblings: string[] = parentId ? ((nodes[parentId]?.data?.nodes as string[]) ?? []) : [];
 
     return (
       <div key={id}>
         <button
           onClick={() => selectNode(id)}
-          onContextMenu={isArtboard ? (e) => {
+          onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
             selectNode(id);
-            setCtxMenu({ x: e.clientX, y: e.clientY, nodeId: id });
-          } : undefined}
+            setCtxMenu({
+              x: e.clientX, y: e.clientY, nodeId: id, isArtboard,
+              siblingIndex: siblings.indexOf(id),
+              siblingCount:  siblings.length,
+            });
+          }}
           className={`w-full flex items-center gap-1 text-left rounded-md px-1 py-[3px] transition-colors group
-            ${isSelected
-              ? "bg-primary/15 text-primary"
-              : "hover:bg-accent text-foreground"
-            }`}
+            ${isSelected ? "bg-primary/15 text-primary" : "hover:bg-accent text-foreground"}`}
           style={{ paddingLeft: depth * 12 + 4 }}
         >
           <span
@@ -1860,7 +1855,7 @@ function LayersView() {
     );
   }
 
-  const topLevel: string[] = rootNode.data.nodes ?? [];
+  const topLevel: string[] = (rootNode.data.nodes as string[]) ?? [];
 
   if (topLevel.length === 0) {
     return (
@@ -1870,26 +1865,84 @@ function LayersView() {
     );
   }
 
+  // Layers context-menu operations — same set as the canvas right-click menu.
+  const layersRunOp = (op: () => void) => { setCtxMenu(null); op(); };
+  const layersGetState = () => JSON.parse(query.serialize()) as Record<string, any>;
+
   return (
     <>
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5 flex flex-col justify-start">
         {topLevel.map((id) => renderNode(id, 0))}
       </div>
-      {ctxMenu && (
-        <div
-          className="fixed z-[9999] min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-          onContextMenu={(e) => e.stopPropagation()}
-        >
-          <button
-            className="w-full text-left px-3 py-1.5 text-[12px] text-destructive hover:bg-accent transition-colors"
-            onClick={() => handleDeleteArtboard(ctxMenu.nodeId)}
+      {ctxMenu && (() => {
+        const { nodeId: id, isArtboard, siblingIndex, siblingCount } = ctxMenu;
+        const canDelete   = !isArtboard;
+        const canMoveUp   = !isArtboard && siblingIndex > 0;
+        const canMoveDown = !isArtboard && siblingIndex < siblingCount - 1;
+        return (
+          <div
+            className="fixed z-[9999] min-w-[196px] rounded-md border border-border bg-popover shadow-lg py-1"
+            style={{ top: ctxMenu.y, left: ctxMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
-            Delete artboard
-          </button>
-        </div>
-      )}
+            <CtxItem label="Duplicate" shortcut="⌘D" onClick={() => layersRunOp(() => {
+              try {
+                const s = layersGetState();
+                const next = isArtboard ? cloneSubtreeInState(s, id)?.newState : duplicateNodeInState(s, id);
+                if (next) actions.deserialize(JSON.stringify(next));
+              } catch (err) { console.error("[layers] duplicate:", err); }
+            })} />
+
+            <div className="my-1 border-t border-border" />
+
+            <CtxItem label="Copy" shortcut="⌘C" onClick={() => layersRunOp(() => {
+              try { copyNodeToClipboard(layersGetState(), id); } catch (err) { console.error("[layers] copy:", err); }
+            })} />
+            {canDelete && <CtxItem label="Cut" shortcut="⌘X" onClick={() => layersRunOp(() => {
+              try { const s = layersGetState(); if (copyNodeToClipboard(s, id)) actions.delete(id); }
+              catch (err) { console.error("[layers] cut:", err); }
+            })} />}
+            <CtxItem label="Paste" shortcut="⌘V" disabled={!_craftClipboard} onClick={_craftClipboard ? () => layersRunOp(() => {
+              try {
+                const s = layersGetState();
+                const next = pasteFromClipboard(s, id);
+                if (next) actions.deserialize(JSON.stringify(next));
+              } catch (err) { console.error("[layers] paste:", err); }
+            }) : undefined} />
+
+            {(canMoveUp || canMoveDown) && (
+              <>
+                <div className="my-1 border-t border-border" />
+                <CtxItem label="Move layer up"   disabled={!canMoveUp}   onClick={canMoveUp ? () => layersRunOp(() => {
+                  try { const s = layersGetState(); const next = moveNodeInParent(s, id, "up");   if (next) actions.deserialize(JSON.stringify(next)); }
+                  catch (err) { console.error("[layers] move up:", err); }
+                }) : undefined} />
+                <CtxItem label="Move layer down" disabled={!canMoveDown} onClick={canMoveDown ? () => layersRunOp(() => {
+                  try { const s = layersGetState(); const next = moveNodeInParent(s, id, "down"); if (next) actions.deserialize(JSON.stringify(next)); }
+                  catch (err) { console.error("[layers] move down:", err); }
+                }) : undefined} />
+              </>
+            )}
+
+            {canDelete ? (
+              <>
+                <div className="my-1 border-t border-border" />
+                <CtxItem label="Delete" danger onClick={() => layersRunOp(() => {
+                  try { actions.delete(id); } catch (err) { console.error("[layers] delete:", err); }
+                })} />
+              </>
+            ) : (
+              <>
+                <div className="my-1 border-t border-border" />
+                <CtxItem label="Delete artboard" danger onClick={() => layersRunOp(() => {
+                  try { actions.delete(id); } catch (err) { console.error("[layers] delete artboard:", err); }
+                })} />
+              </>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
 }
@@ -2470,7 +2523,140 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   );
 }
 
-// ─── Delete key handler ───────────────────────────────────────────────────────
+// ─── Clipboard & node operation utilities ────────────────────────────────────
+
+/** Module-level clipboard. Stores a cloned subtree ready for paste. */
+let _craftClipboard: { subtree: Record<string, any>; rootId: string } | null = null;
+
+/** BFS-collect all node IDs in a serialized craft subtree. */
+function collectSubtreeIds(state: Record<string, any>, rootId: string): string[] {
+  const ids: string[] = [];
+  const queue = [rootId];
+  while (queue.length) {
+    const id = queue.shift()!;
+    ids.push(id);
+    const node = state[id];
+    if (!node) continue;
+    for (const c of (node.nodes ?? [])) queue.push(c as string);
+    for (const v of Object.values(node.linkedNodes ?? {})) queue.push(v as string);
+  }
+  return ids;
+}
+
+/** Deep-clone a subtree from a serialized state, assigning fresh IDs throughout. */
+function extractNodeSubtree(
+  state: Record<string, any>,
+  nodeId: string,
+): { subtree: Record<string, any>; newRootId: string } {
+  const allIds = collectSubtreeIds(state, nodeId);
+  const ts = Date.now();
+  const idMap: Record<string, string> = {};
+  allIds.forEach((id, i) => { idMap[id] = `node-${ts}-${i}`; });
+  const subtree: Record<string, any> = {};
+  for (const id of allIds) {
+    const node = JSON.parse(JSON.stringify(state[id]));
+    if (Array.isArray(node.nodes)) node.nodes = node.nodes.map((c: string) => idMap[c] ?? c);
+    if (node.linkedNodes && typeof node.linkedNodes === "object") {
+      const r: Record<string, string> = {};
+      for (const [k, v] of Object.entries(node.linkedNodes)) r[k] = idMap[v as string] ?? (v as string);
+      node.linkedNodes = r;
+    }
+    // Remap parent for non-root descendants; root's parent is fixed on insert.
+    if (id !== nodeId && node.parent && idMap[node.parent]) node.parent = idMap[node.parent];
+    subtree[idMap[id]] = node;
+  }
+  return { subtree, newRootId: idMap[nodeId] };
+}
+
+/** Insert a cloned subtree into state as a child of targetParentId.
+ *  insertAfterIndex = -1 appends to end. */
+function insertSubtreeInState(
+  state: Record<string, any>,
+  subtree: Record<string, any>,
+  newRootId: string,
+  targetParentId: string,
+  insertAfterIndex: number,
+): Record<string, any> {
+  const parent = JSON.parse(JSON.stringify(state[targetParentId]));
+  const siblings: string[] = parent.nodes ?? [];
+  const insertAt = insertAfterIndex < 0 ? siblings.length : insertAfterIndex + 1;
+  siblings.splice(insertAt, 0, newRootId);
+  parent.nodes = siblings;
+  const rootNode = { ...subtree[newRootId], parent: targetParentId };
+  return { ...state, ...subtree, [newRootId]: rootNode, [targetParentId]: parent };
+}
+
+/** Duplicate nodeId in-place: clone + insert immediately after original. */
+function duplicateNodeInState(
+  state: Record<string, any>,
+  nodeId: string,
+): Record<string, any> | null {
+  if (!nodeId || nodeId === "ROOT") return null;
+  const node = state[nodeId];
+  if (!node) return null;
+  const parentId: string = node.parent;
+  if (!parentId) return null;
+  const { subtree, newRootId } = extractNodeSubtree(state, nodeId);
+  const idx = (state[parentId]?.nodes ?? []).indexOf(nodeId);
+  return insertSubtreeInState(state, subtree, newRootId, parentId, idx);
+}
+
+/** Swap nodeId one position up or down in its parent's nodes array. */
+function moveNodeInParent(
+  state: Record<string, any>,
+  nodeId: string,
+  direction: "up" | "down",
+): Record<string, any> | null {
+  if (!nodeId || nodeId === "ROOT") return null;
+  const node = state[nodeId];
+  if (!node) return null;
+  const parentId: string = node.parent;
+  if (!parentId) return null;
+  const parent = state[parentId];
+  const siblings: string[] = [...(parent?.nodes ?? [])];
+  const idx = siblings.indexOf(nodeId);
+  if (idx === -1) return null;
+  const newIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (newIdx < 0 || newIdx >= siblings.length) return null;
+  [siblings[idx], siblings[newIdx]] = [siblings[newIdx], siblings[idx]];
+  return { ...state, [parentId]: { ...parent, nodes: siblings } };
+}
+
+/** Copy a node's subtree to the module-level clipboard. Returns true on success. */
+function copyNodeToClipboard(state: Record<string, any>, nodeId: string): boolean {
+  if (!nodeId || nodeId === "ROOT" || !state[nodeId]) return false;
+  const { subtree, newRootId } = extractNodeSubtree(state, nodeId);
+  _craftClipboard = { subtree, rootId: newRootId };
+  return true;
+}
+
+/** Paste clipboard subtree as sibling of selectedId (or child of parent if artboard). */
+function pasteFromClipboard(
+  state: Record<string, any>,
+  selectedId: string | null,
+): Record<string, any> | null {
+  if (!_craftClipboard) return null;
+  // Re-clone with fresh IDs so repeated pastes produce distinct nodes.
+  const { subtree: srcSubtree, rootId: srcRootId } = _craftClipboard;
+  const { subtree, newRootId } = extractNodeSubtree(srcSubtree, srcRootId);
+
+  let targetParentId: string;
+  let insertAfterIdx: number;
+  if (!selectedId || selectedId === "ROOT") {
+    targetParentId = "ROOT";
+    insertAfterIdx = -1;
+  } else {
+    const selNode = state[selectedId];
+    if (!selNode) return null;
+    targetParentId = selNode.parent ?? "ROOT";
+    const siblings: string[] = state[targetParentId]?.nodes ?? [];
+    insertAfterIdx = siblings.indexOf(selectedId);
+  }
+  if (!state[targetParentId]) return null;
+  return insertSubtreeInState(state, subtree, newRootId, targetParentId, insertAfterIdx);
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 
 function KeyboardHandler() {
   const { actions, query, selectedId, selectedIsArtboard } = useEditor((state) => {
@@ -2483,56 +2669,90 @@ function KeyboardHandler() {
     };
   });
   const { doUndo, doRedo } = useContext(HistoryCtx);
-  const doUndoRef = useRef(doUndo);
-  const doRedoRef = useRef(doRedo);
+  const doUndoRef  = useRef(doUndo);
+  const doRedoRef  = useRef(doRedo);
   doUndoRef.current = doUndo;
   doRedoRef.current = doRedo;
+  // Stable refs so the single-mount effect always reads current values.
+  const queryRef        = useRef(query);    queryRef.current        = query;
+  const actionsRef      = useRef(actions);  actionsRef.current      = actions;
+  const selectedIdRef   = useRef(selectedId);      selectedIdRef.current   = selectedId;
+  const isArtboardRef   = useRef(selectedIsArtboard); isArtboardRef.current = selectedIsArtboard;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
       const inInput = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || !!el?.isContentEditable;
+      const id = selectedIdRef.current;
+      const isArtboard = isArtboardRef.current;
 
+      // Delete / Backspace — not for ROOT or artboards
       if ((e.key === "Delete" || e.key === "Backspace") && !inInput) {
-        if (!selectedId || selectedId === "ROOT") return;
-        // Artboards contain many components — deleting one accidentally would be
-        // catastrophic.  Block keyboard-delete for artboards; the explicit
-        // "Delete" button in the toolbar is the safe path.
-        if (selectedIsArtboard) return;
+        if (!id || id === "ROOT" || isArtboard) return;
         e.preventDefault();
-        actions.delete(selectedId);
+        actionsRef.current.delete(id);
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && !inInput) {
         const k = e.key.toLowerCase();
-        if (k === "z" && !e.shiftKey) {
+
+        // Copy
+        if (k === "c") {
+          if (!id || id === "ROOT") return;
           e.preventDefault();
-          doUndoRef.current();
+          try { copyNodeToClipboard(JSON.parse(queryRef.current.serialize()), id); }
+          catch (err) { console.error("[copy]", err); }
           return;
         }
-        if ((k === "z" && e.shiftKey) || k === "y") {
-          e.preventDefault();
-          doRedoRef.current();
-          return;
-        }
-        if (k === "d" && selectedIsArtboard && selectedId) {
+
+        // Cut — not for artboards (too destructive)
+        if (k === "x") {
+          if (!id || id === "ROOT" || isArtboard) return;
           e.preventDefault();
           try {
-            const serialized = query.serialize();
-            const state: Record<string, any> = serialized ? JSON.parse(serialized) : {};
-            const result = cloneSubtreeInState(state, selectedId);
-            if (result) actions.deserialize(JSON.stringify(result.newState));
-          } catch (err) {
-            console.error("[duplicateArtboard] Ctrl+D failed:", err);
-          }
+            const s = JSON.parse(queryRef.current.serialize());
+            if (copyNodeToClipboard(s, id)) actionsRef.current.delete(id);
+          } catch (err) { console.error("[cut]", err); }
+          return;
+        }
+
+        // Paste
+        if (k === "v") {
+          e.preventDefault();
+          try {
+            const s = JSON.parse(queryRef.current.serialize());
+            const next = pasteFromClipboard(s, id);
+            if (next) actionsRef.current.deserialize(JSON.stringify(next));
+          } catch (err) { console.error("[paste]", err); }
+          return;
+        }
+
+        // Undo / Redo
+        if (k === "z" && !e.shiftKey) { e.preventDefault(); doUndoRef.current(); return; }
+        if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); doRedoRef.current(); return; }
+
+        // Duplicate — works for any node, not just artboards
+        if (k === "d") {
+          if (!id || id === "ROOT") return;
+          e.preventDefault();
+          try {
+            const s = JSON.parse(queryRef.current.serialize());
+            if (isArtboard) {
+              const result = cloneSubtreeInState(s, id);
+              if (result) actionsRef.current.deserialize(JSON.stringify(result.newState));
+            } else {
+              const next = duplicateNodeInState(s, id);
+              if (next) actionsRef.current.deserialize(JSON.stringify(next));
+            }
+          } catch (err) { console.error("[duplicate]", err); }
           return;
         }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedId, selectedIsArtboard, actions, query]);
+  }, []); // all values read via refs — mount once
 
   return null;
 }
@@ -2541,6 +2761,162 @@ function KeyboardHandler() {
 
 function CanvasHints() {
   return null;
+}
+
+// ─── Canvas right-click context menu ─────────────────────────────────────────
+
+/** Reusable button row for context menus. */
+function CtxItem({ label, shortcut, onClick, disabled, danger }: {
+  label: string; shortcut?: string; onClick?: () => void; disabled?: boolean; danger?: boolean;
+}) {
+  return (
+    <button
+      className={`w-full text-left px-3 py-[5px] flex items-center justify-between gap-4 transition-colors text-[12px]
+        ${disabled
+          ? "text-muted-foreground/50 cursor-default"
+          : danger
+          ? "text-destructive hover:bg-accent"
+          : "hover:bg-accent"
+        }`}
+      onMouseDown={disabled ? (e) => e.preventDefault() : undefined}
+      onClick={disabled ? undefined : onClick}
+    >
+      <span>{label}</span>
+      {shortcut && <span className="shrink-0 text-muted-foreground text-[10px]">{shortcut}</span>}
+    </button>
+  );
+}
+
+/**
+ * Shows a context menu on right-click anywhere inside the canvas area
+ * (the div marked data-canvas-area="true").  Exposes Duplicate, Copy, Cut,
+ * Paste, Move layer up/down, and Delete for the currently selected node.
+ */
+function CanvasContextMenu() {
+  const { actions, query, selectedId, selectedIsArtboard, siblingIndex, siblingCount } = useEditor((state) => {
+    const sel = state.events.selected;
+    const id  = sel && sel.size > 0 ? Array.from(sel)[0] : null;
+    const node = id ? state.nodes[id] : null;
+    const parentId   = node?.data?.parent as string | undefined ?? null;
+    const parentNode = parentId ? state.nodes[parentId] : null;
+    const siblings: string[] = (parentNode?.data?.nodes as string[]) ?? [];
+    return {
+      selectedId:        id,
+      selectedIsArtboard: node?.data?.displayName === "AstryxArtboard",
+      siblingIndex:      id ? siblings.indexOf(id) : -1,
+      siblingCount:      siblings.length,
+    };
+  });
+
+  const [menu, setMenu] = useState<{
+    x: number; y: number; nodeId: string; isArtboard: boolean;
+    siblingIndex: number; siblingCount: number; hasClip: boolean;
+  } | null>(null);
+
+  // Stable refs so effect callbacks always read current values.
+  const queryRef      = useRef(query);   queryRef.current   = query;
+  const actionsRef    = useRef(actions); actionsRef.current = actions;
+  const selectedIdRef = useRef(selectedId); selectedIdRef.current = selectedId;
+  const isArtboardRef = useRef(selectedIsArtboard); isArtboardRef.current = selectedIsArtboard;
+  const sibIdxRef     = useRef(siblingIndex); sibIdxRef.current = siblingIndex;
+  const sibCntRef     = useRef(siblingCount); sibCntRef.current = siblingCount;
+
+  // Listen for right-clicks inside the canvas area (marked data-canvas-area).
+  useEffect(() => {
+    const handleCtx = (e: MouseEvent) => {
+      if (!(e.target as Element)?.closest("[data-canvas-area]")) return;
+      const id = selectedIdRef.current;
+      if (!id || id === "ROOT") return;
+      e.preventDefault();
+      setMenu({
+        x: e.clientX, y: e.clientY, nodeId: id,
+        isArtboard:  isArtboardRef.current,
+        siblingIndex: sibIdxRef.current,
+        siblingCount: sibCntRef.current,
+        hasClip: !!_craftClipboard,
+      });
+    };
+    window.addEventListener("contextmenu", handleCtx);
+    return () => window.removeEventListener("contextmenu", handleCtx);
+  }, []);
+
+  // Dismiss on outside click or Escape.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("click",   close, { capture: true });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click",   close, { capture: true });
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+
+  if (!menu) return null;
+
+  const { nodeId: id, isArtboard, hasClip } = menu;
+  const canDelete   = !isArtboard;
+  const canMoveUp   = !isArtboard && menu.siblingIndex > 0;
+  const canMoveDown = !isArtboard && menu.siblingIndex < menu.siblingCount - 1;
+
+  const run = (op: () => void) => { setMenu(null); op(); };
+  const gs  = () => JSON.parse(queryRef.current.serialize()) as Record<string, any>;
+
+  return (
+    <div
+      className="fixed z-[9999] min-w-[196px] rounded-md border border-border bg-popover shadow-lg py-1"
+      style={{ top: menu.y, left: menu.x }}
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+    >
+      <CtxItem label="Duplicate" shortcut="⌘D" onClick={() => run(() => {
+        try {
+          const s = gs();
+          const next = isArtboard ? cloneSubtreeInState(s, id)?.newState : duplicateNodeInState(s, id);
+          if (next) actionsRef.current.deserialize(JSON.stringify(next));
+        } catch (err) { console.error("[ctx] duplicate:", err); }
+      })} />
+
+      <div className="my-1 border-t border-border" />
+
+      <CtxItem label="Copy"  shortcut="⌘C" onClick={() => run(() => {
+        try { copyNodeToClipboard(gs(), id); } catch (err) { console.error("[ctx] copy:", err); }
+      })} />
+      {canDelete && <CtxItem label="Cut" shortcut="⌘X" onClick={() => run(() => {
+        try { const s = gs(); if (copyNodeToClipboard(s, id)) actionsRef.current.delete(id); }
+        catch (err) { console.error("[ctx] cut:", err); }
+      })} />}
+      <CtxItem label="Paste" shortcut="⌘V" disabled={!hasClip} onClick={hasClip ? () => run(() => {
+        try {
+          const s = gs();
+          const next = pasteFromClipboard(s, id);
+          if (next) actionsRef.current.deserialize(JSON.stringify(next));
+        } catch (err) { console.error("[ctx] paste:", err); }
+      }) : undefined} />
+
+      {(canMoveUp || canMoveDown) && (
+        <>
+          <div className="my-1 border-t border-border" />
+          <CtxItem label="Move layer up"   disabled={!canMoveUp}   onClick={canMoveUp ? () => run(() => {
+            try { const s = gs(); const next = moveNodeInParent(s, id, "up");   if (next) actionsRef.current.deserialize(JSON.stringify(next)); }
+            catch (err) { console.error("[ctx] move up:", err); }
+          }) : undefined} />
+          <CtxItem label="Move layer down" disabled={!canMoveDown} onClick={canMoveDown ? () => run(() => {
+            try { const s = gs(); const next = moveNodeInParent(s, id, "down"); if (next) actionsRef.current.deserialize(JSON.stringify(next)); }
+            catch (err) { console.error("[ctx] move down:", err); }
+          }) : undefined} />
+        </>
+      )}
+
+      {canDelete && (
+        <>
+          <div className="my-1 border-t border-border" />
+          <CtxItem label="Delete" danger onClick={() => run(() => actionsRef.current.delete(id))} />
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Selection pin button ─────────────────────────────────────────────────────
@@ -4183,7 +4559,8 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           {editable && <LeftRail />}
           <div className="flex flex-col flex-1 min-w-0">
             {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitView={fitView} />}
-            <div className="relative flex-1 min-h-0">
+            {/* data-canvas-area marks this region for the right-click context menu */}
+            <div className="relative flex-1 min-h-0" data-canvas-area="true">
               <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
                 <CanvasArea craftState={craftState} />
               </InfiniteCanvas>
@@ -4212,6 +4589,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           />
         )}
         {editable && <KeyboardHandler />}
+        {editable && <CanvasContextMenu />}
         {editable && <SelectionPinButton />}
         </HistoryProvider>
         </SnapGuideContext.Provider>
