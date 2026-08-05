@@ -40,6 +40,19 @@ import {
   AstryxCommand,
   AstryxCarousel,
   AstryxResizable,
+  AstryxNavbar,
+  AstryxSidebar,
+  AstryxBreadcrumb,
+  AstryxModal,
+  AstryxDrawer,
+  AstryxSheet,
+  AstryxBarChart,
+  AstryxLineChart,
+  AstryxPieChart,
+  AstryxVideoPlayer,
+  AstryxCodeBlock,
+  AstryxList,
+  AstryxListItem,
   createEmptyCraftState,
   sanitizeCraftState,
   validateCraftState,
@@ -79,6 +92,19 @@ import {
   AstryxCommand as AstryxCommandBase,
   AstryxCarousel as AstryxCarouselBase,
   AstryxResizable as AstryxResizableBase,
+  AstryxNavbar as AstryxNavbarBase,
+  AstryxSidebar as AstryxSidebarBase,
+  AstryxBreadcrumb as AstryxBreadcrumbBase,
+  AstryxModal as AstryxModalBase,
+  AstryxDrawer as AstryxDrawerBase,
+  AstryxSheet as AstryxSheetBase,
+  AstryxBarChart as AstryxBarChartBase,
+  AstryxLineChart as AstryxLineChartBase,
+  AstryxPieChart as AstryxPieChartBase,
+  AstryxVideoPlayer as AstryxVideoPlayerBase,
+  AstryxCodeBlock as AstryxCodeBlockBase,
+  AstryxList as AstryxListBase,
+  AstryxListItem as AstryxListItemBase,
   ICON_GLYPHS,
 } from "@/components/astryx";
 
@@ -431,6 +457,97 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Icon",        description: "Icon placeholder",
         getElement: () => <AstryxIcon size="md" />,
         preview: <AstryxIconBase size="md" />,
+      },
+      {
+        name: "VideoPlayer", description: "Video embed",
+        getElement: () => <AstryxVideoPlayer title="Video" />,
+        preview: <AstryxVideoPlayerBase title="Video" duration="2:30" />,
+      },
+      {
+        name: "CodeBlock",   description: "Code snippet",
+        getElement: () => <AstryxCodeBlock language="javascript" />,
+        preview: <AstryxCodeBlockBase language="js" code="const x = 1;" />,
+      },
+    ],
+  },
+  {
+    name: "Navigation",
+    items: [
+      {
+        name: "Navbar",      description: "Top navigation bar",
+        getElement: () => <AstryxNavbar logo="App" links="Home,About,Pricing" />,
+        preview: <AstryxNavbarBase logo="App" links="Home,About" actions="Sign In" />,
+      },
+      {
+        name: "Sidebar",     description: "Side navigation",
+        getElement: () => <AstryxSidebar logo="App" items="Dashboard,Analytics,Settings" active="Dashboard" />,
+        preview: <AstryxSidebarBase logo="App" items="Dashboard,Analytics,Settings" active="Dashboard" />,
+      },
+      {
+        name: "Breadcrumb",  description: "Page breadcrumb",
+        getElement: () => <AstryxBreadcrumb items="Home,Section,Page" />,
+        preview: <AstryxBreadcrumbBase items="Home,Section,Page" />,
+      },
+    ],
+  },
+  {
+    name: "Overlays",
+    items: [
+      {
+        name: "Modal",  description: "Dialog modal",
+        getElement: () => <AstryxModal title="Confirm" confirmLabel="OK" cancelLabel="Cancel" />,
+        preview: <AstryxModalBase title="Confirm" description="Are you sure?" confirmLabel="OK" cancelLabel="Cancel" />,
+      },
+      {
+        name: "Drawer", description: "Side drawer",
+        getElement: () => <AstryxDrawer title="Drawer" side="right" />,
+        preview: <AstryxDrawerBase title="Drawer" side="right" description="Content here." />,
+      },
+      {
+        name: "Sheet",  description: "Bottom sheet",
+        getElement: () => <AstryxSheet title="Sheet" side="bottom" />,
+        preview: <AstryxSheetBase title="Sheet" side="bottom" description="Content here." />,
+      },
+    ],
+  },
+  {
+    name: "Charts",
+    items: [
+      {
+        name: "BarChart",  description: "Bar chart",
+        getElement: () => <AstryxBarChart data="Jan:80,Feb:120,Mar:95,Apr:140" color="blue" />,
+        preview: <AstryxBarChartBase data="A:80,B:120,C:95,D:140" color="blue" />,
+      },
+      {
+        name: "LineChart", description: "Line chart",
+        getElement: () => <AstryxLineChart data="Jan:80,Feb:120,Mar:95,Apr:140" color="blue" />,
+        preview: <AstryxLineChartBase data="A:80,B:120,C:95,D:140" color="blue" />,
+      },
+      {
+        name: "PieChart",  description: "Pie / donut chart",
+        getElement: () => <AstryxPieChart data="A:40,B:30,C:20,D:10" />,
+        preview: <AstryxPieChartBase data="A:40,B:30,C:30" />,
+      },
+    ],
+  },
+  {
+    name: "Lists",
+    items: [
+      {
+        name: "List",     description: "List container",
+        getElement: () => <Element canvas is={AstryxList} divided />,
+        preview: (
+          <div style={{ border: "1px solid hsl(var(--border))", borderRadius: 6, overflow: "hidden", width: 110 }}>
+            {["Item A", "Item B", "Item C"].map((t, i) => (
+              <div key={i} style={{ padding: "4px 8px", fontSize: 10, borderBottom: i < 2 ? "1px solid hsl(var(--border))" : undefined, color: "hsl(var(--foreground))" }}>{t}</div>
+            ))}
+          </div>
+        ),
+      },
+      {
+        name: "ListItem", description: "List row",
+        getElement: () => <AstryxListItem label="List item" />,
+        preview: <AstryxListItemBase label="List item" description="Supporting text" />,
       },
     ],
   },
