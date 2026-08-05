@@ -2308,6 +2308,16 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
     }
   }, [actions, query, selectedArtboardId]);
 
+  const deleteArtboard = useCallback(() => {
+    if (!selectedArtboardId) return;
+    // actions.delete is undoable via Ctrl+Z — no extra confirmation needed.
+    try {
+      actions.delete(selectedArtboardId);
+    } catch (err) {
+      console.error("[deleteArtboard] Failed:", err);
+    }
+  }, [actions, selectedArtboardId]);
+
   const [importOpen, setImportOpen] = useState(false);
   const handleImportResult = useCallback((craftStateStr: string) => {
     try {
@@ -2342,13 +2352,23 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
         + Artboard
       </button>
       {selectedArtboardId && (
-        <button
-          onClick={duplicateArtboard}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-          title="Duplicate artboard (Ctrl+D)"
-        >
-          ⧉ Duplicate
-        </button>
+        <>
+          <button
+            onClick={duplicateArtboard}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
+            title="Duplicate artboard (Ctrl+D)"
+          >
+            ⧉ Duplicate
+          </button>
+          <button
+            onClick={deleteArtboard}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-destructive/30"
+            title="Delete artboard"
+          >
+            <Trash2 size={10} />
+            Delete
+          </button>
+        </>
       )}
       <button
         onClick={() => setImportOpen(true)}
@@ -2429,6 +2449,10 @@ function KeyboardHandler() {
 
       if ((e.key === "Delete" || e.key === "Backspace") && !inInput) {
         if (!selectedId || selectedId === "ROOT") return;
+        // Artboards contain many components — deleting one accidentally would be
+        // catastrophic.  Block keyboard-delete for artboards; the explicit
+        // "Delete" button in the toolbar is the safe path.
+        if (selectedIsArtboard) return;
         e.preventDefault();
         actions.delete(selectedId);
         return;
