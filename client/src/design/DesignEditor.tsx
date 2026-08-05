@@ -1767,6 +1767,19 @@ function LayersView() {
     selectedIds: state.events.selected,
   }));
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["ROOT"]));
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+
+  // Close context menu on any click elsewhere
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("contextmenu", close);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("contextmenu", close);
+    };
+  }, [ctxMenu]);
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1781,6 +1794,15 @@ function LayersView() {
     actions.selectNode(id);
   };
 
+  const handleDeleteArtboard = (nodeId: string) => {
+    setCtxMenu(null);
+    try {
+      actions.delete(nodeId);
+    } catch (err) {
+      console.error("[LayersView] deleteArtboard failed:", err);
+    }
+  };
+
   function renderNode(id: string, depth: number): ReactNode {
     const node = nodes[id];
     if (!node) return null;
@@ -1790,11 +1812,18 @@ function LayersView() {
     const isSelected = selectedIds?.has(id) ?? false;
     const hasChildren = childIds.length > 0;
     const isExpanded = expanded.has(id);
+    const isArtboard = dn === "AstryxArtboard";
 
     return (
       <div key={id}>
         <button
           onClick={() => selectNode(id)}
+          onContextMenu={isArtboard ? (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectNode(id);
+            setCtxMenu({ x: e.clientX, y: e.clientY, nodeId: id });
+          } : undefined}
           className={`w-full flex items-center gap-1 text-left rounded-md px-1 py-[3px] transition-colors group
             ${isSelected
               ? "bg-primary/15 text-primary"
@@ -1842,9 +1871,26 @@ function LayersView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-2 space-y-0.5 flex flex-col justify-start">
-      {topLevel.map((id) => renderNode(id, 0))}
-    </div>
+    <>
+      <div className="flex-1 overflow-y-auto p-2 space-y-0.5 flex flex-col justify-start">
+        {topLevel.map((id) => renderNode(id, 0))}
+      </div>
+      {ctxMenu && (
+        <div
+          className="fixed z-[9999] min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1"
+          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full text-left px-3 py-1.5 text-[12px] text-destructive hover:bg-accent transition-colors"
+            onClick={() => handleDeleteArtboard(ctxMenu.nodeId)}
+          >
+            Delete artboard
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
