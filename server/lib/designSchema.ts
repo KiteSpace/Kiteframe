@@ -215,3 +215,57 @@ export function validateCraftState(data: unknown): DesignValidationResult {
 
   return { valid: errors.length === 0, errors };
 }
+
+/**
+ * Repairs AI-generated craft state before strict validation:
+ * 1. Adds missing required fields with safe defaults (props, nodes, linkedNodes, parent).
+ * 2. Strips dangling child/linkedNodes references that point to non-existent nodes.
+ * 3. Nulls parent pointers that reference non-existent nodes.
+ *
+ * Call this before validateCraftState so transient AI omissions and node-ID
+ * mismatches don't hard-fail saves.
+ */
+export function repairCraftState(state: unknown): unknown {
+  if (!state || typeof state !== "object") return state;
+  const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
+  const nodeIds = new Set(Object.keys(map));
+
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = { ...(node as Record<string, unknown>) };
+
+    // ── Hydrate missing required fields with safe defaults ──────────────────
+    if (!n["props"] || typeof n["props"] !== "object") n["props"] = {};
+    if (!Array.isArray(n["nodes"])) n["nodes"] = [];
+    if (!n["linkedNodes"] || typeof n["linkedNodes"] !== "object") n["linkedNodes"] = {};
+    if (!("parent" in n)) n["parent"] = nodeId === "ROOT" ? null : null;
+    if (!n["type"] || typeof n["type"] !== "object") {
+      // Can't recover a node with no type — mark as unknown so it renders as a placeholder
+      n["type"] = { resolvedName: "AstryxUnknown" };
+    }
+    const typeObj = n["type"] as Record<string, unknown>;
+    if (!typeObj["resolvedName"]) typeObj["resolvedName"] = "AstryxUnknown";
+
+    // ── Strip dangling child references ─────────────────────────────────────
+    const childIds = n["nodes"] as string[];
+    const repairedChildren = childIds.filter((id) => nodeIds.has(id));
+    if (repairedChildren.length !== childIds.length) n["nodes"] = repairedChildren;
+
+    // ── Strip dangling linkedNodes references ────────────────────────────────
+    const ln = { ...(n["linkedNodes"] as Record<string, string>) };
+    let lnChanged = false;
+    for (const [k, v] of Object.entries(ln)) {
+      if (!nodeIds.has(v)) { delete ln[k]; lnChanged = true; }
+    }
+    if (lnChanged) n["linkedNodes"] = ln;
+
+    // ── Clear parent that points to a missing node ───────────────────────────
+    if (nodeId !== "ROOT" && n["parent"] && !nodeIds.has(n["parent"] as string)) {
+      n["parent"] = null;
+    }
+
+    map[nodeId] = n;
+  }
+
+  return map;
+}

@@ -135,6 +135,48 @@ export function validateCraftState(state: unknown): CraftStateValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
+// ─── Reference repairer ──────────────────────────────────────────────────────
+// Removes dangling parent/child cross-references from AI-generated craft state.
+// Call this before validateCraftState so broken references don't hard-fail saves.
+
+export function repairCraftState(state: unknown): unknown {
+  if (!state || typeof state !== "object") return state;
+  const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
+  const nodeIds = new Set(Object.keys(map));
+
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = { ...(node as Record<string, unknown>) };
+
+    // Strip dangling child references
+    if (Array.isArray(n["nodes"])) {
+      const repaired = (n["nodes"] as string[]).filter((id) => nodeIds.has(id));
+      if (repaired.length !== (n["nodes"] as string[]).length) {
+        n["nodes"] = repaired;
+      }
+    }
+
+    // Strip dangling linkedNodes references
+    if (n["linkedNodes"] && typeof n["linkedNodes"] === "object") {
+      const ln = { ...(n["linkedNodes"] as Record<string, string>) };
+      let changed = false;
+      for (const [k, v] of Object.entries(ln)) {
+        if (!nodeIds.has(v)) { delete ln[k]; changed = true; }
+      }
+      if (changed) n["linkedNodes"] = ln;
+    }
+
+    // Strip parent reference if parent node doesn't exist
+    if (n["parent"] && !nodeIds.has(n["parent"] as string) && nodeId !== "ROOT") {
+      n["parent"] = null;
+    }
+
+    map[nodeId] = n;
+  }
+
+  return map;
+}
+
 // ─── Sanitizer ────────────────────────────────────────────────────────────────
 // Replaces any resolvedName not in ALLOWED_CRAFT_COMPONENTS with "AstryxUnknown"
 // and preserves the original name in props.astryxComponent so the placeholder

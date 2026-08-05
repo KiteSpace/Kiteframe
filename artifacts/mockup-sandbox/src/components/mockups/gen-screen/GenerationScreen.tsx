@@ -1,18 +1,12 @@
 import { Sparkles, Send, Paperclip, Loader2, ChevronRight, X } from "lucide-react";
 
-// Simulated chat messages shown during generation
+// When reached via "Create Interface" from a workflow, the AI already has
+// context — no need to prompt the user to describe anything. The conversation
+// starts with the AI acknowledging it's analysing the workflow.
 const MESSAGES = [
   {
     role: "ai" as const,
-    text: "Hi! I'm KiteAI. Describe the interface you want to generate, or I'll build one from your workflow.",
-  },
-  {
-    role: "user" as const,
-    text: "Generate a dashboard for a SaaS analytics product with charts, user stats, and a sidebar nav.",
-  },
-  {
-    role: "ai" as const,
-    text: "On it! Generating your dashboard interface now — you'll see screens appear on the right as I work.",
+    text: "I've analysed your workflow and I'm building screen proposals now. You'll see them appear on the right as I work.",
   },
 ];
 
@@ -147,12 +141,10 @@ export function GenerationScreen() {
             <Loader2 size={12} className="animate-spin text-violet-500" />
             <span>Building your interface…</span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <button disabled className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground opacity-40 cursor-not-allowed">
-              Add to this tab
-            </button>
-            <button disabled className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white opacity-40 cursor-not-allowed">
-              Open in new project
+          <div className="ml-auto">
+            <button disabled className="text-xs px-4 py-1.5 rounded-lg bg-violet-600 text-white opacity-40 cursor-not-allowed flex items-center gap-1.5">
+              <Sparkles size={12} />
+              Generate UI
             </button>
           </div>
         </div>

@@ -367,9 +367,7 @@ export function InterfaceProposalView({
           ) : (
             <Sparkles size={14} />
           )}
-          {isGenerating
-            ? 'Generating…'
-            : `Generate${selectedCount > 0 ? ` ${selectedCount}` : ''} Screen${selectedCount !== 1 ? 's' : ''}`}
+          {isGenerating ? 'Generating…' : 'Generate UI'}
         </Button>
       </div>
     </div>

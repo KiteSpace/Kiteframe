@@ -40,7 +40,8 @@ import {
   externalApiKeys,
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
-import { validateCraftState } from "./lib/designSchema";
+import { validateCraftState as _validateCraftState, repairCraftState } from "./lib/designSchema";
+function validateCraftState(s: unknown) { return _validateCraftState(repairCraftState(s)); }
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
 import { mergeDesignPatch, layoutArtboards, type CraftState } from "./lib/designPatchMerge";
 import crypto from 'crypto';
