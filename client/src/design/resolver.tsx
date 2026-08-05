@@ -581,10 +581,12 @@ function useInlineEdit(propKey: string, currentValue: string) {
 function useContainerNode(position: string, x: number, y: number) {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
-  const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered } = useNode((node) => ({
+  const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered, nodeWidth, nodeHeight } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
     hovered: node.events.hovered,
+    nodeWidth:  node.data.props?.width  as number | string | undefined,
+    nodeHeight: node.data.props?.height as number | string | undefined,
   }));
 
   // Detect whether any node is currently being dragged in the editor.
@@ -642,6 +644,118 @@ function useContainerNode(position: string, x: number, y: number) {
     }
   };
 
+  // ── Resize handles (8-direction, same as useLeafNode) ─────────────────────
+  const handleERef  = useRef<HTMLDivElement | null>(null);
+  const handleSRef  = useRef<HTMLDivElement | null>(null);
+  const handleSERef = useRef<HTMLDivElement | null>(null);
+  const handleNRef  = useRef<HTMLDivElement | null>(null);
+  const handleWRef  = useRef<HTMLDivElement | null>(null);
+  const handleNWRef = useRef<HTMLDivElement | null>(null);
+  const handleNERef = useRef<HTMLDivElement | null>(null);
+  const handleSWRef = useRef<HTMLDivElement | null>(null);
+
+  const sizeRef = useRef({
+    w: nodeWidth  != null && nodeWidth  !== "auto" ? Number(nodeWidth)  : undefined,
+    h: nodeHeight != null && nodeHeight !== "auto" ? Number(nodeHeight) : undefined,
+  });
+  sizeRef.current = {
+    w: nodeWidth  != null && nodeWidth  !== "auto" ? Number(nodeWidth)  : undefined,
+    h: nodeHeight != null && nodeHeight !== "auto" ? Number(nodeHeight) : undefined,
+  };
+
+  type ResizeDir8 = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
+  const makeResizeHandler = useCallback((dir: ResizeDir8) => (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const { zoom: z } = stateRef.current;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startW = sizeRef.current.w ?? Math.round((elementRef.current?.getBoundingClientRect().width  ?? 200) / z);
+    const startH = sizeRef.current.h ?? Math.round((elementRef.current?.getBoundingClientRect().height ?? 100) / z);
+    const startPX = stateRef.current.x;
+    const startPY = stateRef.current.y;
+    const onMove = (ev: MouseEvent) => {
+      const { zoom: cz, setProp, isAbsolute } = stateRef.current;
+      const dw = (ev.clientX - startMouseX) / cz;
+      const dh = (ev.clientY - startMouseY) / cz;
+      setProp((p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = Math.max(20, Math.round(startW + dw));
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = Math.max(20, Math.round(startH + dh));
+        if (dir === "w" || dir === "nw" || dir === "sw") {
+          const newW = Math.max(20, Math.round(startW - dw));
+          p.width = newW;
+          if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
+        }
+        if (dir === "n" || dir === "nw" || dir === "ne") {
+          const newH = Math.max(20, Math.round(startH - dh));
+          p.height = newH;
+          if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
+        }
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    const allPairs: [React.RefObject<HTMLDivElement | null>, ResizeDir8][] = [
+      [handleERef, "e"], [handleSRef, "s"], [handleSERef, "se"],
+      [handleNRef, "n"], [handleWRef, "w"], [handleNWRef, "nw"],
+      [handleNERef, "ne"], [handleSWRef, "sw"],
+    ];
+    const attached: [HTMLDivElement, (e: MouseEvent) => void][] = [];
+    for (const [ref, dir] of allPairs) {
+      if (!ref.current) continue;
+      const h = makeResizeHandler(dir);
+      ref.current.addEventListener("mousedown", h, { capture: true });
+      attached.push([ref.current, h]);
+    }
+    return () => { for (const [el, h] of attached) el.removeEventListener("mousedown", h, { capture: true }); };
+  }, [selected, makeResizeHandler]);
+
+  // Width / height from props override the hardcoded defaults in each container.
+  // Only applied when explicitly set (not "auto") so natural defaults are preserved.
+  const containerSizeStyle: CSSProperties = {
+    ...(nodeWidth  != null && nodeWidth  !== "auto" ? { width:  nodeWidth  } : {}),
+    ...(nodeHeight != null && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
+    // overflow:visible when selected so handles rendered at negative offsets aren't clipped.
+    ...(selected ? { overflow: "visible" } : {}),
+  };
+
+  const resizeHandles = selected ? (
+    <>
+      <div ref={handleERef}  style={{ position: "absolute", top: 0, right: -4, width: 8, bottom: 0, cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20 }} />
+      </div>
+      <div ref={handleSRef}  style={{ position: "absolute", left: 0, right: 0, bottom: -4, height: 8, cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20 }} />
+      </div>
+      <div ref={handleSERef} style={{ position: "absolute", right: -5, bottom: -5, width: 12, height: 12, cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+      </div>
+      <div ref={handleNRef}  style={{ position: "absolute", left: 0, right: 0, top: -4, height: 8, cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20 }} />
+      </div>
+      <div ref={handleWRef}  style={{ position: "absolute", top: 0, left: -4, width: 8, bottom: 0, cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20 }} />
+      </div>
+      <div ref={handleNWRef} style={{ position: "absolute", left: -5, top: -5, width: 12, height: 12, cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+      </div>
+      <div ref={handleNERef} style={{ position: "absolute", right: -5, top: -5, width: 12, height: 12, cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+      </div>
+      <div ref={handleSWRef} style={{ position: "absolute", left: -5, bottom: -5, width: 12, height: 12, cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+      </div>
+    </>
+  ) : null;
+
   // Very subtle fill — only visible enough to convey layout structure.
   // Selected: blue tint + solid blue border.
   // Drag-over: blue dashed border to signal "drop here".
@@ -651,7 +765,7 @@ function useContainerNode(position: string, x: number, y: number) {
     ? { background: "rgba(59,130,246,0.05)", border: "1.5px dashed #3b82f6", borderRadius: 4 }
     : { background: "rgba(0,0,0,0.025)", borderRadius: 4 };
 
-  return { connectRef, id, isEmpty, selected, isDragOver, isAbsolute, containerVisual, onMouseDown };
+  return { connectRef, id, isEmpty, selected, isDragOver, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles };
 }
 
 // ─── Leaf components ──────────────────────────────────────────────────────────
@@ -991,12 +1105,12 @@ export function AstryxCodeBlock(props: AstryxProps) {
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 export function AstryxList({ children, position = "flow", x = 0, y = 0 }: AstryxProps) {
-  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   return (
     <div
       ref={connectRef}
       onMouseDown={onMouseDown}
-      className="w-full rounded-md border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100"
+      className="w-full rounded-md border border-gray-200 bg-white divide-y divide-gray-100"
       style={{
         position: "relative",
         minHeight: 48,
@@ -1005,9 +1119,11 @@ export function AstryxList({ children, position = "flow", x = 0, y = 0 }: Astryx
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
         ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
       }}
     >
       {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div> : children}
+      {resizeHandles}
     </div>
   );
 }
@@ -1409,7 +1525,7 @@ const JUSTIFY_MAP: Record<string, string> = {
 };
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
-  const { connectRef, id, isEmpty, isAbsolute, containerVisual, selected, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, id, isEmpty, isAbsolute, containerVisual, selected, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   const isRoot = id === "ROOT";
   const bgOverride = !isRoot && !selected && backgroundColor ? { background: backgroundColor as string } : {};
   return (
@@ -1441,9 +1557,11 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
         ...(textColor ? { color: textColor as string } : {}),
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
       }}
     >
       {!isRoot && isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
+      {!isRoot && resizeHandles}
     </div>
   );
 }
@@ -1459,7 +1577,7 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
 };
 
 export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
-  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   return (
     <div
       ref={connectRef}
@@ -1479,16 +1597,18 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
         ...(textColor ? { color: textColor as string } : {}),
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
       }}
     >
       {isEmpty ? <div style={EMPTY_DROP_STYLE}>drop here</div> : children}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
 export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
-  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   return (
     <div
       ref={connectRef}
@@ -1508,16 +1628,18 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
         ...(textColor ? { color: textColor as string } : {}),
         ...absPositionStyle(position, x, y),
         ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
       }}
     >
       {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 32 }}>drop here</div> : children}
+      {resizeHandles}
     </div>
   );
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
 export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
-  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown } = useContainerNode(position, x, y);
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
   const variantClass =
     variant === "outlined" ? "bg-white border border-gray-300" :
@@ -1541,11 +1663,13 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
         ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius } : {}),
         ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
         ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
       }}
     >
       {isEmpty
         ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop here</div>
         : children}
+      {resizeHandles}
     </div>
   );
 }
