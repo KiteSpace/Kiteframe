@@ -424,11 +424,9 @@ function useLeafNode() {
     }
   };
 
-  // Resize handles — rendered only when selected.
-  // Absolute nodes get all 8 directions; flow nodes get only E/S/SE.
+  // Resize handles — rendered only when selected. All 8 directions on every component.
   const resizeHandles = selected ? (
     <>
-      {/* ── always-visible handles (E / S / SE) ─────────────────────────── */}
       <div
         ref={handleERef}
         style={{ position: "absolute", top: 0, right: -4, width: 8, bottom: 0,
@@ -450,46 +448,41 @@ function useLeafNode() {
       >
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
       </div>
-      {/* ── absolute-only handles (N / W / NW / NE / SW) ─────────────────── */}
-      {isAbsolute && (
-        <>
-          <div
-            ref={handleNRef}
-            style={{ position: "absolute", left: 0, right: 0, top: -4, height: 8,
-                      cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20, transition: "background 0.12s" }} />
-          </div>
-          <div
-            ref={handleWRef}
-            style={{ position: "absolute", top: 0, left: -4, width: 8, bottom: 0,
-                      cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20, transition: "background 0.12s" }} />
-          </div>
-          <div
-            ref={handleNWRef}
-            style={{ position: "absolute", left: -5, top: -5, width: 12, height: 12,
-                      cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
-          </div>
-          <div
-            ref={handleNERef}
-            style={{ position: "absolute", right: -5, top: -5, width: 12, height: 12,
-                      cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
-          </div>
-          <div
-            ref={handleSWRef}
-            style={{ position: "absolute", left: -5, bottom: -5, width: 12, height: 12,
-                      cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
-          </div>
-        </>
-      )}
+      <div
+        ref={handleNRef}
+        style={{ position: "absolute", left: 0, right: 0, top: -4, height: 8,
+                  cursor: "ns-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ borderRadius: 2, background: "#3b82f6", height: 4, width: 20, transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleWRef}
+        style={{ position: "absolute", top: 0, left: -4, width: 8, bottom: 0,
+                  cursor: "ew-resize", zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ borderRadius: 2, background: "#3b82f6", width: 4, height: 20, transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleNWRef}
+        style={{ position: "absolute", left: -5, top: -5, width: 12, height: 12,
+                  cursor: "nwse-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleNERef}
+        style={{ position: "absolute", right: -5, top: -5, width: 12, height: 12,
+                  cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+      </div>
+      <div
+        ref={handleSWRef}
+        style={{ position: "absolute", left: -5, bottom: -5, width: 12, height: 12,
+                  cursor: "nesw-resize", zIndex: 21, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", transition: "background 0.12s" }} />
+      </div>
     </>
   ) : null;
 
