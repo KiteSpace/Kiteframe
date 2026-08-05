@@ -162,6 +162,8 @@ export function AstryxTextInput({ placeholder = "Enter text…", label, value, d
         defaultValue={value}
         disabled={disabled}
         readOnly
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
       />
     </div>
   );
