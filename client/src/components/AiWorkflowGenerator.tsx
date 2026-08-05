@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import type { Node, Edge } from '../lib/kiteframe/types';
-import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare, Lock } from 'lucide-react';
+import { Sparkles, Loader2, Image, Upload, FileImage, CheckCircle, AlertTriangle, MessageSquare, Lock, Layout, Type, Square as SquareIcon, MousePointer2 } from 'lucide-react';
 import { AI_WORKFLOW_SYSTEM_PROMPT } from '@/constants/aiWorkflowPrompt';
 import { normalizeWorkflowGraph } from '@/utils/normalizeWorkflowGraph';
 import { getRouter, extractJSON } from '@/ai/router';
@@ -494,8 +494,102 @@ export function AiWorkflowGenerator({ onClose, onGenerate, initialPrompt = '' }:
             </div>
           )}
 
-          {/* Image Mode */}
-          {mode === 'image' && (
+          {/* Image Mode — Analysing state: full processing UI */}
+          {mode === 'image' && isAnalyzing && (
+            <div className="flex gap-4 min-h-[340px]">
+              {/* Left: image with scan-line animation */}
+              <div className="flex-1 flex items-center justify-center bg-muted/20 rounded-xl relative overflow-hidden">
+                <div
+                  className="absolute inset-0 opacity-[0.04] pointer-events-none"
+                  style={{ backgroundImage: "radial-gradient(circle,#7c3aed 1.5px,transparent 1.5px)", backgroundSize: "28px 28px" }}
+                />
+                <div className="relative w-full max-w-[300px] mx-4">
+                  {imagePreview ? (
+                    <div
+                      className="relative rounded-xl border-2 border-violet-300 dark:border-violet-700 overflow-hidden shadow-xl"
+                      style={{ boxShadow: "0 0 0 1px rgba(139,92,246,0.2), 0 20px 40px rgba(0,0,0,0.15)" }}
+                    >
+                      <img src={imagePreview} alt="Analysing" className="w-full max-h-44 object-cover" />
+                      {/* Scan line */}
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        <div
+                          className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-violet-500 to-transparent"
+                          style={{ animation: "aiw-scanline 2.4s ease-in-out infinite", opacity: 0.9 }}
+                        />
+                      </div>
+                      {/* Soft tint */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-violet-600/[0.05] via-transparent to-violet-600/[0.05] pointer-events-none" />
+                      {/* Corner brackets */}
+                      {(["top-0 left-0 border-t-2 border-l-2 rounded-tl-xl","top-0 right-0 border-t-2 border-r-2 rounded-tr-xl","bottom-0 left-0 border-b-2 border-l-2 rounded-bl-xl","bottom-0 right-0 border-b-2 border-r-2 rounded-br-xl"] as const).map((cls, i) => (
+                        <div key={i} className={`absolute w-4 h-4 border-violet-500 ${cls} pointer-events-none`} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="w-full h-40 rounded-xl border-2 border-violet-300 dark:border-violet-700 bg-muted animate-pulse" />
+                  )}
+                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-violet-600 text-white text-[11px] font-medium px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                    <Loader2 size={10} className="animate-spin" />
+                    Mapping layout to nodes…
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: detected elements panel */}
+              <div className="w-52 flex-shrink-0 flex flex-col gap-3 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-violet-500" />
+                  <span className="text-sm font-semibold text-foreground">Detecting elements</span>
+                </div>
+                <div className="space-y-2">
+                  {([
+                    { icon: Layout,         label: "Flow nodes",    sub: "Steps & actions",  delay: 0   },
+                    { icon: SquareIcon,     label: "Decisions",     sub: "Branches & gates", delay: 200 },
+                    { icon: Type,           label: "Labels",        sub: "Text content",     delay: 400 },
+                    { icon: MousePointer2,  label: "Connections",   sub: "Edge paths",       delay: 600 },
+                  ] as const).map(({ icon: Icon, label, sub, delay }) => (
+                    <div
+                      key={label}
+                      className="flex items-center gap-2.5 p-2.5 rounded-lg border border-border bg-muted/40 animate-pulse"
+                      style={{ animationDelay: `${delay}ms` }}
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
+                        <Icon size={13} className="text-violet-500" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="h-2 bg-muted-foreground/25 rounded w-3/4" />
+                        <div className="h-1.5 bg-muted-foreground/15 rounded w-1/2" />
+                      </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping" style={{ animationDelay: `${delay + 300}ms` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-auto space-y-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Analysis progress</span>
+                    <span className="text-violet-500 font-medium">Running…</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full relative overflow-hidden" style={{ width: "65%" }}>
+                      <div className="absolute inset-0 animate-pulse bg-white/25" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-center">Usually 10–20 seconds</p>
+                </div>
+              </div>
+
+              <style>{`
+                @keyframes aiw-scanline {
+                  0%   { top: -4px; opacity: 0; }
+                  8%   { opacity: 1; }
+                  92%  { opacity: 1; }
+                  100% { top: 100%; opacity: 0; }
+                }
+              `}</style>
+            </div>
+          )}
+
+          {/* Image Mode — idle/results state */}
+          {mode === 'image' && !isAnalyzing && (
             <div className="space-y-4">
               {/* Image Upload Area */}
               <div className="space-y-3">

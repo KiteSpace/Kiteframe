@@ -2809,6 +2809,94 @@ export function KiteAIChatBrain({
           </div>
         )}
 
+        {/* Image analysis processing card — visible while the AI is reading an attached image */}
+        {(() => {
+          if (!isLoading) return null;
+          const lastMsg = messages[messages.length - 1];
+          const imgAtt = lastMsg?.role === 'user' && lastMsg?.attachments?.find(a => a.type === 'image');
+          if (!imgAtt) return null;
+          const chips = ['Flow nodes', 'Connections', 'Labels'];
+          return (
+            <div className="mb-2 rounded-xl border-2 border-violet-200 dark:border-violet-800/50 bg-violet-50/40 dark:bg-violet-900/10 p-3">
+              <div className="flex items-start gap-3">
+                {/* Thumbnail with shimmer */}
+                <div className="w-16 h-[52px] rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
+                  {imgAtt.preview ? (
+                    <img src={imgAtt.preview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col p-1 gap-0.5">
+                      <div className="h-2.5 bg-muted-foreground/15 rounded flex-shrink-0" />
+                      <div className="flex flex-1 gap-0.5">
+                        <div className="w-3 bg-muted-foreground/10 flex-shrink-0 rounded" />
+                        <div className="flex-1 space-y-0.5">
+                          <div className="h-1.5 bg-muted-foreground/15 rounded w-3/4" />
+                          <div className="h-1.5 bg-muted-foreground/10 rounded" />
+                          <div className="h-3 bg-muted-foreground/10 rounded mt-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Shimmer sweep */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: "linear-gradient(90deg,transparent 0%,rgba(139,92,246,0.3) 50%,transparent 100%)", animation: "kite-imgsweep 1.9s ease-in-out infinite" }}
+                  />
+                  {/* Spinner */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-violet-900/20">
+                    <div className="w-6 h-6 rounded-full bg-violet-600/90 flex items-center justify-center shadow">
+                      <Loader2 className="w-3 h-3 animate-spin text-white" />
+                    </div>
+                  </div>
+                </div>
+                {/* Info column */}
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-semibold text-foreground truncate">{imgAtt.name}</p>
+                    <span className="shrink-0 text-[9px] bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded-full font-medium border border-violet-200 dark:border-violet-700">
+                      Analysing
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-1.5">
+                    <div className="h-full bg-gradient-to-r from-violet-500 to-purple-400 rounded-full relative overflow-hidden" style={{ width: '60%' }}>
+                      <div className="absolute inset-0 animate-pulse bg-white/30" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-500" />
+                    <span className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">Reading diagram structure…</span>
+                  </div>
+                </div>
+              </div>
+              {/* Detected element chips */}
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {chips.map((tag, i) => (
+                  <div
+                    key={tag}
+                    className="flex items-center gap-1 text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-700 animate-pulse"
+                    style={{ animationDelay: `${i * 150}ms` }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    {tag}
+                  </div>
+                ))}
+                <div
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground px-2 py-0.5 rounded-full border border-dashed border-border animate-pulse"
+                  style={{ animationDelay: '500ms' }}
+                >
+                  <Loader2 className="w-2 h-2 animate-spin" />
+                  Detecting more…
+                </div>
+              </div>
+              <style>{`
+                @keyframes kite-imgsweep {
+                  0%   { transform: translateX(-100%); }
+                  100% { transform: translateX(200%); }
+                }
+              `}</style>
+            </div>
+          );
+        })()}
+
         {isOutOfCredits ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 text-sm">

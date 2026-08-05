@@ -4302,16 +4302,35 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                     : "bg-muted text-foreground rounded-bl-sm"
                 }`}>
                   {m.imagePreview && (
-                    <button
-                      onClick={() => setLightboxSrc(m.imagePreview!)}
-                      className="block mb-1.5 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-white/50 group relative"
-                      title="Click to view full image"
-                    >
-                      <img src={m.imagePreview} alt="Attached" className="max-h-28 max-w-full object-cover" />
-                      <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                      </span>
-                    </button>
+                    i === messages.length - 1 && m.role === "user" && aiStatus === "loading" ? (
+                      /* Processing shimmer — shown while the AI analyses the attached image */
+                      <div className="block mb-1.5 rounded-lg overflow-hidden relative">
+                        <img src={m.imagePreview} alt="Attached" className="max-h-28 max-w-full object-cover" />
+                        {/* Shimmer sweep */}
+                        <div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{ background: "linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%)", animation: "de-imgsweep 2s ease-in-out infinite" }}
+                        />
+                        {/* Spinner overlay */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1" style={{ background: "rgba(76,29,149,0.32)" }}>
+                          <div className="w-7 h-7 rounded-full border border-white/25 bg-white/15 flex items-center justify-center">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                          </div>
+                          <span className="text-[9px] text-white/75 font-medium">Analysing…</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setLightboxSrc(m.imagePreview!)}
+                        className="block mb-1.5 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-white/50 group relative"
+                        title="Click to view full image"
+                      >
+                        <img src={m.imagePreview} alt="Attached" className="max-h-28 max-w-full object-cover" />
+                        <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </span>
+                      </button>
+                    )
                   )}
                   {m.text}
                   {m.role === "user" && m.pinnedElement && (
@@ -4338,7 +4357,24 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                 </div>
               </div>
             )}
+            {/* Status divider when processing an image */}
+            {aiStatus === "loading" && messages.length > 0 && messages[messages.length - 1]?.role === "user" && messages[messages.length - 1]?.imagePreview && (
+              <div className="flex items-center gap-2 px-0.5">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[9px] text-muted-foreground/50 flex items-center gap-1">
+                  <Loader2 className="w-2 h-2 animate-spin" />
+                  Extracting layout from image
+                </span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+            )}
             <div ref={messagesEndRef} />
+            <style>{`
+              @keyframes de-imgsweep {
+                0%   { transform: translateX(-100%); }
+                100% { transform: translateX(200%); }
+              }
+            `}</style>
           </div>
           <div className="px-2.5 py-2.5 border-t border-border shrink-0">
             {pinned && (
