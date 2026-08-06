@@ -2782,6 +2782,29 @@ function reorderNodeInParent(
     next[nodeId] = { ...next[nodeId], parent: targetParentId };
   }
 
+  // When a node is reparented to ROOT from a non-ROOT parent, its existing x/y
+  // props are artboard-relative (or meaningless) and will cause it to appear at
+  // an unexpected location in global canvas space.  Compute a sensible placement
+  // below the lowest artboard so the node is immediately visible and selectable.
+  if (targetParentId === "ROOT" && srcParentId !== "ROOT") {
+    // Find the bottom edge of every artboard on the canvas.
+    let maxBottom = 64;
+    let bestX = 64;
+    for (const [, n] of Object.entries(next)) {
+      if ((n as any)?.type?.resolvedName !== "AstryxArtboard") continue;
+      const ab = n as any;
+      const ax: number = ab.props?.x ?? 64;
+      const ay: number = ab.props?.y ?? 64;
+      // Artboard height can be auto; fall back to a generous default.
+      const ah: number = typeof ab.props?.height === "number" ? ab.props.height : 800;
+      const bottom = ay + ah;
+      if (bottom > maxBottom) { maxBottom = bottom; bestX = ax; }
+    }
+    const updatedNode = { ...next[nodeId] };
+    updatedNode.props = { ...(updatedNode.props ?? {}), x: bestX, y: maxBottom + 48 };
+    next[nodeId] = updatedNode;
+  }
+
   return next;
 }
 
