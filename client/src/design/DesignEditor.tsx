@@ -2525,8 +2525,14 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
 
 // ─── Clipboard & node operation utilities ────────────────────────────────────
 
-/** Module-level clipboard. Stores a cloned subtree ready for paste. */
-let _craftClipboard: { subtree: Record<string, any>; rootId: string } | null = null;
+/** Module-level clipboard. Stores one or more cloned subtrees ready for paste. */
+let _craftClipboard: { subtree: Record<string, any>; rootId: string }[] | null = null;
+
+// ─── Multi-select state ───────────────────────────────────────────────────────
+/** Set of node IDs currently held in the multi-selection (Shift+Click). */
+const _multiSelRef = { current: new Set<string>() };
+/** Setter registered by the MultiSelectHandler component so module-level code can trigger re-renders. */
+let _multiSelSetter: ((s: Set<string>) => void) | null = null;
 
 /** BFS-collect all node IDs in a serialized craft subtree. */
 function collectSubtreeIds(state: Record<string, any>, rootId: string): string[] {
@@ -2626,20 +2632,74 @@ function moveNodeInParent(
 function copyNodeToClipboard(state: Record<string, any>, nodeId: string): boolean {
   if (!nodeId || nodeId === "ROOT" || !state[nodeId]) return false;
   const { subtree, newRootId } = extractNodeSubtree(state, nodeId);
-  _craftClipboard = { subtree, rootId: newRootId };
+  _craftClipboard = [{ subtree, rootId: newRootId }];
   return true;
 }
 
-/** Paste clipboard subtree as sibling of selectedId (or child of parent if artboard). */
+/** Copy multiple node subtrees to the clipboard (for multi-select copy/cut). */
+function copyNodesToClipboard(state: Record<string, any>, nodeIds: string[]): boolean {
+  const entries: { subtree: Record<string, any>; rootId: string }[] = [];
+  for (const nodeId of nodeIds) {
+    if (!nodeId || nodeId === "ROOT" || !state[nodeId]) continue;
+    const { subtree, newRootId } = extractNodeSubtree(state, nodeId);
+    entries.push({ subtree, rootId: newRootId });
+  }
+  if (entries.length === 0) return false;
+  _craftClipboard = entries;
+  return true;
+}
+
+/**
+ * Delete a set of node IDs (plus their full subtrees) from the serialized craft
+ * state in one shot. Skips ROOT and nodes that no longer exist.
+ */
+function deleteNodesFromState(
+  state: Record<string, any>,
+  nodeIds: string[],
+): Record<string, any> {
+  // Collect every descendant ID for each target so we can remove them all.
+  const allToRemove = new Set<string>();
+  for (const id of nodeIds) {
+    if (!id || id === "ROOT" || !state[id]) continue;
+    const queue = [id];
+    while (queue.length) {
+      const curr = queue.shift()!;
+      allToRemove.add(curr);
+      const node = state[curr];
+      if (!node) continue;
+      for (const c of (node.nodes ?? [])) queue.push(c as string);
+      for (const v of Object.values(node.linkedNodes ?? {})) queue.push(v as string);
+    }
+  }
+  if (allToRemove.size === 0) return state;
+
+  // Detach top-level targets from their parents' nodes arrays.
+  let newState = { ...state };
+  for (const id of nodeIds) {
+    const node = newState[id];
+    if (!node?.parent || !newState[node.parent]) continue;
+    const parent = { ...newState[node.parent] };
+    parent.nodes = (parent.nodes ?? []).filter((n: string) => !allToRemove.has(n));
+    newState[node.parent] = parent;
+  }
+
+  // Remove every collected node from the state map.
+  for (const id of allToRemove) {
+    const { [id]: _removed, ...rest } = newState;
+    newState = rest;
+  }
+  return newState;
+}
+
+/** Paste clipboard subtrees as siblings of selectedId (or children of ROOT). */
 function pasteFromClipboard(
   state: Record<string, any>,
   selectedId: string | null,
 ): Record<string, any> | null {
   if (!_craftClipboard) return null;
-  // Re-clone with fresh IDs so repeated pastes produce distinct nodes.
-  const { subtree: srcSubtree, rootId: srcRootId } = _craftClipboard;
-  const { subtree, newRootId } = extractNodeSubtree(srcSubtree, srcRootId);
+  const entries = Array.isArray(_craftClipboard) ? _craftClipboard : [_craftClipboard];
 
+  // Determine initial paste location once; slide index forward for each entry.
   let targetParentId: string;
   let insertAfterIdx: number;
   if (!selectedId || selectedId === "ROOT") {
@@ -2647,13 +2707,29 @@ function pasteFromClipboard(
     insertAfterIdx = -1;
   } else {
     const selNode = state[selectedId];
-    if (!selNode) return null;
-    targetParentId = selNode.parent ?? "ROOT";
-    const siblings: string[] = state[targetParentId]?.nodes ?? [];
-    insertAfterIdx = siblings.indexOf(selectedId);
+    if (!selNode) { targetParentId = "ROOT"; insertAfterIdx = -1; }
+    else {
+      targetParentId = selNode.parent ?? "ROOT";
+      const siblings: string[] = state[targetParentId]?.nodes ?? [];
+      insertAfterIdx = siblings.indexOf(selectedId);
+    }
   }
   if (!state[targetParentId]) return null;
-  return insertSubtreeInState(state, subtree, newRootId, targetParentId, insertAfterIdx);
+
+  let currentState = state;
+  for (const entry of entries) {
+    // Re-clone with fresh IDs so repeated pastes produce distinct nodes.
+    const { subtree: srcSubtree, rootId: srcRootId } = entry;
+    const { subtree, newRootId } = extractNodeSubtree(srcSubtree, srcRootId);
+    if (!currentState[targetParentId]) break;
+    const next = insertSubtreeInState(currentState, subtree, newRootId, targetParentId, insertAfterIdx);
+    if (!next) continue;
+    currentState = next;
+    // Each subsequent node goes right after the one we just inserted.
+    const siblings: string[] = currentState[targetParentId]?.nodes ?? [];
+    insertAfterIdx = siblings.indexOf(newRootId);
+  }
+  return currentState;
 }
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
@@ -2685,9 +2761,34 @@ function KeyboardHandler() {
       const inInput = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || !!el?.isContentEditable;
       const id = selectedIdRef.current;
       const isArtboard = isArtboardRef.current;
+      const multiIds = _multiSelRef.current;
+      const isMulti = multiIds.size > 1;
 
-      // Delete / Backspace — not for ROOT or artboards
+      // ── Helpers to resolve the effective target set ───────────────────────
+      /** Non-ROOT, non-artboard IDs from the multi-select set (or single selection). */
+      const resolveTargets = (state: Record<string, any>): string[] => {
+        const candidates = isMulti ? Array.from(multiIds) : (id ? [id] : []);
+        return candidates.filter(nid => {
+          if (!nid || nid === "ROOT" || !state[nid]) return false;
+          return state[nid]?.data?.displayName !== "AstryxArtboard";
+        });
+      };
+
+      // ── Delete / Backspace ────────────────────────────────────────────────
       if ((e.key === "Delete" || e.key === "Backspace") && !inInput) {
+        if (isMulti) {
+          e.preventDefault();
+          try {
+            const s = JSON.parse(queryRef.current.serialize());
+            const targets = resolveTargets(s);
+            if (targets.length === 0) return;
+            const next = deleteNodesFromState(s, targets);
+            actionsRef.current.deserialize(JSON.stringify(next));
+            _multiSelRef.current = new Set();
+            _multiSelSetter?.(new Set());
+          } catch (err) { console.error("[multi-delete]", err); }
+          return;
+        }
         if (!id || id === "ROOT" || isArtboard) return;
         e.preventDefault();
         actionsRef.current.delete(id);
@@ -2697,27 +2798,46 @@ function KeyboardHandler() {
       if ((e.ctrlKey || e.metaKey) && !inInput) {
         const k = e.key.toLowerCase();
 
-        // Copy
+        // ── Copy ─────────────────────────────────────────────────────────────
         if (k === "c") {
-          if (!id || id === "ROOT") return;
-          e.preventDefault();
-          try { copyNodeToClipboard(JSON.parse(queryRef.current.serialize()), id); }
-          catch (err) { console.error("[copy]", err); }
-          return;
-        }
-
-        // Cut — not for artboards (too destructive)
-        if (k === "x") {
-          if (!id || id === "ROOT" || isArtboard) return;
+          if (!id && !isMulti) return;
           e.preventDefault();
           try {
             const s = JSON.parse(queryRef.current.serialize());
-            if (copyNodeToClipboard(s, id)) actionsRef.current.delete(id);
+            if (isMulti) {
+              const targets = resolveTargets(s);
+              copyNodesToClipboard(s, targets);
+            } else {
+              if (!id || id === "ROOT") return;
+              copyNodeToClipboard(s, id);
+            }
+          } catch (err) { console.error("[copy]", err); }
+          return;
+        }
+
+        // ── Cut — not for artboards ───────────────────────────────────────────
+        if (k === "x") {
+          e.preventDefault();
+          try {
+            const s = JSON.parse(queryRef.current.serialize());
+            if (isMulti) {
+              const targets = resolveTargets(s);
+              if (targets.length === 0) return;
+              if (copyNodesToClipboard(s, targets)) {
+                const next = deleteNodesFromState(s, targets);
+                actionsRef.current.deserialize(JSON.stringify(next));
+                _multiSelRef.current = new Set();
+                _multiSelSetter?.(new Set());
+              }
+            } else {
+              if (!id || id === "ROOT" || isArtboard) return;
+              if (copyNodeToClipboard(s, id)) actionsRef.current.delete(id);
+            }
           } catch (err) { console.error("[cut]", err); }
           return;
         }
 
-        // Paste
+        // ── Paste ─────────────────────────────────────────────────────────────
         if (k === "v") {
           e.preventDefault();
           try {
@@ -2728,11 +2848,11 @@ function KeyboardHandler() {
           return;
         }
 
-        // Undo / Redo
+        // ── Undo / Redo ───────────────────────────────────────────────────────
         if (k === "z" && !e.shiftKey) { e.preventDefault(); doUndoRef.current(); return; }
         if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); doRedoRef.current(); return; }
 
-        // Duplicate — works for any node, not just artboards
+        // ── Duplicate — single node only ──────────────────────────────────────
         if (k === "d") {
           if (!id || id === "ROOT") return;
           e.preventDefault();
@@ -2755,6 +2875,95 @@ function KeyboardHandler() {
   }, []); // all values read via refs — mount once
 
   return null;
+}
+
+// ─── Multi-select handler (Shift+Click) ──────────────────────────────────────
+
+function MultiSelectHandler() {
+  const { craftSelectedId } = useEditor((state) => {
+    const sel = state.events.selected;
+    return { craftSelectedId: sel.size > 0 ? Array.from(sel)[0] : null };
+  });
+  const craftSelIdRef = useRef<string | null>(null);
+  craftSelIdRef.current = craftSelectedId;
+
+  const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
+
+  // Register the setter so module-level code can trigger re-renders.
+  useEffect(() => {
+    _multiSelSetter = setMultiSel;
+    return () => { if (_multiSelSetter === setMultiSel) _multiSelSetter = null; };
+  }, [setMultiSel]);
+
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (!e.shiftKey) {
+        // Non-shift click — clear multi-selection and let craft handle normally.
+        if (_multiSelRef.current.size > 0) {
+          _multiSelRef.current = new Set();
+          setMultiSel(new Set());
+        }
+        return;
+      }
+
+      // Shift held — find the closest craft node under the cursor.
+      const el = (e.target as HTMLElement | null)?.closest('[data-id]') as HTMLElement | null;
+      const nodeId = el?.getAttribute('data-id');
+
+      if (!nodeId || nodeId === 'ROOT') {
+        // Shift+click on background/ROOT — clear multi-select.
+        if (_multiSelRef.current.size > 0) {
+          _multiSelRef.current = new Set();
+          setMultiSel(new Set());
+        }
+        return;
+      }
+
+      // Build next selection set.
+      const next = new Set(_multiSelRef.current);
+
+      // On the very first Shift+Click, seed with the currently craft-selected node
+      // so the user's existing selection is preserved as the anchor.
+      if (next.size === 0) {
+        const anchor = craftSelIdRef.current;
+        if (anchor && anchor !== 'ROOT' && anchor !== nodeId) {
+          next.add(anchor);
+        }
+      }
+
+      // Toggle the clicked node in/out.
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+
+      _multiSelRef.current = next;
+      setMultiSel(new Set(next));
+
+      // Stop propagation so craft.js does NOT reset the selection to this single node.
+      e.stopPropagation();
+    };
+
+    // Capture phase so this fires before craft.js bubble-phase click handlers.
+    document.addEventListener('mousedown', onMouseDown, true);
+    return () => document.removeEventListener('mousedown', onMouseDown, true);
+  }, []); // craft selection read via ref
+
+  // Inject a dynamic <style> tag with violet outlines on all multi-selected nodes.
+  // Only render when 2+ nodes are selected (single-select uses craft's own highlight).
+  if (multiSel.size < 2) return null;
+
+  const styleRules = [...multiSel]
+    .map(id => {
+      // Minimal CSS escaping — craft IDs are UUID-like (alphanumeric + dash)
+      // but guard against any stray quotes.
+      const safe = id.replace(/["\\]/g, '\\$&');
+      return `[data-id="${safe}"] { outline: 2px solid #7c3aed !important; outline-offset: 2px; border-radius: 2px; }`;
+    })
+    .join('\n');
+
+  return <style>{styleRules}</style>;
 }
 
 // ─── Canvas selection hints (shown over the canvas) ──────────────────────────
@@ -4625,6 +4834,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
           />
         )}
         {editable && <KeyboardHandler />}
+        {editable && <MultiSelectHandler />}
         {editable && <CanvasContextMenu />}
         {editable && <SelectionPinButton />}
         </HistoryProvider>
