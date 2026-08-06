@@ -7892,7 +7892,10 @@ jane@example.com,Jane,Smith,pro,GroupC
         try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
       }
       const { valid, errors } = validateCraftState(state);
-      if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
+      if (!valid) {
+        console.error('[designs] POST craftState validation failed:', errors, '— state prefix:', JSON.stringify(state).slice(0, 500));
+        return res.status(422).json({ error: 'craftState failed validation.', details: errors });
+      }
       const allowedSources = ['native', 'home-ai', 'workflow-bridge'];
       const resolvedSource = typeof source === 'string' && allowedSources.includes(source) ? source : 'native';
       const resolvedSourceWorkflowId = typeof sourceWorkflowId === 'string' && sourceWorkflowId.length > 0

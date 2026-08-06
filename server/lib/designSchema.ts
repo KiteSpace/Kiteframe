@@ -219,8 +219,12 @@ export function validateCraftState(data: unknown): DesignValidationResult {
 /**
  * Repairs AI-generated craft state before strict validation:
  * 1. Adds missing required fields with safe defaults (props, nodes, linkedNodes, parent).
- * 2. Strips dangling child/linkedNodes references that point to non-existent nodes.
- * 3. Nulls parent pointers that reference non-existent nodes.
+ * 2. Replaces any resolvedName not in SERVER_ALLOWED_CRAFT_COMPONENTS with "AstryxUnknown"
+ *    (mirrors the client-side sanitizeCraftState so server-only paths like the workflow
+ *    interface generator don't 422 on hallucinated component names).
+ * 3. Strips dangling child/linkedNodes references that point to non-existent nodes.
+ * 4. Nulls parent pointers that reference non-existent nodes.
+ * 5. Reconstructs a missing ROOT node from orphaned nodes (mirrors client repairCraftState).
  *
  * Call this before validateCraftState so transient AI omissions and node-ID
  * mismatches don't hard-fail saves.
@@ -229,6 +233,7 @@ export function repairCraftState(state: unknown): unknown {
   if (!state || typeof state !== "object") return state;
   const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
   const nodeIds = new Set(Object.keys(map));
+  const allowedSet = new Set<string>(SERVER_ALLOWED_CRAFT_COMPONENTS);
 
   for (const [nodeId, node] of Object.entries(map)) {
     if (!node || typeof node !== "object") continue;
@@ -245,6 +250,17 @@ export function repairCraftState(state: unknown): unknown {
     }
     const typeObj = n["type"] as Record<string, unknown>;
     if (!typeObj["resolvedName"]) typeObj["resolvedName"] = "AstryxUnknown";
+
+    // ── Sanitize unknown component types ────────────────────────────────────
+    // The AJV schema uses a strict enum; any hallucinated name causes a 422.
+    // Replace with AstryxUnknown so the canvas renders a placeholder instead.
+    const resolvedName = typeObj["resolvedName"] as string;
+    if (resolvedName !== "AstryxUnknown" && !allowedSet.has(resolvedName)) {
+      console.warn(
+        `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with AstryxUnknown`,
+      );
+      typeObj["resolvedName"] = "AstryxUnknown";
+    }
 
     // ── Strip dangling child references ─────────────────────────────────────
     const childIds = n["nodes"] as string[];
@@ -265,6 +281,41 @@ export function repairCraftState(state: unknown): unknown {
     }
 
     map[nodeId] = n;
+  }
+
+  // ── ROOT reconstruction fallback ─────────────────────────────────────────
+  // If the AI omits ROOT entirely, synthesise a minimal one so the canvas has
+  // something to anchor to. Prefer nodes whose parent field already says "ROOT";
+  // if none exist, collect all nodes with no valid parent (truly orphaned).
+  if (!map["ROOT"]) {
+    console.warn("[repairCraftState] ROOT node missing — synthesising from orphaned nodes");
+    const childrenOfRoot: string[] = [];
+    const orphans: string[] = [];
+    for (const [id, node] of Object.entries(map)) {
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n["parent"] === "ROOT") {
+        childrenOfRoot.push(id);
+      } else if (!n["parent"] || !nodeIds.has(n["parent"] as string)) {
+        orphans.push(id);
+      }
+    }
+    const rootChildren = childrenOfRoot.length > 0 ? childrenOfRoot : orphans;
+    for (const id of rootChildren) {
+      const n = map[id] as Record<string, unknown>;
+      map[id] = { ...n, parent: "ROOT" };
+    }
+    map["ROOT"] = {
+      type: { resolvedName: "AstryxSection" },
+      displayName: "Root",
+      props: {},
+      nodes: rootChildren,
+      linkedNodes: {},
+      parent: null,
+      hidden: false,
+      isCanvas: true,
+      custom: {},
+    };
   }
 
   return map;
