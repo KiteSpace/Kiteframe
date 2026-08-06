@@ -4232,6 +4232,47 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const [prompt, setPrompt] = useState("");
   const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Thinking phrases ───────────────────────────────────────────────────────
+  const THINKING_PHRASES = [
+    "thinking…",
+    "concocting something…",
+    "swirling the pot…",
+    "consulting the design gods…",
+    "sketching in the margins…",
+    "pondering the pixels…",
+    "rearranging the furniture…",
+    "measuring twice…",
+    "untangling the node graph…",
+    "brewing ideas…",
+    "weighing the options…",
+    "adjusting the kerning…",
+    "interrogating the layout…",
+    "finding just the right shade…",
+    "connecting the dots…",
+    "having a design moment…",
+    "channelling the muse…",
+    "holding the vision…",
+  ];
+  const [thinkingIdx, setThinkingIdx] = useState(0);
+  const [thinkingVisible, setThinkingVisible] = useState(true);
+
+  useEffect(() => {
+    if (aiStatus !== "loading") { setThinkingIdx(0); setThinkingVisible(true); return; }
+    // Cycle phrases: fade out → swap phrase → fade in → hold → repeat
+    let idx = 0;
+    const advance = () => {
+      setThinkingVisible(false);
+      setTimeout(() => {
+        idx = (idx + 1) % THINKING_PHRASES.length;
+        setThinkingIdx(idx);
+        setThinkingVisible(true);
+      }, 350); // fade-out duration before swap
+    };
+    const iv = setInterval(advance, 2200);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiStatus]);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -4701,11 +4742,14 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
             ))}
             {aiStatus === "loading" && (
               <div className="flex gap-1.5 justify-start">
-                <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex-shrink-0 mt-0.5 opacity-50" />
-                <div className="bg-muted px-3 py-2 rounded-2xl rounded-bl-sm flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                <div className="w-5 h-5 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-muted px-3 py-2 rounded-2xl rounded-bl-sm flex items-center min-w-[120px]">
+                  <span
+                    className="text-[11px] text-muted-foreground italic transition-opacity duration-300"
+                    style={{ opacity: thinkingVisible ? 1 : 0 }}
+                  >
+                    {THINKING_PHRASES[thinkingIdx]}
+                  </span>
                 </div>
               </div>
             )}
