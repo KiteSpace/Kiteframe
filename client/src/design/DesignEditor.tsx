@@ -1055,6 +1055,12 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <>
       <PropRow label="Placeholder"><TextProp value={props.placeholder ?? "Select…"} onChange={(v) => setProp("placeholder", v)} /></PropRow>
       <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? "Option A,Option B"} onChange={(v) => setProp("options", v)} /></PropRow>
+      <PropRow label="Open">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.open} onChange={(v) => setProp("open", v)} />
+          <span className="text-xs text-muted-foreground">{props.open ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
     </>
   );
 

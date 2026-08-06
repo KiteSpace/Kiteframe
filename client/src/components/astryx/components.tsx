@@ -298,7 +298,7 @@ export function AstryxAccordion({ items = "Section 1,Section 2,Section 3", open 
   );
 }
 
-export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3", size = "md", borderRadius }: AstryxProps) {
+export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3", size = "md", borderRadius, open = false }: AstryxProps) {
   const optionList = Array.isArray(options)
     ? options.map(String)
     : String(options).split(",").map((o) => o.trim()).filter(Boolean);
@@ -315,7 +315,7 @@ export function AstryxSelect({ placeholder = "Select option…", options = "Opti
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </div>
-      {preview.length > 0 && (
+      {open === true && preview.length > 0 && (
         <div className="mt-0.5 border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden">
           {preview.map((opt, i) => (
             <div key={i} className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 last:border-0 hover:bg-gray-50">

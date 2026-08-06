@@ -138,7 +138,7 @@ COMPONENT QUICK-REFERENCE:
 - AstryxTextInput: text field, props: { placeholder: string, label: string, disabled: boolean }
 
 — FORM CONTROLS —
-- AstryxSelect:     dropdown selector, props: { placeholder: string, options: string (comma-separated) }
+- AstryxSelect:     dropdown selector, props: { placeholder: string, options: string (comma-separated), open?: boolean }
 - AstryxCheckbox:   checkbox with label, props: { label: string, checked: boolean }
 - AstryxRadioGroup: radio button group, props: { options: string (comma-separated), selected: string }
 - AstryxSlider:     range slider, props: { value: number, min: number, max: number }

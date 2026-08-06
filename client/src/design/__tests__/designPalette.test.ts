@@ -427,6 +427,56 @@ describe('ALLOWED_CRAFT_COMPONENTS — alignment with expected palette', () => {
   });
 });
 
+describe('AstryxSelect — persisted open state', () => {
+  it('accepts an open boolean prop while keeping the component state valid', () => {
+    const state = {
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' },
+        isCanvas: true,
+        props: {},
+        parent: null,
+        nodes: ['select'],
+        linkedNodes: {},
+      },
+      select: {
+        type: { resolvedName: 'AstryxSelect' },
+        isCanvas: false,
+        props: { placeholder: 'Choose a plan', options: 'Basic,Pro', open: true },
+        parent: 'ROOT',
+        nodes: [],
+        linkedNodes: {},
+      },
+    };
+
+    expect(validateCraftState(state).valid).toBe(true);
+    const loaded = JSON.parse(JSON.stringify(state));
+    expect(loaded.select.props.open).toBe(true);
+  });
+
+  it('keeps older Select nodes valid when open is omitted', () => {
+    const state = {
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' },
+        isCanvas: true,
+        props: {},
+        parent: null,
+        nodes: ['select'],
+        linkedNodes: {},
+      },
+      select: {
+        type: { resolvedName: 'AstryxSelect' },
+        isCanvas: false,
+        props: { placeholder: 'Choose a plan', options: 'Basic,Pro' },
+        parent: 'ROOT',
+        nodes: [],
+        linkedNodes: {},
+      },
+    };
+
+    expect(validateCraftState(state).valid).toBe(true);
+  });
+});
+
 describe('Simulated AI responses — validateCraftState (production validator)', () => {
   for (const { prompt, state } of SIMULATED_RESPONSES) {
     it(`passes for "${prompt}"`, () => {

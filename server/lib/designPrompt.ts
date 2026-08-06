@@ -105,7 +105,7 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 — INPUTS & ACTIONS —
 • AstryxButton    button       props: { children:string, variant:"primary"|"secondary"|"outline"|"ghost", size:"sm"|"md"|"lg", disabled:boolean }
 • AstryxTextInput text field   props: { placeholder:string, label:string, disabled:boolean }
-• AstryxSelect    dropdown     props: { label:string, placeholder:string, options:string[] (e.g. ["Option A","Option B","Option C"]) }
+• AstryxSelect    dropdown     props: { label:string, placeholder:string, options:string[] (e.g. ["Option A","Option B","Option C"]), open?:boolean }
 • AstryxCheckbox  checkbox     props: { label:string, checked:boolean }
 • AstryxRadioGroup radio group props: { options:string (comma-separated), selected:string }
 • AstryxSlider    range slider props: { value:number, min:number, max:number }
