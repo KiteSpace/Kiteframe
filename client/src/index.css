@@ -110,6 +110,75 @@
   }
 }
 
+/* Full-interface generation preview. Keep the motion subtle so the layout
+   reads as a canvas assembling itself, not as a pulsing card placeholder. */
+.ui-generation-canvas {
+  background-color: var(--background);
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.42) 1px, transparent 1px);
+  background-position: 0 0;
+  background-size: 18px 18px;
+}
+
+.dark .ui-generation-canvas {
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.2) 1px, transparent 1px);
+}
+
+.ui-generation-mock {
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  animation: ui-generation-float 5s ease-in-out infinite;
+}
+
+.ui-generation-titlebar,
+.ui-generation-sidebar {
+  background: color-mix(in srgb, var(--muted) 42%, transparent);
+}
+
+.ui-shimmer-block {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--muted-foreground) 15%, transparent);
+}
+
+.ui-shimmer-block::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    color-mix(in srgb, var(--foreground) 10%, transparent) 50%,
+    transparent 80%
+  );
+  animation: ui-generation-shimmer 2.4s ease-in-out infinite;
+}
+
+.ui-shimmer-chart {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+@keyframes ui-generation-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-generation-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-generation-mock,
+  .ui-shimmer-block::after {
+    animation: none;
+  }
+}
+
 /* FontAwesome compatibility */
 .fas,
 .far,
