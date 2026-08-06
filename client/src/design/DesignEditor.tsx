@@ -1773,10 +1773,13 @@ function LayersView() {
   } | null>(null);
 
   // ── Drag-and-drop state ───────────────────────────────────────────────────
-  // `dropTarget` tracks where the ghost line should appear.
+  // `dropTarget` tracks where the ghost line should appear within the node tree.
   // pos: 'before' = line above the row, 'after' = line below the row.
-  const [dragId,    setDragId]    = useState<string | null>(null);
+  // `rootDropPos` tracks the top/bottom ROOT-level drop zones that let users
+  // detach a node from its artboard and make it a top-level layer.
+  const [dragId,     setDragId]     = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ nodeId: string; pos: "before" | "after" } | null>(null);
+  const [rootDropPos, setRootDropPos] = useState<"top" | "bottom" | null>(null);
 
   // Close layers context menu on any click elsewhere.
   useEffect(() => {
@@ -1822,7 +1825,23 @@ function LayersView() {
 
   const handleDragLeave = () => setDropTarget(null);
 
-  const handleDragEnd = () => { setDragId(null); setDropTarget(null); };
+  const handleDragEnd = () => { setDragId(null); setDropTarget(null); setRootDropPos(null); };
+
+  /** Drop directly onto a ROOT-level zone (top or bottom of the layers list). */
+  const handleRootZoneDrop = (e: React.DragEvent, insertAtEnd: boolean) => {
+    e.preventDefault(); e.stopPropagation();
+    const sourceId = e.dataTransfer.getData("text/plain");
+    if (sourceId) {
+      try {
+        const s = JSON.parse(query.serialize()) as Record<string, any>;
+        const rootNodes: string[] = s["ROOT"]?.nodes ?? [];
+        const targetIdx = insertAtEnd ? rootNodes.length : 0;
+        const next = reorderNodeInParent(s, sourceId, "ROOT", targetIdx);
+        if (next) actions.deserialize(JSON.stringify(next));
+      } catch (err) { console.error("[layers] root-zone drop:", err); }
+    }
+    setDragId(null); setDropTarget(null); setRootDropPos(null);
+  };
 
   const handleDrop = (e: React.DragEvent, overNodeId: string) => {
     e.preventDefault();
@@ -1939,10 +1958,39 @@ function LayersView() {
   const layersRunOp = (op: () => void) => { setCtxMenu(null); op(); };
   const layersGetState = () => JSON.parse(query.serialize()) as Record<string, any>;
 
+  /** Shared renderer for the two ROOT-level drop-zone strips. */
+  const RootDropZone = ({ pos }: { pos: "top" | "bottom" }) => {
+    const active = rootDropPos === pos;
+    return (
+      <div
+        className={`relative mx-1 transition-all duration-100 ${dragId ? "h-3" : "h-0 overflow-hidden"}`}
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setRootDropPos(pos); setDropTarget(null); }}
+        onDragLeave={(e) => {
+          // Only clear if the pointer truly left this zone (not entered a child).
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRootDropPos(null);
+        }}
+        onDrop={(e) => handleRootZoneDrop(e, pos === "bottom")}
+      >
+        {active && (
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary rounded-full" />
+        )}
+        {active && (
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+            <span className="text-[8px] text-primary font-medium bg-background px-1 rounded">
+              {pos === "top" ? "↑ detach to top" : "↓ detach to bottom"}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5 flex flex-col justify-start">
+        <RootDropZone pos="top" />
         {topLevel.map((id) => renderNode(id, 0))}
+        <RootDropZone pos="bottom" />
       </div>
       {ctxMenu && (() => {
         const { nodeId: id, isArtboard, siblingIndex, siblingCount } = ctxMenu;
@@ -3015,9 +3063,16 @@ function MultiSelectHandler() {
         return;
       }
 
-      // Shift held — find the closest craft node under the cursor.
-      const el = (e.target as HTMLElement | null)?.closest('[data-id]') as HTMLElement | null;
-      const nodeId = el?.getAttribute('data-id');
+      // Shift held — find the craft node under the cursor.
+      // `closest('[data-id]')` fails when the event target is a leaf node
+      // separated from its craft wrapper by a portal or stacking-context boundary.
+      // `elementsFromPoint` returns every element in z-order at the cursor
+      // regardless of DOM ancestry, so it finds the wrapper even in those cases.
+      const allUnderCursor = document.elementsFromPoint(e.clientX, e.clientY);
+      const hit = allUnderCursor.find(
+        (el) => el.hasAttribute?.('data-id') && el.getAttribute('data-id') !== 'ROOT'
+      ) as HTMLElement | undefined;
+      const nodeId = hit?.getAttribute('data-id') ?? null;
 
       if (!nodeId || nodeId === 'ROOT') {
         // Shift+click on background/ROOT — clear multi-select.
@@ -3935,6 +3990,26 @@ function mergeIntoCanvas(
     });
     if (after.length !== before.length) {
       merged[nodeId] = { ...n, nodes: after };
+    }
+  }
+
+  // Promote any node whose `parent` field is "ROOT" but that is absent from
+  // ROOT.nodes — this happens when the AI generates a state with a correctly-
+  // parented artboard but forgets to list it in ROOT's nodes array.
+  const rootEntry = merged["ROOT"] as Record<string, unknown> | undefined;
+  if (rootEntry && Array.isArray(rootEntry.nodes)) {
+    const rootNodeSet = new Set(rootEntry.nodes as string[]);
+    const promoted: string[] = [];
+    for (const [id, node] of Object.entries(merged)) {
+      if (id === "ROOT" || !node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n.parent === "ROOT" && !rootNodeSet.has(id)) {
+        promoted.push(id);
+        console.warn(`[mergeIntoCanvas] Promoting orphaned ROOT child: "${id}"`);
+      }
+    }
+    if (promoted.length > 0) {
+      merged["ROOT"] = { ...rootEntry, nodes: [...(rootEntry.nodes as string[]), ...promoted] };
     }
   }
 
