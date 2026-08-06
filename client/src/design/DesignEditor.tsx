@@ -59,6 +59,7 @@ import {
   CanvasZoomContext,
   SnapGuideContext,
 } from "./resolver";
+import { repairCraftState } from "./craftValidator";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
@@ -2538,7 +2539,9 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
   const [importOpen, setImportOpen] = useState(false);
   const handleImportResult = useCallback((craftStateStr: string) => {
     try {
-      const parsed = applyContrastColors(JSON.parse(craftStateStr));
+      // Repair before validation and pass the repaired result downstream so the
+      // canvas never receives a state with dangling refs or a missing ROOT.
+      const parsed = repairCraftState(applyContrastColors(JSON.parse(craftStateStr))) as Record<string, unknown>;
       const validation = validateCraftState(parsed);
       if (!validation.valid) {
         const hint = describeValidationError(validation.errors);
@@ -4445,7 +4448,12 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           if (data.type === "message") {
             setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
           } else {
-            const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(data.craftState)); } catch { return null; } })();
+            // Repair before validation so minor AI ref issues (dangling children,
+            // missing parent, absent ROOT) don't hard-fail the import.
+            const parsedRaw = (() => { try {
+              const raw = applyContrastColors(JSON.parse(data.craftState));
+              return raw ? repairCraftState(raw) as Record<string, unknown> : null;
+            } catch { return null; } })();
             if (parsedRaw) {
               const validation = validateCraftState(parsedRaw);
               if (!validation.valid) {
@@ -4466,12 +4474,15 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                 // linkedNodes) but a broken AI response could still produce
                 // an invalid state — catch it here rather than loading corrupt
                 // data into the canvas.
-                const postMergeValidation = validateCraftState(spread as Record<string, unknown>);
+                // Repair the merged state and use the repaired version for both
+                // validation and deserialise — so the canvas never loads dangling refs.
+                const repairedSpread = repairCraftState(spread) as Record<string, unknown>;
+                const postMergeValidation = validateCraftState(repairedSpread);
                 if (!postMergeValidation.valid) {
                   const hint = describeValidationError(postMergeValidation.errors);
                   setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
                 } else {
-                  actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+                  actions.deserialize(sanitizeCraftState(JSON.stringify(repairedSpread)));
                   setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
                 }
               }
@@ -4550,7 +4561,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           let existingState: Record<string, unknown> = {};
           try { existingState = JSON.parse(query.serialize()); } catch {}
           const mergedRaw = mergeGraphAware(existingState, patchNodes);
-          const merged = applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId));
+          // Repair and persist the repaired result — not just for validation.
+          const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId))) as Record<string, unknown>;
           const validation = validateCraftState(merged);
           if (!validation.valid) {
             const hint = describeValidationError(validation.errors);
@@ -4566,7 +4578,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(stateJson)); } catch { return null; } })();
           let fullExisting: Record<string, unknown> = {};
           try { fullExisting = JSON.parse(query.serialize()); } catch {}
-          const parsedForValidation = parsedRaw ? preserveTableCellData(fullExisting, parsedRaw, pinned?.nodeId) : null;
+          const parsedForValidationRaw = parsedRaw ? preserveTableCellData(fullExisting, parsedRaw, pinned?.nodeId) : null;
+          const parsedForValidation = parsedForValidationRaw ? repairCraftState(parsedForValidationRaw) as Record<string, unknown> : null;
           const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
           if (!validation.valid) {
             const hint = describeValidationError(validation.errors);
@@ -4663,7 +4676,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         let existingState: Record<string, unknown> = {};
         try { existingState = JSON.parse(query.serialize()); } catch {}
         const mergedRaw = mergeGraphAware(existingState, patchNodes);
-        const merged = applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId));
+        // Repair and use the repaired result downstream.
+        const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId))) as Record<string, unknown>;
         const validation = validateCraftState(merged);
         if (!validation.valid) {
           const hint = describeValidationError(validation.errors);
@@ -4682,7 +4696,8 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const parsedRaw = (() => { try { return applyContrastColors(JSON.parse(stateJson)); } catch { return null; } })();
         let fullExistingForReplace: Record<string, unknown> = {};
         try { fullExistingForReplace = JSON.parse(query.serialize()); } catch {}
-        const parsedForValidation = parsedRaw ? preserveTableCellData(fullExistingForReplace, parsedRaw, pinned?.nodeId) : null;
+        const parsedForValidationRaw = parsedRaw ? preserveTableCellData(fullExistingForReplace, parsedRaw, pinned?.nodeId) : null;
+        const parsedForValidation = parsedForValidationRaw ? repairCraftState(parsedForValidationRaw) as Record<string, unknown> : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
           const hint = describeValidationError(validation.errors);

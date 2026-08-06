@@ -174,6 +174,42 @@ export function repairCraftState(state: unknown): unknown {
     map[nodeId] = n;
   }
 
+  // ── ROOT reconstruction fallback ─────────────────────────────────────────
+  // If the AI omits ROOT entirely, synthesise a minimal one so the canvas has
+  // something to anchor to. Prefer nodes whose parent field already says "ROOT";
+  // if none exist, collect all nodes that have no valid parent (truly orphaned).
+  if (!map["ROOT"]) {
+    console.warn("[repairCraftState] ROOT node missing — synthesising from orphaned nodes");
+    const childrenOfRoot: string[] = [];
+    const orphans: string[] = [];
+    for (const [id, node] of Object.entries(map)) {
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n["parent"] === "ROOT") {
+        childrenOfRoot.push(id);
+      } else if (!n["parent"] || !nodeIds.has(n["parent"] as string)) {
+        orphans.push(id);
+      }
+    }
+    const rootChildren = childrenOfRoot.length > 0 ? childrenOfRoot : orphans;
+    // Set every adopted child's parent to ROOT
+    for (const id of rootChildren) {
+      const n = map[id] as Record<string, unknown>;
+      map[id] = { ...n, parent: "ROOT" };
+    }
+    map["ROOT"] = {
+      type: { resolvedName: "AstryxSection" },
+      displayName: "Root",
+      props: {},
+      nodes: rootChildren,
+      linkedNodes: {},
+      parent: null,
+      hidden: false,
+      isCanvas: true,
+      custom: {},
+    };
+  }
+
   return map;
 }
 

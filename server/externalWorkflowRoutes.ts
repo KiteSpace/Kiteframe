@@ -10,7 +10,7 @@ import {
   type UrlEntityType,
   type DbEntityType,
 } from "./lib/entitySchemas";
-import { validateCraftState } from "./lib/designSchema";
+import { validateCraftState, repairCraftState } from "./lib/designSchema";
 import { getPublicAppUrl } from "./lib/publicAppUrl";
 
 function resolveType(urlType: string): DbEntityType | null {
@@ -62,14 +62,18 @@ export function registerExternalEntityRoutes(app: Express) {
         }
         // For 'design' entity type, write to the new designs table (craft.js state) instead of external_entities
         if (dbType === "design") {
-          const { valid: craftValid, errors: craftErrors } = validateCraftState(data);
+          // Repair before validating so minor AI ref issues (dangling refs, missing
+          // parent, absent ROOT) don't cause a hard 422. Crucially, we persist the
+          // REPAIRED state — not the original — so the stored design is structurally sound.
+          const repairedData = repairCraftState(data);
+          const { valid: craftValid, errors: craftErrors } = validateCraftState(repairedData);
           if (!craftValid) {
             return res.status(422).json({ error: "Entity failed schema validation.", details: craftErrors });
           }
           const design = await storage.createDesign({
             source: "skill",
             apiKeyId: req.apiKey!.id,
-            craftState: data as any,
+            craftState: repairedData as any,
             title: typeof req.body.title === "string" ? req.body.title : null,
           });
           const entityUrl = `${getPublicAppUrl()}/designs/${design.id}`;
