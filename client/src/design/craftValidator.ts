@@ -214,5 +214,28 @@ export function sanitizeCraftState(craftStateJson: string): string {
     }
   }
 
+  // Promote any node whose `parent` field is "ROOT" but that is absent from
+  // ROOT.nodes — this happens when the AI generates a state with a correctly-
+  // parented artboard but forgets to list it in ROOT's nodes array.
+  // We run this here (not only in mergeIntoCanvas) so fresh generations also
+  // benefit, since those bypass mergeIntoCanvas entirely.
+  const rootEntry = map["ROOT"] as Record<string, unknown> | undefined;
+  if (rootEntry && Array.isArray(rootEntry.nodes)) {
+    const rootNodeSet = new Set(rootEntry.nodes as string[]);
+    const promoted: string[] = [];
+    for (const [id, node] of Object.entries(map)) {
+      if (id === "ROOT" || !node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n.parent === "ROOT" && !rootNodeSet.has(id)) {
+        promoted.push(id);
+        console.warn(`[sanitizeCraftState] Promoting orphaned ROOT child: "${id}"`);
+      }
+    }
+    if (promoted.length > 0) {
+      map["ROOT"] = { ...rootEntry, nodes: [...(rootEntry.nodes as string[]), ...promoted] };
+      changed = true;
+    }
+  }
+
   return changed ? JSON.stringify(map) : craftStateJson;
 }
