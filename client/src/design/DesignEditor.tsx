@@ -1772,6 +1772,12 @@ function LayersView() {
     siblingIndex: number; siblingCount: number;
   } | null>(null);
 
+  // ── Drag-and-drop state ───────────────────────────────────────────────────
+  // `dropTarget` tracks where the ghost line should appear.
+  // pos: 'before' = line above the row, 'after' = line below the row.
+  const [dragId,    setDragId]    = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ nodeId: string; pos: "before" | "after" } | null>(null);
+
   // Close layers context menu on any click elsewhere.
   useEffect(() => {
     if (!ctxMenu) return;
@@ -1795,6 +1801,51 @@ function LayersView() {
 
   const selectNode = (id: string) => { actions.selectNode(id); };
 
+  // ── Drag handlers ─────────────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+    // Chrome needs a tiny delay before we can update state or the ghost image breaks.
+    setTimeout(() => setDragId(id), 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!dragId || dragId === id) { setDropTarget(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const pos: "before" | "after" = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setDropTarget((prev) =>
+      prev?.nodeId === id && prev.pos === pos ? prev : { nodeId: id, pos }
+    );
+  };
+
+  const handleDragLeave = () => setDropTarget(null);
+
+  const handleDragEnd = () => { setDragId(null); setDropTarget(null); };
+
+  const handleDrop = (e: React.DragEvent, overNodeId: string) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData("text/plain");
+    if (!sourceId || sourceId === overNodeId || !dropTarget) {
+      setDragId(null); setDropTarget(null); return;
+    }
+    try {
+      const s = JSON.parse(query.serialize()) as Record<string, any>;
+      const overNode = s[overNodeId];
+      if (!overNode) return;
+      // Determine insertion parent + index.
+      const targetParentId: string = overNode.parent ?? "ROOT";
+      const siblings: string[] = s[targetParentId]?.nodes ?? [];
+      let targetIdx = siblings.indexOf(overNodeId);
+      if (targetIdx === -1) targetIdx = siblings.length;
+      if (dropTarget.pos === "after") targetIdx++;
+      const next = reorderNodeInParent(s, sourceId, targetParentId, targetIdx);
+      if (next) actions.deserialize(JSON.stringify(next));
+    } catch (err) { console.error("[layers] drag-drop:", err); }
+    setDragId(null); setDropTarget(null);
+  };
+
   function renderNode(id: string, depth: number): ReactNode {
     const node = nodes[id];
     if (!node) return null;
@@ -1808,9 +1859,23 @@ function LayersView() {
     const parentId = node.data.parent as string | undefined;
     const siblings: string[] = parentId ? ((nodes[parentId]?.data?.nodes as string[]) ?? []) : [];
 
+    const isDragging    = dragId === id;
+    const isDropBefore  = dropTarget?.nodeId === id && dropTarget.pos === "before";
+    const isDropAfter   = dropTarget?.nodeId === id && dropTarget.pos === "after";
+
     return (
-      <div key={id}>
+      <div key={id} className="relative">
+        {/* Drop indicator line — above */}
+        {isDropBefore && (
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+        )}
         <button
+          draggable
+          onDragStart={(e) => handleDragStart(e, id)}
+          onDragOver={(e) => handleDragOver(e, id)}
+          onDragLeave={handleDragLeave}
+          onDragEnd={handleDragEnd}
+          onDrop={(e) => handleDrop(e, id)}
           onClick={() => selectNode(id)}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1822,8 +1887,9 @@ function LayersView() {
               siblingCount:  siblings.length,
             });
           }}
-          className={`w-full flex items-center gap-1 text-left rounded-md px-1 py-[3px] transition-colors group
-            ${isSelected ? "bg-primary/15 text-primary" : "hover:bg-accent text-foreground"}`}
+          className={`w-full flex items-center gap-1 text-left rounded-md px-1 py-[3px] transition-colors group cursor-grab active:cursor-grabbing
+            ${isSelected ? "bg-primary/15 text-primary" : "hover:bg-accent text-foreground"}
+            ${isDragging ? "opacity-40" : ""}`}
           style={{ paddingLeft: depth * 12 + 4 }}
         >
           <span
@@ -1841,6 +1907,10 @@ function LayersView() {
             {layerLabel(dn, props)}
           </span>
         </button>
+        {/* Drop indicator line — below */}
+        {isDropAfter && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+        )}
         {hasChildren && isExpanded && childIds.map((cid) => renderNode(cid, depth + 1))}
       </div>
     );
@@ -2628,6 +2698,45 @@ function moveNodeInParent(
   return { ...state, [parentId]: { ...parent, nodes: siblings } };
 }
 
+/**
+ * Move nodeId to targetParentId at targetIndex, removing it from wherever
+ * it currently lives. Handles both intra- and inter-parent reordering.
+ */
+function reorderNodeInParent(
+  state: Record<string, any>,
+  nodeId: string,
+  targetParentId: string,
+  targetIndex: number,
+): Record<string, any> | null {
+  if (!nodeId || nodeId === "ROOT") return null;
+  const node = state[nodeId];
+  if (!node || !state[targetParentId]) return null;
+  const srcParentId: string = node.parent;
+  if (!srcParentId) return null;
+
+  let next = { ...state };
+
+  // Remove from source parent.
+  const srcParent = { ...next[srcParentId] };
+  srcParent.nodes = (srcParent.nodes ?? []).filter((id: string) => id !== nodeId);
+  next[srcParentId] = srcParent;
+
+  // Insert into target parent at the requested index.
+  const tgtParent = { ...next[targetParentId] };
+  const tgtNodes = (tgtParent.nodes ?? []).filter((id: string) => id !== nodeId);
+  const clampedIdx = Math.max(0, Math.min(targetIndex, tgtNodes.length));
+  tgtNodes.splice(clampedIdx, 0, nodeId);
+  tgtParent.nodes = tgtNodes;
+  next[targetParentId] = tgtParent;
+
+  // Update the node's parent reference if it moved.
+  if (srcParentId !== targetParentId) {
+    next[nodeId] = { ...next[nodeId], parent: targetParentId };
+  }
+
+  return next;
+}
+
 /** Copy a node's subtree to the module-level clipboard. Returns true on success. */
 function copyNodeToClipboard(state: Record<string, any>, nodeId: string): boolean {
   if (!nodeId || nodeId === "ROOT" || !state[nodeId]) return false;
@@ -3034,14 +3143,48 @@ function CanvasContextMenu() {
   useEffect(() => {
     const handleCtx = (e: MouseEvent) => {
       if (!(e.target as Element)?.closest("[data-canvas-area]")) return;
-      const id = selectedIdRef.current;
+
+      // Prefer the craft node actually under the cursor (craft only selects on
+      // left-click, so the selectedId ref may lag behind the right-clicked element).
+      const el = (e.target as HTMLElement | null)?.closest("[data-id]") as HTMLElement | null;
+      const clickedNodeId = el?.getAttribute("data-id");
+      const id = (clickedNodeId && clickedNodeId !== "ROOT")
+        ? clickedNodeId
+        : selectedIdRef.current;
+
       if (!id || id === "ROOT") return;
       e.preventDefault();
+
+      // Compute sibling info fresh from the serialized state so we never use
+      // a stale React ref value (refs only update after a re-render, which
+      // hasn't happened yet for a right-click on a newly hovered element).
+      let isArtboard = false;
+      let sibIdx = -1;
+      let sibCnt = 0;
+      try {
+        const s = JSON.parse(queryRef.current.serialize()) as Record<string, any>;
+        const node = s[id];
+        if (node) {
+          isArtboard = node.displayName === "AstryxArtboard";
+          const parentId: string | undefined = node.parent;
+          if (parentId && s[parentId]) {
+            const siblings: string[] = s[parentId].nodes ?? [];
+            sibIdx = siblings.indexOf(id);
+            sibCnt = siblings.length;
+          }
+        }
+      } catch { /* fall through — all defaults are safe */ }
+
+      // Keep craft's selection in sync with what the user right-clicked.
+      if (id !== selectedIdRef.current) {
+        actionsRef.current.selectNode(id);
+      }
+
       setMenu({
         x: e.clientX, y: e.clientY, nodeId: id,
-        isArtboard:  isArtboardRef.current,
-        siblingIndex: sibIdxRef.current,
-        siblingCount: sibCntRef.current,
+        isArtboard,
+        siblingIndex: sibIdx,
+        siblingCount: sibCnt,
         hasClip: !!_craftClipboard,
       });
     };
