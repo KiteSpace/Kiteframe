@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -657,6 +657,44 @@ function ToggleProp({ value, onChange }: { value: boolean; onChange: (v: boolean
   );
 }
 
+type LayoutOption = {
+  value: string;
+  label: string;
+  icon: ReactNode;
+};
+
+function LayoutIconGroup({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: LayoutOption[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex gap-1" role="group">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          title={option.label}
+          aria-label={option.label}
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`flex-1 h-7 rounded-md border flex items-center justify-center transition-all ${
+            value === option.value
+              ? "bg-foreground border-foreground text-background shadow-sm"
+              : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
+          }`}
+        >
+          {option.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const ICON_ENTRIES = Object.entries(ICON_GLYPHS);
 
 function IconPickerProp({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -892,32 +930,6 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
 }
 
 function ComponentProps({ displayName, props, setProp }: { displayName: string; props: Record<string, any>; setProp: (k: string, v: any) => void }) {
-  if (displayName === "AstryxSection") return (
-    <>
-      <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
-      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
-      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
-      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
-      <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 16} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
-    </>
-  );
-
-  if (displayName === "AstryxStack") return (
-    <>
-      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
-      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
-      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 8} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
-    </>
-  );
-
-  if (displayName === "AstryxHStack") return (
-    <>
-      <PropRow label="Align items"><SelectProp value={props.align ?? "center"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
-      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
-      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 8} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
-    </>
-  );
-
   if (displayName === "AstryxHeading") return (
     <>
       <PropRow label="Content"><TextProp value={props.children ?? "Heading"} onChange={(v) => setProp("children", v)} /></PropRow>
@@ -992,13 +1004,6 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
 
   if (displayName === "AstryxStatusDot") return (
     <PropRow label="Status"><SelectProp value={props.status ?? "online"} options={["online","offline","busy","away"]} onChange={(v) => setProp("status", v)} /></PropRow>
-  );
-
-  if (displayName === "AstryxSkeleton") return (
-    <>
-      <PropRow label="Width (px)"><NumberProp value={props.width ?? 120} onChange={(v) => setProp("width", v)} min={8} /></PropRow>
-      <PropRow label="Height (px)"><NumberProp value={props.height ?? 16} onChange={(v) => setProp("height", v)} min={4} /></PropRow>
-    </>
   );
 
   if (displayName === "AstryxBanner") return (
@@ -1189,50 +1194,7 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
   );
 
   if (displayName === "AstryxArtboard") return (
-    <>
-      <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
-      <PropRow label="Width (px)">
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          {(props.width != null && props.width !== "auto") && (
-            <NumberProp value={Number(props.width)} onChange={(v) => setProp("width", v)} min={100} />
-          )}
-          <button
-            onClick={() => setProp("width", (props.width == null || props.width === "auto") ? 390 : undefined)}
-            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
-              props.width == null || props.width === "auto"
-                ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
-                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
-            }`}
-          >
-            Auto
-          </button>
-        </div>
-      </PropRow>
-      <PropRow label="Height (px)">
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          {props.height != null && (
-            <NumberProp value={props.height} onChange={(v) => setProp("height", v)} min={100} />
-          )}
-          <button
-            onClick={() => setProp("height", props.height != null ? undefined : 480)}
-            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
-              props.height == null
-                ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
-                : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
-            }`}
-          >
-            Auto
-          </button>
-        </div>
-      </PropRow>
-      <PropRow label="X (px)"><NumberProp value={props.x ?? 64} onChange={(v) => setProp("x", v)} min={0} /></PropRow>
-      <PropRow label="Y (px)"><NumberProp value={props.y ?? 64} onChange={(v) => setProp("y", v)} min={0} /></PropRow>
-      <PropRow label="Direction"><SelectProp value={props.direction ?? "column"} options={["column","row"]} onChange={(v) => setProp("direction", v)} /></PropRow>
-      <PropRow label="Align items"><SelectProp value={props.align ?? "stretch"} options={["start","center","end","stretch"]} onChange={(v) => setProp("align", v)} /></PropRow>
-      <PropRow label="Justify"><SelectProp value={props.justify ?? "start"} options={["start","center","end","between","around"]} onChange={(v) => setProp("justify", v)} /></PropRow>
-      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", v)} min={0} /></PropRow>
-      <PropRow label="Padding (px)"><NumberProp value={props.padding ?? 24} onChange={(v) => setProp("padding", v)} min={0} /></PropRow>
-    </>
+    <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
   );
 
   return <p className="text-xs text-muted-foreground">No editable properties.</p>;
@@ -1265,6 +1227,82 @@ const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","Astr
 const IS_CONTAINER = new Set(["AstryxSection","AstryxStack","AstryxHStack","AstryxArtboard"]);
 const NO_RADIUS = new Set(["AstryxBadge","AstryxAvatar","AstryxSkeleton","AstryxSpinner"]);
 const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
+
+const ALIGN_OPTIONS = {
+  horizontal: [
+    { value: "start", label: "Align start", icon: <AlignHorizontalJustifyStart className="w-3.5 h-3.5" /> },
+    { value: "center", label: "Align center", icon: <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" /> },
+    { value: "end", label: "Align end", icon: <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" /> },
+    { value: "stretch", label: "Stretch horizontally", icon: <StretchHorizontal className="w-3.5 h-3.5" /> },
+  ],
+  vertical: [
+    { value: "start", label: "Align start", icon: <AlignVerticalJustifyStart className="w-3.5 h-3.5" /> },
+    { value: "center", label: "Align center", icon: <AlignVerticalJustifyCenter className="w-3.5 h-3.5" /> },
+    { value: "end", label: "Align end", icon: <AlignVerticalJustifyEnd className="w-3.5 h-3.5" /> },
+    { value: "stretch", label: "Stretch vertically", icon: <StretchVertical className="w-3.5 h-3.5" /> },
+  ],
+} satisfies Record<string, LayoutOption[]>;
+
+const JUSTIFY_OPTIONS = {
+  horizontal: [
+    { value: "start", label: "Justify start", icon: <AlignHorizontalJustifyStart className="w-3.5 h-3.5" /> },
+    { value: "center", label: "Justify center", icon: <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" /> },
+    { value: "end", label: "Justify end", icon: <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" /> },
+    { value: "between", label: "Space between", icon: <AlignHorizontalSpaceBetween className="w-3.5 h-3.5" /> },
+    { value: "around", label: "Space around", icon: <AlignHorizontalSpaceAround className="w-3.5 h-3.5" /> },
+  ],
+  vertical: [
+    { value: "start", label: "Justify start", icon: <AlignVerticalJustifyStart className="w-3.5 h-3.5" /> },
+    { value: "center", label: "Justify center", icon: <AlignVerticalJustifyCenter className="w-3.5 h-3.5" /> },
+    { value: "end", label: "Justify end", icon: <AlignVerticalJustifyEnd className="w-3.5 h-3.5" /> },
+    { value: "between", label: "Space between", icon: <AlignVerticalSpaceBetween className="w-3.5 h-3.5" /> },
+    { value: "around", label: "Space around", icon: <AlignVerticalSpaceAround className="w-3.5 h-3.5" /> },
+  ],
+} satisfies Record<string, LayoutOption[]>;
+
+function DimensionControl({
+  label,
+  value,
+  autoDefault,
+  onChange,
+  min,
+}: {
+  label: string;
+  value: number | string | undefined;
+  autoDefault: number | "auto";
+  onChange: (value: number | undefined) => void;
+  min?: number;
+}) {
+  const isAuto = value == null || value === "auto";
+  return (
+    <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+      <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+      <input
+        type="number"
+        min={min}
+        value={isAuto ? "" : Number(value)}
+        onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+        onBlur={(e) => { if (e.target.value === "") onChange(undefined); }}
+        placeholder="auto"
+        aria-label={`${label} size`}
+        className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(isAuto ? (autoDefault === "auto" ? undefined : autoDefault) : undefined)}
+        aria-label={`${label} ${isAuto ? "fixed" : "auto"}`}
+        aria-pressed={isAuto}
+        className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
+          isAuto
+            ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
+            : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
+        }`}
+      >
+        Auto
+      </button>
+    </div>
+  );
+}
 
 function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
   const { query } = useEditor(() => ({}));
@@ -1333,9 +1371,18 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
 
   const dn = selected.displayName;
   const shortName = dn.replace("Astryx", "");
-  const isContainer = IS_CONTAINER.has(dn);
+  const isFlexContainer = IS_CONTAINER.has(dn);
+  const isArtboard = dn === "AstryxArtboard";
+  const supportsDirection = dn === "AstryxSection" || isArtboard;
+  const supportsPadding = supportsDirection;
   const hasSizeProp = HAS_SIZE_PROP.has(dn);
   const hasTypography = HAS_TYPOGRAPHY.has(dn);
+  const isRoot = selected.isRoot;
+  const direction = dn === "AstryxHStack" ? "row" : selected.props.direction ?? "column";
+  const alignOptions = direction === "row" ? ALIGN_OPTIONS.vertical : ALIGN_OPTIONS.horizontal;
+  const justifyOptions = direction === "row" ? JUSTIFY_OPTIONS.horizontal : JUSTIFY_OPTIONS.vertical;
+  const widthDefault = isArtboard ? 390 : dn === "AstryxSkeleton" ? 120 : 320;
+  const heightDefault = isArtboard ? 480 : dn === "AstryxSkeleton" ? 16 : 120;
 
   // Determine active spacing preset for containers
   const activeSpacing = SPACING_PRESETS.find(
@@ -1572,113 +1619,6 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         )}
       </section>
 
-      {/* ── Spacing (containers only) ────────────────────────────── */}
-      {isContainer && (
-        <section className="px-3 py-3 border-b border-border">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Spacing</div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {SPACING_PRESETS.map((p) => {
-              const isActive = activeSpacing?.label === p.label;
-              return (
-                <button
-                  key={p.label}
-                  onClick={() => { setProp("gap", p.gap); setProp("padding", p.padding); }}
-                  className={`py-2 px-2 rounded-lg border text-left transition-all ${
-                    isActive
-                      ? "bg-foreground border-foreground shadow-sm"
-                      : "border-border hover:border-muted-foreground hover:bg-accent bg-background"
-                  }`}
-                >
-                  <div className={`text-[10px] font-semibold mb-0.5 ${isActive ? "text-background" : "text-foreground"}`}>{p.label}</div>
-                  <div className={`text-[9px] ${isActive ? "text-background/60" : "text-muted-foreground"}`}>{p.sub}</div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ── Layout ───────────────────────────────────────────────── */}
-      <section className="px-3 py-3 border-b border-border">
-        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Layout</div>
-
-        {/* W / H — always exposed */}
-        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-          {[
-            ["W", "width",  dn === "AstryxArtboard" ? 390 : dn === "AstryxSkeleton" ? 120 : "auto"],
-            ["H", "height", dn === "AstryxSkeleton" ? 16 : "auto"],
-          ].map(([label, key, def]) => (
-            <div key={label as string} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-              <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-              <input
-                type={def === "auto" ? "text" : "number"}
-                value={selected.props[key as string] ?? def}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setProp(key as string, v === "auto" || v === "" ? "auto" : Number(v));
-                }}
-                onBlur={(e) => {
-                  if (e.target.value === "") setProp(key as string, "auto");
-                }}
-                placeholder="auto"
-                className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* X / Y + position mode */}
-        {!selected.isRoot && dn !== "AstryxArtboard" && (
-          <>
-            <div className="mb-2">
-              <PropRow label="Position">
-                <SelectProp
-                  value={selected.props.position ?? "flow"}
-                  options={["flow","absolute"]}
-                  onChange={(v) => setProp("position", v)}
-                />
-              </PropRow>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-              {[["X","x",0],["Y","y",0]].map(([label, key, def]) => (
-                <div key={label as string} className={`flex items-center gap-1.5 bg-muted/50 border rounded-lg px-2 py-1.5 transition-opacity ${selected.props.position !== "absolute" ? "opacity-40 border-border" : "border-border"}`}>
-                  <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-                  <input
-                    type="number"
-                    value={selected.props[key as string] ?? def}
-                    onChange={(e) => setProp(key as string, Number(e.target.value))}
-                    disabled={selected.props.position !== "absolute"}
-                    className="flex-1 text-[10px] font-mono bg-transparent border-none outline-none text-foreground disabled:opacity-50"
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Flex alignment buttons for containers */}
-        {isContainer && (
-          <div>
-            <span className="text-[10px] text-muted-foreground block mb-1.5">Align items</span>
-            <div className="flex gap-1">
-              {[["⇤","start"],["⇔","center"],["⇥","end"],["↕","stretch"]].map(([icon, a]) => (
-                <button
-                  key={a}
-                  onClick={() => setProp("align", a)}
-                  className={`flex-1 h-6 text-[11px] rounded-lg border transition-all ${
-                    selected.props.align === a
-                      ? "bg-foreground border-foreground text-background"
-                      : "border-border text-muted-foreground hover:border-muted-foreground"
-                  }`}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
-
       {/* ── Typography ───────────────────────────────────────────── */}
       {hasTypography && (
         <section className="px-3 py-3 border-b border-border">
@@ -1739,6 +1679,126 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       <section className="px-3 py-3">
         <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Properties</div>
         <div className="flex flex-col gap-3">
+          {/* Shared sizing and positioning controls live here for every node. */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <DimensionControl
+              label="W"
+              value={selected.props.width}
+              autoDefault={widthDefault}
+              onChange={(v) => setProp("width", v)}
+              min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 8 : 1}
+            />
+            <DimensionControl
+              label="H"
+              value={selected.props.height}
+              autoDefault={heightDefault}
+              onChange={(v) => setProp("height", v)}
+              min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 4 : 1}
+            />
+          </div>
+
+          {!isRoot && !isArtboard && (
+            <>
+              <PropRow label="Position">
+                <SelectProp
+                  value={selected.props.position ?? "flow"}
+                  options={["flow", "absolute"]}
+                  onChange={(v) => setProp("position", v)}
+                />
+              </PropRow>
+              <div className="grid grid-cols-2 gap-1.5">
+                {([["X", "x"], ["Y", "y"]] as const).map(([label, key]) => (
+                  <div
+                    key={key}
+                    className={`flex items-center gap-1.5 bg-muted/50 border rounded-lg px-2 py-1.5 transition-opacity ${
+                      selected.props.position !== "absolute" ? "opacity-40 border-border" : "border-border"
+                    }`}
+                  >
+                    <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+                    <input
+                      type="number"
+                      value={selected.props[key] ?? 0}
+                      onChange={(e) => setProp(key, Number(e.target.value))}
+                      disabled={selected.props.position !== "absolute"}
+                      aria-label={`${label} position`}
+                      className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground disabled:opacity-50"
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {isArtboard && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {([["X", "x", 64], ["Y", "y", 64]] as const).map(([label, key, fallback]) => (
+                <div key={key} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
+                  <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
+                  <input
+                    type="number"
+                    value={selected.props[key] ?? fallback}
+                    onChange={(e) => setProp(key, Number(e.target.value))}
+                    aria-label={`${label} position`}
+                    className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isFlexContainer && (
+            <>
+              {supportsDirection && (
+                <PropRow label="Direction">
+                  <SelectProp value={direction} options={["column", "row"]} onChange={(v) => setProp("direction", v)} />
+                </PropRow>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <PropRow label="Gap (px)">
+                  <NumberProp value={selected.props.gap ?? (isArtboard ? 16 : 8)} onChange={(v) => setProp("gap", v)} min={0} />
+                </PropRow>
+                {supportsPadding && (
+                  <PropRow label="Padding (px)">
+                    <NumberProp value={selected.props.padding ?? (isArtboard ? 24 : 16)} onChange={(v) => setProp("padding", v)} min={0} />
+                  </PropRow>
+                )}
+              </div>
+              <PropRow label="Align items">
+                <LayoutIconGroup
+                  value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
+                  options={alignOptions}
+                  onChange={(v) => setProp("align", v)}
+                />
+              </PropRow>
+              <PropRow label="Justify">
+                <LayoutIconGroup
+                  value={selected.props.justify ?? "start"}
+                  options={justifyOptions}
+                  onChange={(v) => setProp("justify", v)}
+                />
+              </PropRow>
+              {supportsPadding && <div className="grid grid-cols-2 gap-1.5">
+                {SPACING_PRESETS.map((p) => {
+                  const isActive = activeSpacing?.label === p.label;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      title={`${p.label}: ${p.sub}`}
+                      onClick={() => { setProp("gap", p.gap); setProp("padding", p.padding); }}
+                      className={`py-1.5 px-2 rounded-lg border text-left transition-all ${
+                        isActive ? "bg-foreground border-foreground shadow-sm" : "border-border hover:border-muted-foreground hover:bg-accent bg-background"
+                      }`}
+                    >
+                      <div className={`text-[10px] font-semibold ${isActive ? "text-background" : "text-foreground"}`}>{p.label}</div>
+                      <div className={`text-[9px] ${isActive ? "text-background/60" : "text-muted-foreground"}`}>{p.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>}
+            </>
+          )}
+
           <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
         </div>
       </section>
