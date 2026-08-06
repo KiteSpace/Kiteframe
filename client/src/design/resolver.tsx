@@ -1693,6 +1693,9 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
   const nodeIdRef = useRef(id);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const labelRef = useRef<HTMLDivElement | null>(null);
+  const labelInputRef = useRef<HTMLInputElement | null>(null);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [labelDraft, setLabelDraft] = useState(String(label));
   const handleERef  = useRef<HTMLDivElement | null>(null);
   const handleSRef  = useRef<HTMLDivElement | null>(null);
   const handleSERef = useRef<HTMLDivElement | null>(null);
@@ -1713,6 +1716,19 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
   // Live snapshot of current position for drag-to-move
   const posRef = useRef({ x: Number(x) || 0, y: Number(y) || 0 });
   posRef.current = { x: Number(x) || 0, y: Number(y) || 0 };
+
+  useEffect(() => {
+    if (isEditingLabel) {
+      labelInputRef.current?.focus();
+      labelInputRef.current?.select();
+    }
+  }, [isEditingLabel]);
+
+  const finishLabelEdit = useCallback((save: boolean) => {
+    const nextLabel = labelDraft.trim();
+    if (save && nextLabel) actionsRef.current.setProp((props: any) => { props.label = nextLabel; });
+    setIsEditingLabel(false);
+  }, [labelDraft]);
 
   const artboardConnectRef = useCallback((r: HTMLDivElement | null) => {
     frameRef.current = r;
@@ -1813,6 +1829,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     const el = labelRef.current;
     if (!el) return;
     const handle = (e: MouseEvent) => {
+      if (isEditingLabel) return;
       e.stopPropagation();
       // Select the artboard when its label is clicked or drag-started.
       editorActionsRef.current.selectNode(nodeIdRef.current);
@@ -1834,7 +1851,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     };
     el.addEventListener("mousedown", handle);
     return () => el.removeEventListener("mousedown", handle);
-  }, []); // register once — mutable state accessed via refs
+  }, [isEditingLabel]); // rebind while inline editor is open
 
   const resolvedHeight = height != null ? Number(height) : undefined;
   const handleColor = selected ? "#3b82f6" : undefined;
@@ -1843,6 +1860,12 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
     <div style={{ position: "absolute", left: Number(x) || 0, top: Number(y) || 0 }}>
       <div
         ref={labelRef}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setLabelDraft(String(label));
+          setIsEditingLabel(true);
+        }}
         style={{
           fontSize: 11,
           fontWeight: 500,
@@ -1852,10 +1875,25 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
           userSelect: "none",
           letterSpacing: "0.01em",
           transition: "color 0.15s",
-          cursor: "grab",
+          cursor: isEditingLabel ? "text" : "grab",
         }}
       >
-        {label}
+        {isEditingLabel ? (
+          <input
+            ref={labelInputRef}
+            value={labelDraft}
+            aria-label="Artboard name"
+            onChange={(e) => setLabelDraft(e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onBlur={() => finishLabelEdit(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); finishLabelEdit(true); }
+              if (e.key === "Escape") { e.preventDefault(); finishLabelEdit(false); }
+            }}
+            style={{ font: "inherit", color: "inherit", width: "min(220px, 100%)", border: "1px solid #3b82f6", borderRadius: 3, padding: "1px 4px", background: "var(--background)" }}
+          />
+        ) : label}
       </div>
       <div
         ref={artboardConnectRef}

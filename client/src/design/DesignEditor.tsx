@@ -1839,6 +1839,9 @@ function LayersView() {
     x: number; y: number; nodeId: string; isArtboard: boolean;
     siblingIndex: number; siblingCount: number;
   } | null>(null);
+  const [editingArtboardId, setEditingArtboardId] = useState<string | null>(null);
+  const [artboardDraft, setArtboardDraft] = useState("");
+  const artboardInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Drag-and-drop state ───────────────────────────────────────────────────
   // `dropTarget` tracks where the ghost line should appear within the node tree.
@@ -1860,6 +1863,25 @@ function LayersView() {
       window.removeEventListener("contextmenu", close);
     };
   }, [ctxMenu]);
+
+  useEffect(() => {
+    if (editingArtboardId) {
+      artboardInputRef.current?.focus();
+      artboardInputRef.current?.select();
+    }
+  }, [editingArtboardId]);
+
+  const beginArtboardRename = (id: string, label: string) => {
+    setEditingArtboardId(id);
+    setArtboardDraft(label);
+  };
+  const finishArtboardRename = (save: boolean) => {
+    if (save && editingArtboardId) {
+      const label = artboardDraft.trim();
+      if (label) actions.setProp(editingArtboardId, (props: Record<string, unknown>) => { props.label = label; });
+    }
+    setEditingArtboardId(null);
+  };
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1956,14 +1978,16 @@ function LayersView() {
         {isDropBefore && (
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
         )}
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           draggable
           onDragStart={(e) => handleDragStart(e, id)}
           onDragOver={(e) => handleDragOver(e, id)}
           onDragLeave={handleDragLeave}
           onDragEnd={handleDragEnd}
           onDrop={(e) => handleDrop(e, id)}
-          onClick={() => selectNode(id)}
+          onClick={() => { if (editingArtboardId !== id) selectNode(id); }}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1990,10 +2014,36 @@ function LayersView() {
               : null}
           </span>
           {layerIcon(dn)}
-          <span className="text-[10.5px] truncate leading-none ml-0.5 flex-1 min-w-0">
-            {layerLabel(dn, props)}
-          </span>
-        </button>
+          {isArtboard && editingArtboardId === id ? (
+            <input
+              ref={artboardInputRef}
+              value={artboardDraft}
+              aria-label="Artboard name"
+              className="text-[10.5px] leading-none ml-0.5 flex-1 min-w-0 h-5 px-1 rounded border border-primary bg-background outline-none"
+              onChange={(e) => setArtboardDraft(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onBlur={() => finishArtboardRename(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); finishArtboardRename(true); }
+                if (e.key === "Escape") { e.preventDefault(); finishArtboardRename(false); }
+              }}
+            />
+          ) : (
+            <span
+              className="text-[10.5px] truncate leading-none ml-0.5 flex-1 min-w-0"
+              onDoubleClick={(e) => {
+                if (!isArtboard) return;
+                e.preventDefault();
+                e.stopPropagation();
+                beginArtboardRename(id, layerLabel(dn, props));
+              }}
+            >
+              {layerLabel(dn, props)}
+            </span>
+          )}
+        </div>
         {/* Drop indicator line — below */}
         {isDropAfter && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
@@ -2122,7 +2172,7 @@ function LayersView() {
               <>
                 <div className="my-1 border-t border-border" />
                 <CtxItem label="Delete artboard" danger onClick={() => layersRunOp(() => {
-                  try { actions.delete(id); } catch (err) { console.error("[layers] delete artboard:", err); }
+                  deleteArtboardFromEditor(actions, query, id);
                 })} />
               </>
             )}
@@ -2595,13 +2645,8 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
 
   const deleteArtboard = useCallback(() => {
     if (!selectedArtboardId) return;
-    // actions.delete is undoable via Ctrl+Z — no extra confirmation needed.
-    try {
-      actions.delete(selectedArtboardId);
-    } catch (err) {
-      console.error("[deleteArtboard] Failed:", err);
-    }
-  }, [actions, selectedArtboardId]);
+    deleteArtboardFromEditor(actions, query, selectedArtboardId);
+  }, [actions, query, selectedArtboardId]);
 
   const [importOpen, setImportOpen] = useState(false);
   const handleImportResult = useCallback((craftStateStr: string) => {
@@ -2941,6 +2986,23 @@ function deleteNodesFromState(
   return newState;
 }
 
+/** Delete an artboard as a complete serialised graph mutation. Craft.js rejects
+ * raw delete() for some top-level canvas graphs; deserialize preserves the
+ * invariant and records the operation in editor history for undo. */
+function deleteArtboardFromEditor(
+  actions: { deserialize: (state: string) => void },
+  query: { serialize: () => string },
+  artboardId: string,
+): void {
+  try {
+    const state = JSON.parse(query.serialize()) as Record<string, any>;
+    if (state[artboardId]?.type?.resolvedName !== "AstryxArtboard") return;
+    actions.deserialize(JSON.stringify(deleteNodesFromState(state, [artboardId])));
+  } catch (err) {
+    console.error("[deleteArtboard] Failed:", err);
+  }
+}
+
 /** Paste clipboard subtrees as siblings of selectedId (or children of ROOT). */
 function pasteFromClipboard(
   state: Record<string, any>,
@@ -3039,9 +3101,13 @@ function KeyboardHandler() {
           } catch (err) { console.error("[multi-delete]", err); }
           return;
         }
-        if (!id || id === "ROOT" || isArtboard) return;
+        if (!id || id === "ROOT") return;
         e.preventDefault();
-        actionsRef.current.delete(id);
+        if (isArtboard) {
+          deleteArtboardFromEditor(actionsRef.current, queryRef.current, id);
+        } else {
+          actionsRef.current.delete(id);
+        }
         return;
       }
 
@@ -3968,6 +4034,59 @@ function mergeGraphAware(
   return merged;
 }
 
+export function getUntouchedDefaultArtboardId(state: Record<string, unknown>): string | undefined {
+  const root = state["ROOT"] as Record<string, unknown> | undefined;
+  const rootNodes = Array.isArray(root?.nodes) ? root.nodes as string[] : [];
+  if (rootNodes.length !== 1) return undefined;
+  const id = rootNodes[0];
+  const artboard = state[id] as Record<string, unknown> | undefined;
+  if ((artboard?.type as any)?.resolvedName !== "AstryxArtboard") return undefined;
+  const props = artboard?.props as Record<string, unknown> | undefined;
+  const children = Array.isArray(artboard?.nodes) ? artboard.nodes : [];
+  return children.length === 0 && props?.label === "Screen 1" ? id : undefined;
+}
+
+/** Applies a first-generation result onto the canvas's pristine default
+ * artboard instead of preserving it as an unused empty screen. */
+export function reuseUntouchedDefaultArtboard(
+  existingState: Record<string, unknown>,
+  incomingState: Record<string, unknown>,
+): Record<string, unknown> {
+  const defaultId = getUntouchedDefaultArtboardId(existingState);
+  if (!defaultId) return mergeIntoCanvas(existingState, incomingState);
+
+  const incomingRoot = incomingState["ROOT"] as Record<string, unknown> | undefined;
+  const incomingRootNodes = Array.isArray(incomingRoot?.nodes) ? incomingRoot.nodes as string[] : [];
+  const incomingArtboardId = incomingRootNodes.find((id) =>
+    (incomingState[id] as any)?.type?.resolvedName === "AstryxArtboard"
+  );
+  if (!incomingArtboardId) return mergeIntoCanvas(existingState, incomingState);
+
+  const incomingArtboard = incomingState[incomingArtboardId] as Record<string, any>;
+  const remap = new Map<string, string>([[incomingArtboardId, defaultId]]);
+  const result: Record<string, any> = {};
+  for (const [id, node] of Object.entries(incomingState)) {
+    const nextId = remap.get(id) ?? id;
+    const copy = JSON.parse(JSON.stringify(node)) as Record<string, any>;
+    if (Array.isArray(copy.nodes)) copy.nodes = copy.nodes.map((childId: string) => remap.get(childId) ?? childId);
+    if (typeof copy.parent === "string") copy.parent = remap.get(copy.parent) ?? copy.parent;
+    result[nextId] = copy;
+  }
+  const defaultArtboard = existingState[defaultId] as Record<string, any>;
+  result[defaultId] = {
+    ...defaultArtboard,
+    ...incomingArtboard,
+    parent: "ROOT",
+    props: { ...defaultArtboard.props, ...incomingArtboard.props },
+  };
+  const resultRoot = result["ROOT"] as Record<string, any>;
+  result["ROOT"] = {
+    ...resultRoot,
+    nodes: incomingRootNodes.map((id) => remap.get(id) ?? id),
+  };
+  return { ...existingState, ...result };
+}
+
 /**
  * Additively merges an incoming full craft.js state (e.g. from image import or
  * an AI full-state response) into the existing canvas so that artboards the user
@@ -4121,11 +4240,11 @@ function mergeIntoCanvas(
  * protected.
  */
 function preserveTableCellData(
-  existingState: Record<string, unknown>,
-  newState: Record<string, unknown>,
+  existingState: Record<string, any>,
+  newState: Record<string, any>,
   targetNodeId?: string,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...newState };
+): Record<string, any> {
+  const result: Record<string, any> = { ...newState };
   for (const [nodeId, node] of Object.entries(result)) {
     if (!node || typeof node !== "object") continue;
     const n = node as Record<string, unknown>;
@@ -4629,7 +4748,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           try { existingState = JSON.parse(query.serialize()); } catch {}
           const mergedRaw = mergeGraphAware(existingState, patchNodes);
           // Repair and persist the repaired result — not just for validation.
-          const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId))) as Record<string, unknown>;
+          const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId))) as Record<string, unknown>;
           const validation = validateCraftState(merged);
           if (!validation.valid) {
             const hint = describeValidationError(validation.errors);
@@ -4675,6 +4794,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
     try {
       let currentCraftState: string | undefined;
       let targetArtboardLabel: string | undefined;
+      let reuseDefaultArtboard = false;
       try {
         const serialized = query.serialize();
         if (serialized && serialized.length > 10) {
@@ -4682,6 +4802,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           // Find artboard labels in the canvas and match them against the prompt
           // so the AI knows which screen to patch (e.g. "add a table to Screen 1")
           const state = JSON.parse(serialized) as Record<string, unknown>;
+          reuseDefaultArtboard = !!getUntouchedDefaultArtboardId(state);
           const artboardLabels = Object.values(state)
             .filter((n): n is Record<string, unknown> => !!n && typeof n === "object")
             .filter((n) => (n.type as any)?.resolvedName === "AstryxArtboard")
@@ -4726,6 +4847,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
       const wantsNewScreen =
         hasExistingCanvas &&
         !pinned &&
+        !reuseDefaultArtboard &&
         detectNewScreenIntent(trimmed, currentCraftState);
 
       const res = await fetch("/api/ai/design", {
@@ -4753,9 +4875,11 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         const patchNodes: Record<string, unknown> = JSON.parse(data.nodes);
         let existingState: Record<string, unknown> = {};
         try { existingState = JSON.parse(query.serialize()); } catch {}
-        const mergedRaw = mergeGraphAware(existingState, patchNodes);
+          const mergedRaw = reuseDefaultArtboard
+            ? reuseUntouchedDefaultArtboard(existingState, patchNodes)
+            : mergeGraphAware(existingState, patchNodes);
         // Repair and use the repaired result downstream.
-        const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState, mergedRaw, pinned?.nodeId))) as Record<string, unknown>;
+        const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId))) as Record<string, unknown>;
         const validation = validateCraftState(merged);
         if (!validation.valid) {
           const hint = describeValidationError(validation.errors);
@@ -4763,7 +4887,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         } else {
           const spread = spreadArtboardsInState(merged, existingState);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-          const diff = diffCraftStates(existingState, merged);
+          const diff = diffCraftStates(existingState as Record<string, any>, merged as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
@@ -4781,10 +4905,12 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
           const hint = describeValidationError(validation.errors);
           setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
         } else {
-          const mergedForApply = mergeIntoCanvas(fullExistingForReplace, parsedForValidation!);
+          const mergedForApply = reuseDefaultArtboard
+            ? reuseUntouchedDefaultArtboard(fullExistingForReplace, parsedForValidation!)
+            : mergeIntoCanvas(fullExistingForReplace, parsedForValidation!);
           const spread = spreadArtboardsInState(mergedForApply, fullExistingForReplace);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-          const diff = diffCraftStates(fullExistingForReplace, parsedForValidation!);
+          const diff = diffCraftStates(fullExistingForReplace as Record<string, any>, parsedForValidation! as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
           setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
@@ -5223,4 +5349,4 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   );
 }
 
-export { createEmptyCraftState };
+export { createEmptyCraftState, deleteNodesFromState };
