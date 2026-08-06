@@ -210,6 +210,54 @@ export function repairCraftState(state: unknown): unknown {
     };
   }
 
+  // ── Artboard enforcement ─────────────────────────────────────────────────
+  // ROOT's direct children must be AstryxArtboard nodes. If the AI emits
+  // ROOT → AstryxSection/Stack/etc → content (omitting the artboard wrapper),
+  // synthesise a "Screen 1" artboard and re-parent the orphan children under
+  // it so the canvas always has the required ROOT → AstryxArtboard → content
+  // hierarchy before craft.js deserializes the state.
+  const rootNodeEntry = map["ROOT"] as Record<string, unknown> | undefined;
+  if (rootNodeEntry && Array.isArray(rootNodeEntry["nodes"])) {
+    const rootChildren = rootNodeEntry["nodes"] as string[];
+    const artboardIds: string[] = [];
+    const nonArtboardIds: string[] = [];
+
+    for (const id of rootChildren) {
+      const node = map[id];
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+      if (resolvedName === "AstryxArtboard") {
+        artboardIds.push(id);
+      } else {
+        nonArtboardIds.push(id);
+      }
+    }
+
+    if (nonArtboardIds.length > 0) {
+      const artboardId = `kf_ab_${Math.random().toString(36).slice(2, 8)}`;
+      console.warn(
+        `[repairCraftState] Wrapping ${nonArtboardIds.length} non-artboard ROOT child(ren) in synthesised artboard "${artboardId}"`,
+      );
+      for (const id of nonArtboardIds) {
+        const n = map[id] as Record<string, unknown>;
+        map[id] = { ...n, parent: artboardId };
+      }
+      map[artboardId] = {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: true,
+        props: { label: "Screen 1", width: 390, direction: "column", gap: 16, padding: 24 },
+        displayName: "AstryxArtboard",
+        custom: {},
+        parent: "ROOT",
+        hidden: false,
+        nodes: nonArtboardIds,
+        linkedNodes: {},
+      };
+      map["ROOT"] = { ...rootNodeEntry, nodes: [artboardId, ...artboardIds] };
+    }
+  }
+
   return map;
 }
 

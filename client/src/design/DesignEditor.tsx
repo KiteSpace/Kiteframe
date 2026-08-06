@@ -4651,17 +4651,24 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
         .slice(-12)
         .map((m) => ({ role: m.role, text: m.text }));
 
+      // Detect "new screen" intent: user wants a brand-new artboard, not an edit
+      // of existing content. Only fires when a canvas already exists.
+      const newScreenPattern = /\b(create|build|design|generate|make|add)\s+(a\s+)?(new\s+)?(ui|interface|screen|page|design|layout)\b|\bnew\s+(screen|page|interface|ui)\b/i;
+      const hasExistingCanvas = !!currentCraftState && currentCraftState.trim().length > 2;
+      const wantsNewScreen = hasExistingCanvas && newScreenPattern.test(trimmed) && !pinned;
+
       const res = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: trimmed,
           currentCraftState,
-          targetArtboardLabel,
+          targetArtboardLabel: wantsNewScreen ? undefined : targetArtboardLabel,
           conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined,
           selectedElement: pinned
             ? { displayName: pinned.displayName, props: pinned.props, nodeId: pinned.nodeId }
             : undefined,
+          newScreen: wantsNewScreen || undefined,
         }),
       });
       const data = await res.json();

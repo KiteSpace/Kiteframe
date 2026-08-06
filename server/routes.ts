@@ -43,7 +43,7 @@ import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState as _validateCraftState, repairCraftState } from "./lib/designSchema";
 function validateCraftState(s: unknown) { return _validateCraftState(repairCraftState(s)); }
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
-import { mergeDesignPatch, layoutArtboards, type CraftState } from "./lib/designPatchMerge";
+import { mergeDesignPatch, layoutArtboards, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from "./lib/designPatchMerge";
 import crypto from 'crypto';
 import dns from 'dns';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
@@ -2605,6 +2605,10 @@ Only include screens that need changes. "modify" requires both description and d
           role: z.enum(['user', 'ai']),
           text: z.string().max(2000),
         })).max(20).optional(),
+        // When true, the user explicitly wants a NEW screen/artboard added to an
+        // existing canvas rather than editing existing content. The handler injects
+        // an override instruction so the AI emits a new-artboard patch.
+        newScreen: z.boolean().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -2612,7 +2616,7 @@ Only include screens that need changes. "modify" requires both description and d
         const field = firstIssue?.path.join('.') || 'request';
         return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
-      const { prompt, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory } = parsed.data;
+      const { prompt, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory, newScreen } = parsed.data;
       const isWorkflowGeneration = source === 'workflow';
 
       // Build a context-aware user message. Include the FULL current canvas state so the
@@ -2621,7 +2625,10 @@ Only include screens that need changes. "modify" requires both description and d
       let userMessage = prompt;
       if (currentCraftState && currentCraftState.trim().length > 2) {
         userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>`;
-        if (targetArtboardLabel) {
+        if (newScreen) {
+          // Override: force the AI to create a new artboard instead of patching existing ones.
+          userMessage += `\n\nNEW SCREEN REQUEST: The user wants a BRAND-NEW screen added to this canvas — do NOT modify or extend any existing artboards. You MUST emit a TYPE 3 patch that adds exactly one new AstryxArtboard to ROOT. Give it a descriptive label based on the user's request (e.g. "Delete Account"). Include ROOT in the patch with the new artboard ID appended to its existing "nodes" array (keep all existing artboard IDs). Place all new content inside the new artboard only.`;
+        } else if (targetArtboardLabel) {
           userMessage += `\n\nTarget artboard: "${targetArtboardLabel}"`;
         }
       }
@@ -2707,12 +2714,17 @@ Only include screens that need changes. "modify" requires both description and d
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
         const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-        // Always return the raw patch for client-side merge. The client holds the
-        // full in-memory craft state (with all props intact) and merges correctly
-        // via mergeGraphAware. Server-side merging was using `currentCraftState`
-        // (the skeletonized canvas) as the base, which produced structurally
-        // incomplete nodes and caused validateCraftState to fail on the client.
-        return res.json({ type: 'patch', nodes: JSON.stringify(patchNodes), message });
+        // When the client requested a new screen, enforce that the patch adds a new
+        // AstryxArtboard rather than editing an existing one. If the AI ignored the
+        // prompt override, enforceNewScreenPatch synthesises the artboard wrapper
+        // so the client always receives a structurally correct new-screen patch.
+        const finalPatch = (newScreen && currentCraftState)
+          ? enforceNewScreenPatch(patchNodes as CraftState, currentCraftState)
+          : (patchNodes as CraftState);
+        // Always return the (possibly enforced) patch for client-side merge.
+        // The client holds the full in-memory craft state (with all props intact)
+        // and merges correctly via mergeGraphAware.
+        return res.json({ type: 'patch', nodes: JSON.stringify(finalPatch), message });
       }
 
       // Default: full state replacement (type === 'state' or legacy format without type)
@@ -2722,7 +2734,7 @@ Only include screens that need changes. "modify" requires both description and d
       }
       const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
       const stateTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
-      return res.json({ type: 'state', craftState: JSON.stringify(layoutArtboards(craftStateObj as CraftState)), message: stateMessage, title: stateTitle });
+      return res.json({ type: 'state', craftState: JSON.stringify(wrapRootChildrenInArtboard(layoutArtboards(craftStateObj as CraftState))), message: stateMessage, title: stateTitle });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });

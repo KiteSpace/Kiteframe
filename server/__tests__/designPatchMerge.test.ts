@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { mergeDesignPatch, type CraftState } from '../lib/designPatchMerge';
+import { mergeDesignPatch, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from '../lib/designPatchMerge';
 
 // ---------------------------------------------------------------------------
 // Helpers to build a realistic two-screen craft state
@@ -424,5 +424,407 @@ describe('mergeDesignPatch — stress test (oversized patch)', () => {
     // Artboards b and c are untouched
     expect(JSON.stringify(merged[ids.bId])).toBe(JSON.stringify(state[ids.bId]));
     expect(JSON.stringify(merged[ids.cId])).toBe(JSON.stringify(state[ids.cId]));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// wrapRootChildrenInArtboard tests
+// ---------------------------------------------------------------------------
+
+function makeRootNode(children: string[]): Record<string, unknown> {
+  return { type: { resolvedName: 'AstryxSection' }, isCanvas: true, props: {}, nodes: children, parent: null, linkedNodes: {} };
+}
+
+function makeArtboard(label: string, children: string[] = []): Record<string, unknown> {
+  return { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label }, nodes: children, parent: 'ROOT', linkedNodes: {} };
+}
+
+function makeSection(parent: string, children: string[] = []): Record<string, unknown> {
+  return { type: { resolvedName: 'AstryxSection' }, isCanvas: false, props: {}, nodes: children, parent, linkedNodes: {} };
+}
+
+describe('wrapRootChildrenInArtboard — full-state artboard enforcement', () => {
+  it('returns the same object reference when all ROOT children are already artboards', () => {
+    const state: CraftState = {
+      ROOT: makeRootNode(['ab1']),
+      ab1: makeArtboard('Screen 1', ['btn1']),
+      btn1: makeNode('AstryxButton', {}, []),
+    };
+    const result = wrapRootChildrenInArtboard(state);
+    expect(result).toBe(state); // strict reference equality — no copy made
+  });
+
+  it('wraps a single non-artboard ROOT child in a new AstryxArtboard', () => {
+    const state: CraftState = {
+      ROOT: makeRootNode(['sec1']),
+      sec1: makeSection('ROOT', ['btn1']),
+      btn1: makeNode('AstryxButton', {}, []),
+    };
+    const result = wrapRootChildrenInArtboard(state);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toHaveLength(1);
+    const newId = rootChildren[0];
+
+    // The wrapper must be an AstryxArtboard with parent ROOT
+    const wrapper = result[newId] as Record<string, unknown>;
+    expect((wrapper.type as any).resolvedName).toBe('AstryxArtboard');
+    expect(wrapper.parent).toBe('ROOT');
+
+    // sec1 must be a child of the wrapper, not ROOT
+    expect((wrapper.nodes as string[])).toContain('sec1');
+    expect((result['sec1'] as any).parent).toBe(newId);
+  });
+
+  it('keeps existing artboards and only wraps non-artboard siblings', () => {
+    const state: CraftState = {
+      ROOT: makeRootNode(['ab1', 'orphan']),
+      ab1: makeArtboard('Screen 1'),
+      orphan: makeSection('ROOT'),
+    };
+    const result = wrapRootChildrenInArtboard(state);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toHaveLength(2);
+    expect(rootChildren).toContain('ab1');
+
+    // Existing artboard is unchanged
+    expect(result['ab1']).toStrictEqual(state['ab1']);
+
+    // The new artboard wraps the orphan
+    const newId = rootChildren.find((id) => id !== 'ab1')!;
+    expect((result[newId] as any).type.resolvedName).toBe('AstryxArtboard');
+    expect(((result[newId] as any).nodes as string[])).toContain('orphan');
+    expect((result['orphan'] as any).parent).toBe(newId);
+  });
+
+  it('returns state unchanged when ROOT nodes array is empty', () => {
+    const state: CraftState = {
+      ROOT: makeRootNode([]),
+    };
+    expect(wrapRootChildrenInArtboard(state)).toBe(state);
+  });
+
+  it('returns state unchanged when ROOT is absent and no nodes claim ROOT as parent', () => {
+    // A completely disconnected state with no ROOT and no parent pointers — nothing
+    // to adopt, so the helper creates an empty ROOT and returns it unchanged
+    // (ROOT.nodes is empty → no wrapping needed after synthesis).
+    const state: CraftState = {
+      'ab1': makeArtboard('Screen 1'),
+    };
+    const result = wrapRootChildrenInArtboard(state);
+    // ROOT is now synthesised (was absent)
+    expect(result['ROOT']).toBeDefined();
+  });
+
+  it('synthesises ROOT when missing and wraps non-artboard ROOT children into an artboard', () => {
+    // AI generated a state with no ROOT entry but nodes that claim 'ROOT' as parent.
+    const state: CraftState = {
+      // Deliberately NO 'ROOT' key
+      'sec1': { ...makeSection('ROOT', ['btn1']), parent: 'ROOT' },
+      'btn1': { ...makeNode('AstryxButton', {}, []), parent: 'sec1' },
+    };
+    const result = wrapRootChildrenInArtboard(state);
+
+    // ROOT must now exist
+    expect(result['ROOT']).toBeDefined();
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+
+    // sec1 was a non-artboard ROOT child — must now be wrapped
+    const newArtboardId = rootChildren[0];
+    expect(newArtboardId).toBeTruthy();
+    expect((result[newArtboardId] as any).type.resolvedName).toBe('AstryxArtboard');
+    expect(((result[newArtboardId] as any).nodes as string[])).toContain('sec1');
+
+    // sec1 re-parented; btn1 keeps its original parent (sec1)
+    expect((result['sec1'] as any).parent).toBe(newArtboardId);
+    expect((result['btn1'] as any).parent).toBe('sec1');
+  });
+
+  it('synthesises ROOT from parentless nodes when no node explicitly claims ROOT as parent', () => {
+    // AI generated a state with no ROOT and no parent pointers on top-level nodes.
+    const state: CraftState = {
+      'sec1': { ...makeSection('ROOT', ['btn1']), parent: null as any },
+      'btn1': { ...makeNode('AstryxButton', {}, []), parent: 'sec1' },
+    };
+    const result = wrapRootChildrenInArtboard(state);
+
+    // ROOT synthesised with sec1 adopted as a child, then artboard wrapping fires
+    // because sec1 is not an AstryxArtboard. ROOT.nodes ends up with the new
+    // synthesised artboard; sec1 becomes a child of that artboard.
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren.length).toBe(1);
+    const newArtboardId = rootChildren[0];
+    expect((result[newArtboardId] as any).type.resolvedName).toBe('AstryxArtboard');
+    expect(((result[newArtboardId] as any).nodes as string[])).toContain('sec1');
+    expect((result['sec1'] as any).parent).toBe(newArtboardId);
+  });
+
+  it('handles ROOT with a non-array nodes field without throwing', () => {
+    const state: CraftState = {
+      ROOT: { type: { resolvedName: 'AstryxSection' }, nodes: 'not-an-array' as any, props: {}, parent: null, linkedNodes: {} },
+      'ab1': makeArtboard('Screen 1'),
+    };
+    // Should not throw; returns the working state unchanged
+    expect(() => wrapRootChildrenInArtboard(state)).not.toThrow();
+    const result = wrapRootChildrenInArtboard(state);
+    expect(result['ROOT']).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enforceNewScreenPatch tests
+// ---------------------------------------------------------------------------
+
+function makeExistingCanvas(): string {
+  return JSON.stringify({
+    ROOT: makeRootNode(['screen-1']),
+    'screen-1': makeArtboard('Screen 1', ['btn-1']),
+    'btn-1': makeNode('AstryxButton', { children: 'Submit' }, []),
+  });
+}
+
+describe('enforceNewScreenPatch — new-screen invariant on TYPE 3 responses', () => {
+  // ── Case A: AI correctly adds a new artboard ────────────────────────────────
+
+  it('returns patch unchanged when it already has a new AstryxArtboard AND ROOT lists all artboards', () => {
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      ROOT: makeRootNode(['screen-1', 'screen-2']),
+      'screen-2': makeArtboard('Delete Account', ['del-btn']),
+      'del-btn': makeNode('AstryxButton', { children: 'Delete' }, []),
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+    expect(result).toBe(patch); // strict reference — ROOT already complete, no copy made
+  });
+
+  it('normalises ROOT when AI correctly adds a new artboard but omits existing artboard IDs from ROOT', () => {
+    const existing = makeExistingCanvas();
+    // AI adds screen-2 correctly but ROOT only lists screen-2 — screen-1 is omitted
+    const patch: CraftState = {
+      ROOT: makeRootNode(['screen-2']),
+      'screen-2': makeArtboard('Delete Account', ['del-btn']),
+      'del-btn': makeNode('AstryxButton', { children: 'Delete' }, []),
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1'); // existing artboard restored
+    expect(rootChildren).toContain('screen-2'); // new artboard kept
+    expect(rootChildren.filter((id: string) => id === 'screen-2')).toHaveLength(1); // no dups
+    expect(result['screen-2']).toBeDefined(); // new artboard content intact
+    expect(result['del-btn']).toBeDefined();
+  });
+
+  it('normalises ROOT when AI adds a new artboard but emits no ROOT patch at all', () => {
+    const existing = makeExistingCanvas();
+    // AI adds screen-2 but no ROOT entry in the patch
+    const patch: CraftState = {
+      'screen-2': makeArtboard('Delete Account', ['del-btn']),
+      'del-btn': makeNode('AstryxButton', { children: 'Delete' }, []),
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+    expect(rootChildren).toContain('screen-2');
+  });
+
+  // ── Case B: AI ignored the override — synthesise + drop existing edits ──────
+
+  it('synthesises a new artboard and drops AI edits to existing nodes (no contradictory parent refs)', () => {
+    const existing = makeExistingCanvas();
+    // AI added "new-del-btn" into screen-1.nodes instead of creating a new screen
+    const patch: CraftState = {
+      'screen-1': makeArtboard('Screen 1', ['btn-1', 'new-del-btn']),
+      'new-del-btn': { ...makeNode('AstryxButton', { children: 'Delete' }, []), parent: 'screen-1' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    // ROOT must list the existing artboard ID plus the new synthesised artboard
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+
+    const newId = rootChildren.find((id: string) => id !== 'screen-1')!;
+    expect(newId).toBeTruthy();
+    expect((result[newId] as any).type.resolvedName).toBe('AstryxArtboard');
+
+    // new-del-btn has exactly one parent: the synthesised artboard
+    expect(((result[newId] as any).nodes as string[])).toContain('new-del-btn');
+    expect((result['new-del-btn'] as any).parent).toBe(newId);
+
+    // The AI's edit to screen-1 is DROPPED — it must not be in the enforced patch.
+    // This prevents contradictory parent pointers: after client merge, screen-1
+    // comes from the unmodified in-memory state (without new-del-btn in its nodes).
+    expect(result['screen-1']).toBeUndefined();
+  });
+
+  it('new-del-btn appears in exactly one node list after merge simulation (no duplicate parentage)', () => {
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      'screen-1': makeArtboard('Screen 1', ['btn-1', 'new-x']),
+      'new-x': { ...makeNode('AstryxText', { text: 'X' }, []), parent: 'screen-1' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    // screen-1 edit dropped — won't appear in result
+    expect(result['screen-1']).toBeUndefined();
+
+    // new-x is referenced only by the new artboard
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    const newArtboardId = rootChildren.find((id: string) => id !== 'screen-1')!;
+    expect(((result[newArtboardId] as any).nodes as string[])).toContain('new-x');
+    expect((result['new-x'] as any).parent).toBe(newArtboardId);
+  });
+
+  it('synthesises a new artboard when patch has new nodes with ROOT as parent but no artboard wrapper', () => {
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      'h1': { ...makeNode('AstryxHeading', { text: 'Delete Account' }, []), parent: 'ROOT' },
+      'p1': { ...makeNode('AstryxText', { text: 'This is permanent.' }, []), parent: 'ROOT' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+
+    const newId = rootChildren.find((id: string) => id !== 'screen-1')!;
+    const newAb = result[newId] as Record<string, unknown>;
+    expect((newAb.type as any).resolvedName).toBe('AstryxArtboard');
+    expect((newAb.nodes as string[])).toContain('h1');
+    expect((newAb.nodes as string[])).toContain('p1');
+    expect((result['h1'] as any).parent).toBe(newId);
+    expect((result['p1'] as any).parent).toBe(newId);
+  });
+
+  it('preserves all existing artboard IDs in synthesised ROOT.nodes across a two-screen canvas', () => {
+    const twoScreenCanvas = JSON.stringify({
+      ROOT: makeRootNode(['screen-1', 'screen-2']),
+      'screen-1': makeArtboard('Screen 1'),
+      'screen-2': makeArtboard('Screen 2'),
+    });
+    const patch: CraftState = {
+      'new-node': { ...makeNode('AstryxText', { text: 'Hi' }, []), parent: 'ROOT' },
+    };
+    const result = enforceNewScreenPatch(patch, twoScreenCanvas);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+    expect(rootChildren).toContain('screen-2');
+    const newId = rootChildren.find((id: string) => id !== 'screen-1' && id !== 'screen-2')!;
+    expect(newId).toBeTruthy();
+    expect(((result[newId] as any).nodes as string[])).toContain('new-node');
+  });
+
+  it('handles malformed / unparseable existingStateJson gracefully', () => {
+    const patch: CraftState = {
+      'x1': { ...makeNode('AstryxText', { text: 'X' }, []), parent: 'ROOT' },
+    };
+    const result = enforceNewScreenPatch(patch, '{ bad json !!!');
+
+    expect(result['ROOT']).toBeDefined();
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    const newId = rootChildren[0];
+    expect((result[newId] as any).type.resolvedName).toBe('AstryxArtboard');
+  });
+
+  // ── Nested content tests: each node has exactly one consistent parent ref ───
+
+  it('Case A (AI adds artboard): preserves nested Section → Button hierarchy with consistent parent refs', () => {
+    // AI correctly adds screen-2 containing a nested Section that contains a Button.
+    // ROOT only lists screen-2 (omits screen-1), so ROOT needs normalisation.
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      ROOT: makeRootNode(['screen-2']),
+      'screen-2': makeArtboard('Delete Account', ['sec-del']),
+      'sec-del': { ...makeSection('screen-2', ['btn-del']), parent: 'screen-2' },
+      'btn-del': { ...makeNode('AstryxButton', { children: 'Delete' }, []), parent: 'sec-del' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    // ROOT must list both artboards
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+    expect(rootChildren).toContain('screen-2');
+
+    // Nested tree is untouched
+    expect((result['screen-2'] as any).nodes).toContain('sec-del');
+    expect((result['sec-del'] as any).parent).toBe('screen-2');
+    expect((result['btn-del'] as any).parent).toBe('sec-del');
+
+    // Each node has exactly one parent reference — no duplicates in any nodes array
+    const allNodesArrays = Object.values(result).flatMap(
+      (node) => (Array.isArray((node as any).nodes) ? (node as any).nodes : []) as string[],
+    );
+    expect(allNodesArrays.filter((id: string) => id === 'btn-del')).toHaveLength(1);
+    expect(allNodesArrays.filter((id: string) => id === 'sec-del')).toHaveLength(1);
+  });
+
+  it('Case B (synthesis): only top-level new node is re-parented; its nested children keep original parent', () => {
+    // AI ignored newScreen and emitted a Section (parent: ROOT) containing a Button.
+    // After enforcement: Section → new artboard child; Button keeps parent: Section.
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      'sec-new': { ...makeSection('ROOT', ['btn-new']), parent: 'ROOT' },
+      'btn-new': { ...makeNode('AstryxButton', { children: 'Confirm' }, []), parent: 'sec-new' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    expect(rootChildren).toContain('screen-1');
+
+    const newArtboardId = rootChildren.find((id: string) => id !== 'screen-1')!;
+    expect(newArtboardId).toBeTruthy();
+    expect((result[newArtboardId] as any).type.resolvedName).toBe('AstryxArtboard');
+
+    // sec-new is a direct artboard child (top-level root of the new subtree)
+    expect(((result[newArtboardId] as any).nodes as string[])).toContain('sec-new');
+    expect((result['sec-new'] as any).parent).toBe(newArtboardId);
+
+    // btn-new keeps its original parent (sec-new) — not re-parented to artboard
+    expect((result['btn-new'] as any).parent).toBe('sec-new');
+
+    // Each new node appears in exactly one parent's nodes array
+    const allNodeIds = ['sec-new', 'btn-new'];
+    const allNodesArrays = Object.values(result).flatMap(
+      (node) => (Array.isArray((node as any).nodes) ? (node as any).nodes : []) as string[],
+    );
+    for (const id of allNodeIds) {
+      expect(allNodesArrays.filter((n: string) => n === id)).toHaveLength(1);
+    }
+
+    // sec-new still lists btn-new
+    expect(((result['sec-new'] as any).nodes as string[])).toContain('btn-new');
+  });
+
+  it('Case B (synthesis): three-level nesting — only root Section is adopted; mid and leaf nodes untouched', () => {
+    const existing = makeExistingCanvas();
+    const patch: CraftState = {
+      'container': { ...makeSection('ROOT', ['inner']), parent: 'ROOT' },
+      'inner': { ...makeSection('container', ['leaf']), parent: 'container' },
+      'leaf': { ...makeNode('AstryxText', { text: 'Hi' }, []), parent: 'inner' },
+    };
+    const result = enforceNewScreenPatch(patch, existing);
+
+    const rootChildren = (result['ROOT'] as any).nodes as string[];
+    const newAbId = rootChildren.find((id: string) => id !== 'screen-1')!;
+
+    // Only 'container' (top-level root) is a direct artboard child
+    expect(((result[newAbId] as any).nodes as string[])).toContain('container');
+    expect(((result[newAbId] as any).nodes as string[])).not.toContain('inner');
+    expect(((result[newAbId] as any).nodes as string[])).not.toContain('leaf');
+
+    // Parent chains are consistent throughout
+    expect((result['container'] as any).parent).toBe(newAbId);
+    expect((result['inner'] as any).parent).toBe('container');
+    expect((result['leaf'] as any).parent).toBe('inner');
+
+    // Each node appears in exactly one nodes array
+    const allNodesArrays = Object.values(result).flatMap(
+      (node) => (Array.isArray((node as any).nodes) ? (node as any).nodes : []) as string[],
+    );
+    for (const id of ['container', 'inner', 'leaf']) {
+      expect(allNodesArrays.filter((n: string) => n === id)).toHaveLength(1);
+    }
   });
 });
