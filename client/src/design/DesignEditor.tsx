@@ -60,6 +60,7 @@ import {
   SnapGuideContext,
 } from "./resolver";
 import { repairCraftState } from "./craftValidator";
+import { detectNewScreenIntent } from "./newScreenIntent";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
@@ -4653,9 +4654,13 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
 
       // Detect "new screen" intent: user wants a brand-new artboard, not an edit
       // of existing content. Only fires when a canvas already exists.
-      const newScreenPattern = /\b(create|build|design|generate|make|add)\s+(a\s+)?(new\s+)?(ui|interface|screen|page|design|layout)\b|\bnew\s+(screen|page|interface|ui)\b/i;
+      // Uses detectNewScreenIntent which requires an explicit "new" qualifier and
+      // suppresses the signal when the message references an existing artboard label.
       const hasExistingCanvas = !!currentCraftState && currentCraftState.trim().length > 2;
-      const wantsNewScreen = hasExistingCanvas && newScreenPattern.test(trimmed) && !pinned;
+      const wantsNewScreen =
+        hasExistingCanvas &&
+        !pinned &&
+        detectNewScreenIntent(trimmed, currentCraftState);
 
       const res = await fetch("/api/ai/design", {
         method: "POST",
