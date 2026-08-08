@@ -5206,9 +5206,12 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
  * Returns the same object reference unchanged when no spreading is needed.
  */
 function destackArtboards(state: Record<string, any>): Record<string, any> {
-  const artboardEntries = Object.entries(state).filter(
-    ([, n]: [string, any]) => n?.type?.resolvedName === "AstryxArtboard"
-  );
+  const root = state["ROOT"];
+  const rootNodes = Array.isArray(root?.nodes) ? root.nodes as string[] : [];
+  const artboardEntries = rootNodes
+    .filter((id, index) => rootNodes.indexOf(id) === index)
+    .map((id) => [id, state[id]] as [string, any])
+    .filter(([, node]) => node?.type?.resolvedName === "AstryxArtboard");
   if (artboardEntries.length < 2) return state;
 
   const xs = artboardEntries.map(([, n]: [string, any]) => Number(n.props?.x) || 0);

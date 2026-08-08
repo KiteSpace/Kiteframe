@@ -28,6 +28,7 @@ import {
   ALLOWED_CRAFT_COMPONENTS,
   validateCraftState,
   sanitizeCraftState,
+  pruneUnreachableCraftNodes,
 } from '../craftValidator';
 import { DESIGN_SYSTEM_PROMPT_CLIENT, isCraftJsDesignState } from '../../lib/designGeneration';
 
@@ -577,6 +578,37 @@ describe('sanitizeCraftState — graceful degradation', () => {
   it('returns the original string unchanged for malformed JSON', () => {
     const bad = '{ not valid }}}';
     expect(sanitizeCraftState(bad)).toBe(bad);
+  });
+
+  it('keeps an orphaned named artboard out of the editable root tree', () => {
+    const state = {
+      ROOT: { type: { resolvedName: 'AstryxSection' }, isCanvas: true, props: {}, parent: null, nodes: ['generated'], linkedNodes: {} },
+      generated: { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label: 'Generated UI' }, parent: 'ROOT', nodes: [], linkedNodes: {} },
+      inferredTitle: { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label: 'AI inferred title' }, parent: 'ROOT', nodes: [], linkedNodes: {} },
+    };
+    const result = JSON.parse(sanitizeCraftState(JSON.stringify(state)));
+
+    expect(result.ROOT.nodes).toEqual(['generated']);
+    expect(result.inferredTitle.parent).toBeNull();
+  });
+});
+
+describe('pruneUnreachableCraftNodes — generated graph boundaries', () => {
+  it('removes an orphaned named artboard while preserving all rooted screens', () => {
+    const state = {
+      ROOT: { type: { resolvedName: 'AstryxSection' }, isCanvas: true, props: {}, parent: null, nodes: ['screen-a', 'screen-b'], linkedNodes: {} },
+      'screen-a': { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label: 'Overview' }, parent: 'ROOT', nodes: ['heading'], linkedNodes: {} },
+      'screen-b': { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label: 'Settings' }, parent: 'ROOT', nodes: [], linkedNodes: {} },
+      heading: { type: { resolvedName: 'AstryxHeading' }, isCanvas: false, props: { text: 'Overview' }, parent: 'screen-a', nodes: [], linkedNodes: {} },
+      ghost: { type: { resolvedName: 'AstryxArtboard' }, isCanvas: true, props: { label: 'Inferred workflow title' }, parent: null, nodes: [], linkedNodes: {} },
+    };
+
+    const result = JSON.parse(pruneUnreachableCraftNodes(JSON.stringify(state)));
+    expect(result.ROOT.nodes).toEqual(['screen-a', 'screen-b']);
+    expect(result['screen-a']).toBeDefined();
+    expect(result['screen-b']).toBeDefined();
+    expect(result.heading).toBeDefined();
+    expect(result.ghost).toBeUndefined();
   });
 });
 

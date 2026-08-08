@@ -298,28 +298,86 @@ export function sanitizeCraftState(craftStateJson: string): string {
     }
   }
 
-  // Promote any node whose `parent` field is "ROOT" but that is absent from
-  // ROOT.nodes — this happens when the AI generates a state with a correctly-
-  // parented artboard but forgets to list it in ROOT's nodes array.
-  // We run this here (not only in mergeIntoCanvas) so fresh generations also
-  // benefit, since those bypass mergeIntoCanvas entirely.
+  // ROOT.nodes is the authoritative Craft.js tree. Reconcile direct children
+  // against it so stale parent pointers cannot turn disconnected AI nodes into
+  // visible canvas artifacts. Nodes listed in ROOT are reparented to ROOT;
+  // nodes merely claiming ROOT as parent remain disconnected until a generation
+  // explicitly includes them in the tree.
   const rootEntry = map["ROOT"] as Record<string, unknown> | undefined;
   if (rootEntry && Array.isArray(rootEntry.nodes)) {
-    const rootNodeSet = new Set(rootEntry.nodes as string[]);
-    const promoted: string[] = [];
-    for (const [id, node] of Object.entries(map)) {
-      if (id === "ROOT" || !node || typeof node !== "object") continue;
+    const rootNodes = (rootEntry.nodes as string[]).filter(
+      (id, index, all) => typeof id === "string" && id in map && all.indexOf(id) === index,
+    );
+    if (rootNodes.length !== (rootEntry.nodes as string[]).length) {
+      map["ROOT"] = { ...rootEntry, nodes: rootNodes };
+      changed = true;
+    }
+    for (const id of rootNodes) {
+      const node = map[id];
+      if (!node || typeof node !== "object") continue;
       const n = node as Record<string, unknown>;
-      if (n.parent === "ROOT" && !rootNodeSet.has(id)) {
-        promoted.push(id);
-        console.warn(`[sanitizeCraftState] Promoting orphaned ROOT child: "${id}"`);
+      if (n.parent !== "ROOT") {
+        map[id] = { ...n, parent: "ROOT" };
+        changed = true;
       }
     }
-    if (promoted.length > 0) {
-      map["ROOT"] = { ...rootEntry, nodes: [...(rootEntry.nodes as string[]), ...promoted] };
-      changed = true;
+    if (rootNodes.length > 0) {
+      const rootNodeSet = new Set(rootNodes);
+      for (const [id, node] of Object.entries(map)) {
+        if (id === "ROOT" || rootNodeSet.has(id) || !node || typeof node !== "object") continue;
+        const n = node as Record<string, unknown>;
+        if (n.parent === "ROOT") {
+          map[id] = { ...n, parent: null };
+          changed = true;
+        }
+      }
     }
   }
 
   return changed ? JSON.stringify(map) : craftStateJson;
+}
+
+/**
+ * Returns a state containing only nodes reachable from ROOT through `nodes`
+ * and `linkedNodes`. Fresh full-state AI generations use this before
+ * persistence so disconnected canvas nodes cannot render as ghost artboards.
+ */
+export function pruneUnreachableCraftNodes(craftStateJson: string): string {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(craftStateJson) as Record<string, unknown>;
+  } catch {
+    return craftStateJson;
+  }
+
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  if (!root || typeof root !== "object") return craftStateJson;
+
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children = [
+      ...(Array.isArray(node.nodes) ? node.nodes : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? node.linkedNodes as Record<string, unknown>
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  if (reachable.size === Object.keys(map).length) return craftStateJson;
+  const pruned = Object.fromEntries(
+    Object.entries(map).filter(([id]) => reachable.has(id)),
+  );
+  return JSON.stringify(pruned);
 }

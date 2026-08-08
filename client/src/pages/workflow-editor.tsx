@@ -49,6 +49,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { InterfaceProposalView } from "@/components/InterfaceProposalView";
+import { pruneUnreachableCraftNodes, sanitizeCraftState } from "@/design/resolver";
 import { WorkflowImportModal } from "@/components/WorkflowImportModal";
 import { ShareModal } from "@/components/ShareModal";
 import { SketchCanvas, findNearestStroke, type SketchCanvasHandle, type SketchSelection } from "@/components/SketchCanvas";
@@ -3262,7 +3263,12 @@ function WorkflowEditorContent({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          craftState: genData.craftState,
+          // The AI can include disconnected nodes in a full Craft.js response.
+          // Persist only the editable graph rooted at ROOT so ghost artboards
+          // cannot appear beside the generated interface.
+          craftState: typeof genData.craftState === "string"
+            ? sanitizeCraftState(pruneUnreachableCraftNodes(genData.craftState))
+            : genData.craftState,
           source: "workflow-bridge",
           // Use the versioned tab title so onTitleLoaded syncs back the correct name
           title: tabTitle,
