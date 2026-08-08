@@ -9,7 +9,12 @@
  *   4. Does NOT generate a SCREEN MAPPING for a single-screen workflow.
  */
 import { describe, it, expect } from 'vitest';
-import { buildInterfacePromptFromWorkflow } from '../buildInterfacePrompt';
+import {
+  analyzeWorkflowScreens,
+  buildInterfacePromptFromWorkflow,
+  MAX_GENERATED_SCREENS,
+  MAX_PREVIEW_SCREENS,
+} from '../buildInterfacePrompt';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -191,5 +196,35 @@ describe('buildInterfacePromptFromWorkflow — prompt length', () => {
     const prompt = buildInterfacePromptFromWorkflow(nodes, edges, 'Social App');
 
     expect(prompt.length).toBeLessThanOrEqual(8000);
+  });
+});
+
+describe('large workflow screen limits', () => {
+  it('exposes up to ten lightweight preview clusters', () => {
+    const nodes = Array.from({ length: 40 }, (_, i) => makeNode(`node-${i}`, 'process', `Step ${i + 1}`));
+    const edges = nodes.slice(1).map((node, i) => makeEdge(nodes[i].id, node.id));
+    const clusters = analyzeWorkflowScreens(nodes, edges);
+
+    expect(MAX_PREVIEW_SCREENS).toBe(10);
+    expect(clusters).toHaveLength(10);
+  });
+
+  it('limits the final prompt to six explicitly selected screens', () => {
+    const clusters = Array.from({ length: 10 }, (_, i) => ({
+      name: `Screen ${i + 1}`,
+      nodes: [makeNode(`screen-${i}`, 'input', `Step ${i + 1}`)],
+    }));
+    const prompt = buildInterfacePromptFromWorkflow(
+      clusters.flatMap((cluster) => cluster.nodes),
+      [],
+      'Large Workflow',
+      clusters,
+    );
+
+    expect(MAX_GENERATED_SCREENS).toBe(6);
+    expect(prompt).toContain('6 distinct screens');
+    expect(prompt).toContain('Screen 6');
+    expect(prompt).not.toContain('Screen 7');
+    expect(prompt).not.toContain('Screen 10');
   });
 });

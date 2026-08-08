@@ -125,7 +125,7 @@ import {
   getOppositeTextColor,
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
-import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens } from "@/lib/buildInterfacePrompt";
+import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
@@ -3248,7 +3248,15 @@ function WorkflowEditorContent({
         ? baseName
         : `${baseName} v${linkedDesignTabs.length + 1}`;
 
-      const prompt = buildInterfacePromptFromWorkflow(sourceTab.nodes, sourceTab.edges, sourceTab.name, selectedClusters);
+      const safeSelectedClusters = selectedClusters
+        ? selectedClusters.slice(0, MAX_GENERATED_SCREENS)
+        : selectedClusters;
+      const prompt = buildInterfacePromptFromWorkflow(
+        sourceTab.nodes,
+        sourceTab.edges,
+        sourceTab.name,
+        safeSelectedClusters,
+      );
       const genRes = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

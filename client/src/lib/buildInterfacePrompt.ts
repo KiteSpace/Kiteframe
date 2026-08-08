@@ -1,6 +1,10 @@
 import type { Node, Edge } from '@/lib/kiteframe/types';
 
 const PROMPT_CHAR_BUDGET = 7500;
+/** Maximum lightweight screen candidates shown during the proposal phase. */
+export const MAX_PREVIEW_SCREENS = 10;
+/** Maximum screens allowed in one final Craft.js interface generation. */
+export const MAX_GENERATED_SCREENS = 6;
 
 // ─── Node role for prompt enrichment ─────────────────────────────────────────
 //
@@ -27,7 +31,7 @@ function getNodeRole(node: Node): NodeRole {
 // Groups workflow nodes into logical UI screens using a type-agnostic approach:
 //   1. Topological sort (Kahn's algorithm) orders nodes by dependency.
 //   2. The sorted list is divided into equal-sized chunks.
-//   3. targetScreenCount = clamp(ceil(N / 4), 2, 5) keeps groups meaningful.
+//   3. targetScreenCount = clamp(ceil(N / 4), 2, 10) keeps groups meaningful.
 //   4. Each chunk becomes a screen named after its first node's label.
 //   5. Returns null for workflows with fewer than 6 nodes — use single artboard.
 //
@@ -79,7 +83,7 @@ function detectScreenClusters(
 
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const N = sorted.length;
-  const targetScreenCount = Math.min(5, Math.max(2, Math.ceil(N / 4)));
+  const targetScreenCount = Math.min(MAX_PREVIEW_SCREENS, Math.max(2, Math.ceil(N / 4)));
   const chunkSize = Math.ceil(N / targetScreenCount);
 
   const clusters: Array<{ name: string; nodes: Node[] }> = [];
@@ -180,10 +184,11 @@ export function buildInterfacePromptFromWorkflow(
   }
 
   // Resolve clusters: explicit override → auto-detect → null (single-screen)
+  const detectedClusters = detectScreenClusters(nodes, edges);
   const clusters =
     selectedClusters !== undefined
-      ? selectedClusters
-      : detectScreenClusters(nodes, edges);
+      ? selectedClusters.slice(0, MAX_GENERATED_SCREENS)
+      : detectedClusters?.slice(0, MAX_GENERATED_SCREENS) ?? null;
 
   const isMultiScreen = clusters !== null && clusters.length >= 2;
 

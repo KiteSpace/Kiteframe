@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { analyzeWorkflowScreens } from '@/lib/buildInterfacePrompt';
+import { analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from '@/lib/buildInterfacePrompt';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { Loader2, Sparkles, Send, X } from 'lucide-react';
 
@@ -281,13 +281,15 @@ export function InterfaceProposalView({
           description: s.description,
           svgWireframe: s.svgWireframe,
           nodeIds: screenInputs[i]?.nodeIds ?? [],
-          selected: true,
+          selected: i < MAX_GENERATED_SCREENS,
         }));
         setScreens(proposed);
         setMessages([
           {
             role: 'assistant',
-            content: `I've proposed ${proposed.length} screen${proposed.length !== 1 ? 's' : ''} based on your workflow. Uncheck any you don't need, refine via chat, then hit Generate UI.`,
+            content: proposed.length > MAX_GENERATED_SCREENS
+              ? `I've proposed ${proposed.length} screen concepts. KiteAI has pre-selected the recommended ${MAX_GENERATED_SCREENS}; choose up to ${MAX_GENERATED_SCREENS} to render, refine via chat, then hit Generate UI.`
+              : `I've proposed ${proposed.length} screen${proposed.length !== 1 ? 's' : ''} based on your workflow. Uncheck any you don't need, refine via chat, then hit Generate UI.`,
           },
         ]);
         setStatus('ready');
@@ -324,7 +326,13 @@ export function InterfaceProposalView({
         const prev = screens.find((p) => p.id === s.id);
         return { ...s, nodeIds: prev?.nodeIds ?? [], selected: prev?.selected ?? true };
       });
-      setScreens(updatedScreens);
+      let selectedSeen = 0;
+      const cappedScreens = updatedScreens.map((screen) => {
+        if (!screen.selected) return screen;
+        selectedSeen += 1;
+        return selectedSeen <= MAX_GENERATED_SCREENS ? screen : { ...screen, selected: false };
+      });
+      setScreens(cappedScreens);
       setMessages([...newMessages, { role: 'assistant', content: data.aiMessage }]);
     } catch {
       setMessages([
@@ -339,7 +347,7 @@ export function InterfaceProposalView({
   const selectedCount = screens.filter((s) => s.selected).length;
 
   const handleConfirm = useCallback(() => {
-    const selected = screens.filter((s) => s.selected);
+    const selected = screens.filter((s) => s.selected).slice(0, MAX_GENERATED_SCREENS);
     const clusters = selected.map((s) => ({
       name: s.name,
       nodes: nodes.filter((n) => s.nodeIds.includes(n.id)),
@@ -349,7 +357,14 @@ export function InterfaceProposalView({
   }, [screens, nodes, onConfirm]);
 
   const toggleScreen = useCallback((id: string) => {
-    setScreens((prev) => prev.map((s) => (s.id === id ? { ...s, selected: !s.selected } : s)));
+    setScreens((prev) => {
+      const current = prev.find((s) => s.id === id);
+      if (!current) return prev;
+      if (!current.selected && prev.filter((s) => s.selected).length >= MAX_GENERATED_SCREENS) {
+        return prev;
+      }
+      return prev.map((s) => (s.id === id ? { ...s, selected: !s.selected } : s));
+    });
   }, []);
 
   const isLoading  = status === 'loading';
@@ -526,6 +541,11 @@ export function InterfaceProposalView({
               ? `${selectedCount} screen${selectedCount !== 1 ? 's' : ''} selected`
               : 'Select screens to generate'}
           </span>
+          {screens.length > MAX_GENERATED_SCREENS && (
+            <span className="text-[11px] text-muted-foreground">
+              Pick a maximum of {MAX_GENERATED_SCREENS} screens · KiteAI has pre-selected the recommended screens
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={onCancel}
@@ -553,13 +573,24 @@ export function InterfaceProposalView({
           ) : (
             <div className="grid grid-cols-3 gap-4">
               {screens.map((screen) => (
-                <button
+                <div
                   key={screen.id}
                   onClick={() => toggleScreen(screen.id)}
+                  aria-pressed={screen.selected}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleScreen(screen.id);
+                    }
+                  }}
                   className={`rounded-xl border-2 bg-card p-3 text-left transition-all ${
                     screen.selected
                       ? 'border-violet-500 shadow-sm'
-                      : 'border-border opacity-55 hover:opacity-80'
+                      : `border-border opacity-55 hover:opacity-80 ${
+                          selectedCount >= MAX_GENERATED_SCREENS ? 'cursor-not-allowed' : ''
+                        }`
                   }`}
                 >
                   {/* SVG wireframe thumbnail */}
@@ -584,7 +615,7 @@ export function InterfaceProposalView({
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{screen.description}</p>
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

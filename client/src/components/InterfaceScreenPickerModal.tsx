@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { MAX_GENERATED_SCREENS } from '@/lib/buildInterfacePrompt';
 
 export interface ScreenCluster {
   name: string;
@@ -21,7 +22,7 @@ interface InterfaceScreenPickerModalProps {
   onConfirm: (selected: ScreenCluster[]) => void;
 }
 
-const MAX_SCREENS = 5;
+const MAX_SCREENS = MAX_GENERATED_SCREENS;
 
 export function InterfaceScreenPickerModal({
   open,
@@ -62,8 +63,10 @@ export function InterfaceScreenPickerModal({
         <DialogHeader>
           <DialogTitle>Choose screens to generate</DialogTitle>
           <DialogDescription>
-            This workflow maps to {clusters.length} screens. Select up to {MAX_SCREENS} to generate
-            (the first {MAX_SCREENS} are pre-selected).
+            This workflow maps to {clusters.length} screens. Pick a maximum of {MAX_SCREENS} to generate.
+            {clusters.length > MAX_SCREENS
+              ? ' KiteAI has pre-selected the recommended screens.'
+              : ` The first ${MAX_SCREENS} are pre-selected.`}
           </DialogDescription>
         </DialogHeader>
 
