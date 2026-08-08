@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useReplitAuth } from '@/hooks/useReplitAuth';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { User as UserType } from '@shared/schema';
 import { SiteFooter } from '@/components/SiteFooter';
 
@@ -68,7 +68,14 @@ export default function Account() {
     enabled: !!authUser,
   });
 
-  const { data: subscriptionData } = useQuery<{ tier?: string; status?: string; billingPeriodEnd?: string }>({
+  const { data: subscriptionData } = useQuery<{
+    tier?: string;
+    status?: string;
+    billingPeriodEnd?: string;
+    isAdmin?: boolean;
+    isUnlimited?: boolean;
+    canManageBilling?: boolean;
+  }>({
     queryKey: ['/api/subscription'],
     enabled: !!authUser,
   });
@@ -84,6 +91,7 @@ export default function Account() {
       }
     },
     onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
       toast({
         title: 'Error',
         description: error.message || 'Unable to open billing portal.',
@@ -170,7 +178,9 @@ export default function Account() {
   const tier = tierInfo[currentTier];
   const TierIcon = tier.icon;
   const isTrialing = subscriptionData?.status === 'trialing';
-  const showManageButton = currentTier !== 'free' || (subscriptionData?.status === 'active' || isTrialing);
+  const isAdminAccount = subscriptionData?.isAdmin === true || subscriptionData?.isUnlimited === true;
+  const canManageBilling = subscriptionData?.canManageBilling === true;
+  const showManageButton = canManageBilling && (currentTier !== 'free' || subscriptionData?.status === 'active' || isTrialing);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
@@ -260,6 +270,22 @@ export default function Account() {
               {subscriptionData?.billingPeriodEnd && (
                 <p className="text-sm text-slate-500 mb-4">
                   Next billing date: {new Date(subscriptionData.billingPeriodEnd).toLocaleDateString()}
+                </p>
+              )}
+
+              {subscriptionData && isAdminAccount && (
+                <p className="text-sm text-slate-500 mb-4" data-testid="text-admin-billing-info">
+                  This account has unlimited access and is not managed through Stripe.
+                </p>
+              )}
+
+              {subscriptionData && !isAdminAccount && currentTier !== 'free' && !canManageBilling && (
+                <p className="text-sm text-amber-700 dark:text-amber-400 mb-4" data-testid="text-missing-billing-account">
+                  We couldn&apos;t find a linked billing account for this plan. Choose a plan again on{' '}
+                  <Link href="/pricing">
+                    <a className="font-medium underline hover:no-underline">Pricing</a>
+                  </Link>
+                  {' '}to restore billing access.
                 </p>
               )}
 

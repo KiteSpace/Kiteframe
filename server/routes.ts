@@ -63,6 +63,7 @@ import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated, getBetaSlots, invalidateBanCache } from "./replitAuth";
 import { stripeService } from "./stripeService";
 import { cancelSubscriptionBeforeAccountDeletion } from "./accountDeletionBilling";
+import { getBillingAccountAvailability } from "./accountBilling";
 import { WebhookHandlers } from "./webhookHandlers";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
@@ -800,6 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user is admin
       const isAdmin = isAdminUser(user.email);
+      const billingAccount = getBillingAccountAvailability(user, isAdmin);
 
       let subscription = null;
       if (user.stripeSubscriptionId) {
@@ -823,6 +825,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billingPeriodEnd: user.billingPeriodEnd,
         isAdmin,
         isUnlimited: isAdmin,
+        canManageBilling: billingAccount.canManageBilling,
         trialEnd,
       });
     } catch (error) {
@@ -902,9 +905,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = getUserIdFromRequest(req.user);
       const user = await storage.getUser(userId);
+      const isAdmin = isAdminUser(user?.email);
+      const billingAccount = user
+        ? getBillingAccountAvailability(user, isAdmin)
+        : { canManageBilling: false, reason: 'missing_customer' as const };
 
-      if (!user?.stripeCustomerId) {
-        return res.status(400).json({ error: 'No billing account found' });
+      if (!user || !billingAccount.canManageBilling) {
+        return res.status(400).json({
+          error: isAdmin
+            ? 'This account is not managed through Stripe.'
+            : 'No billing account found. Please choose a plan to set up billing.',
+        });
       }
 
       try {
@@ -916,8 +927,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (stripeErr: any) {
         if (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer') {
           console.warn('Stale Stripe customer ID on portal request, clearing for user', userId);
-          await storage.updateUserSubscription(userId, { stripeCustomerId: null });
-          return res.status(400).json({ error: 'Billing account not found. Please subscribe again to set up billing.' });
+          await storage.updateUserSubscription(userId, {
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+            subscriptionTier: 'free',
+            subscriptionStatus: 'canceled',
+            billingPeriodEnd: null,
+          });
+          await creditService.syncUserCreditsWithTier(userId, 'free');
+          return res.status(400).json({
+            error: 'Billing account not found. Please choose a plan again to set up billing.',
+          });
         }
         throw stripeErr;
       }
