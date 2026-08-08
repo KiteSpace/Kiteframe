@@ -52,6 +52,7 @@ import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import { HomeHero } from "./HomeHero";
 import { useAuth } from "@/hooks/useAuth";
+import { DesignProjectThumbnail } from "./DesignProjectThumbnail";
 
 interface RecentProject {
   id: string;
@@ -451,6 +452,8 @@ export function HomeScreen({
             alt={project.name}
             className="w-full h-full object-cover"
           />
+        ) : isDesign && project.designId ? (
+          <DesignProjectThumbnail designId={project.designId} name={project.name} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             {isDesign
