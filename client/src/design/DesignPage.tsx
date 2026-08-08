@@ -1,11 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
-import { sanitizeCraftState } from "./resolver";
+import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards } from "./resolver";
 import { useToast } from "@/hooks/use-toast";
 import type { Design } from "@shared/schema";
 
@@ -65,6 +65,8 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
   const [notesOpen, setNotesOpen] = useState(false);
   const [incompleteSaveWarning, setIncompleteSaveWarning] = useState(false);
+  const [removedArtboards, setRemovedArtboards] = useState<{ id: string; label: string }[]>([]);
+  const [repairSaved, setRepairSaved] = useState(false);
 
   // On mount, check whether a previous large-state save was still in-flight when
   // the user navigated away.  If so, show a one-time banner so they know the last
@@ -180,14 +182,46 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
     notesMutation.mutate(notes);
   }, [notesMutation]);
 
-  // Sanitize before reaching DesignEditor so both editable and view-only
-  // paths are protected regardless of how the editor renders the state.
+  // Sanitize + prune before reaching DesignEditor so both editable and
+  // view-only paths are protected regardless of how the editor renders the
+  // state.  Pruning removes disconnected "ghost" artboards that were written
+  // to the database before the generation safeguard was in place.
   const rawCraftStateJson = design.craftState
     ? JSON.stringify(design.craftState)
     : null;
-  const craftStateJson = rawCraftStateJson
+  const sanitizedJson = rawCraftStateJson
     ? sanitizeCraftState(rawCraftStateJson)
     : null;
+
+  // Detect disconnected artboards BEFORE pruning so we know what was removed.
+  // useMemo keyed on design.id ensures the detection runs exactly once per
+  // design load (the raw state is stable once the query resolves).
+  const disconnectedOnLoad = useMemo(
+    () => (sanitizedJson ? detectDisconnectedArtboards(sanitizedJson) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [design.id],
+  );
+
+  // Apply pruning only when disconnected artboards were actually found.
+  const craftStateJson = useMemo(
+    () =>
+      sanitizedJson
+        ? disconnectedOnLoad.length > 0
+          ? pruneUnreachableCraftNodes(sanitizedJson)
+          : sanitizedJson
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [design.id],
+  );
+
+  // Show the repair banner once when we detect ghost artboards on open.
+  useEffect(() => {
+    if (disconnectedOnLoad.length > 0) {
+      setRemovedArtboards(disconnectedOnLoad);
+      setRepairSaved(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [design.id]);
 
   return (
     <div className={`${inline ? "h-full w-full" : "h-screen w-screen"} flex flex-col bg-background overflow-hidden`}>
@@ -297,6 +331,48 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
           <button
             onClick={() => setIncompleteSaveWarning(false)}
             className="shrink-0 p-0.5 rounded hover:bg-amber-200/60 dark:hover:bg-amber-800/40 transition-colors"
+            title="Dismiss"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Ghost-artboard repair banner — shown when blank disconnected artboards
+          were detected in a legacy save.  The editor renders without the ghosts
+          (craftStateJson is already pruned), but the database is only updated
+          when the owner clicks "Remove now" or makes their next edit (the PATCH
+          handler also prunes on every save). */}
+      {removedArtboards.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200 text-blue-800 text-xs shrink-0 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span className="flex-1">
+            {removedArtboards.length === 1
+              ? `Found 1 blank artboard ("${removedArtboards[0].label}") that was disconnected from this design.`
+              : `Found ${removedArtboards.length} blank artboards (${removedArtboards.map((a) => `"${a.label}"`).join(", ")}) that were disconnected from this design.`}
+            {repairSaved
+              ? " Removed and saved."
+              : canEdit
+              ? " It has been hidden from the canvas — click Remove to save the cleanup."
+              : " It is hidden from the canvas. The owner can remove it permanently by saving."}
+          </span>
+          {canEdit && !repairSaved && craftStateJson && (
+            <button
+              onClick={() => {
+                patchMutation.mutate(craftStateJson, {
+                  onSuccess: () => setRepairSaved(true),
+                });
+              }}
+              disabled={patchMutation.isPending}
+              className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {patchMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+              Remove
+            </button>
+          )}
+          <button
+            onClick={() => setRemovedArtboards([])}
+            className="shrink-0 p-0.5 rounded hover:bg-blue-200/60 dark:hover:bg-blue-800/40 transition-colors"
             title="Dismiss"
           >
             <X className="w-3 h-3" />

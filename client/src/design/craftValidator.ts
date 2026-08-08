@@ -337,6 +337,69 @@ export function sanitizeCraftState(craftStateJson: string): string {
   return changed ? JSON.stringify(map) : craftStateJson;
 }
 
+// ─── Disconnected artboard detector ──────────────────────────────────────────
+/**
+ * Inspects a craft state and returns the labels (or IDs) of AstryxArtboard
+ * nodes that exist in the map but are NOT reachable from ROOT via the `nodes`
+ * / `linkedNodes` tree.  These are the "ghost" artboards that appear as blank
+ * canvases when a design was saved before the pruning safeguard was in place.
+ *
+ * Returns an empty array when the state is healthy — safe to call on every
+ * design open without changing anything.
+ */
+export function detectDisconnectedArtboards(craftStateJson: string): { id: string; label: string }[] {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(craftStateJson) as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+
+  // Build the reachable set (same BFS as pruneUnreachableCraftNodes).
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  if (!root || typeof root !== "object") return [];
+
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children = [
+      ...(Array.isArray(node.nodes) ? (node.nodes as string[]) : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? (node.linkedNodes as Record<string, unknown>)
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  // Collect AstryxArtboard nodes that were not reached.
+  const disconnected: { id: string; label: string }[] = [];
+  for (const [id, node] of Object.entries(map)) {
+    if (reachable.has(id) || !node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+    if (resolvedName === "AstryxArtboard") {
+      const props = n["props"] as Record<string, unknown> | undefined;
+      const label =
+        typeof props?.["label"] === "string" && props["label"].trim()
+          ? props["label"]
+          : id;
+      disconnected.push({ id, label });
+    }
+  }
+
+  return disconnected;
+}
+
 /**
  * Returns a state containing only nodes reachable from ROOT through `nodes`
  * and `linkedNodes`. Fresh full-state AI generations use this before

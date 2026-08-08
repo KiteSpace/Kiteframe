@@ -5,9 +5,10 @@ import {
   validateCraftState,
   sanitizeCraftState,
   pruneUnreachableCraftNodes,
+  detectDisconnectedArtboards,
 } from "./craftValidator";
 export type { CraftStateValidationResult } from "./craftValidator";
-export { ALLOWED_CRAFT_COMPONENTS, validateCraftState, sanitizeCraftState, pruneUnreachableCraftNodes };
+export { ALLOWED_CRAFT_COMPONENTS, validateCraftState, sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards };
 import {
   AstryxButton as AstryxButtonBase,
 

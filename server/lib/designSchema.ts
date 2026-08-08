@@ -320,3 +320,47 @@ export function repairCraftState(state: unknown): unknown {
 
   return map;
 }
+
+// ─── Unreachable-node pruner ──────────────────────────────────────────────────
+/**
+ * Returns a state map containing only nodes reachable from ROOT through the
+ * `nodes` and `linkedNodes` adjacency lists.  Disconnected "ghost" artboards
+ * (nodes that exist in the map but are never referenced by any ancestor) are
+ * silently dropped so they cannot appear as blank canvases.
+ *
+ * This mirrors the client-side pruneUnreachableCraftNodes in craftValidator.ts.
+ * Call it in the PATCH handler after repairCraftState so the pruning never
+ * races with an in-flight client edit.
+ */
+export function pruneUnreachableCraftNodes(state: unknown): unknown {
+  if (!state || typeof state !== "object") return state;
+  const map = state as Record<string, unknown>;
+
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  if (!root || typeof root !== "object") return state;
+
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children: unknown[] = [
+      ...(Array.isArray(node.nodes) ? (node.nodes as unknown[]) : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? (node.linkedNodes as Record<string, unknown>)
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  if (reachable.size === Object.keys(map).length) return state; // nothing to prune
+  return Object.fromEntries(Object.entries(map).filter(([id]) => reachable.has(id)));
+}

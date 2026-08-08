@@ -40,7 +40,7 @@ import {
   externalApiKeys,
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
-import { validateCraftState as _validateCraftState, repairCraftState } from "./lib/designSchema";
+import { validateCraftState as _validateCraftState, repairCraftState, pruneUnreachableCraftNodes } from "./lib/designSchema";
 function validateCraftState(s: unknown) { return _validateCraftState(repairCraftState(s)); }
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
 import { mergeDesignPatch, layoutArtboards, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from "./lib/designPatchMerge";
@@ -7974,9 +7974,11 @@ jane@example.com,Jane,Smith,pro,GroupC
         if (typeof state === 'string') {
           try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
         }
-        const { valid, errors } = validateCraftState(state);
+        const repairedState = repairCraftState(state);
+        const prunedState = pruneUnreachableCraftNodes(repairedState);
+        const { valid, errors } = validateCraftState(prunedState);
         if (!valid) return res.status(422).json({ error: 'craftState failed validation.', details: errors });
-        payload.craftState = state;
+        payload.craftState = prunedState;
       }
       if (title !== undefined) payload.title = typeof title === 'string' ? title : null;
       if (notes !== undefined) payload.notes = typeof notes === 'string' ? notes : null;
