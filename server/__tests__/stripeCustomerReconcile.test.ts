@@ -133,7 +133,82 @@ describe('WebhookHandlers.reconcileRemovedCustomers()', () => {
     await WebhookHandlers.reconcileRemovedCustomers();
 
     expect(mockGetUserByStripeCustomerId).toHaveBeenCalledWith('cus_linked');
-    expect(mockUpdateUserSubscription).toHaveBeenCalledWith('user-123', { stripeCustomerId: null });
+    expect(mockUpdateUserSubscription).toHaveBeenCalledWith('user-123', {
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'canceled',
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  it('resets subscription to free/canceled and syncs credits when customer is removed', async () => {
+    mockDbExecute
+      .mockResolvedValueOnce({ rows: [{ id: 'cus_pro' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const notFoundErr = Object.assign(new Error('No such customer'), { code: 'resource_missing' });
+    mockStripeRetrieve.mockRejectedValue(notFoundErr);
+
+    const fakeUser = { id: 'user-pro', stripeCustomerId: 'cus_pro', subscriptionTier: 'pro', subscriptionStatus: 'active' };
+    mockGetUserByStripeCustomerId.mockResolvedValue(fakeUser);
+
+    const { creditService: mockCreditService } = await import('../creditService');
+
+    await WebhookHandlers.reconcileRemovedCustomers();
+
+    expect(mockUpdateUserSubscription).toHaveBeenCalledWith('user-pro', {
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'canceled',
+    });
+    expect(mockCreditService.syncUserCreditsWithTier).toHaveBeenCalledWith('user-pro', 'free');
+  });
+
+  // -------------------------------------------------------------------------
+  it('resets subscription and syncs credits for a soft-deleted customer linked to a user', async () => {
+    mockDbExecute
+      .mockResolvedValueOnce({ rows: [{ id: 'cus_soft_linked' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    // Stripe returns a DeletedCustomer object (not an error)
+    mockStripeRetrieve.mockResolvedValue({ id: 'cus_soft_linked', deleted: true });
+
+    const fakeUser = { id: 'user-soft', stripeCustomerId: 'cus_soft_linked', subscriptionTier: 'advanced' };
+    mockGetUserByStripeCustomerId.mockResolvedValue(fakeUser);
+
+    const { creditService: mockCreditService } = await import('../creditService');
+
+    await WebhookHandlers.reconcileRemovedCustomers();
+
+    expect(mockUpdateUserSubscription).toHaveBeenCalledWith('user-soft', {
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'canceled',
+    });
+    expect(mockCreditService.syncUserCreditsWithTier).toHaveBeenCalledWith('user-soft', 'free');
+  });
+
+  // -------------------------------------------------------------------------
+  it('does not call syncUserCreditsWithTier when removed customer has no linked user', async () => {
+    mockDbExecute
+      .mockResolvedValueOnce({ rows: [{ id: 'cus_orphan' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const notFoundErr = Object.assign(new Error('No such customer'), { code: 'resource_missing' });
+    mockStripeRetrieve.mockRejectedValue(notFoundErr);
+
+    // No user linked to this customer
+    mockGetUserByStripeCustomerId.mockResolvedValue(null);
+
+    const { creditService: mockCreditService } = await import('../creditService');
+
+    await WebhookHandlers.reconcileRemovedCustomers();
+
+    expect(mockUpdateUserSubscription).not.toHaveBeenCalled();
+    expect(mockCreditService.syncUserCreditsWithTier).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
@@ -209,6 +284,67 @@ describe('WebhookHandlers.reconcileRemovedCustomers()', () => {
     const result = await WebhookHandlers.reconcileRemovedCustomers();
 
     expect(result).toEqual({ reconciled: 2, errors: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — WebhookHandlers.handleCustomerDeleted (webhook path)
+// ---------------------------------------------------------------------------
+
+describe('WebhookHandlers.handleCustomerDeleted()', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUserByStripeCustomerId.mockResolvedValue(null);
+    mockUpdateUserSubscription.mockResolvedValue(undefined);
+  });
+
+  it('is a no-op for non-customer.deleted events', async () => {
+    await WebhookHandlers.handleCustomerDeleted({ type: 'customer.subscription.updated', data: { object: { id: 'cus_x' } } });
+
+    expect(mockGetUserByStripeCustomerId).not.toHaveBeenCalled();
+    expect(mockUpdateUserSubscription).not.toHaveBeenCalled();
+  });
+
+  it('clears subscription fields and resets to free/canceled on customer.deleted', async () => {
+    mockDbExecute.mockResolvedValue({ rows: [] });
+
+    const fakeUser = { id: 'user-del', stripeCustomerId: 'cus_deleted', subscriptionTier: 'pro', subscriptionStatus: 'active' };
+    mockGetUserByStripeCustomerId.mockResolvedValue(fakeUser);
+
+    const { creditService: mockCreditService } = await import('../creditService');
+
+    await WebhookHandlers.handleCustomerDeleted({ type: 'customer.deleted', data: { object: { id: 'cus_deleted' } } });
+
+    expect(mockGetUserByStripeCustomerId).toHaveBeenCalledWith('cus_deleted');
+    expect(mockUpdateUserSubscription).toHaveBeenCalledWith('user-del', {
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'canceled',
+    });
+    expect(mockCreditService.syncUserCreditsWithTier).toHaveBeenCalledWith('user-del', 'free');
+  });
+
+  it('marks the customer deleted in the local stripe.customers mirror on customer.deleted', async () => {
+    mockDbExecute.mockResolvedValue({ rows: [] });
+    mockGetUserByStripeCustomerId.mockResolvedValue(null);
+
+    await WebhookHandlers.handleCustomerDeleted({ type: 'customer.deleted', data: { object: { id: 'cus_mirror' } } });
+
+    // The UPDATE stripe.customers SET deleted=true should have run
+    expect(mockDbExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not update users table when no user is linked to the deleted customer', async () => {
+    mockDbExecute.mockResolvedValue({ rows: [] });
+    mockGetUserByStripeCustomerId.mockResolvedValue(null);
+
+    const { creditService: mockCreditService } = await import('../creditService');
+
+    await WebhookHandlers.handleCustomerDeleted({ type: 'customer.deleted', data: { object: { id: 'cus_unlinked' } } });
+
+    expect(mockUpdateUserSubscription).not.toHaveBeenCalled();
+    expect(mockCreditService.syncUserCreditsWithTier).not.toHaveBeenCalled();
   });
 });
 

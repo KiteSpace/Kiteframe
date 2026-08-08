@@ -21,6 +21,23 @@ export class WebhookHandlers {
 
     const event = JSON.parse(payload.toString('utf8'));
     await WebhookHandlers.syncUserSubscriptionTier(event);
+    await WebhookHandlers.handleCustomerDeleted(event);
+  }
+
+  /**
+   * When Stripe fires a customer.deleted event, invoke the same local
+   * reconciliation that the startup scan uses so the user's subscription
+   * fields and credits are reset immediately — without waiting for the next
+   * process restart.
+   */
+  static async handleCustomerDeleted(event: any): Promise<void> {
+    if (event.type !== 'customer.deleted') return;
+
+    const customerId: string | undefined = event.data?.object?.id;
+    if (!customerId) return;
+
+    console.log(`[Webhook] customer.deleted received for ${customerId} — reconciling locally`);
+    await WebhookHandlers.markCustomerDeleted(customerId);
   }
 
   static async syncUserSubscriptionTier(event: any): Promise<void> {
@@ -161,11 +178,19 @@ export class WebhookHandlers {
       sql`UPDATE stripe.customers SET deleted = true WHERE id = ${customerId}`
     );
 
-    // Clear the dangling reference from our application users table
+    // Clear the dangling reference from our application users table and
+    // reset the subscription to free/canceled so the account is not
+    // incorrectly treated as active after the customer is gone.
     const user = await storage.getUserByStripeCustomerId(customerId);
     if (user) {
-      await storage.updateUserSubscription(user.id, { stripeCustomerId: null });
-      console.log(`[CustomerReconcile] Cleared stale stripeCustomerId for user ${user.id}`);
+      await storage.updateUserSubscription(user.id, {
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        subscriptionTier: 'free',
+        subscriptionStatus: 'canceled',
+      });
+      await creditService.syncUserCreditsWithTier(user.id, 'free');
+      console.log(`[CustomerReconcile] Cleared stale stripeCustomerId and reset subscription to free/canceled for user ${user.id}`);
     }
   }
 
