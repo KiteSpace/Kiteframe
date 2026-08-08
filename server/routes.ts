@@ -62,6 +62,7 @@ import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
 import { setupAuth, isAuthenticated, getBetaSlots, invalidateBanCache } from "./replitAuth";
 import { stripeService } from "./stripeService";
+import { cancelSubscriptionBeforeAccountDeletion } from "./accountDeletionBilling";
 import { WebhookHandlers } from "./webhookHandlers";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
@@ -1137,13 +1138,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      // Cancel Stripe subscription if exists
-      if (user.stripeSubscriptionId) {
-        try {
-          await stripeService.cancelSubscription(user.stripeSubscriptionId);
-        } catch (error) {
-          console.error('Error canceling subscription:', error);
-        }
+      // Do not remove the local account unless Stripe confirms the subscription
+      // is no longer billable. Stripe customer records are retained for invoice
+      // and payment history; only recurring subscriptions are canceled here.
+      try {
+        await cancelSubscriptionBeforeAccountDeletion(
+          user.stripeSubscriptionId,
+          (subscriptionId) => stripeService.cancelSubscription(subscriptionId),
+        );
+      } catch (error) {
+        console.error('Unable to cancel Stripe subscription before account deletion:', error);
+        return res.status(409).json({
+          error: 'We could not confirm that your subscription was canceled. Your account has not been deleted. Please try again or manage billing through the subscription portal.',
+        });
       }
 
       // Invalidate ALL active sessions for this user across every browser/device
