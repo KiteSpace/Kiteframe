@@ -169,6 +169,19 @@ async function runExternalEntityExpiry() {
 runExternalEntityExpiry();
 setInterval(runExternalEntityExpiry, 60 * 60 * 1000);
 
+// Hourly job: check every locally-known Stripe customer against the live API
+// and mark deleted ones so payment-method sync never hits "No such customer".
+// The startup run inside initStripe() fires before syncBackfill; this interval
+// catches customers deleted while the server is already running.
+async function runCustomerReconciliation() {
+  try {
+    await WebhookHandlers.reconcileRemovedCustomers();
+  } catch (err) {
+    console.error('[CustomerReconcile] Scheduled reconciliation failed:', err);
+  }
+}
+setInterval(runCustomerReconciliation, 60 * 60 * 1000);
+
 registerStripeWebhookRoute(
   app,
   (payload, signature, uuid) => WebhookHandlers.processWebhook(payload, signature, uuid),
