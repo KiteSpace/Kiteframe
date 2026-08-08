@@ -210,6 +210,75 @@ export function repairCraftState(state: unknown): unknown {
     };
   }
 
+  // ── Orphan reattachment ──────────────────────────────────────────────────
+  // The AI sometimes emits nodes (including whole artboard subtrees) whose
+  // `parent` field is set but which are missing from that parent's `nodes`
+  // array. Reachability-based pruning would silently delete that valid
+  // content, producing a blank canvas. Reattach every unreferenced node to
+  // its declared parent (or ROOT as a fallback) BEFORE any pruning runs.
+  // Genuinely empty disconnected artboards ("ghosts" from the old bug) are
+  // deliberately left alone so the ghost-cleanup prune can still remove them.
+  {
+    const referenced = new Set<string>();
+    for (const node of Object.values(map)) {
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (Array.isArray(n["nodes"])) {
+        for (const id of n["nodes"] as unknown[]) {
+          if (typeof id === "string") referenced.add(id);
+        }
+      }
+      if (n["linkedNodes"] && typeof n["linkedNodes"] === "object") {
+        for (const id of Object.values(n["linkedNodes"] as Record<string, unknown>)) {
+          if (typeof id === "string") referenced.add(id);
+        }
+      }
+    }
+
+    const reattach = (nodeId: string) => {
+      const n = map[nodeId] as Record<string, unknown>;
+      const declaredParent = typeof n["parent"] === "string" ? (n["parent"] as string) : null;
+      const parentId = declaredParent && nodeIds.has(declaredParent) ? declaredParent : "ROOT";
+      const parentNode = map[parentId] as Record<string, unknown> | undefined;
+      if (!parentNode || typeof parentNode !== "object") return;
+      const parentChildren = Array.isArray(parentNode["nodes"])
+        ? [...(parentNode["nodes"] as string[])]
+        : [];
+      console.warn(
+        `[repairCraftState] Reattaching orphaned node "${nodeId}" to parent "${parentId}"`,
+      );
+      parentChildren.push(nodeId);
+      map[parentId] = { ...parentNode, nodes: parentChildren };
+      if (parentId !== declaredParent) {
+        // Re-read from the map — this node may have been updated already
+        // (e.g. children appended to it as a parent).
+        map[nodeId] = { ...(map[nodeId] as Record<string, unknown>), parent: parentId };
+      }
+      referenced.add(nodeId);
+    };
+
+    const isOrphan = (nodeId: string) =>
+      nodeId !== "ROOT" && !referenced.has(nodeId) && !!map[nodeId] && typeof map[nodeId] === "object";
+    const resolvedNameOf = (nodeId: string) =>
+      ((map[nodeId] as Record<string, unknown>)["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+
+    // Pass 1: non-artboard orphans — attaching them may repopulate an
+    // artboard whose own `nodes` array was also broken.
+    for (const nodeId of Object.keys(map)) {
+      if (!isOrphan(nodeId) || resolvedNameOf(nodeId) === "AstryxArtboard") continue;
+      reattach(nodeId);
+    }
+    // Pass 2: artboard orphans — skip only artboards STILL empty now, which
+    // are the legacy "ghost" blank canvases the on-open prune cleans up.
+    for (const nodeId of Object.keys(map)) {
+      if (!isOrphan(nodeId) || resolvedNameOf(nodeId) !== "AstryxArtboard") continue;
+      const n = map[nodeId] as Record<string, unknown>;
+      const childCount = Array.isArray(n["nodes"]) ? (n["nodes"] as unknown[]).length : 0;
+      if (childCount === 0) continue;
+      reattach(nodeId);
+    }
+  }
+
   // ── Artboard enforcement ─────────────────────────────────────────────────
   // ROOT's direct children must be AstryxArtboard nodes. If the AI emits
   // ROOT → AstryxSection/Stack/etc → content (omitting the artboard wrapper),
@@ -259,6 +328,20 @@ export function repairCraftState(state: unknown): unknown {
   }
 
   return map;
+}
+
+/**
+ * JSON-string convenience wrapper around repairCraftState. Returns the input
+ * unchanged when it cannot be parsed. Use this before any reachability-based
+ * pruning so orphaned-but-valid content is reattached instead of deleted.
+ */
+export function repairCraftStateJson(craftStateJson: string): string {
+  try {
+    const parsed = JSON.parse(craftStateJson);
+    return JSON.stringify(repairCraftState(parsed));
+  } catch {
+    return craftStateJson;
+  }
 }
 
 // ─── Sanitizer ────────────────────────────────────────────────────────────────

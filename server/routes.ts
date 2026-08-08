@@ -7930,6 +7930,10 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (typeof state === 'string') {
         try { state = JSON.parse(state); } catch { return res.status(400).json({ error: 'craftState is not valid JSON' }); }
       }
+      // Repair BEFORE pruning so artboards missing from ROOT's `nodes` array
+      // are reattached rather than deleted (blank-canvas bug), then prune what
+      // remains disconnected so ghost artboards are never persisted.
+      state = pruneUnreachableCraftNodes(repairCraftState(state));
       const { valid, errors } = validateCraftState(state);
       if (!valid) {
         console.error('[designs] POST craftState validation failed:', errors, '— state prefix:', JSON.stringify(state).slice(0, 500));

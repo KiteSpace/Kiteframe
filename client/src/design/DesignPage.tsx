@@ -5,7 +5,7 @@ import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X } fr
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
-import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards } from "./resolver";
+import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards, repairCraftStateJson } from "./resolver";
 import { useToast } from "@/hooks/use-toast";
 import type { Design } from "@shared/schema";
 
@@ -189,8 +189,12 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
   const rawCraftStateJson = design.craftState
     ? JSON.stringify(design.craftState)
     : null;
+  // Repair BEFORE detecting/pruning: artboards whose parent says ROOT but
+  // which are missing from ROOT's `nodes` array are reattached rather than
+  // treated as ghosts and cleared. Only genuinely empty disconnected
+  // artboards remain disconnected after repair (and get pruned below).
   const sanitizedJson = rawCraftStateJson
-    ? sanitizeCraftState(rawCraftStateJson)
+    ? repairCraftStateJson(sanitizeCraftState(rawCraftStateJson))
     : null;
 
   // Detect disconnected artboards BEFORE pruning so we know what was removed.
