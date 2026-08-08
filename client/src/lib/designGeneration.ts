@@ -167,7 +167,7 @@ COMPONENT QUICK-REFERENCE:
 - AstryxResizable: split panel layout, props: { direction: "horizontal"|"vertical" }
 
 — CONTENT —
-- AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost" }
+- AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost", gap: number (default 12) }
 - AstryxChatMessage: chat bubble, props: { children: string, sender: string, timestamp: string (optional), isOwn: boolean }
 - AstryxEmptyState:  empty placeholder, props: { title: string, description: string (optional), action: string (optional) }
 - AstryxToken:       removable tag chip, props: { children: string }

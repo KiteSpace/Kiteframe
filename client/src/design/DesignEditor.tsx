@@ -372,7 +372,7 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
     items: [
       {
         name: "Card",        description: "Elevated box",
-        getElement: () => <Element canvas is={AstryxCard} variant="elevated" />,
+        getElement: () => <Element canvas is={AstryxCard} variant="elevated" gap={12} />,
         preview: (
           <div style={{ width: 100, padding: "8px 10px", background: "hsl(var(--card))", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.12)", border: "1px solid hsl(var(--border))" }}>
             <div style={{ height: 7, width: "70%", background: "hsl(var(--border))", borderRadius: 3, marginBottom: 5 }} />
@@ -978,7 +978,10 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
   );
 
   if (displayName === "AstryxCard") return (
-    <PropRow label="Variant"><SelectProp value={props.variant ?? "elevated"} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+    <>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? "elevated"} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 12} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+    </>
   );
 
   if (displayName === "AstryxBadge") return (

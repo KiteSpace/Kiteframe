@@ -222,7 +222,7 @@ const FULL_WIDTH_LEAF = new Set([
   "AstryxAccordion", "AstryxSlider", "AstryxCalendar", "AstryxCommand",
   "AstryxBanner", "AstryxEmptyState", "AstryxChatMessage", "AstryxDivider",
   "AstryxProgressBar", "AstryxTextInput", "AstryxSelect", "AstryxRadioGroup",
-  "AstryxHeading",
+  "AstryxHeading", "AstryxBarChart", "AstryxLineChart", "AstryxPieChart",
 ]);
 
 function useLeafNode() {
@@ -1641,7 +1641,7 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
-export function AstryxCard({ children, variant = "elevated", position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
+export function AstryxCard({ children, variant = "elevated", gap = 12, position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
   const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
   const variantClass =
@@ -1657,6 +1657,9 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
       className={`rounded-lg p-4 ${variantClass}`}
       style={{
         position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        gap: Math.max(0, Number(gap) || 0),
         minHeight: 56,
         boxSizing: "border-box",
         ...absPositionStyle(position, x, y),
