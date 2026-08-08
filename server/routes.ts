@@ -7884,7 +7884,7 @@ jane@example.com,Jane,Smith,pro,GroupC
     kf_ab_1: {
       type: { resolvedName: "AstryxArtboard" },
       isCanvas: true,
-      props: { label: "Screen 1", width: 390, x: 64, y: 64 },
+      props: { label: "Screen 1", x: 64, y: 64 },
       displayName: "AstryxArtboard",
       custom: {},
       parent: "ROOT",

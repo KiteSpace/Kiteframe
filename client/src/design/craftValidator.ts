@@ -246,7 +246,7 @@ export function repairCraftState(state: unknown): unknown {
       map[artboardId] = {
         type: { resolvedName: "AstryxArtboard" },
         isCanvas: true,
-        props: { label: "Screen 1", width: 390, direction: "column", gap: 16, padding: 24 },
+        props: { label: "Screen 1", direction: "column", gap: 16, padding: 24 },
         displayName: "AstryxArtboard",
         custom: {},
         parent: "ROOT",

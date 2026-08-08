@@ -4,6 +4,7 @@ import {
   deleteNodesFromState,
   getUntouchedDefaultArtboardId,
   reuseUntouchedDefaultArtboard,
+  getSharedDimensionValue,
 } from "../DesignEditor";
 
 function generatedState() {
@@ -42,8 +43,26 @@ describe("artboard lifecycle helpers", () => {
   it("recognizes only the untouched default Screen 1 artboard", () => {
     const initial = JSON.parse(createEmptyCraftState());
     expect(getUntouchedDefaultArtboardId(initial)).toBe("artboard-1");
+    expect((initial["artboard-1"] as any).props.width).toBeUndefined();
+    expect((initial["artboard-1"] as any).props.height).toBeUndefined();
     initial["artboard-1"].nodes = ["button"];
     expect(getUntouchedDefaultArtboardId(initial)).toBeUndefined();
+  });
+
+  it("reports shared, automatic, and mixed dimensions for a multi-selection", () => {
+    expect(getSharedDimensionValue([{ width: 240 }, { width: 240 }], "width")).toBe(240);
+    expect(getSharedDimensionValue([{}, { width: "auto" }], "width")).toBeUndefined();
+    expect(getSharedDimensionValue([{ width: 240 }, {}], "width")).toBe("mixed");
+    expect(getSharedDimensionValue([{ height: 80 }, { height: 120 }], "height")).toBe("mixed");
+  });
+
+  it("creates content-fit fallback artboards without an explicit width", () => {
+    const fallbackState = {
+      ROOT: { nodes: ["artboard-1"] },
+      "artboard-1": { props: { label: "Screen 1" } },
+    };
+    expect(fallbackState["artboard-1"].props.width).toBeUndefined();
+    expect(fallbackState["artboard-1"].props.height).toBeUndefined();
   });
 
   it("reuses the default artboard ID and generated label for first interface generation", () => {

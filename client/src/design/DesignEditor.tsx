@@ -1268,29 +1268,43 @@ function DimensionControl({
   min,
 }: {
   label: string;
-  value: number | string | undefined;
+  value: number | string | undefined | "mixed";
   autoDefault: number | "auto";
   onChange: (value: number | undefined) => void;
   min?: number;
 }) {
+  const isMixed = value === "mixed";
   const isAuto = value == null || value === "auto";
+  const [draft, setDraft] = useState<string | null>(null);
+  const inputValue = draft ?? (isMixed ? "Mixed" : isAuto ? "" : String(value));
   return (
     <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
       <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
       <input
-        type="number"
+        type={isMixed || draft !== null ? "text" : "number"}
         min={min}
-        value={isAuto ? "" : Number(value)}
-        onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-        onBlur={(e) => { if (e.target.value === "") onChange(undefined); }}
-        placeholder="auto"
+        value={inputValue}
+        onFocus={() => { if (isMixed) setDraft(""); }}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          if (raw !== "") {
+            const next = Number(raw);
+            if (Number.isFinite(next)) onChange(next);
+          }
+        }}
+        onBlur={(e) => {
+          if (e.target.value === "") onChange(undefined);
+          setDraft(null);
+        }}
+        placeholder={isMixed ? "Mixed" : "auto"}
         aria-label={`${label} size`}
         className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
       />
       <button
         type="button"
-        onClick={() => onChange(isAuto ? (autoDefault === "auto" ? undefined : autoDefault) : undefined)}
-        aria-label={`${label} ${isAuto ? "fixed" : "auto"}`}
+        onClick={() => onChange(undefined)}
+        aria-label={`${label} auto`}
         aria-pressed={isAuto}
         className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
           isAuto
@@ -1304,17 +1318,38 @@ function DimensionControl({
   );
 }
 
-function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: any }) {
-  const { query } = useEditor(() => ({}));
+export function getSharedDimensionValue(
+  propsList: Array<Record<string, any>>,
+  key: "width" | "height",
+): number | string | undefined | "mixed" {
+  const values = propsList.map((props) => props[key]);
+  if (values.length === 0) return undefined;
+  const normalized = values.map((value) => value == null || value === "auto" ? "auto" : value);
+  return normalized.every((value) => value === normalized[0]) ? values[0] : "mixed";
+}
+
+function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNode; selectedIds: string[]; actions: any }) {
+  const { query, nodes } = useEditor((state) => ({ nodes: state.nodes }));
+  const isMultiSelect = selectedIds.length > 1;
+  const selectedNodes = selectedIds
+    .map((id) => nodes[id])
+    .filter(Boolean);
+  const sharedValue = useCallback((key: string): any => {
+    const propsList = selectedNodes.map((node: any) => node.data.props ?? {});
+    if (propsList.length === 0) return selected.props[key];
+    return getSharedDimensionValue(propsList, key as "width" | "height");
+  }, [selectedNodes, selected.props]);
 
   const setProp = useCallback(
     (key: string, value: any) => {
-      actions.setProp(selected.id, (p: any) => {
-        p[key] = value;
-        // When the user manually sets a text color, mark it as user-owned so
-        // auto-contrast won't overwrite it on future background changes.
-        if (key === "color") p._autoColor = false;
-      });
+      const targetIds = isMultiSelect ? selectedIds : [selected.id];
+      actions.history.throttle(0);
+      targetIds.forEach((id: string) => actions.setProp(id, (p: any) => {
+          p[key] = value;
+          // When the user manually sets a text color, mark it as user-owned so
+          // auto-contrast won't overwrite it on future background changes.
+          if (key === "color") p._autoColor = false;
+        }));
 
       // Auto-apply contrast whenever backgroundColor changes on a container.
       // Uses history.ignore() so auto-contrast changes don't pollute the undo stack.
@@ -1326,14 +1361,16 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             // then run applyContrastColors on the full subtree so nested containers are
             // respected — each text leaf derives its color from its nearest ancestor's BG.
             const allNodes = JSON.parse(query.serialize()) as Record<string, any>;
-            allNodes[selected.id] = {
-              ...allNodes[selected.id],
-              props: { ...(allNodes[selected.id]?.props ?? {}), backgroundColor: value },
-            };
+            targetIds.forEach((id: string) => {
+              allNodes[id] = {
+                ...allNodes[id],
+                props: { ...(allNodes[id]?.props ?? {}), backgroundColor: value },
+              };
+            });
 
             // Collect subtree node IDs (selected + all descendants)
             const subtreeIds = new Set<string>();
-            const queue: string[] = [selected.id];
+            const queue: string[] = [...targetIds];
             while (queue.length > 0) {
               const nId = queue.shift()!;
               subtreeIds.add(nId);
@@ -1366,8 +1403,22 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         }
       }
     },
-    [selected.id, selected.displayName, actions, query],
+    [selected.id, selected.displayName, selectedIds, isMultiSelect, actions, query],
   );
+  const setTextColor = useCallback((value: string | undefined) => {
+    const targetIds = isMultiSelect ? selectedIds : [selected.id];
+    targetIds.forEach((id: string) => {
+      const node = nodes[id];
+      const displayName = node?.data?.displayName;
+      const key = displayName === "AstryxText" || displayName === "AstryxHeading"
+        ? "color"
+        : "textColor";
+      actions.setProp(id, (props: any) => {
+        props[key] = value;
+        if (key === "color") props._autoColor = false;
+      });
+    });
+  }, [selected.id, selectedIds, isMultiSelect, nodes, actions]);
 
   const dn = selected.displayName;
   const shortName = dn.replace("Astryx", "");
@@ -1396,7 +1447,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       <div className="sticky top-0 bg-background z-10 flex items-center justify-between px-3 py-2.5 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-          <span className="text-[11.5px] font-semibold text-foreground truncate">{shortName}</span>
+          <span className="text-[11.5px] font-semibold text-foreground truncate">{isMultiSelect ? `${selectedIds.length} selected` : shortName}</span>
           <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
             {selected.isRoot ? "root" : "element"}
           </span>
@@ -1411,7 +1462,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       </div>
 
       {/* ── Color ────────────────────────────────────────────────── */}
-      {dn !== "AstryxArtboard" && <section className="px-3 py-3 border-b border-border">
+       {(isMultiSelect || dn !== "AstryxArtboard") && <section className="px-3 py-3 border-b border-border">
         <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
 
         {/* Background swatches — universal */}
@@ -1428,7 +1479,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
                 backgroundSize: "6px 6px",
                 backgroundPosition: "0 0,0 3px,3px -3px,-3px 0px",
                 backgroundColor: "#fff",
-                boxShadow: (!selected.props.backgroundColor || selected.props.backgroundColor === "transparent")
+                boxShadow: (sharedValue("backgroundColor") == null || sharedValue("backgroundColor") === "transparent" || sharedValue("backgroundColor") === "mixed")
                   ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
                   : undefined,
               }}
@@ -1441,7 +1492,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
                 title={hex}
                 style={{
                   background: hex,
-                  boxShadow: selected.props.backgroundColor === hex
+                   boxShadow: sharedValue("backgroundColor") === hex
                     ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
                     : undefined,
                 }}
@@ -1454,16 +1505,13 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         {/* Text swatches — universal */}
         {(() => {
           const isTextNode = dn === "AstryxText" || dn === "AstryxHeading";
-          const activeTextColor = isTextNode
+          const activeTextColor = isMultiSelect
+            ? "mixed"
+            : isTextNode
             ? (selected.props.color ?? selected.props.textColor)
             : selected.props.textColor;
-          const setTextColor = (hex: string) => {
-            if (isTextNode) setProp("color", hex);
-            else setProp("textColor", hex);
-          };
           const clearTextColor = () => {
-            if (isTextNode) { setProp("color", undefined); setProp("textColor", undefined); }
-            else setProp("textColor", undefined);
+            setTextColor(undefined);
           };
           return (
             <div className="flex items-center gap-2">
@@ -1477,7 +1525,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
                   style={{
                     backgroundImage: "linear-gradient(to top right, transparent calc(50% - 0.5px), #ef4444 calc(50% - 0.5px), #ef4444 calc(50% + 0.5px), transparent calc(50% + 0.5px))",
                     backgroundColor: "#fff",
-                    boxShadow: !activeTextColor
+                    boxShadow: !activeTextColor || activeTextColor === "mixed"
                       ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
                       : undefined,
                   }}
@@ -1503,7 +1551,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         })()}
 
         {/* Component-specific: `color` token (Badge, ProgressBar) */}
-        {HAS_COLOR_PROP.has(dn) && (
+        {!isMultiSelect && HAS_COLOR_PROP.has(dn) && (
           <div className="flex gap-1.5 flex-wrap mt-2.5 pt-2.5 border-t border-border">
             {Object.entries(COLOR_SWATCHES_MAP).map(([name, hex]) => (
               <button
@@ -1523,7 +1571,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         )}
 
         {/* Component-specific: `variant` color (Button, Banner) */}
-        {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
+        {!isMultiSelect && HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
           <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
             {["primary","secondary","outline","ghost"].map((v) => (
               <button
@@ -1540,7 +1588,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             ))}
           </div>
         )}
-        {HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
+        {!isMultiSelect && HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
           <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
             {["info","success","warning","error"].map((v) => (
               <button
@@ -1560,7 +1608,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       </section>}
 
       {/* ── Background (artboard only) ───────────────────────────── */}
-      {dn === "AstryxArtboard" && (
+      {!isMultiSelect && dn === "AstryxArtboard" && (
         <section className="px-3 py-3 border-b border-border">
           <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Background</div>
           <ArtboardBackgroundPicker props={selected.props} setProp={setProp} />
@@ -1597,7 +1645,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
         )}
 
         {/* Border radius token row — hidden for fixed-shape components */}
-        {!NO_RADIUS.has(dn) && (
+        {!isMultiSelect && !NO_RADIUS.has(dn) && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Radius</span>
           <div className="flex gap-1 flex-wrap">
@@ -1620,7 +1668,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
       </section>
 
       {/* ── Typography ───────────────────────────────────────────── */}
-      {hasTypography && (
+      {!isMultiSelect && hasTypography && (
         <section className="px-3 py-3 border-b border-border">
           <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Typography</div>
 
@@ -1683,21 +1731,21 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
           <div className="grid grid-cols-2 gap-1.5">
             <DimensionControl
               label="W"
-              value={selected.props.width}
+              value={sharedValue("width")}
               autoDefault={widthDefault}
               onChange={(v) => setProp("width", v)}
               min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 8 : 1}
             />
             <DimensionControl
               label="H"
-              value={selected.props.height}
+              value={sharedValue("height")}
               autoDefault={heightDefault}
               onChange={(v) => setProp("height", v)}
               min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 4 : 1}
             />
           </div>
 
-          {!isRoot && !isArtboard && (
+          {!isMultiSelect && !isRoot && !isArtboard && (
             <>
               <PropRow label="Position">
                 <SelectProp
@@ -1729,7 +1777,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             </>
           )}
 
-          {isArtboard && (
+          {!isMultiSelect && isArtboard && (
             <div className="grid grid-cols-2 gap-1.5">
               {([["X", "x", 64], ["Y", "y", 64]] as const).map(([label, key, fallback]) => (
                 <div key={key} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
@@ -1746,7 +1794,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             </div>
           )}
 
-          {isFlexContainer && (
+          {!isMultiSelect && isFlexContainer && (
             <>
               {supportsDirection && (
                 <PropRow label="Direction">
@@ -1799,7 +1847,7 @@ function InspectPanel({ selected, actions }: { selected: SelectedNode; actions: 
             </>
           )}
 
-          <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
+          {!isMultiSelect && <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />}
         </div>
       </section>
     </div>
@@ -2186,12 +2234,13 @@ function LayersView() {
 // ─── Left rail: Components + Inspect swap ─────────────────────────────────────
 
 function LeftRail() {
-  const { connectors, actions, selected } = useEditor((state) => {
+  const multiSelectionIds = useMultiSelectionIds();
+  const { connectors, actions, selected, craftSelectedIds, nodes } = useEditor((state) => {
     const selectedIds = state.events.selected;
-    if (!selectedIds || selectedIds.size === 0) return { selected: null };
+    if (!selectedIds || selectedIds.size === 0) return { selected: null, craftSelectedIds: [], nodes: state.nodes };
     const [nodeId] = Array.from(selectedIds);
     const node = state.nodes[nodeId];
-    if (!node) return { selected: null };
+    if (!node) return { selected: null, craftSelectedIds: [], nodes: state.nodes };
     return {
       selected: {
         id: nodeId,
@@ -2199,8 +2248,13 @@ function LeftRail() {
         props: { ...node.data.props } as Record<string, any>,
         isRoot: nodeId === "ROOT",
       } as SelectedNode,
+      craftSelectedIds: Array.from(selectedIds),
+      nodes: state.nodes,
     };
   });
+  const selectedIds = multiSelectionIds.length > 1
+    ? multiSelectionIds.filter((id) => !!nodes[id])
+    : craftSelectedIds;
 
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -2288,7 +2342,7 @@ function LeftRail() {
       {/* Body */}
       <div className="flex-1 overflow-y-auto flex flex-col">
         {showInspect ? (
-          <InspectPanel selected={selected!} actions={actions} />
+          <InspectPanel selected={selected!} selectedIds={selectedIds} actions={actions} />
         ) : trimmed ? (
           // Search results — grid or list
           searchResults.length === 0 ? (
@@ -2605,7 +2659,6 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
         isCanvas: true,
         props: {
           label: `Screen ${count}`,
-          width: 390,
           direction: "column",
           gap: 16,
           padding: 24,
@@ -2766,6 +2819,20 @@ let _craftClipboard: { subtree: Record<string, any>; rootId: string }[] | null =
 const _multiSelRef = { current: new Set<string>() };
 /** Setter registered by the MultiSelectHandler component so module-level code can trigger re-renders. */
 let _multiSelSetter: ((s: Set<string>) => void) | null = null;
+/** Subscribers for UI that must react to Shift-selection rather than Craft's anchor node. */
+const _multiSelListeners = new Set<(ids: string[]) => void>();
+function publishMultiSelection(ids: Set<string>) {
+  const next = Array.from(ids);
+  _multiSelListeners.forEach((listener) => listener(next));
+}
+function useMultiSelectionIds(): string[] {
+  const [ids, setIds] = useState(() => Array.from(_multiSelRef.current));
+  useEffect(() => {
+    _multiSelListeners.add(setIds);
+    return () => { _multiSelListeners.delete(setIds); };
+  }, []);
+  return ids;
+}
 
 /** BFS-collect all node IDs in a serialized craft subtree. */
 function collectSubtreeIds(state: Record<string, any>, rootId: string): string[] {
@@ -3098,6 +3165,7 @@ function KeyboardHandler() {
             actionsRef.current.deserialize(JSON.stringify(next));
             _multiSelRef.current = new Set();
             _multiSelSetter?.(new Set());
+            publishMultiSelection(_multiSelRef.current);
           } catch (err) { console.error("[multi-delete]", err); }
           return;
         }
@@ -3218,6 +3286,7 @@ function MultiSelectHandler() {
         if (_multiSelRef.current.size > 0) {
           _multiSelRef.current = new Set();
           setMultiSel(new Set());
+          publishMultiSelection(_multiSelRef.current);
         }
         return;
       }
@@ -3238,6 +3307,7 @@ function MultiSelectHandler() {
         if (_multiSelRef.current.size > 0) {
           _multiSelRef.current = new Set();
           setMultiSel(new Set());
+          publishMultiSelection(_multiSelRef.current);
         }
         return;
       }
@@ -3263,6 +3333,7 @@ function MultiSelectHandler() {
 
       _multiSelRef.current = next;
       setMultiSel(new Set(next));
+      publishMultiSelection(next);
 
       // Stop propagation so craft.js does NOT reset the selection to this single node.
       e.stopPropagation();
@@ -5257,7 +5328,7 @@ function CanvasArea({ craftState }: { craftState: string | null }) {
   return (
     <Frame>
       <Element canvas is={AstryxSection} direction="row" gap={80} padding={40} align="start" justify="start">
-        <Element canvas is={AstryxArtboard} label="Screen 1" width={390} direction="column" gap={16} padding={24}>
+        <Element canvas is={AstryxArtboard} label="Screen 1" direction="column" gap={16} padding={24}>
           {null}
         </Element>
       </Element>

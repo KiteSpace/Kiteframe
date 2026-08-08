@@ -1683,7 +1683,7 @@ export function AstryxCard({ children, variant = "elevated", position = "flow", 
 // Resize handle styles (reused across all three handles)
 const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
 
-export function AstryxArtboard({ children, label = "Artboard", width = 390, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
   const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
@@ -1907,7 +1907,7 @@ export function AstryxArtboard({ children, label = "Artboard", width = 390, heig
           padding,
           width,
           height: resolvedHeight,
-          minHeight: resolvedHeight != null ? resolvedHeight : 480,
+          minHeight: resolvedHeight != null ? resolvedHeight : 0,
           ...(backgroundType === "gradient" && backgroundGradient
           ? { background: backgroundGradient as string }
           : backgroundType === "image" && backgroundImageUrl
@@ -2066,7 +2066,7 @@ export const resolver = {
 
 // ─── Empty state factory ───────────────────────────────────────────────────────
 // Default craft state: a transparent ROOT row-flex wrapper containing one
-// AstryxArtboard ("Screen 1") at 390 px wide — matching a standard mobile frame.
+// Default Screen 1 starts content-sized; users can set explicit dimensions later.
 
 export function createEmptyCraftState(): string {
   return JSON.stringify({
@@ -2084,7 +2084,7 @@ export function createEmptyCraftState(): string {
     "artboard-1": {
       type: { resolvedName: "AstryxArtboard" },
       isCanvas: true,
-      props: { label: "Screen 1", width: 390, direction: "column", gap: 16, padding: 24 },
+      props: { label: "Screen 1", direction: "column", gap: 16, padding: 24 },
       displayName: "AstryxArtboard",
       custom: {},
       parent: "ROOT",
