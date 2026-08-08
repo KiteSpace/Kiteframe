@@ -15,3 +15,31 @@ export function getPublicAppUrl(): string {
   const port = process.env.PORT || "5000";
   return `http://localhost:${port}`;
 }
+
+/**
+ * Live Stripe must never be registered against a workspace URL. Those hosts
+ * can change or disappear, which leaves Stripe retrying a dead endpoint.
+ */
+export function getStripeWebhookBaseUrl(): string {
+  const baseUrl = getPublicAppUrl();
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new Error(`Invalid PUBLIC_APP_URL for Stripe webhook registration: ${baseUrl}`);
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const isWorkspaceHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".replit.dev");
+
+  if (parsed.protocol !== "https:" || isWorkspaceHost) {
+    throw new Error(
+      `Stripe live webhooks require a public HTTPS deployment URL; refusing to register ${baseUrl}`,
+    );
+  }
+
+  return baseUrl;
+}

@@ -28,7 +28,7 @@ function getFirstArtboardState(craftState: unknown): string | null {
   visit(firstArtboardId);
 
   const preview: Record<string, any> = {};
-  for (const id of included) {
+  for (const id of Array.from(included)) {
     if (!state[id]) continue;
     preview[id] = id === "ROOT"
       ? { ...state[id], nodes: [firstArtboardId], linkedNodes: {} }

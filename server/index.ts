@@ -9,6 +9,8 @@ import { requireUSOnly } from "./middleware/regionLock";
 import { seedFeatureFlags } from "./seedFeatureFlags";
 import { storage } from "./storage";
 import { creditService } from "./creditService";
+import { getStripeWebhookBaseUrl } from "./lib/publicAppUrl";
+import { registerStripeWebhookRoute } from "./lib/stripeWebhookRoute";
 
 const app = express();
 
@@ -96,8 +98,8 @@ async function initStripe() {
 
     const stripeSync = await getStripeSync();
 
-    console.log('Setting up managed webhook...');
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
+    const webhookBaseUrl = getStripeWebhookBaseUrl();
+    console.log(`Setting up managed webhook at public URL: ${webhookBaseUrl}`);
     const { webhook, uuid } = await stripeSync.findOrCreateManagedWebhook(
       `${webhookBaseUrl}/api/stripe/webhook`,
       {
@@ -166,33 +168,9 @@ async function runExternalEntityExpiry() {
 runExternalEntityExpiry();
 setInterval(runExternalEntityExpiry, 60 * 60 * 1000);
 
-app.post(
-  '/api/stripe/webhook/:uuid',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    const signature = req.headers['stripe-signature'];
-
-    if (!signature) {
-      return res.status(400).json({ error: 'Missing stripe-signature' });
-    }
-
-    try {
-      const sig = Array.isArray(signature) ? signature[0] : signature;
-
-      if (!Buffer.isBuffer(req.body)) {
-        console.error('STRIPE WEBHOOK ERROR: req.body is not a Buffer');
-        return res.status(500).json({ error: 'Webhook processing error' });
-      }
-
-      const { uuid } = req.params;
-      await WebhookHandlers.processWebhook(req.body as Buffer, sig, uuid);
-
-      res.status(200).json({ received: true });
-    } catch (error: any) {
-      console.error('Webhook error:', error.message);
-      res.status(400).json({ error: 'Webhook processing error' });
-    }
-  }
+registerStripeWebhookRoute(
+  app,
+  (payload, signature, uuid) => WebhookHandlers.processWebhook(payload, signature, uuid),
 );
 
 app.use(express.json({ limit: '50mb' }));
