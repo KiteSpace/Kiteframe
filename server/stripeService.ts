@@ -71,6 +71,28 @@ export class StripeService {
     return await stripe.customers.del(customerId);
   }
 
+  /**
+   * List payment methods for a customer, returning null when the customer no
+   * longer exists in Stripe instead of throwing.  Callers should treat null as
+   * "customer removed — skip this customer" rather than a hard failure.
+   */
+  async getCustomerPaymentMethods(
+    customerId: string,
+    type: Stripe.PaymentMethodListParams.Type = 'card',
+  ): Promise<Stripe.PaymentMethod[] | null> {
+    const stripe = await getUncachableStripeClient();
+    try {
+      const result = await stripe.paymentMethods.list({ customer: customerId, type, limit: 100 });
+      return result.data;
+    } catch (err: any) {
+      if (err?.code === 'resource_missing') {
+        console.warn(`[StripeService] Customer ${customerId} not found when listing payment methods — treating as removed`);
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async getProduct(productId: string) {
     const result = await db.execute(
       sql`SELECT * FROM stripe.products WHERE id = ${productId}`

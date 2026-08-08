@@ -1,7 +1,9 @@
-import { getStripeSync } from './stripeClient';
+import { getStripeSync, getUncachableStripeClient } from './stripeClient';
 import { storage } from './storage';
 import { stripeService } from './stripeService';
 import { creditService } from './creditService';
+import { db } from './db';
+import { sql } from 'drizzle-orm';
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string, uuid: string): Promise<void> {
@@ -88,6 +90,83 @@ export class WebhookHandlers {
     );
 
     console.log(`[Webhook] Updated user ${user.id}: tier=${subscriptionTier}, status=${subscriptionStatus}, credits synced (event: ${event.type})`);
+  }
+
+  /**
+   * Before running a full payment-method sync, check every locally-known
+   * non-deleted Stripe customer against the live Stripe API.  When a customer
+   * no longer exists in Stripe ("No such customer" / resource_missing), mark it
+   * as deleted in the local stripe.customers mirror so the sync library skips
+   * it, and clear the stale stripeCustomerId reference from our users table.
+   *
+   * This prevents a single removed customer from interrupting synchronisation
+   * for all remaining customers via an unhandled Promise rejection inside the
+   * sync library's per-customer Promise.all loop.
+   */
+  static async reconcileRemovedCustomers(): Promise<{ reconciled: number; errors: number }> {
+    let reconciled = 0;
+    let errors = 0;
+    try {
+      const stripe = await getUncachableStripeClient();
+
+      const result = await db.execute(
+        sql`SELECT id FROM stripe.customers WHERE COALESCE(deleted, false) <> true`
+      );
+      const customerIds: string[] = (result.rows as Array<{ id: string }>).map((r) => r.id);
+
+      if (customerIds.length === 0) {
+        console.log('[CustomerReconcile] No active customers to check');
+        return { reconciled, errors };
+      }
+
+      console.log(`[CustomerReconcile] Checking ${customerIds.length} customer(s) against Stripe`);
+
+      for (const customerId of customerIds) {
+        try {
+          const customer = await stripe.customers.retrieve(customerId);
+          // Stripe may return a DeletedCustomer object (soft-deleted) instead of throwing
+          if ((customer as { deleted?: boolean }).deleted) {
+            console.warn(`[CustomerReconcile] Customer ${customerId} is deleted in Stripe — reconciling locally`);
+            await WebhookHandlers.markCustomerDeleted(customerId);
+            reconciled++;
+          }
+        } catch (err: any) {
+          if (err?.code === 'resource_missing') {
+            console.warn(`[CustomerReconcile] Customer ${customerId} not found in Stripe — marking deleted locally`);
+            await WebhookHandlers.markCustomerDeleted(customerId);
+            reconciled++;
+          } else {
+            console.error(`[CustomerReconcile] Unexpected error checking customer ${customerId}:`, err);
+            errors++;
+          }
+        }
+      }
+
+      console.log(`[CustomerReconcile] Done: ${reconciled} reconciled, ${errors} errors`);
+    } catch (err) {
+      console.error('[CustomerReconcile] Fatal error during reconciliation:', err);
+      errors++;
+    }
+    return { reconciled, errors };
+  }
+
+  /**
+   * Mark a customer as deleted in the local stripe.customers mirror and clear
+   * the matching stripeCustomerId on our users table so that future operations
+   * (checkout, portal, tier-sync) treat the account as if no customer exists.
+   */
+  private static async markCustomerDeleted(customerId: string): Promise<void> {
+    // Mark as deleted in the synced stripe.customers table
+    await db.execute(
+      sql`UPDATE stripe.customers SET deleted = true WHERE id = ${customerId}`
+    );
+
+    // Clear the dangling reference from our application users table
+    const user = await storage.getUserByStripeCustomerId(customerId);
+    if (user) {
+      await storage.updateUserSubscription(user.id, { stripeCustomerId: null });
+      console.log(`[CustomerReconcile] Cleared stale stripeCustomerId for user ${user.id}`);
+    }
   }
 
   static async fixMismatchedTiers(): Promise<void> {

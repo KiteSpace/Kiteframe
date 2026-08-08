@@ -110,7 +110,8 @@ async function initStripe() {
     console.log(`Webhook configured: ${webhook.url} (UUID: ${uuid})`);
 
     console.log('Syncing Stripe data in background...');
-    stripeSync.syncBackfill()
+    WebhookHandlers.reconcileRemovedCustomers()
+      .then(() => stripeSync.syncBackfill())
       .then(() => console.log('Stripe data synced'))
       .catch((err: Error) => console.error('Error syncing Stripe data:', err));
   } catch (error) {
