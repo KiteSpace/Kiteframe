@@ -5,7 +5,7 @@ import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X } fr
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
-import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards, repairCraftStateJson } from "./resolver";
+import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards, repairCraftStateJson, summarizeArtboards } from "./resolver";
 import { useToast } from "@/hooks/use-toast";
 import type { Design } from "@shared/schema";
 
@@ -217,6 +217,30 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [design.id],
   );
+
+  // [artboard-trace] Hydration lifecycle logging — logs the artboard structure
+  // as loaded from the DB, after sanitize+repair, and after pruning, so a
+  // blank/ghost artboard can be traced to the exact stage that introduced or
+  // kept it. Runs once per design load.
+  useEffect(() => {
+    try {
+      console.log("[artboard-trace] hydrate: raw from DB", {
+        designId: design.id,
+        source: design.source,
+        ...(rawCraftStateJson ? summarizeArtboards(rawCraftStateJson) : { totalNodes: 0 }),
+      });
+      if (sanitizedJson) {
+        console.log("[artboard-trace] hydrate: after sanitize+repair", summarizeArtboards(sanitizedJson));
+      }
+      console.log("[artboard-trace] hydrate: disconnected detected", disconnectedOnLoad);
+      if (craftStateJson) {
+        console.log("[artboard-trace] hydrate: final (after prune)", summarizeArtboards(craftStateJson));
+      }
+    } catch (e) {
+      console.warn("[artboard-trace] hydrate: logging failed", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [design.id]);
 
   // Show the repair banner once when we detect ghost artboards on open.
   useEffect(() => {

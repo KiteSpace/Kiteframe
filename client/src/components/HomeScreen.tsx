@@ -294,6 +294,17 @@ export function HomeScreen({
           const genData = await genRes.json();
           if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
 
+          // [artboard-trace] Home-prompt lifecycle logging — stage 1: raw AI state
+          // received by the client, before persistence. Compare against the
+          // server-side "[artboard-trace] designs POST" logs and the DesignPage
+          // hydration logs to pinpoint where a blank artboard appears.
+          try {
+            const { summarizeArtboards } = await import("@/design/resolver");
+            console.log("[artboard-trace] home-ai: AI state received", summarizeArtboards(genData.craftState));
+          } catch (e) {
+            console.warn("[artboard-trace] home-ai: failed to summarize AI state", e);
+          }
+
           const createRes = await fetch("/api/designs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -306,6 +317,7 @@ export function HomeScreen({
           }
           const createData = await createRes.json();
           if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+          console.log("[artboard-trace] home-ai: design created", { designId: createData.id });
 
           if (onOpenDesign) {
             onOpenDesign(createData.id);

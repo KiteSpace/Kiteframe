@@ -40,7 +40,7 @@ import {
   externalApiKeys,
 } from "@shared/schema";
 import { getValidatorForType } from "./lib/entitySchemas";
-import { validateCraftState as _validateCraftState, repairCraftState, pruneUnreachableCraftNodes } from "./lib/designSchema";
+import { validateCraftState as _validateCraftState, repairCraftState, pruneUnreachableCraftNodes, summarizeArtboards } from "./lib/designSchema";
 function validateCraftState(s: unknown) { return _validateCraftState(repairCraftState(s)); }
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
 import { mergeDesignPatch, layoutArtboards, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from "./lib/designPatchMerge";
@@ -2761,7 +2761,12 @@ Only include screens that need changes. "modify" requires both description and d
       }
       const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
       const stateTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
-      return res.json({ type: 'state', craftState: JSON.stringify(wrapRootChildrenInArtboard(layoutArtboards(craftStateObj as CraftState))), message: stateMessage, title: stateTitle });
+      // [artboard-trace] Interface-generation lifecycle logging — stage 0: what
+      // the AI actually produced, and what we return after layout + wrapping.
+      console.log('[artboard-trace] ai/design: raw AI state (source=%s)', source ?? 'chat', JSON.stringify(summarizeArtboards(craftStateObj)));
+      const finalState = wrapRootChildrenInArtboard(layoutArtboards(craftStateObj as CraftState));
+      console.log('[artboard-trace] ai/design: after layout+wrap', JSON.stringify(summarizeArtboards(finalState)));
+      return res.json({ type: 'state', craftState: JSON.stringify(finalState), message: stateMessage, title: stateTitle });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -7933,7 +7938,14 @@ jane@example.com,Jane,Smith,pro,GroupC
       // Repair BEFORE pruning so artboards missing from ROOT's `nodes` array
       // are reattached rather than deleted (blank-canvas bug), then prune what
       // remains disconnected so ghost artboards are never persisted.
-      state = pruneUnreachableCraftNodes(repairCraftState(state));
+      // [artboard-trace] Persistence lifecycle logging — stage 2: incoming state,
+      // after repair, and after prune, so a blank artboard that ends up in the DB
+      // can be traced to the exact transformation that produced/kept it.
+      console.log('[artboard-trace] designs POST: incoming (source=%s)', source ?? 'native', JSON.stringify(summarizeArtboards(state)));
+      const repaired = repairCraftState(state);
+      console.log('[artboard-trace] designs POST: after repair', JSON.stringify(summarizeArtboards(repaired)));
+      state = pruneUnreachableCraftNodes(repaired);
+      console.log('[artboard-trace] designs POST: after prune', JSON.stringify(summarizeArtboards(state)));
       const { valid, errors } = validateCraftState(state);
       if (!valid) {
         console.error('[designs] POST craftState validation failed:', errors, '— state prefix:', JSON.stringify(state).slice(0, 500));

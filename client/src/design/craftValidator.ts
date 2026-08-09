@@ -484,6 +484,57 @@ export function detectDisconnectedArtboards(craftStateJson: string): { id: strin
 }
 
 /**
+ * Compact diagnostic summary of a craft state's artboard structure. Used by
+ * the interface-generation lifecycle logging ("[artboard-trace]") to pinpoint
+ * where a blank/undeletable artboard is introduced: AI response, client
+ * merge, persistence, or hydration.
+ */
+export function summarizeArtboards(craftState: string | Record<string, unknown>): {
+  totalNodes: number;
+  rootNodes: string[];
+  artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean }[];
+  disconnectedArtboardIds: string[];
+} {
+  let map: Record<string, unknown>;
+  if (typeof craftState === "string") {
+    try {
+      map = JSON.parse(craftState) as Record<string, unknown>;
+    } catch {
+      return { totalNodes: 0, rootNodes: [], artboards: [], disconnectedArtboardIds: [] };
+    }
+  } else {
+    map = craftState ?? {};
+  }
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  const rootNodes = Array.isArray(root?.nodes) ? (root!.nodes as string[]) : [];
+  const disconnected = new Set(
+    detectDisconnectedArtboards(typeof craftState === "string" ? craftState : JSON.stringify(map)).map((d) => d.id),
+  );
+  const artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean }[] = [];
+  for (const [id, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if ((n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] !== "AstryxArtboard") continue;
+    const props = n["props"] as Record<string, unknown> | undefined;
+    const children = Array.isArray(n["nodes"]) ? (n["nodes"] as string[]) : [];
+    artboards.push({
+      id,
+      label: typeof props?.["label"] === "string" ? (props["label"] as string) : id,
+      parent: n["parent"],
+      childCount: children.length,
+      inRootNodes: rootNodes.includes(id),
+      empty: children.length === 0,
+    });
+  }
+  return {
+    totalNodes: Object.keys(map).length,
+    rootNodes,
+    artboards,
+    disconnectedArtboardIds: Array.from(disconnected),
+  };
+}
+
+/**
  * Returns a state containing only nodes reachable from ROOT through `nodes`
  * and `linkedNodes`. Fresh full-state AI generations use this before
  * persistence so disconnected canvas nodes cannot render as ghost artboards.

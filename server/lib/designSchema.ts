@@ -433,3 +433,62 @@ export function pruneUnreachableCraftNodes(state: unknown): unknown {
   if (reachable.size === Object.keys(map).length) return state; // nothing to prune
   return Object.fromEntries(Object.entries(map).filter(([id]) => reachable.has(id)));
 }
+
+/**
+ * Compact diagnostic summary of a craft state's artboard structure, used by
+ * the "[artboard-trace]" lifecycle logging around interface generation and
+ * design persistence. Mirrors the client-side summarizeArtboards in
+ * craftValidator.ts so the client and server logs are directly comparable.
+ */
+export function summarizeArtboards(state: unknown): {
+  totalNodes: number;
+  rootNodes: string[];
+  artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean; reachable: boolean }[];
+} {
+  if (!state || typeof state !== "object") return { totalNodes: 0, rootNodes: [], artboards: [] };
+  const map = state as Record<string, unknown>;
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  const rootNodes = Array.isArray(root?.nodes) ? (root!.nodes as string[]) : [];
+
+  // Reachability BFS (same traversal as pruneUnreachableCraftNodes).
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children: unknown[] = [
+      ...(Array.isArray(node.nodes) ? (node.nodes as unknown[]) : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? (node.linkedNodes as Record<string, unknown>)
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  const artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean; reachable: boolean }[] = [];
+  for (const [id, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if ((n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] !== "AstryxArtboard") continue;
+    const props = n["props"] as Record<string, unknown> | undefined;
+    const children = Array.isArray(n["nodes"]) ? (n["nodes"] as string[]) : [];
+    artboards.push({
+      id,
+      label: typeof props?.["label"] === "string" ? (props["label"] as string) : id,
+      parent: n["parent"],
+      childCount: children.length,
+      inRootNodes: rootNodes.includes(id),
+      empty: children.length === 0,
+      reachable: reachable.has(id),
+    });
+  }
+  return { totalNodes: Object.keys(map).length, rootNodes, artboards };
+}
