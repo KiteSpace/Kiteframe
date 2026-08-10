@@ -114,3 +114,83 @@ describe("repair before prune (blank canvas regression)", () => {
     expect(repairCraftStateJson("{not json")).toBe("{not json");
   });
 });
+
+describe("hydration repair of ROOT mis-typed as AstryxArtboard (blank undeletable screen regression)", () => {
+  /**
+   * Simulates a design already persisted to the DB before the server-side
+   * sanitizer existed: ROOT itself is typed AstryxArtboard with a stray
+   * label, exactly as captured in the browser artboard-trace that revealed
+   * the bug (ROOT label "Sales Dashboard", one real kf_ab_… artboard).
+   */
+  function persistedMalformedDesignJson(): string {
+    return JSON.stringify({
+      ROOT: {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: true,
+        props: { label: "Sales Dashboard", direction: "row", gap: 80 },
+        displayName: "AstryxArtboard",
+        custom: {},
+        parent: null,
+        hidden: false,
+        nodes: ["kf_ab_1786315591750"],
+        linkedNodes: {},
+      },
+      kf_ab_1786315591750: {
+        type: { resolvedName: "AstryxArtboard" },
+        props: { label: "Screen 1" },
+        parent: "ROOT",
+        nodes: ["h1", "t1", "b1"],
+        linkedNodes: {},
+      },
+      h1: { type: { resolvedName: "AstryxHeading" }, props: { text: "Sales" }, parent: "kf_ab_1786315591750", nodes: [], linkedNodes: {} },
+      t1: { type: { resolvedName: "AstryxText" }, props: { text: "Overview" }, parent: "kf_ab_1786315591750", nodes: [], linkedNodes: {} },
+      b1: { type: { resolvedName: "AstryxButton" }, props: { label: "Export" }, parent: "kf_ab_1786315591750", nodes: [], linkedNodes: {} },
+    });
+  }
+
+  it("corrects ROOT's type to AstryxSection during hydration repair", () => {
+    const repaired = JSON.parse(repairCraftStateJson(persistedMalformedDesignJson())) as any;
+    expect(repaired.ROOT.type.resolvedName).toBe("AstryxSection");
+    expect(repaired.ROOT.displayName).toBe("AstryxSection");
+  });
+
+  it("strips the stray label from ROOT but keeps other ROOT props and graph fields", () => {
+    const repaired = JSON.parse(repairCraftStateJson(persistedMalformedDesignJson())) as any;
+    expect(repaired.ROOT.props.label).toBeUndefined();
+    expect(repaired.ROOT.props.direction).toBe("row");
+    expect(repaired.ROOT.props.gap).toBe(80);
+    expect(repaired.ROOT.nodes).toEqual(["kf_ab_1786315591750"]);
+    expect(repaired.ROOT.isCanvas).toBe(true);
+    expect(repaired.ROOT.parent).toBeNull();
+  });
+
+  it("keeps the real artboard and its children fully intact", () => {
+    const repaired = JSON.parse(repairCraftStateJson(persistedMalformedDesignJson())) as any;
+    expect(repaired.kf_ab_1786315591750.type.resolvedName).toBe("AstryxArtboard");
+    expect(repaired.kf_ab_1786315591750.props.label).toBe("Screen 1");
+    expect(repaired.kf_ab_1786315591750.nodes).toEqual(["h1", "t1", "b1"]);
+    expect(repaired.h1).toBeDefined();
+    expect(repaired.t1).toBeDefined();
+    expect(repaired.b1).toBeDefined();
+  });
+
+  it("summarizeArtboards no longer lists ROOT after the full hydrate pipeline (repair + prune)", async () => {
+    const { summarizeArtboards } = await import("../craftValidator");
+    const repaired = repairCraftStateJson(persistedMalformedDesignJson());
+    const pruned = pruneUnreachableCraftNodes(repaired);
+    const summary = summarizeArtboards(pruned);
+    expect(summary.artboards.map((a: any) => a.id)).toEqual(["kf_ab_1786315591750"]);
+    expect(summary.artboards.some((a: any) => a.id === "ROOT")).toBe(false);
+  });
+
+  it("does not touch a well-formed persisted design (no-op hydration)", () => {
+    const good = {
+      ROOT: { type: { resolvedName: "AstryxSection" }, props: { direction: "row" }, nodes: ["ab1"], linkedNodes: {}, parent: null, isCanvas: true },
+      ab1: { type: { resolvedName: "AstryxArtboard" }, props: { label: "Home" }, parent: "ROOT", nodes: [], linkedNodes: {} },
+    };
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(good))) as any;
+    expect(repaired.ROOT.type.resolvedName).toBe("AstryxSection");
+    expect(repaired.ROOT.props.direction).toBe("row");
+    expect(repaired.ab1.props.label).toBe("Home");
+  });
+});

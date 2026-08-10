@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { mergeDesignPatch, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from '../lib/designPatchMerge';
+import { mergeDesignPatch, wrapRootChildrenInArtboard, enforceNewScreenPatch, sanitizeRootType, type CraftState } from '../lib/designPatchMerge';
 
 // ---------------------------------------------------------------------------
 // Helpers to build a realistic two-screen craft state
@@ -826,5 +826,149 @@ describe('enforceNewScreenPatch — new-screen invariant on TYPE 3 responses', (
     for (const id of ['container', 'inner', 'leaf']) {
       expect(allNodesArrays.filter((n: string) => n === id)).toHaveLength(1);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeRootType — ROOT must never be typed as AstryxArtboard
+// ---------------------------------------------------------------------------
+
+describe('sanitizeRootType', () => {
+  /** Builds a state where the AI mis-typed ROOT as an artboard. */
+  function makeMistypedRootState(): CraftState {
+    return {
+      ROOT: {
+        type: { resolvedName: 'AstryxArtboard' },
+        isCanvas: true,
+        props: { label: 'Sales Dashboard', direction: 'row', gap: 80 },
+        displayName: 'AstryxArtboard',
+        custom: { keep: 'me' },
+        parent: null,
+        hidden: false,
+        nodes: ['ab-1'],
+        linkedNodes: { slot: 'linked-1' },
+      },
+      'ab-1': {
+        type: { resolvedName: 'AstryxArtboard' },
+        props: { label: 'Screen 1' },
+        parent: 'ROOT',
+        nodes: ['h-1'],
+        linkedNodes: {},
+      },
+      'h-1': {
+        type: { resolvedName: 'AstryxHeading' },
+        props: { text: 'Hello' },
+        parent: 'ab-1',
+        nodes: [],
+        linkedNodes: {},
+      },
+    };
+  }
+
+  it('converts a mis-typed ROOT from AstryxArtboard to AstryxSection', () => {
+    const result = sanitizeRootType(makeMistypedRootState());
+    const root = result['ROOT'] as any;
+    expect(root.type.resolvedName).toBe('AstryxSection');
+    expect(root.displayName).toBe('AstryxSection');
+  });
+
+  it('removes the stray label prop from ROOT but keeps other props', () => {
+    const result = sanitizeRootType(makeMistypedRootState());
+    const root = result['ROOT'] as any;
+    expect(root.props.label).toBeUndefined();
+    expect(root.props.direction).toBe('row');
+    expect(root.props.gap).toBe(80);
+  });
+
+  it('preserves ROOT graph fields (nodes, linkedNodes, parent, custom, isCanvas, hidden)', () => {
+    const result = sanitizeRootType(makeMistypedRootState());
+    const root = result['ROOT'] as any;
+    expect(root.nodes).toEqual(['ab-1']);
+    expect(root.linkedNodes).toEqual({ slot: 'linked-1' });
+    expect(root.parent).toBeNull();
+    expect(root.custom).toEqual({ keep: 'me' });
+    expect(root.isCanvas).toBe(true);
+    expect(root.hidden).toBe(false);
+  });
+
+  it('leaves all non-ROOT nodes untouched, including real AstryxArtboard children', () => {
+    const input = makeMistypedRootState();
+    const result = sanitizeRootType(input);
+    expect(result['ab-1']).toBe(input['ab-1']);
+    expect(result['h-1']).toBe(input['h-1']);
+    expect((result['ab-1'] as any).type.resolvedName).toBe('AstryxArtboard');
+    expect((result['ab-1'] as any).props.label).toBe('Screen 1');
+  });
+
+  it('is a no-op when ROOT is already a valid container type', () => {
+    const input: CraftState = {
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' },
+        props: { direction: 'row' },
+        nodes: ['ab-1'],
+        linkedNodes: {},
+      },
+      'ab-1': { type: { resolvedName: 'AstryxArtboard' }, props: { label: 'Screen 1' }, nodes: [], linkedNodes: {} },
+    };
+    expect(sanitizeRootType(input)).toBe(input);
+  });
+
+  it('is a no-op when the state has no ROOT (e.g. a partial patch)', () => {
+    const patch: CraftState = {
+      'btn-1': { type: { resolvedName: 'AstryxButton' }, props: { label: 'Go' }, nodes: [], linkedNodes: {} },
+    };
+    expect(sanitizeRootType(patch)).toBe(patch);
+  });
+
+  it('is a no-op when ROOT has a malformed or missing type field', () => {
+    const noType: CraftState = { ROOT: { props: {}, nodes: [], linkedNodes: {} } };
+    expect(sanitizeRootType(noType)).toBe(noType);
+    const stringType: CraftState = { ROOT: { type: 'div', props: {}, nodes: [], linkedNodes: {} } as any };
+    expect(sanitizeRootType(stringType)).toBe(stringType);
+  });
+
+  it('does not mutate the input state', () => {
+    const input = makeMistypedRootState();
+    const snapshot = JSON.parse(JSON.stringify(input));
+    sanitizeRootType(input);
+    expect(input).toEqual(snapshot);
+  });
+
+  it('sanitizes a patch whose nodes include a ROOT rewrite (patch-path coverage)', () => {
+    // A patch that tries to retype ROOT while adding a button — mimics the
+    // route patch branch where sanitizeRootType runs on the patch nodes.
+    const patch: CraftState = {
+      ROOT: {
+        type: { resolvedName: 'AstryxArtboard' },
+        props: { label: 'Ghost Screen' },
+        nodes: ['btn-new'],
+        linkedNodes: {},
+      },
+      'btn-new': { type: { resolvedName: 'AstryxButton' }, props: { label: 'New' }, parent: 'ROOT', nodes: [], linkedNodes: {} },
+    };
+    const result = sanitizeRootType(patch);
+    expect((result['ROOT'] as any).type.resolvedName).toBe('AstryxSection');
+    expect((result['ROOT'] as any).props.label).toBeUndefined();
+    expect((result['ROOT'] as any).nodes).toEqual(['btn-new']);
+    expect(result['btn-new']).toBe(patch['btn-new']);
+  });
+
+  it('merged state from mergeDesignPatch with a mis-typed ROOT patch is corrected after sanitization', () => {
+    const { state } = makeTwoScreenState();
+    // Patch that (incorrectly) retypes ROOT as an artboard
+    const patchNodes: CraftState = {
+      ROOT: {
+        type: { resolvedName: 'AstryxArtboard' },
+        props: { label: 'Bogus' },
+        nodes: ['artboard-screen1', 'artboard-screen2'],
+        linkedNodes: {},
+      },
+    };
+    const { merged } = mergeDesignPatch(state as Record<string, unknown>, patchNodes as Record<string, unknown>);
+    const sanitized = sanitizeRootType(merged as CraftState);
+    expect((sanitized['ROOT'] as any).type.resolvedName).not.toBe('AstryxArtboard');
+    // Both real artboards survive
+    expect(sanitized['artboard-screen1']).toBeDefined();
+    expect(sanitized['artboard-screen2']).toBeDefined();
   });
 });

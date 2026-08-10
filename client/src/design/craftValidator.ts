@@ -174,6 +174,37 @@ export function repairCraftState(state: unknown): unknown {
     map[nodeId] = n;
   }
 
+  // ── ROOT type normalization ──────────────────────────────────────────────
+  // Older saved designs (and occasional AI output) can have ROOT itself typed
+  // as AstryxArtboard, which renders as a blank, undeletable second screen.
+  // ROOT is the canvas container and must never be an artboard: reset the
+  // type to AstryxSection and strip the stray `label` prop. This runs during
+  // every hydration repair pass, so affected persisted designs self-heal the
+  // next time they are opened (and the repaired state is saved back on the
+  // next autosave).
+  {
+    const root = map["ROOT"] as Record<string, unknown> | undefined;
+    const rootType = root && typeof root === "object" ? root["type"] : undefined;
+    if (
+      rootType && typeof rootType === "object" &&
+      (rootType as Record<string, unknown>)["resolvedName"] === "AstryxArtboard"
+    ) {
+      const existingProps = (root!["props"] && typeof root!["props"] === "object"
+        ? root!["props"]
+        : {}) as Record<string, unknown>;
+      const { label: removedLabel, ...sanitizedProps } = existingProps;
+      console.warn(
+        `[repairCraftState] ROOT.type was AstryxArtboard (label=${String(removedLabel ?? "(none)")}) — corrected to AstryxSection`,
+      );
+      map["ROOT"] = {
+        ...root,
+        type: { resolvedName: "AstryxSection" },
+        displayName: "AstryxSection",
+        props: sanitizedProps,
+      };
+    }
+  }
+
   // ── ROOT reconstruction fallback ─────────────────────────────────────────
   // If the AI omits ROOT entirely, synthesise a minimal one so the canvas has
   // something to anchor to. Prefer nodes whose parent field already says "ROOT";
@@ -512,6 +543,7 @@ export function summarizeArtboards(craftState: string | Record<string, unknown>)
   );
   const artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean }[] = [];
   for (const [id, node] of Object.entries(map)) {
+    if (id === "ROOT") continue; // ROOT is the canvas container, never a real screen artboard
     if (!node || typeof node !== "object") continue;
     const n = node as Record<string, unknown>;
     if ((n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] !== "AstryxArtboard") continue;

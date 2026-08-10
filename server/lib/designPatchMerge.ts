@@ -99,6 +99,54 @@ export function mergeDesignPatch(
 }
 
 /**
+ * Ensures ROOT's own `type.resolvedName` is never `AstryxArtboard`.
+ *
+ * The AI occasionally emits a craft state where ROOT itself is typed as
+ * AstryxArtboard (e.g. `{ type: { resolvedName: 'AstryxArtboard' }, props: { label: 'Sales Dashboard' } }`).
+ * craft.js renders ROOT as the immutable canvas container, not a real screen,
+ * so a mis-typed ROOT appears as a blank, undeletable second screen tab.
+ *
+ * This function resets ROOT's type to AstryxSection and removes any stray
+ * `label` prop from ROOT.props when the mis-type is detected. All other ROOT
+ * fields (nodes, linkedNodes, isCanvas, etc.) are preserved unchanged.
+ *
+ * Call this before `layoutArtboards` in every full-state generation path.
+ */
+export function sanitizeRootType(state: CraftState): CraftState {
+  const root = state['ROOT'];
+  if (!root || typeof root !== 'object') return state;
+
+  const rootNode = root as Record<string, unknown>;
+  const t = rootNode.type;
+  if (!t || typeof t !== 'object') return state;
+
+  const resolvedName = (t as Record<string, unknown>).resolvedName;
+  if (resolvedName !== 'AstryxArtboard') return state;
+
+  // ROOT should never be typed as AstryxArtboard — correct it.
+  const existingProps = (rootNode.props && typeof rootNode.props === 'object'
+    ? rootNode.props
+    : {}) as Record<string, unknown>;
+  // Strip `label` from ROOT props (labels belong on AstryxArtboard children).
+  const { label: _removedLabel, ...sanitizedProps } = existingProps;
+
+  console.warn(
+    '[sanitizeRootType] ROOT.type was AstryxArtboard (label=%s) — corrected to AstryxSection',
+    _removedLabel ?? '(none)',
+  );
+
+  return {
+    ...state,
+    ROOT: {
+      ...rootNode,
+      type: { resolvedName: 'AstryxSection' },
+      displayName: 'AstryxSection',
+      props: sanitizedProps,
+    },
+  };
+}
+
+/**
  * Lay out all AstryxArtboard children of ROOT in left-to-right order.
  *
  * Each artboard gets `x = sum of preceding artboard widths + 40 px per gap`

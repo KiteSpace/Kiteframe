@@ -43,7 +43,7 @@ import { getValidatorForType } from "./lib/entitySchemas";
 import { validateCraftState as _validateCraftState, repairCraftState, pruneUnreachableCraftNodes, summarizeArtboards } from "./lib/designSchema";
 function validateCraftState(s: unknown) { return _validateCraftState(repairCraftState(s)); }
 import { DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION } from "./lib/designPrompt";
-import { mergeDesignPatch, layoutArtboards, wrapRootChildrenInArtboard, enforceNewScreenPatch, type CraftState } from "./lib/designPatchMerge";
+import { mergeDesignPatch, layoutArtboards, wrapRootChildrenInArtboard, enforceNewScreenPatch, sanitizeRootType, type CraftState } from "./lib/designPatchMerge";
 import crypto from 'crypto';
 import dns from 'dns';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
@@ -2745,9 +2745,11 @@ Only include screens that need changes. "modify" requires both description and d
         // AstryxArtboard rather than editing an existing one. If the AI ignored the
         // prompt override, enforceNewScreenPatch synthesises the artboard wrapper
         // so the client always receives a structurally correct new-screen patch.
-        const finalPatch = (newScreen && currentCraftState)
-          ? enforceNewScreenPatch(patchNodes as CraftState, currentCraftState)
-          : (patchNodes as CraftState);
+        const finalPatch = sanitizeRootType(
+          (newScreen && currentCraftState)
+            ? enforceNewScreenPatch(patchNodes as CraftState, currentCraftState)
+            : (patchNodes as CraftState),
+        );
         // Always return the (possibly enforced) patch for client-side merge.
         // The client holds the full in-memory craft state (with all props intact)
         // and merges correctly via mergeGraphAware.
@@ -2764,7 +2766,7 @@ Only include screens that need changes. "modify" requires both description and d
       // [artboard-trace] Interface-generation lifecycle logging — stage 0: what
       // the AI actually produced, and what we return after layout + wrapping.
       console.log('[artboard-trace] ai/design: raw AI state (source=%s)', source ?? 'chat', JSON.stringify(summarizeArtboards(craftStateObj)));
-      const finalState = wrapRootChildrenInArtboard(layoutArtboards(craftStateObj as CraftState));
+      const finalState = wrapRootChildrenInArtboard(layoutArtboards(sanitizeRootType(craftStateObj as CraftState)));
       console.log('[artboard-trace] ai/design: after layout+wrap', JSON.stringify(summarizeArtboards(finalState)));
       return res.json({ type: 'state', craftState: JSON.stringify(finalState), message: stateMessage, title: stateTitle });
     } catch (err: any) {
@@ -2853,16 +2855,16 @@ Only include screens that need changes. "modify" requires both description and d
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
     } catch (err: any) {
       console.error('[design-from-image] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -2958,16 +2960,16 @@ Only include screens that need changes. "modify" requires both description and d
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
     } catch (err: any) {
       console.error('[design-edit-from-image] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -3076,16 +3078,16 @@ Only include screens that need changes. "modify" requires both description and d
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(merged), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(parsedResponse.nodes), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(craftStateObj), message: parsedResponse.message });
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
     } catch (err: any) {
       console.error('[design-from-url] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
