@@ -101,4 +101,91 @@ describe("artboard lifecycle helpers", () => {
     expect(next.ROOT.nodes).toEqual(["artboard-1", "generated"]);
     expect((next["artboard-1"] as any).nodes).toEqual(["existing-button"]);
   });
+
+  // ── Corruption-safety: broken refs and wrong parent fields ──────────────
+
+  it("deletes artboard with a missing child ref (broken nodes array)", () => {
+    // "ghost-child" is listed in artboard-1.nodes but does not exist in state.
+    const state = {
+      ROOT: { nodes: ["artboard-1", "artboard-2"], linkedNodes: {} },
+      "artboard-1": {
+        type: { resolvedName: "AstryxArtboard" },
+        parent: "ROOT",
+        nodes: ["real-button", "ghost-child"],
+        linkedNodes: {},
+      },
+      "real-button": { parent: "artboard-1", nodes: [], linkedNodes: {} },
+      "artboard-2": {
+        type: { resolvedName: "AstryxArtboard" },
+        parent: "ROOT",
+        nodes: ["btn2"],
+        linkedNodes: {},
+      },
+      btn2: { parent: "artboard-2", nodes: [], linkedNodes: {} },
+    };
+    const next = deleteNodesFromState(state, ["artboard-1"]);
+    // artboard-1 and its reachable child are gone; the missing ref is silently skipped
+    expect(next["artboard-1"]).toBeUndefined();
+    expect(next["real-button"]).toBeUndefined();
+    expect(next["ghost-child"]).toBeUndefined(); // wasn't in state to begin with
+    // ROOT.nodes no longer includes artboard-1
+    expect(next.ROOT.nodes).toEqual(["artboard-2"]);
+    // The sibling artboard and its child are intact
+    expect(next["artboard-2"]).toBeDefined();
+    expect(next.btn2).toBeDefined();
+  });
+
+  it("removes artboard from ROOT.nodes even when parent field is null/wrong", () => {
+    // artboard-1 is in ROOT.nodes but its own `parent` field is null (corrupted).
+    const state = {
+      ROOT: { nodes: ["artboard-1", "artboard-2"], linkedNodes: {} },
+      "artboard-1": {
+        type: { resolvedName: "AstryxArtboard" },
+        parent: null, // wrong — should be "ROOT"
+        nodes: ["btn1"],
+        linkedNodes: {},
+      },
+      btn1: { parent: "artboard-1", nodes: [], linkedNodes: {} },
+      "artboard-2": {
+        type: { resolvedName: "AstryxArtboard" },
+        parent: "ROOT",
+        nodes: [],
+        linkedNodes: {},
+      },
+    };
+    const next = deleteNodesFromState(state, ["artboard-1"]);
+    expect(next["artboard-1"]).toBeUndefined();
+    expect(next.btn1).toBeUndefined();
+    // ROOT.nodes must not retain the stale reference
+    expect(next.ROOT.nodes).toEqual(["artboard-2"]);
+    expect(next["artboard-2"]).toBeDefined();
+  });
+
+  it("handles a cyclic linkedNodes reference without hanging", () => {
+    // node-a and node-b mutually reference each other via linkedNodes (cycle).
+    const state = {
+      ROOT: { nodes: ["artboard-1"], linkedNodes: {} },
+      "artboard-1": {
+        type: { resolvedName: "AstryxArtboard" },
+        parent: "ROOT",
+        nodes: ["node-a"],
+        linkedNodes: {},
+      },
+      "node-a": {
+        parent: "artboard-1",
+        nodes: [],
+        linkedNodes: { slot: "node-b" },
+      },
+      "node-b": {
+        parent: "artboard-1",
+        nodes: [],
+        linkedNodes: { slot: "node-a" }, // cycle back to node-a
+      },
+    };
+    const next = deleteNodesFromState(state, ["artboard-1"]);
+    expect(next["artboard-1"]).toBeUndefined();
+    expect(next["node-a"]).toBeUndefined();
+    expect(next["node-b"]).toBeUndefined();
+    expect(next.ROOT.nodes).toEqual([]);
+  });
 });

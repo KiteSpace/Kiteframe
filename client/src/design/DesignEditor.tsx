@@ -3113,35 +3113,60 @@ function copyNodesToClipboard(state: Record<string, any>, nodeIds: string[]): bo
 /**
  * Delete a set of node IDs (plus their full subtrees) from the serialized craft
  * state in one shot. Skips ROOT and nodes that no longer exist.
+ *
+ * Corruption-safe: the BFS uses a visited set to guard against cycles, skips
+ * missing child IDs silently (broken refs), and detaches the top-level targets
+ * from ROOT.nodes by ID regardless of the node's own `parent` field (so a
+ * wrong/null parent cannot prevent removal from ROOT).
  */
 function deleteNodesFromState(
   state: Record<string, any>,
   nodeIds: string[],
 ): Record<string, any> {
   // Collect every descendant ID for each target so we can remove them all.
+  // Guard against cycles with a visited set and silently skip missing refs.
   const allToRemove = new Set<string>();
   for (const id of nodeIds) {
     if (!id || id === "ROOT" || !state[id]) continue;
     const queue = [id];
     while (queue.length) {
       const curr = queue.shift()!;
+      if (allToRemove.has(curr)) continue; // cycle guard
       allToRemove.add(curr);
       const node = state[curr];
-      if (!node) continue;
-      for (const c of (node.nodes ?? [])) queue.push(c as string);
-      for (const v of Object.values(node.linkedNodes ?? {})) queue.push(v as string);
+      if (!node) continue; // missing ref — skip silently
+      for (const c of (node.nodes ?? [])) {
+        if (typeof c === "string" && !allToRemove.has(c)) queue.push(c);
+      }
+      for (const v of Object.values(node.linkedNodes ?? {})) {
+        if (typeof v === "string" && !allToRemove.has(v)) queue.push(v);
+      }
     }
   }
   if (allToRemove.size === 0) return state;
 
   // Detach top-level targets from their parents' nodes arrays.
+  // Primary: use the node's declared `parent` field.
+  // Fallback: always scrub ROOT.nodes directly so a wrong/null `parent` cannot
+  // leave a stale reference in ROOT when deleting artboards.
   let newState = { ...state };
+  const targetSet = new Set(nodeIds.filter((id) => allToRemove.has(id)));
   for (const id of nodeIds) {
     const node = newState[id];
-    if (!node?.parent || !newState[node.parent]) continue;
-    const parent = { ...newState[node.parent] };
-    parent.nodes = (parent.nodes ?? []).filter((n: string) => !allToRemove.has(n));
-    newState[node.parent] = parent;
+    const parentId: string | null = node?.parent ?? null;
+    if (parentId && newState[parentId]) {
+      const parent = { ...newState[parentId] };
+      parent.nodes = (parent.nodes ?? []).filter((n: string) => !allToRemove.has(n));
+      newState[parentId] = parent;
+    }
+  }
+  // Always scrub ROOT.nodes as well — handles cases where `parent` is wrong or null.
+  if (newState["ROOT"] && Array.isArray(newState["ROOT"].nodes)) {
+    const rootBefore: string[] = newState["ROOT"].nodes;
+    const rootAfter = rootBefore.filter((n: string) => !targetSet.has(n));
+    if (rootAfter.length !== rootBefore.length) {
+      newState["ROOT"] = { ...newState["ROOT"], nodes: rootAfter };
+    }
   }
 
   // Remove every collected node from the state map.
@@ -3154,14 +3179,24 @@ function deleteNodesFromState(
 
 /** Delete an artboard as a complete serialised graph mutation. Craft.js rejects
  * raw delete() for some top-level canvas graphs; deserialize preserves the
- * invariant and records the operation in editor history for undo. */
+ * invariant and records the operation in editor history for undo.
+ *
+ * Corruption-safe: runs repairCraftState on the serialised state first so that
+ * orphaned artboards (parent=ROOT but absent from ROOT.nodes) are reattached
+ * and artboards with broken internal refs are cleaned up before the subtree BFS
+ * runs. After repair the artboard is guaranteed to be findable and removable
+ * even if the original state was inconsistent. */
 function deleteArtboardFromEditor(
   actions: { deserialize: (state: string) => void },
   query: { serialize: () => string },
   artboardId: string,
 ): void {
   try {
-    const state = JSON.parse(query.serialize()) as Record<string, any>;
+    // Repair before delete: reattaches orphaned nodes and strips dangling refs
+    // so that the BFS in deleteNodesFromState always operates on a consistent
+    // graph, even if the design was saved during a bug window.
+    const rawState = JSON.parse(query.serialize()) as Record<string, any>;
+    const state = repairCraftState(rawState) as Record<string, any>;
     if (state[artboardId]?.type?.resolvedName !== "AstryxArtboard") return;
     actions.deserialize(JSON.stringify(deleteNodesFromState(state, [artboardId])));
   } catch (err) {
