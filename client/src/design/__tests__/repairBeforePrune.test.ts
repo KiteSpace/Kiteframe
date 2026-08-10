@@ -272,3 +272,152 @@ describe("isCanvas enforcement (workflow-bridge blank canvas regression)", () =>
     expect(repaired.ab1.props.label).toBe("Good");
   });
 });
+
+describe("hidden / custom / displayName field enforcement", () => {
+  /** A minimal craft state whose nodes intentionally omit hidden, custom, and
+   *  displayName to simulate AI-generated or legacy-saved designs. */
+  function bareState() {
+    return {
+      ROOT: {
+        type: { resolvedName: "AstryxSection" },
+        isCanvas: true,
+        props: {},
+        nodes: ["ab1"],
+        linkedNodes: {},
+        parent: null,
+        // hidden, custom, displayName intentionally absent
+      },
+      ab1: {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: true,
+        props: { label: "Screen 1" },
+        parent: "ROOT",
+        nodes: ["txt1"],
+        linkedNodes: {},
+        // hidden, custom, displayName intentionally absent
+      },
+      txt1: {
+        type: { resolvedName: "AstryxText" },
+        props: { text: "Hello" },
+        parent: "ab1",
+        nodes: [],
+        linkedNodes: {},
+        // hidden, custom, displayName intentionally absent
+      },
+    };
+  }
+
+  it("adds hidden:false when the field is absent", () => {
+    const repaired = repairCraftState(bareState()) as any;
+    expect(repaired.ROOT.hidden).toBe(false);
+    expect(repaired.ab1.hidden).toBe(false);
+    expect(repaired.txt1.hidden).toBe(false);
+  });
+
+  it("does not overwrite an explicit hidden:true value", () => {
+    const state = bareState() as any;
+    state.txt1.hidden = true;
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.txt1.hidden).toBe(true);
+  });
+
+  it("normalizes a string hidden value ('false') to boolean false", () => {
+    const state = bareState() as any;
+    state.ab1.hidden = "false";
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.hidden).toBe(false);
+  });
+
+  it("normalizes a numeric hidden value (1) to boolean false", () => {
+    const state = bareState() as any;
+    state.ab1.hidden = 1;
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.hidden).toBe(false);
+  });
+
+  it("normalizes a null hidden value to boolean false", () => {
+    const state = bareState() as any;
+    state.txt1.hidden = null;
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.txt1.hidden).toBe(false);
+  });
+
+  it("adds custom:{} when the field is absent", () => {
+    const repaired = repairCraftState(bareState()) as any;
+    expect(repaired.ROOT.custom).toEqual({});
+    expect(repaired.ab1.custom).toEqual({});
+    expect(repaired.txt1.custom).toEqual({});
+  });
+
+  it("replaces an invalid custom value (array) with an empty object", () => {
+    const state = bareState() as any;
+    state.txt1.custom = ["bad", "value"];
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.txt1.custom).toEqual({});
+  });
+
+  it("replaces an invalid custom value (string) with an empty object", () => {
+    const state = bareState() as any;
+    state.ab1.custom = "not-an-object";
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.custom).toEqual({});
+  });
+
+  it("does not overwrite a valid custom object", () => {
+    const state = bareState() as any;
+    state.ab1.custom = { myFlag: true };
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.custom).toEqual({ myFlag: true });
+  });
+
+  it("sets displayName to the resolvedName when absent", () => {
+    const repaired = repairCraftState(bareState()) as any;
+    expect(repaired.ROOT.displayName).toBe("AstryxSection");
+    expect(repaired.ab1.displayName).toBe("AstryxArtboard");
+    expect(repaired.txt1.displayName).toBe("AstryxText");
+  });
+
+  it("does not overwrite an existing displayName", () => {
+    const state = bareState() as any;
+    state.ab1.displayName = "My Custom Screen";
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.displayName).toBe("My Custom Screen");
+  });
+
+  it("replaces an invalid displayName (non-string) with the resolvedName", () => {
+    const state = bareState() as any;
+    state.txt1.displayName = 42;
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.txt1.displayName).toBe("AstryxText");
+  });
+
+  it("defaults displayName to 'Unknown' when resolvedName is also absent/non-string", () => {
+    const state = bareState() as any;
+    // Give the node a numeric resolvedName (truthy, non-string) — simulates
+    // a malformed AI output that would also cause the schema to reject it.
+    state.txt1.type = { resolvedName: 99 };
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.txt1.displayName).toBe("Unknown");
+  });
+
+  it("works end-to-end via the JSON wrapper", () => {
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(bareState()))) as any;
+    expect(repaired.ab1.hidden).toBe(false);
+    expect(repaired.ab1.custom).toEqual({});
+    expect(repaired.ab1.displayName).toBe("AstryxArtboard");
+    expect(repaired.txt1.hidden).toBe(false);
+    expect(repaired.txt1.custom).toEqual({});
+    expect(repaired.txt1.displayName).toBe("AstryxText");
+  });
+
+  it("a node with all three fields already set is not mutated", () => {
+    const state = bareState() as any;
+    state.ab1.hidden = false;
+    state.ab1.custom = { id: "preserved" };
+    state.ab1.displayName = "Preserved Name";
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.hidden).toBe(false);
+    expect(repaired.ab1.custom).toEqual({ id: "preserved" });
+    expect(repaired.ab1.displayName).toBe("Preserved Name");
+  });
+});

@@ -171,6 +171,28 @@ export function repairCraftState(state: unknown): unknown {
       n["parent"] = null;
     }
 
+    // ── Enforce safe defaults for fields Craft.js reads from stored state ───
+    // `hidden`      — Craft.js reads this to conditionally hide a node in the
+    //                 canvas/layer panel; missing → treated as truthy garbage.
+    // `custom`      — Craft.js spreads this onto the node's user-data bag;
+    //                 missing → crashes the Editor resolver on first access.
+    // `displayName` — Craft.js shows this in the layers panel and uses it
+    //                 during drag-drop; missing → falls back to "undefined".
+    // `hidden` — normalize any non-boolean value (absent, null, "false", 1…)
+    //            to a proper false so Craft.js always gets a boolean and the
+    //            server schema's required-boolean check never rejects the node.
+    if (typeof n["hidden"] !== "boolean") {
+      n["hidden"] = false;
+    }
+    if (!n["custom"] || typeof n["custom"] !== "object" || Array.isArray(n["custom"])) {
+      n["custom"] = {};
+    }
+    if (typeof n["displayName"] !== "string") {
+      const resolvedName =
+        (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+      n["displayName"] = typeof resolvedName === "string" ? resolvedName : "Unknown";
+    }
+
     map[nodeId] = n;
   }
 

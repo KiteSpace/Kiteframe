@@ -249,17 +249,37 @@ export function repairCraftState(state: unknown): unknown {
       n["type"] = { resolvedName: "AstryxUnknown" };
     }
     const typeObj = n["type"] as Record<string, unknown>;
-    if (!typeObj["resolvedName"]) typeObj["resolvedName"] = "AstryxUnknown";
+    if (typeof typeObj["resolvedName"] !== "string" || !typeObj["resolvedName"]) {
+      typeObj["resolvedName"] = "AstryxUnknown";
+    }
 
     // ── Sanitize unknown component types ────────────────────────────────────
     // The AJV schema uses a strict enum; any hallucinated name causes a 422.
     // Replace with AstryxUnknown so the canvas renders a placeholder instead.
+    // This MUST run before displayName is derived so the display name always
+    // reflects the final, validated resolved name.
     const resolvedName = typeObj["resolvedName"] as string;
     if (resolvedName !== "AstryxUnknown" && !allowedSet.has(resolvedName)) {
       console.warn(
         `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with AstryxUnknown`,
       );
       typeObj["resolvedName"] = "AstryxUnknown";
+    }
+
+    // `hidden`      — normalize any non-boolean (absent, null, "false", 1…)
+    //                 to a proper false so the schema's required-boolean check
+    //                 never rejects the node.
+    // `custom`      — Craft.js spreads this onto the node's user-data bag;
+    //                 absent/non-object → crashes the resolver on first access.
+    // `displayName` — Used by Craft.js in the layers panel and during drag-
+    //                 drop; must be a string, defaulting to the final resolved
+    //                 name (set AFTER sanitization so it is always consistent).
+    if (typeof n["hidden"] !== "boolean") n["hidden"] = false;
+    if (!n["custom"] || typeof n["custom"] !== "object" || Array.isArray(n["custom"])) {
+      n["custom"] = {};
+    }
+    if (typeof n["displayName"] !== "string") {
+      n["displayName"] = typeObj["resolvedName"] as string;
     }
 
     // ── Strip dangling child references ─────────────────────────────────────
