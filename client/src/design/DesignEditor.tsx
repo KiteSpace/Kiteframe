@@ -64,7 +64,7 @@ import { detectNewScreenIntent } from "./newScreenIntent";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
-import { applyEqualWidthProps, clearFlexSizingProps, getEqualWidthSelectionResult } from "./layoutSizing";
+import { applyEqualWidthProps, applyEqualHeightProps, clearFlexSizingProps, getEqualWidthSelectionResult, getEqualHeightSelectionResult } from "./layoutSizing";
 import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
@@ -1442,6 +1442,21 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
     });
   }, [actions, equalWidthResult, selectedIds]);
 
+  const equalHeightResult = useMemo(
+    () => getEqualHeightSelectionResult(nodes as any, selectedIds),
+    [nodes, selectedIds],
+  );
+
+  const makeEqualHeights = useCallback(() => {
+    if (!equalHeightResult.eligible) return;
+    actions.history.throttle(0);
+    selectedIds.forEach((id) => {
+      actions.setProp(id, (props: Record<string, any>) => {
+        applyEqualHeightProps(props);
+      });
+    });
+  }, [actions, equalHeightResult, selectedIds]);
+
   const dn = selected.displayName;
   const shortName = dn.replace("Astryx", "");
   const isFlexContainer = IS_CONTAINER.has(dn);
@@ -1788,6 +1803,22 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
               </button>
               {!equalWidthResult.eligible && (
                 <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground">{equalWidthResult.reason}</p>
+              )}
+              <button
+                type="button"
+                onClick={makeEqualHeights}
+                disabled={!equalHeightResult.eligible}
+                title={equalHeightResult.eligible ? "Make selected elements equal heights" : equalHeightResult.reason}
+                aria-label="Make selected elements equal heights"
+                className="mt-1.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <StretchVertical className="w-3.5 h-3.5" />
+                  Equal heights
+                </span>
+              </button>
+              {!equalHeightResult.eligible && (
+                <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground">{equalHeightResult.reason}</p>
               )}
             </div>
           )}

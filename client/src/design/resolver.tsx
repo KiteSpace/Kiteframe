@@ -344,6 +344,7 @@ function useLeafNode() {
         // South: bottom edge moves → height grows downward
         if (dir === "s" || dir === "se" || dir === "sw") {
           p.height = Math.max(20, Math.round(startH + dh));
+          clearFlexSizingProps(p);
         }
         // West: left edge moves → width grows leftward, x shifts right stays fixed
         if (dir === "w" || dir === "nw" || dir === "sw") {
@@ -356,6 +357,7 @@ function useLeafNode() {
         if (dir === "n" || dir === "nw" || dir === "ne") {
           const newH = Math.max(20, Math.round(startH - dh));
           p.height = newH;
+          clearFlexSizingProps(p);
           if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
         }
       });
@@ -705,7 +707,10 @@ function useContainerNode(position: string, x: number, y: number) {
           p.width = Math.max(20, Math.round(startW + dw));
           clearFlexSizingProps(p);
         }
-        if (dir === "s" || dir === "se" || dir === "sw") p.height = Math.max(20, Math.round(startH + dh));
+        if (dir === "s" || dir === "se" || dir === "sw") {
+          p.height = Math.max(20, Math.round(startH + dh));
+          clearFlexSizingProps(p);
+        }
         if (dir === "w" || dir === "nw" || dir === "sw") {
           const newW = Math.max(20, Math.round(startW - dw));
           p.width = newW;
@@ -715,6 +720,7 @@ function useContainerNode(position: string, x: number, y: number) {
         if (dir === "n" || dir === "nw" || dir === "ne") {
           const newH = Math.max(20, Math.round(startH - dh));
           p.height = newH;
+          clearFlexSizingProps(p);
           if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
         }
       });
