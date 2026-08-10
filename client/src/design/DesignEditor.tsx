@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
-import { Editor, Frame, Element, useEditor } from "@craftjs/core";
+import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
 import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -2893,11 +2893,13 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
 let _craftClipboard: { subtree: Record<string, any>; rootId: string }[] | null = null;
 
 // ─── Multi-select state ───────────────────────────────────────────────────────
-/** Set of node IDs currently held in the multi-selection (Shift+Click). */
+// Craft's native multi-selection (Shift+Click, configured via the Editor's
+// `handlers` prop) is the single source of truth. MultiSelectHandler mirrors
+// `state.events.selected` into this ref so module-level keyboard handlers can
+// read the full id list synchronously.
+/** Set of node IDs currently held in the multi-selection (mirrors craft state). */
 const _multiSelRef = { current: new Set<string>() };
-/** Setter registered by the MultiSelectHandler component so module-level code can trigger re-renders. */
-let _multiSelSetter: ((s: Set<string>) => void) | null = null;
-/** Subscribers for UI that must react to Shift-selection rather than Craft's anchor node. */
+/** Subscribers for UI that must react to the full selection set rather than Craft's anchor node. */
 const _multiSelListeners = new Set<(ids: string[]) => void>();
 function publishMultiSelection(ids: Set<string>) {
   const next = Array.from(ids);
@@ -3241,8 +3243,8 @@ function KeyboardHandler() {
             if (targets.length === 0) return;
             const next = deleteNodesFromState(s, targets);
             actionsRef.current.deserialize(JSON.stringify(next));
+            actionsRef.current.selectNode(undefined as any);
             _multiSelRef.current = new Set();
-            _multiSelSetter?.(new Set());
             publishMultiSelection(_multiSelRef.current);
           } catch (err) { console.error("[multi-delete]", err); }
           return;
@@ -3288,8 +3290,9 @@ function KeyboardHandler() {
               if (copyNodesToClipboard(s, targets)) {
                 const next = deleteNodesFromState(s, targets);
                 actionsRef.current.deserialize(JSON.stringify(next));
+                actionsRef.current.selectNode(undefined as any);
                 _multiSelRef.current = new Set();
-                _multiSelSetter?.(new Set());
+                publishMultiSelection(_multiSelRef.current);
               }
             } else {
               if (!id || id === "ROOT" || isArtboard) return;
@@ -3339,103 +3342,26 @@ function KeyboardHandler() {
   return null;
 }
 
-// ─── Multi-select handler (Shift+Click) ──────────────────────────────────────
-
+// ─── Multi-select mirror (Shift+Click via craft's native handlers) ──────────
+// Craft's own event handlers manage the multi-selection (the Editor's
+// `handlers` prop rebinds `isMultiSelectEnabled` to Shift). Each selected node
+// renders its own SELECTION_RING via `node.events.selected`, so no extra
+// outline styling is needed here — this component only mirrors the selection
+// set to module-level state for keyboard handlers and inspector subscribers.
 function MultiSelectHandler() {
-  const { craftSelectedId } = useEditor((state) => {
-    const sel = state.events.selected;
-    return { craftSelectedId: sel.size > 0 ? Array.from(sel)[0] : null };
-  });
-  const craftSelIdRef = useRef<string | null>(null);
-  craftSelIdRef.current = craftSelectedId;
+  const { craftSelectedIds } = useEditor((state) => ({
+    craftSelectedIds: Array.from(state.events.selected ?? []),
+  }));
 
-  const [multiSel, setMultiSel] = useState<Set<string>>(new Set());
-
-  // Register the setter so module-level code can trigger re-renders.
+  const key = craftSelectedIds.join("|");
   useEffect(() => {
-    _multiSelSetter = setMultiSel;
-    return () => { if (_multiSelSetter === setMultiSel) _multiSelSetter = null; };
-  }, [setMultiSel]);
+    const next = new Set(craftSelectedIds);
+    _multiSelRef.current = next;
+    publishMultiSelection(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
-  useEffect(() => {
-    const onMouseDown = (e: MouseEvent) => {
-      if (!e.shiftKey) {
-        // Non-shift click — clear multi-selection and let craft handle normally.
-        if (_multiSelRef.current.size > 0) {
-          _multiSelRef.current = new Set();
-          setMultiSel(new Set());
-          publishMultiSelection(_multiSelRef.current);
-        }
-        return;
-      }
-
-      // Shift held — find the craft node under the cursor.
-      // `closest('[data-id]')` fails when the event target is a leaf node
-      // separated from its craft wrapper by a portal or stacking-context boundary.
-      // `elementsFromPoint` returns every element in z-order at the cursor
-      // regardless of DOM ancestry, so it finds the wrapper even in those cases.
-      const allUnderCursor = document.elementsFromPoint(e.clientX, e.clientY);
-      const hit = allUnderCursor.find(
-        (el) => el.hasAttribute?.('data-id') && el.getAttribute('data-id') !== 'ROOT'
-      ) as HTMLElement | undefined;
-      const nodeId = hit?.getAttribute('data-id') ?? null;
-
-      if (!nodeId || nodeId === 'ROOT') {
-        // Shift+click on background/ROOT — clear multi-select.
-        if (_multiSelRef.current.size > 0) {
-          _multiSelRef.current = new Set();
-          setMultiSel(new Set());
-          publishMultiSelection(_multiSelRef.current);
-        }
-        return;
-      }
-
-      // Build next selection set.
-      const next = new Set(_multiSelRef.current);
-
-      // On the very first Shift+Click, seed with the currently craft-selected node
-      // so the user's existing selection is preserved as the anchor.
-      if (next.size === 0) {
-        const anchor = craftSelIdRef.current;
-        if (anchor && anchor !== 'ROOT' && anchor !== nodeId) {
-          next.add(anchor);
-        }
-      }
-
-      // Toggle the clicked node in/out.
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-
-      _multiSelRef.current = next;
-      setMultiSel(new Set(next));
-      publishMultiSelection(next);
-
-      // Stop propagation so craft.js does NOT reset the selection to this single node.
-      e.stopPropagation();
-    };
-
-    // Capture phase so this fires before craft.js bubble-phase click handlers.
-    document.addEventListener('mousedown', onMouseDown, true);
-    return () => document.removeEventListener('mousedown', onMouseDown, true);
-  }, []); // craft selection read via ref
-
-  // Inject a dynamic <style> tag with violet outlines on all multi-selected nodes.
-  // Only render when 2+ nodes are selected (single-select uses craft's own highlight).
-  if (multiSel.size < 2) return null;
-
-  const styleRules = [...multiSel]
-    .map(id => {
-      // Minimal CSS escaping — craft IDs are UUID-like (alphanumeric + dash)
-      // but guard against any stray quotes.
-      const safe = id.replace(/["\\]/g, '\\$&');
-      return `[data-id="${safe}"] { outline: 2px solid #7c3aed !important; outline-offset: 2px; border-radius: 2px; }`;
-    })
-    .join('\n');
-
-  return <style>{styleRules}</style>;
+  return null;
 }
 
 // ─── Canvas selection hints (shown over the canvas) ──────────────────────────
@@ -5453,7 +5379,21 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   return (
     <PinnedElementContext.Provider value={{ pinned, setPinned }}>
     <NotesContext.Provider value={{ notesOpen, setNotesOpen }}>
-      <Editor resolver={resolver} enabled={editable}>
+      <Editor
+        resolver={resolver}
+        enabled={editable}
+        // Rebind craft's native multi-select gesture from the default
+        // Cmd/Ctrl+click to Shift+click (design-tool convention). This is the
+        // single source of truth for multi-selection — state.events.selected
+        // holds every selected id.
+        handlers={(store) =>
+          new DefaultEventHandlers({
+            store,
+            removeHoverOnMouseleave: false,
+            isMultiSelectEnabled: (e: MouseEvent) => e.shiftKey,
+          })
+        }
+      >
         <SnapGuideContext.Provider value={_setSnapGuides}>
         <HistoryProvider>
         <div className="flex h-full w-full" style={{ overflow: "clip" }}>

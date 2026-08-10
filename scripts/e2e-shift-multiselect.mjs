@@ -1,8 +1,7 @@
-// Real-browser verification for task 529: Equal widths button enables for
-// valid multi-selections and clicking it equalizes widths.
+// Real-browser verification for task 530: Shift+click is the multi-select
+// gesture; Cmd/Ctrl+click no longer multi-selects.
 //
-// Usage: seeds its own design + session, then drives the editor.
-//   CHROME_BIN=$(which chromium) node scripts/e2e-equal-widths.mjs
+//   CHROME_BIN=$(which chromium) node scripts/e2e-shift-multiselect.mjs
 import pg from "pg";
 import crypto from "crypto";
 import { chromium } from "playwright-core";
@@ -12,8 +11,8 @@ const { Client } = pg;
 const client = new Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 
-const USER_ID = "e2e-task529-user";
-const EMAIL = "e2e-task529@example.com";
+const USER_ID = "e2e-task530-user";
+const EMAIL = "e2e-task530@example.com";
 
 await client.query(
   `INSERT INTO users (id, email, first_name, is_beta) VALUES ($1, $2, 'E2E', true)
@@ -21,7 +20,6 @@ await client.query(
   [USER_ID, EMAIL],
 );
 
-// Artboard → HStack with two buttons of clearly different widths.
 const craftState = {
   ROOT: {
     type: { resolvedName: "AstryxSection" }, isCanvas: true,
@@ -43,13 +41,13 @@ const craftState = {
   },
   "btn-a": {
     type: { resolvedName: "AstryxButton" }, isCanvas: false,
-    props: { children: "Small", variant: "primary", width: 80 },
+    props: { children: "Alpha", variant: "primary", width: 80 },
     displayName: "AstryxButton", custom: {}, parent: "hstack-1", hidden: false,
     nodes: [], linkedNodes: {},
   },
   "btn-b": {
     type: { resolvedName: "AstryxButton" }, isCanvas: false,
-    props: { children: "Much wider button", variant: "secondary", width: 240 },
+    props: { children: "Beta wider button", variant: "secondary", width: 240 },
     displayName: "AstryxButton", custom: {}, parent: "hstack-1", hidden: false,
     nodes: [], linkedNodes: {},
   },
@@ -57,7 +55,7 @@ const craftState = {
 
 const res = await client.query(
   `INSERT INTO designs (claimed_by_user_id, craft_state, title, source)
-   VALUES ($1, $2, 'E2E Task 529', 'native') RETURNING id`,
+   VALUES ($1, $2, 'E2E Task 530', 'native') RETURNING id`,
   [USER_ID, JSON.stringify(craftState)],
 );
 const designId = res.rows[0].id;
@@ -94,50 +92,77 @@ await page.goto(`${base}/designs/${designId}`, { waitUntil: "networkidle", timeo
 await page.waitForTimeout(1500);
 try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 3000 }); } catch {}
 
-const btnRect = (label) => page.evaluate((lbl) => {
-  const el = [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === lbl);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { x: r.x, y: r.y, w: r.width, h: r.height };
-}, label);
+// Count elements carrying the craft selection ring (#3b82f6 2px outline).
+const SEL = "rgb(59, 130, 246)";
+const ringCount = () => page.evaluate((c) => {
+  return [...document.querySelectorAll("*")].filter((el) => {
+    const s = getComputedStyle(el);
+    return s.outlineStyle === "solid" && s.outlineWidth === "2px" && s.outlineColor === c;
+  }).length;
+}, SEL);
 
-// ── 1. Multi-select the two buttons (click + shift-click) ───────────────────
-const a = await btnRect("Small");
-const b = await btnRect("Much wider button");
-check("both buttons rendered", !!a && !!b, JSON.stringify({ a, b }));
-if (!a || !b) { await browser.close(); process.exit(1); }
+const alphaBtn = page.locator('button:text-is("Alpha")');
+const betaBtn = page.locator('button:text-is("Beta wider button")');
 
-check("widths initially different", Math.abs(a.w - b.w) > 50, `a=${a.w} b=${b.w}`);
-
-// Click the first button, then Shift+click the second. Craft.js's native
-// multi-select gesture is rebound in the Editor's `handlers` prop to
-// `isMultiSelectEnabled: (e) => e.shiftKey`.
-const smallBtn = page.locator('button:text-is("Small")');
-const wideBtn = page.locator('button:text-is("Much wider button")');
-await smallBtn.click();
+// ── 1. Shift+click builds a two-element selection ────────────────────────────
+await alphaBtn.click();
 await page.waitForTimeout(400);
-await wideBtn.click({ modifiers: ["Shift"] });
-await page.waitForTimeout(600);
-await page.screenshot({ path: "/tmp/e2e-529-1-multiselected.png" });
+const afterFirst = await ringCount();
+check("single click selects one element", afterFirst === 1, `rings=${afterFirst}`);
 
-// ── 2. Equal widths button present and ENABLED ──────────────────────────────
+await betaBtn.click({ modifiers: ["Shift"] });
+await page.waitForTimeout(500);
+const afterShift = await ringCount();
+check("Shift+click adds second element to selection", afterShift === 2, `rings=${afterShift}`);
+await page.screenshot({ path: "/tmp/e2e-530-1-shift-multiselect.png" });
+
+// ── 2. Inspector switches to multi-select mode ───────────────────────────────
+const multiHeader = await page.locator('text="2 selected"').count();
+check("inspector shows '2 selected'", multiHeader >= 1, `count=${multiHeader}`);
 const eq = page.locator('button[aria-label="Make selected elements equal widths"]');
-const eqCount = await eq.count();
-check("Equal widths button rendered", eqCount === 1, `count=${eqCount}`);
-const isDisabled = eqCount ? await eq.isDisabled() : true;
-check("Equal widths button ENABLED", !isDisabled);
+const eqEnabled = (await eq.count()) === 1 && !(await eq.isDisabled());
+check("Equal widths enabled for Shift-click selection", eqEnabled);
 
-// ── 3. Click it → widths equalize ────────────────────────────────────────────
-if (!isDisabled) {
-  await eq.click();
+// ── 3. Shift+click on a selected element removes it ──────────────────────────
+await betaBtn.click({ modifiers: ["Shift"] });
+await page.waitForTimeout(500);
+const afterToggle = await ringCount();
+check("Shift+click toggles element back out", afterToggle === 1, `rings=${afterToggle}`);
+
+// ── 4. Cmd/Ctrl+click does NOT multi-select ──────────────────────────────────
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForTimeout(1500);
+try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 2000 }); } catch {}
+await alphaBtn.click();
+await page.waitForTimeout(400);
+await betaBtn.click({ modifiers: ["Meta"] });
+await page.waitForTimeout(500);
+const afterMeta = await ringCount();
+check("Cmd+click does not multi-select (selection replaced)", afterMeta === 1, `rings=${afterMeta}`);
+await page.screenshot({ path: "/tmp/e2e-530-2-meta-no-multiselect.png" });
+
+// ── 5. Equal widths still applies on a Shift-click selection ────────────────
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForTimeout(1500);
+try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 2000 }); } catch {}
+await alphaBtn.click();
+await page.waitForTimeout(400);
+await betaBtn.click({ modifiers: ["Shift"] });
+await page.waitForTimeout(500);
+const eq2 = page.locator('button[aria-label="Make selected elements equal widths"]');
+if ((await eq2.count()) === 1 && !(await eq2.isDisabled())) {
+  await eq2.click();
   await page.waitForTimeout(600);
-  await page.screenshot({ path: "/tmp/e2e-529-2-equalized.png" });
-  const a2 = await btnRect("Small");
-  const b2 = await btnRect("Much wider button");
-  const equal = a2 && b2 && Math.abs(a2.w - b2.w) <= 2;
-  check("widths equal after click", !!equal, `a=${a2?.w} b=${b2?.w}`);
-  check("widths grew to fill container", !!a2 && a2.w > 100, `a=${a2?.w}`);
+  const rects = await page.evaluate(() => {
+    const find = (t) => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === t)?.getBoundingClientRect();
+    const a = find("Alpha"), b = find("Beta wider button");
+    return { a: a?.width, b: b?.width };
+  });
+  check("Equal widths applies via Shift-click selection", rects.a && rects.b && Math.abs(rects.a - rects.b) <= 2, JSON.stringify(rects));
+} else {
+  check("Equal widths applies via Shift-click selection", false, "button missing or disabled");
 }
+await page.screenshot({ path: "/tmp/e2e-530-3-equalized.png" });
 
 await browser.close();
 const failed = results.filter((r) => !r.ok);
