@@ -1285,8 +1285,11 @@ function DimensionControl({
     <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
       <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
       <input
-        type={isMixed || draft !== null ? "text" : "number"}
-        min={min}
+        // Always type="text": switching between "number" and "text" mid-edit
+        // makes React recreate the DOM node, which resets the caret to
+        // position 0 and reverses typed digits (e.g. "400" became "004").
+        type="text"
+        inputMode="decimal"
         value={inputValue}
         onFocus={() => { if (isMixed) setDraft(""); }}
         onChange={(e) => {
@@ -1294,7 +1297,7 @@ function DimensionControl({
           setDraft(raw);
           if (raw !== "") {
             const next = Number(raw);
-            if (Number.isFinite(next)) onChange(next);
+            if (Number.isFinite(next) && (min == null || next >= min)) onChange(next);
           }
         }}
         onBlur={(e) => {

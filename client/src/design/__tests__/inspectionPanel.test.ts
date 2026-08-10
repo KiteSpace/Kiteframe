@@ -37,6 +37,22 @@ describe("component inspection panel layout controls", () => {
     expect(inspectPanelSource).toContain('setProp("height", v)');
   });
 
+  it("keeps the dimension input as a stable text input so the caret survives typing", () => {
+    const dimensionSource = editorSource.slice(
+      editorSource.indexOf("function DimensionControl"),
+      editorSource.indexOf("export function getSharedDimensionValue"),
+    );
+    // Switching between type="number" and type="text" mid-edit makes React
+    // recreate the DOM node, resetting the caret to position 0 and reversing
+    // typed digits ("400" -> "004"). The type must be a constant "text".
+    expect(dimensionSource).toContain('type="text"');
+    // No conditional/dynamic type expression and no number-typed input.
+    expect(dimensionSource).not.toMatch(/type=\{/);
+    expect(dimensionSource).not.toContain('type="number"');
+    // Mobile keyboards still get a numeric layout.
+    expect(dimensionSource).toContain('inputMode="decimal"');
+  });
+
   it("provides Auto controls with a consistent undefined/auto-compatible reset", () => {
     expect(editorSource).toContain('value == null || value === "auto"');
     // The Auto button resets to undefined (auto).
