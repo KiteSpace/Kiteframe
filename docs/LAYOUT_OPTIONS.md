@@ -35,6 +35,7 @@ ROOT (canvas anchor)
 | Internal direction | `row`, `column` | `column` |
 | Align items | `start`, `center`, `end`, `stretch` | `stretch` |
 | Justify content | `start`, `center`, `end`, `between`, `around` | `start` |
+| Wrap | `nowrap`, `wrap`, `wrap-reverse` | `nowrap` |
 | Child gap | Non-negative numeric pixels | `16px` |
 | Padding | Uniform numeric pixels on all sides | `24px` |
 | Background color | Transparent or a color value | Theme/card background |
@@ -84,6 +85,7 @@ Where a container exposes the control, the editor supports:
 | Direction | `row`, `column` (`AstryxStack` and `AstryxHStack` use fixed directions) |
 | Align items | `start`, `center`, `end`, `stretch` |
 | Justify content | `start`, `center`, `end`, `between`, `around` |
+| Wrap | `nowrap` (default), `wrap`, `wrap-reverse`; hidden on the `ROOT` canvas wrapper |
 | Gap | Numeric pixels, minimum `0` |
 | Padding | One uniform numeric value, only on `AstryxSection` and `AstryxArtboard` |
 | Width / height | Numeric value or automatic sizing |

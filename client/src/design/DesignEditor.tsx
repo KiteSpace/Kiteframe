@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -982,6 +982,7 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <>
       <PropRow label="Variant"><SelectProp value={props.variant ?? "elevated"} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
       <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 12} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+      <PropRow label="Wrap"><LayoutIconGroup value={props.wrap ?? "nowrap"} options={WRAP_OPTIONS} onChange={(v) => setProp("wrap", v)} /></PropRow>
     </>
   );
 
@@ -1263,6 +1264,12 @@ const JUSTIFY_OPTIONS = {
     { value: "around", label: "Space around", icon: <AlignVerticalSpaceAround className="w-3.5 h-3.5" /> },
   ],
 } satisfies Record<string, LayoutOption[]>;
+
+const WRAP_OPTIONS: LayoutOption[] = [
+  { value: "nowrap", label: "No wrap", icon: <Minus className="w-3.5 h-3.5" /> },
+  { value: "wrap", label: "Wrap", icon: <WrapText className="w-3.5 h-3.5" /> },
+  { value: "wrap-reverse", label: "Wrap reverse", icon: <WrapText className="w-3.5 h-3.5 -scale-y-100" /> },
+];
 
 function DimensionControl({
   label,
@@ -1906,6 +1913,15 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
                   onChange={(v) => setProp("justify", v)}
                 />
               </PropRow>
+              {!isRoot && (
+                <PropRow label="Wrap">
+                  <LayoutIconGroup
+                    value={selected.props.wrap ?? "nowrap"}
+                    options={WRAP_OPTIONS}
+                    onChange={(v) => setProp("wrap", v)}
+                  />
+                </PropRow>
+              )}
               {supportsPadding && <div className="grid grid-cols-2 gap-1.5">
                 {SPACING_PRESETS.map((p) => {
                   const isActive = activeSpacing?.label === p.label;

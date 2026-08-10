@@ -18,7 +18,7 @@ const generationSource = fs.readFileSync(
 describe("card and chart layout defaults", () => {
   it("gives cards an editable pixel gap with a safe default", () => {
     expect(resolverSource).toContain(
-      'gap = 12, position = "flow"',
+      'gap = 12, wrap = "nowrap", position = "flow"',
     );
     expect(resolverSource).toContain(
       "gap: Math.max(0, Number(gap) || 0)",

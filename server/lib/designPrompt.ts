@@ -92,11 +92,11 @@ CRITICAL RULES for patch:
 These are the ONLY valid resolvedName values. If the user asks for anything else, use TYPE 1.
 
 — CONTAINERS (isCanvas: true, can hold children in "nodes") —
-• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number, backgroundType?:"color"|"gradient"|"image", backgroundColor?:string (hex), backgroundGradient?:string (CSS linear-gradient), backgroundImageUrl?:string (URL), textColor?:string (hex — auto-set for contrast) }
-• AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number, backgroundColor?:string (hex), textColor?:string (hex) }
-• AstryxStack    vertical stack           props: { gap:number, backgroundColor?:string (hex), textColor?:string (hex) }
-• AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end", backgroundColor?:string (hex), textColor?:string (hex) }
-• AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxArtboard screen/artboard frame    props: { label:string, width:number, direction:"row"|"column", gap:number, padding:number, wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundType?:"color"|"gradient"|"image", backgroundColor?:string (hex), backgroundGradient?:string (CSS linear-gradient), backgroundImageUrl?:string (URL), textColor?:string (hex — auto-set for contrast) }
+• AstryxSection  content section          props: { direction:"row"|"column", gap:number, padding:number, wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxStack    vertical stack           props: { gap:number, wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end", wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost", wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
 
 — TYPOGRAPHY —
 • AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl", textColor?:string (hex) }

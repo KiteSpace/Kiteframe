@@ -78,6 +78,33 @@ describe("component inspection panel layout controls", () => {
     expect(componentPropsSource).not.toMatch(/label="(?:Align items|Justify)"/);
   });
 
+  it("exposes the Wrap control for every flex container, hidden for ROOT", () => {
+    // Shared flex-layout section (Section, Stack, HStack, Artboard) renders a
+    // Wrap control gated behind !isRoot so the ROOT canvas wrapper never shows it.
+    expect(inspectPanelSource).toMatch(/\{!isRoot && \(\s*<PropRow label="Wrap">/);
+    expect(inspectPanelSource).toContain('setProp("wrap", v)');
+    expect(inspectPanelSource).toContain("options={WRAP_OPTIONS}");
+    // AstryxCard has its own props block (not part of IS_CONTAINER's shared
+    // section) and must expose Wrap there.
+    expect(componentPropsSource).toMatch(/if \(displayName === "AstryxCard"\)[\s\S]{0,600}label="Wrap"[\s\S]{0,200}setProp\("wrap", v\)/);
+    // All three flex-wrap values are offered.
+    expect(editorSource).toContain('value: "nowrap"');
+    expect(editorSource).toContain('value: "wrap"');
+    expect(editorSource).toContain('value: "wrap-reverse"');
+  });
+
+  it("declares wrap as an optional prop for every wrap-capable container in the AI prompt schema", () => {
+    const promptSource = fs.readFileSync(
+      path.resolve(__dirname, "../../../../server/lib/designPrompt.ts"),
+      "utf8",
+    );
+    for (const component of ["AstryxSection", "AstryxStack", "AstryxHStack", "AstryxCard", "AstryxArtboard"]) {
+      const line = promptSource.split("\n").find((l) => l.includes(`• ${component}`));
+      expect(line, `${component} schema line`).toBeTruthy();
+      expect(line, `${component} should declare wrap`).toContain('wrap?:"nowrap"|"wrap"|"wrap-reverse"');
+    }
+  });
+
   it("keeps artboard label, background, and coordinates without duplicate layout rows", () => {
     expect(componentPropsSource).toContain('label="Label"');
     expect(inspectPanelSource).toContain("ArtboardBackgroundPicker");

@@ -1561,8 +1561,10 @@ const ALIGN_MAP: Record<string, string> = {
 const JUSTIFY_MAP: Record<string, string> = {
   start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around",
 };
+/** Valid flex-wrap values; anything else falls back to "nowrap". */
+const WRAP_VALUES = new Set(["nowrap", "wrap", "wrap-reverse"]);
 
-export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", wrap = "nowrap", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
   const { connectRef, id, isEmpty, isAbsolute, containerVisual, selected, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   const isRoot = id === "ROOT";
   const bgOverride = !isRoot && !selected && backgroundColor ? { background: backgroundColor as string } : {};
@@ -1582,6 +1584,7 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
       } : {
         display: "flex",
         flexDirection: direction as "row" | "column",
+        flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
         alignItems: ALIGN_MAP[align] ?? "stretch",
         justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
@@ -1614,7 +1617,7 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
   },
 };
 
-export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+export function AstryxStack({ children, gap = 8, align = "stretch", justify = "start", wrap = "nowrap", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
   const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   return (
     <div
@@ -1623,6 +1626,7 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
       style={{
         display: "flex",
         flexDirection: "column",
+        flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
         alignItems: ALIGN_MAP[align] ?? "stretch",
         justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
@@ -1645,7 +1649,7 @@ export function AstryxStack({ children, gap = 8, align = "stretch", justify = "s
 }
 (AstryxStack as any).craft = { displayName: "AstryxStack", rules: { canMoveIn: () => true } };
 
-export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+export function AstryxHStack({ children, gap = 8, align = "center", justify = "start", wrap = "nowrap", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
   const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   return (
     <div
@@ -1654,6 +1658,7 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
       style={{
         display: "flex",
         flexDirection: "row",
+        flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
         alignItems: ALIGN_MAP[align] ?? "center",
         justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
         gap,
@@ -1676,7 +1681,7 @@ export function AstryxHStack({ children, gap = 8, align = "center", justify = "s
 }
 (AstryxHStack as any).craft = { displayName: "AstryxHStack", rules: { canMoveIn: () => true } };
 
-export function AstryxCard({ children, variant = "elevated", gap = 12, position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
+export function AstryxCard({ children, variant = "elevated", gap = 12, wrap = "nowrap", position = "flow", x = 0, y = 0, backgroundColor, textColor, borderRadius: borderRadiusToken }: AstryxProps) {
   const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
   const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
   const variantClass =
@@ -1694,6 +1699,7 @@ export function AstryxCard({ children, variant = "elevated", gap = 12, position 
         position: "relative",
         display: "flex",
         flexDirection: "column",
+        flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
         gap: Math.max(0, Number(gap) || 0),
         minHeight: 56,
         boxSizing: "border-box",
@@ -1723,7 +1729,7 @@ export function AstryxCard({ children, variant = "elevated", gap = 12, position 
 // Resize handle styles (reused across all three handles)
 const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
 
-export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", wrap = "nowrap", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
   const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
@@ -1941,6 +1947,7 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
         style={{
           display: "flex",
           flexDirection: direction as "row" | "column",
+          flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
           alignItems: ALIGN_MAP[align] ?? "stretch",
           justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
           gap,
