@@ -64,6 +64,7 @@ import { detectNewScreenIntent } from "./newScreenIntent";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
+import { applyEqualWidthProps, clearFlexSizingProps, getEqualWidthSelectionResult } from "./layoutSizing";
 import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
@@ -1352,6 +1353,9 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
           // When the user manually sets a text color, mark it as user-owned so
           // auto-contrast won't overwrite it on future background changes.
           if (key === "color") p._autoColor = false;
+          // A manual width edit opts the node back out of equal-width flex
+          // sizing — the renderer ignores `width` while flexBasis is set.
+          if (key === "width") clearFlexSizingProps(p);
         }));
 
       // Auto-apply contrast whenever backgroundColor changes on a container.
@@ -1422,6 +1426,21 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
       });
     });
   }, [selected.id, selectedIds, isMultiSelect, nodes, actions]);
+
+  const equalWidthResult = useMemo(
+    () => getEqualWidthSelectionResult(nodes as any, selectedIds),
+    [nodes, selectedIds],
+  );
+
+  const makeEqualWidths = useCallback(() => {
+    if (!equalWidthResult.eligible) return;
+    actions.history.throttle(0);
+    selectedIds.forEach((id) => {
+      actions.setProp(id, (props: Record<string, any>) => {
+        applyEqualWidthProps(props);
+      });
+    });
+  }, [actions, equalWidthResult, selectedIds]);
 
   const dn = selected.displayName;
   const shortName = dn.replace("Astryx", "");
@@ -1747,6 +1766,31 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
               min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 4 : 1}
             />
           </div>
+
+          {isMultiSelect && (
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[10px] font-semibold text-foreground">Layout</span>
+                <span className="text-[9px] text-muted-foreground">Selected elements</span>
+              </div>
+              <button
+                type="button"
+                onClick={makeEqualWidths}
+                disabled={!equalWidthResult.eligible}
+                title={equalWidthResult.eligible ? "Make selected elements equal widths" : equalWidthResult.reason}
+                aria-label="Make selected elements equal widths"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <StretchHorizontal className="w-3.5 h-3.5" />
+                  Equal widths
+                </span>
+              </button>
+              {!equalWidthResult.eligible && (
+                <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground">{equalWidthResult.reason}</p>
+              )}
+            </div>
+          )}
 
           {!isMultiSelect && !isRoot && !isArtboard && (
             <>

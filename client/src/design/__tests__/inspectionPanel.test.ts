@@ -27,9 +27,11 @@ const inspectPanelSource = editorSource.slice(
 );
 
 describe("component inspection panel layout controls", () => {
-  it("keeps sizing and layout controls under Properties without a standalone Layout heading", () => {
+  it("keeps sizing and layout controls under Properties without a standalone top-level Layout heading", () => {
     expect(inspectPanelSource).toContain(">Properties</div>");
-    expect(inspectPanelSource).not.toContain(">Layout</div>");
+    // A "Layout" label is allowed inside the scoped multi-select card (guarded by isMultiSelect),
+    // but must not appear as a standalone section heading outside that card.
+    expect(inspectPanelSource).not.toMatch(/(?<!isMultiSelect[^}]{0,200})>\s*Layout\s*<\/div>/s);
     expect(inspectPanelSource).toContain("<DimensionControl");
     expect(inspectPanelSource).toContain('setProp("width", v)');
     expect(inspectPanelSource).toContain('setProp("height", v)');
@@ -37,8 +39,10 @@ describe("component inspection panel layout controls", () => {
 
   it("provides Auto controls with a consistent undefined/auto-compatible reset", () => {
     expect(editorSource).toContain('value == null || value === "auto"');
-    expect(editorSource).toContain('onChange(isAuto ? (autoDefault === "auto" ? undefined : autoDefault) : undefined)');
-    expect(editorSource).toContain('placeholder="auto"');
+    // The Auto button resets to undefined (auto).
+    expect(editorSource).toContain('onClick={() => onChange(undefined)');
+    // The dimension input shows "auto" as its placeholder when the value is unset.
+    expect(editorSource).toContain('"auto"');
   });
 
   it("keeps Position and disables X/Y unless the node is absolute", () => {

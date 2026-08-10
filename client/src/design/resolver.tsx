@@ -9,6 +9,7 @@ import {
   repairCraftStateJson,
   summarizeArtboards,
 } from "./craftValidator";
+import { clearFlexSizingProps } from "./layoutSizing";
 export type { CraftStateValidationResult } from "./craftValidator";
 export { ALLOWED_CRAFT_COMPONENTS, validateCraftState, sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards, repairCraftStateJson, summarizeArtboards };
 import {
@@ -230,7 +231,8 @@ function useLeafNode() {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
   const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY,
-          nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight, displayName } = useNode((node) => ({
+          nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight, displayName,
+          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
@@ -241,6 +243,9 @@ function useLeafNode() {
     nodeWidth:  node.data.props?.width as number | string | undefined,
     nodeHeight: node.data.props?.height as number | string | undefined,
     displayName: node.data.displayName as string,
+    nodeFlexGrow:   node.data.props?.flexGrow   as number | undefined,
+    nodeFlexShrink: node.data.props?.flexShrink as number | undefined,
+    nodeFlexBasis:  node.data.props?.flexBasis  as number | undefined,
   }));
   const { query } = useEditor(() => ({}));
 
@@ -334,6 +339,7 @@ function useLeafNode() {
         // East: right edge moves → width grows rightward
         if (dir === "e" || dir === "se" || dir === "ne") {
           p.width = Math.max(20, Math.round(startW + dw));
+          clearFlexSizingProps(p);
         }
         // South: bottom edge moves → height grows downward
         if (dir === "s" || dir === "se" || dir === "sw") {
@@ -343,6 +349,7 @@ function useLeafNode() {
         if (dir === "w" || dir === "nw" || dir === "sw") {
           const newW = Math.max(20, Math.round(startW - dw));
           p.width = newW;
+          clearFlexSizingProps(p);
           if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
         }
         // North: top edge moves → height grows upward, y shifts so bottom stays fixed
@@ -411,9 +418,16 @@ function useLeafNode() {
       : {}),
     // Full-width components expand to fill their parent; inline ones shrink-wrap.
     ...(isFullWidth ? { display: "block" } : {}),
-    ...(nodeWidth !== undefined && nodeWidth !== "auto"
-      ? { width: nodeWidth }
-      : isFullWidth ? { width: "100%" } : { width: "fit-content" }),
+    ...(nodeFlexGrow !== undefined ? { flexGrow: nodeFlexGrow } : {}),
+    ...(nodeFlexShrink !== undefined ? { flexShrink: nodeFlexShrink } : {}),
+    ...(nodeFlexBasis !== undefined ? { flexBasis: nodeFlexBasis, minWidth: 0 } : {}),
+    // When flex sizing is active (flexBasis set), width from props is overridden
+    // by flexGrow; omit the explicit width so the flex algorithm takes over.
+    ...(nodeFlexBasis !== undefined
+      ? {}
+      : nodeWidth !== undefined && nodeWidth !== "auto"
+        ? { width: nodeWidth }
+        : isFullWidth ? { width: "100%" } : { width: "fit-content" }),
     ...(nodeHeight !== undefined && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
   };
 
@@ -585,12 +599,16 @@ function useInlineEdit(propKey: string, currentValue: string) {
 function useContainerNode(position: string, x: number, y: number) {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
-  const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered, nodeWidth, nodeHeight } = useNode((node) => ({
+  const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered, nodeWidth, nodeHeight,
+          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
     hovered: node.events.hovered,
     nodeWidth:  node.data.props?.width  as number | string | undefined,
     nodeHeight: node.data.props?.height as number | string | undefined,
+    nodeFlexGrow:   node.data.props?.flexGrow   as number | undefined,
+    nodeFlexShrink: node.data.props?.flexShrink as number | undefined,
+    nodeFlexBasis:  node.data.props?.flexBasis  as number | undefined,
   }));
 
   // Detect whether any node is currently being dragged in the editor.
@@ -683,11 +701,15 @@ function useContainerNode(position: string, x: number, y: number) {
       const dw = (ev.clientX - startMouseX) / cz;
       const dh = (ev.clientY - startMouseY) / cz;
       setProp((p: any) => {
-        if (dir === "e" || dir === "se" || dir === "ne") p.width = Math.max(20, Math.round(startW + dw));
+        if (dir === "e" || dir === "se" || dir === "ne") {
+          p.width = Math.max(20, Math.round(startW + dw));
+          clearFlexSizingProps(p);
+        }
         if (dir === "s" || dir === "se" || dir === "sw") p.height = Math.max(20, Math.round(startH + dh));
         if (dir === "w" || dir === "nw" || dir === "sw") {
           const newW = Math.max(20, Math.round(startW - dw));
           p.width = newW;
+          clearFlexSizingProps(p);
           if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
         }
         if (dir === "n" || dir === "nw" || dir === "ne") {
@@ -725,7 +747,13 @@ function useContainerNode(position: string, x: number, y: number) {
   // Width / height from props override the hardcoded defaults in each container.
   // Only applied when explicitly set (not "auto") so natural defaults are preserved.
   const containerSizeStyle: CSSProperties = {
-    ...(nodeWidth  != null && nodeWidth  !== "auto" ? { width:  nodeWidth  } : {}),
+    ...(nodeFlexGrow   !== undefined ? { flexGrow:   nodeFlexGrow   } : {}),
+    ...(nodeFlexShrink !== undefined ? { flexShrink: nodeFlexShrink } : {}),
+    ...(nodeFlexBasis  !== undefined ? { flexBasis:  nodeFlexBasis, minWidth: 0 } : {}),
+    // When flex sizing is active, skip the explicit width so flex layout controls it.
+    ...(nodeFlexBasis !== undefined
+      ? {}
+      : nodeWidth != null && nodeWidth !== "auto" ? { width: nodeWidth } : {}),
     ...(nodeHeight != null && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
     // overflow:visible when selected so handles rendered at negative offsets aren't clipped.
     ...(selected ? { overflow: "visible" } : {}),
