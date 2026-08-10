@@ -10,14 +10,20 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Builds a node in the LIVE craft.js editor state shape — the parent id lives
+ * at `data.parent`, NOT at the top level. This is the shape the inspector
+ * actually passes in (`useEditor(state => state.nodes)`); the top-level
+ * `parent` field only exists in the serialized state. A fixture using the
+ * wrong shape previously let an always-disabled button pass the tests.
+ */
 function makeNode(
   displayName: string,
   parent: string | null,
   propsOverride: Record<string, any> = {},
 ): LayoutSizingNode {
   return {
-    parent,
-    data: { displayName, props: propsOverride },
+    data: { parent, displayName, props: propsOverride },
   };
 }
 

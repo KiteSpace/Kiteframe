@@ -1,10 +1,24 @@
 export type LayoutSizingNode = {
+  /** Parent id in the *serialized* craft state shape. */
   parent?: string | null;
   data?: {
+    /** Parent id in the *live* craft.js editor state shape (state.nodes). */
+    parent?: string | null;
     displayName?: string;
     props?: Record<string, any>;
   };
 };
+
+/**
+ * Reads a node's parent id from either craft.js state shape.
+ * The live editor state (`useEditor(state => state.nodes)`) stores the parent
+ * at `node.data.parent`, while the serialized state (`query.serialize()`)
+ * stores it at the top level as `node.parent`. Eligibility checks must accept
+ * both, or live-editor selections all look parentless.
+ */
+function getParentId(node: LayoutSizingNode): string | null {
+  return node.data?.parent ?? node.parent ?? null;
+}
 
 export type EqualWidthSelectionResult =
   | { eligible: true; parentId: string }
@@ -46,7 +60,7 @@ export function getEqualWidthSelectionResult(
     return { eligible: false, reason: "Equal widths apply to elements inside a screen, not to screens." };
   }
 
-  const parentIds = new Set(selectedNodes.map((node) => node.parent ?? null));
+  const parentIds = new Set(selectedNodes.map((node) => getParentId(node)));
   if (parentIds.size !== 1 || parentIds.has(null)) {
     return { eligible: false, reason: "Select elements from the same container." };
   }
@@ -59,7 +73,7 @@ export function getEqualWidthSelectionResult(
     return { eligible: false, reason: "Equal widths require flow-positioned elements." };
   }
 
-  const parentId = selectedNodes[0].parent as string;
+  const parentId = getParentId(selectedNodes[0]) as string;
   const parent = nodes[parentId];
   if (!isRowContainer(parent)) {
     return { eligible: false, reason: "Equal widths require a row-oriented container." };
@@ -141,7 +155,7 @@ export function getEqualHeightSelectionResult(
     return { eligible: false, reason: "Equal heights apply to elements inside a screen, not to screens." };
   }
 
-  const parentIds = new Set(selectedNodes.map((node) => node.parent ?? null));
+  const parentIds = new Set(selectedNodes.map((node) => getParentId(node)));
   if (parentIds.size !== 1 || parentIds.has(null)) {
     return { eligible: false, reason: "Select elements from the same container." };
   }
@@ -154,7 +168,7 @@ export function getEqualHeightSelectionResult(
     return { eligible: false, reason: "Equal heights require flow-positioned elements." };
   }
 
-  const parentId = selectedNodes[0].parent as string;
+  const parentId = getParentId(selectedNodes[0]) as string;
   const parent = nodes[parentId];
   if (!isColumnContainer(parent)) {
     return { eligible: false, reason: "Equal heights require a column-oriented container." };

@@ -22,7 +22,12 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import React from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
 import { resolver, CanvasZoomContext, SnapGuideContext } from "../resolver";
-import { getEqualWidthFlexProps, isEqualWidthFlexProps } from "../layoutSizing";
+import {
+  getEqualWidthFlexProps,
+  isEqualWidthFlexProps,
+  getEqualWidthSelectionResult,
+  getEqualHeightSelectionResult,
+} from "../layoutSizing";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,6 +46,20 @@ let latestSerialize: (() => string) | null = null;
 function SerializeProbe() {
   const { query } = useEditor(() => ({}));
   latestSerialize = () => query.serialize();
+  return null;
+}
+
+/**
+ * Exposes the LIVE editor state nodes (state.nodes) — the exact object the
+ * inspector passes to the eligibility helpers. This shape differs from the
+ * serialized state: parent ids live at `node.data.parent`, and a helper that
+ * only reads the serialized shape's top-level `parent` silently disables the
+ * Equal widths/heights buttons for every real selection.
+ */
+let latestLiveNodes: Record<string, any> | null = null;
+function LiveNodesProbe() {
+  const { nodes } = useEditor((state) => ({ nodes: state.nodes }));
+  latestLiveNodes = nodes;
   return null;
 }
 
@@ -128,6 +147,7 @@ function renderEditor() {
     <CanvasProviders>
       <Editor resolver={resolver} enabled>
         <SerializeProbe />
+        <LiveNodesProbe />
         <Frame data={makeState()} />
       </Editor>
     </CanvasProviders>,
@@ -165,7 +185,43 @@ describe("equal-width flex props → rendered styles", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 2 – manual drag-resize opts the node back out of flex sizing
+// Suite 2 – eligibility computed from the LIVE editor state (regression)
+// ---------------------------------------------------------------------------
+
+describe("eligibility from live craft.js editor state", () => {
+  it("enables Equal widths for two flow siblings in a real HStack", async () => {
+    renderEditor();
+    await screen.findByText("Grow me");
+
+    expect(latestLiveNodes).toBeTruthy();
+    // Sanity: this is the live shape — parent at data.parent, not top level.
+    expect(latestLiveNodes!["grow-btn"].data.parent).toBe("hstack-1");
+
+    const result = getEqualWidthSelectionResult(latestLiveNodes!, ["grow-btn", "fixed-btn"]);
+    expect(result.eligible).toBe(true);
+    if (result.eligible) expect(result.parentId).toBe("hstack-1");
+  });
+
+  it("keeps Equal widths disabled for a real artboard selection", async () => {
+    renderEditor();
+    await screen.findByText("Grow me");
+
+    const result = getEqualWidthSelectionResult(latestLiveNodes!, ["artboard-1", "hstack-1"]);
+    expect(result.eligible).toBe(false);
+  });
+
+  it("keeps Equal heights disabled inside the row HStack but explains why", async () => {
+    renderEditor();
+    await screen.findByText("Grow me");
+
+    const result = getEqualHeightSelectionResult(latestLiveNodes!, ["grow-btn", "fixed-btn"]);
+    expect(result.eligible).toBe(false);
+    if (!result.eligible) expect(result.reason).toMatch(/column/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 3 – manual drag-resize opts the node back out of flex sizing
 // ---------------------------------------------------------------------------
 
 describe("manual resize after equal widths", () => {

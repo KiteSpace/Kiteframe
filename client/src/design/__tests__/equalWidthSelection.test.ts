@@ -10,14 +10,20 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Builds a node in the LIVE craft.js editor state shape — the parent id lives
+ * at `data.parent`, NOT at the top level. This is the shape the inspector
+ * actually passes in (`useEditor(state => state.nodes)`); the top-level
+ * `parent` field only exists in the serialized state. A fixture using the
+ * wrong shape previously let an always-disabled button pass the tests.
+ */
 function makeNode(
   displayName: string,
   parent: string | null,
   propsOverride: Record<string, any> = {},
 ): LayoutSizingNode {
   return {
-    parent,
-    data: { displayName, props: propsOverride },
+    data: { parent, displayName, props: propsOverride },
   };
 }
 
@@ -177,6 +183,24 @@ describe("getEqualWidthSelectionResult", () => {
       flowChild("b", "hstack"),
     ]);
     const result = getEqualWidthSelectionResult(nodes, ["a", "b"]);
+    if (result.eligible) expect(result.parentId).toBe("hstack");
+  });
+
+  it("also accepts nodes in the serialized state shape (top-level parent)", () => {
+    // query.serialize() output stores parent at the top level; the helper
+    // must tolerate both shapes.
+    const serializedNode = (
+      displayName: string,
+      parent: string | null,
+      props: Record<string, any> = {},
+    ): LayoutSizingNode => ({ parent, data: { displayName, props } });
+    const nodes: Record<string, LayoutSizingNode> = {
+      hstack: serializedNode("AstryxHStack", "ROOT"),
+      a: serializedNode("AstryxButton", "hstack", { position: "flow" }),
+      b: serializedNode("AstryxButton", "hstack", { position: "flow" }),
+    };
+    const result = getEqualWidthSelectionResult(nodes, ["a", "b"]);
+    expect(result.eligible).toBe(true);
     if (result.eligible) expect(result.parentId).toBe("hstack");
   });
 });
