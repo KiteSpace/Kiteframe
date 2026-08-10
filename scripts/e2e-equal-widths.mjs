@@ -109,15 +109,15 @@ if (!a || !b) { await browser.close(); process.exit(1); }
 
 check("widths initially different", Math.abs(a.w - b.w) > 50, `a=${a.w} b=${b.w}`);
 
-// Click the first button, then Shift+click the second. Re-measure after the
-// first click — selecting a node swaps the left rail to the inspector, which
-// can shift the canvas. Use locator clicks with the Shift modifier so the
-// mousedown carries shiftKey=true.
+// Click the first button, then Ctrl/Cmd+click the second. Craft.js's native
+// multi-select gesture is `isMultiSelectEnabled: (e) => !!e.metaKey`; the
+// custom Shift-click layer does not register in a real browser (task #530
+// will rebind the gesture to Shift+click).
 const smallBtn = page.locator('button:text-is("Small")');
 const wideBtn = page.locator('button:text-is("Much wider button")');
 await smallBtn.click();
 await page.waitForTimeout(400);
-await wideBtn.click({ modifiers: ["Shift"] });
+await wideBtn.click({ modifiers: ["Meta"] });
 await page.waitForTimeout(600);
 await page.screenshot({ path: "/tmp/e2e-529-1-multiselected.png" });
 
