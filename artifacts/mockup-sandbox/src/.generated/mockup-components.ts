@@ -11,10 +11,10 @@ export const modules: ModuleMap = {
   "./components/mockups/img-upload-processing/NewInterface.tsx": () => import("../components/mockups/img-upload-processing/NewInterface.tsx"),
   "./components/mockups/img-upload-processing/PromptUpload.tsx": () => import("../components/mockups/img-upload-processing/PromptUpload.tsx"),
   "./components/mockups/kiteframe-homepage/Sleek.tsx": () => import("../components/mockups/kiteframe-homepage/Sleek.tsx"),
-  "./components/mockups/upgrade-experience/UpgradePricing.tsx": () => import("../components/mockups/upgrade-experience/UpgradePricing.tsx"),
-  "./components/mockups/upgrade-experience/UpgradeSuccess.tsx": () => import("../components/mockups/upgrade-experience/UpgradeSuccess.tsx"),
   "./components/mockups/upsell-navbar/AvatarBadgeSettings.tsx": () => import("../components/mockups/upsell-navbar/AvatarBadgeSettings.tsx"),
   "./components/mockups/upsell-navbar/CombinedCreditsTier.tsx": () => import("../components/mockups/upsell-navbar/CombinedCreditsTier.tsx"),
   "./components/mockups/upsell-navbar/InlineTierCredits.tsx": () => import("../components/mockups/upsell-navbar/InlineTierCredits.tsx"),
-  "./components/mockups/upsell-navbar/RichCreditsButton.tsx": () => import("../components/mockups/upsell-navbar/RichCreditsButton.tsx")
+  "./components/mockups/upsell-navbar/RichCreditsButton.tsx": () => import("../components/mockups/upsell-navbar/RichCreditsButton.tsx"),
+  "./components/mockups/upgrade-experience/UpgradePricing.tsx": () => import("../components/mockups/upgrade-experience/UpgradePricing.tsx"),
+  "./components/mockups/upgrade-experience/UpgradeSuccess.tsx": () => import("../components/mockups/upgrade-experience/UpgradeSuccess.tsx")
 };
