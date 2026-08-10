@@ -1,5 +1,6 @@
 import { useNode, useEditor } from "@craftjs/core";
 import { useEffect, useRef, useContext, useCallback, createContext, useState, type CSSProperties } from "react";
+import { getMultiSelectionIds } from "./multiSelectStore";
 import {
   ALLOWED_CRAFT_COMPONENTS,
   validateCraftState,
@@ -1735,7 +1736,7 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
   }));
-  const { actions: editorActions } = useEditor(() => ({}));
+  const { actions: editorActions, query: editorQuery } = useEditor(() => ({}));
 
   const nodeIdRef = useRef(id);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -1757,6 +1758,8 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
   actionsRef.current = actions;
   const editorActionsRef = useRef(editorActions);
   editorActionsRef.current = editorActions;
+  const editorQueryRef = useRef(editorQuery);
+  editorQueryRef.current = editorQuery;
   // Live snapshot of current dimensions so resize handlers don't close over stale props
   const sizeRef = useRef({ w: Number(width) || 390, h: height != null ? Number(height) : undefined });
   sizeRef.current = { w: Number(width) || 390, h: height != null ? Number(height) : undefined };
@@ -1878,10 +1881,68 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
     const handle = (e: MouseEvent) => {
       if (isEditingLabel) return;
       e.stopPropagation();
-      // Select the artboard when its label is clicked or drag-started.
-      editorActionsRef.current.selectNode(nodeIdRef.current);
+
+      // ── Multi-artboard group drag ────────────────────────────────────────
+      // Group drag applies ONLY when the current multi-selection consists
+      // exclusively of artboards and includes this one — matching the
+      // inspector's alignment guard. Mixed artboard/component selections fall
+      // through to a normal single-artboard drag (partial group movement would
+      // be confusing). Shift+mousedown must NOT reset the selection (the user
+      // is composing it), so we only re-select on plain mousedown.
+      const selIds = Array.from(getMultiSelectionIds());
+      let groupStarts: { id: string; x: number; y: number }[] = [];
+      if (selIds.length > 1 && selIds.includes(nodeIdRef.current)) {
+        try {
+          const s = JSON.parse(editorQueryRef.current.serialize()) as Record<string, any>;
+          const validIds = selIds.filter((sid) => sid !== "ROOT" && !!s[sid]);
+          const allArtboards = validIds.length > 1 &&
+            validIds.every((sid) => s[sid]?.type?.resolvedName === "AstryxArtboard");
+          if (allArtboards) {
+            groupStarts = validIds.map((sid) => {
+              // 0 is a valid coordinate — only fall back when NaN/undefined.
+              const px = Number(s[sid].props?.x);
+              const py = Number(s[sid].props?.y);
+              return {
+                id: sid,
+                x: Number.isFinite(px) ? px : 64,
+                y: Number.isFinite(py) ? py : 64,
+              };
+            });
+          }
+        } catch { groupStarts = []; }
+      }
+      const isGroupDrag = groupStarts.length > 1;
+
+      if (!isGroupDrag && !e.shiftKey) {
+        // Select the artboard when its label is clicked or drag-started.
+        editorActionsRef.current.selectNode(nodeIdRef.current);
+      }
+
       const startMX = e.clientX;
       const startMY = e.clientY;
+
+      if (isGroupDrag) {
+        const starts = groupStarts;
+        const onMove = (ev: MouseEvent) => {
+          const z = zoomRef.current;
+          const dx = Math.round((ev.clientX - startMX) / z);
+          const dy = Math.round((ev.clientY - startMY) / z);
+          for (const st of starts) {
+            editorActionsRef.current.history.throttle(0).setProp(st.id, (p: any) => {
+              p.x = st.x + dx;
+              p.y = st.y + dy;
+            });
+          }
+        };
+        const onUp = () => {
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        return;
+      }
+
       const { x: startPX, y: startPY } = posRef.current;
       const onMove = (ev: MouseEvent) => {
         const z = zoomRef.current;

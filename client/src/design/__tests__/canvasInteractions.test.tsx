@@ -42,7 +42,7 @@ import {
  */
 function SelectionReporter() {
   const { selectedIds } = useEditor((state) => ({
-    selectedIds: [...state.events.selected] as string[],
+    selectedIds: Array.from(state.events.selected) as string[],
   }));
   return (
     <div

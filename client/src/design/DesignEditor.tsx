@@ -1,4 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
+import { partitionSelection, alignArtboardsInState, distributeArtboardsInState, pasteArtboardsInState, type AlignEdge, type DistributeAxis } from "./artboardAlignment";
+import { _multiSelRef, publishMultiSelection, useMultiSelectionIds } from "./multiSelectStore";
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
 import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -1467,6 +1469,43 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
     });
   }, [actions, equalHeightResult, selectedIds]);
 
+  // ── Multi-artboard selection detection & geometry actions ─────────────────
+  const artboardSelection = useMemo(() => {
+    let artboardCount = 0;
+    let componentCount = 0;
+    for (const id of selectedIds) {
+      const node: any = nodes[id];
+      if (!node) continue;
+      if (node.data?.displayName === "AstryxArtboard") artboardCount++;
+      else if (id !== "ROOT") componentCount++;
+    }
+    return { artboardCount, componentCount, allArtboards: artboardCount >= 2 && componentCount === 0 };
+  }, [nodes, selectedIds]);
+
+  const applyArtboardAlign = useCallback((edge: AlignEdge) => {
+    try {
+      const s = JSON.parse(query.serialize()) as Record<string, any>;
+      const next = alignArtboardsInState(s, selectedIds, edge);
+      if (next !== s) {
+        actions.deserialize(JSON.stringify(next));
+        // deserialize clears craft's selection — restore it so the user can
+        // keep acting on the same group (drag, further aligns, delete).
+        actions.selectNode(selectedIds);
+      }
+    } catch (err) { console.error("[artboard-align]", err); }
+  }, [actions, query, selectedIds]);
+
+  const applyArtboardDistribute = useCallback((axis: DistributeAxis) => {
+    try {
+      const s = JSON.parse(query.serialize()) as Record<string, any>;
+      const next = distributeArtboardsInState(s, selectedIds, axis);
+      if (next !== s) {
+        actions.deserialize(JSON.stringify(next));
+        actions.selectNode(selectedIds);
+      }
+    } catch (err) { console.error("[artboard-distribute]", err); }
+  }, [actions, query, selectedIds]);
+
   const dn = selected.displayName;
   const shortName = dn.replace("Astryx", "");
   const isFlexContainer = IS_CONTAINER.has(dn);
@@ -1792,7 +1831,70 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
             />
           </div>
 
-          {isMultiSelect && (
+          {isMultiSelect && artboardSelection.allArtboards && (
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5" data-testid="artboard-align-panel">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[10px] font-semibold text-foreground">Align artboards</span>
+                <span className="text-[9px] text-muted-foreground">{artboardSelection.artboardCount} screens</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  ["left",     "Align left edges",   <AlignHorizontalJustifyStart className="w-3.5 h-3.5" key="l" />],
+                  ["center-h", "Align horizontal centers", <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" key="ch" />],
+                  ["right",    "Align right edges",  <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" key="r" />],
+                  ["top",      "Align top edges",    <AlignVerticalJustifyStart className="w-3.5 h-3.5" key="t" />],
+                  ["center-v", "Align vertical centers", <AlignVerticalJustifyCenter className="w-3.5 h-3.5" key="cv" />],
+                  ["bottom",   "Align bottom edges", <AlignVerticalJustifyEnd className="w-3.5 h-3.5" key="b" />],
+                ] as [AlignEdge, string, ReactNode][]).map(([edge, label, icon]) => (
+                  <button
+                    key={edge}
+                    type="button"
+                    onClick={() => applyArtboardAlign(edge)}
+                    title={label}
+                    aria-label={label}
+                    data-testid={`artboard-align-${edge}`}
+                    className="flex items-center justify-center rounded-md border border-border bg-background py-1.5 text-foreground transition-colors hover:border-foreground hover:bg-accent"
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+              {artboardSelection.artboardCount >= 3 && (
+                <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => applyArtboardDistribute("horizontal")}
+                    title="Equal horizontal gaps"
+                    aria-label="Distribute artboards with equal horizontal gaps"
+                    data-testid="artboard-distribute-horizontal"
+                    className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
+                  >
+                    <AlignHorizontalSpaceBetween className="w-3.5 h-3.5" />
+                    Equal H gaps
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyArtboardDistribute("vertical")}
+                    title="Equal vertical gaps"
+                    aria-label="Distribute artboards with equal vertical gaps"
+                    data-testid="artboard-distribute-vertical"
+                    className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
+                  >
+                    <AlignVerticalSpaceBetween className="w-3.5 h-3.5" />
+                    Equal V gaps
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount > 0 && artboardSelection.componentCount > 0 && (
+            <p className="text-[9px] leading-snug text-muted-foreground rounded-lg border border-border bg-muted/30 p-2.5">
+              Selection mixes screens and elements. Select only screens to align them, or only elements for layout actions.
+            </p>
+          )}
+
+          {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount === 0 && (
             <div className="rounded-lg border border-border bg-muted/30 p-2.5">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-[10px] font-semibold text-foreground">Layout</span>
@@ -2914,24 +3016,9 @@ let _craftClipboard: { subtree: Record<string, any>; rootId: string }[] | null =
 // ─── Multi-select state ───────────────────────────────────────────────────────
 // Craft's native multi-selection (Shift+Click, configured via the Editor's
 // `handlers` prop) is the single source of truth. MultiSelectHandler mirrors
-// `state.events.selected` into this ref so module-level keyboard handlers can
-// read the full id list synchronously.
-/** Set of node IDs currently held in the multi-selection (mirrors craft state). */
-const _multiSelRef = { current: new Set<string>() };
-/** Subscribers for UI that must react to the full selection set rather than Craft's anchor node. */
-const _multiSelListeners = new Set<(ids: string[]) => void>();
-function publishMultiSelection(ids: Set<string>) {
-  const next = Array.from(ids);
-  _multiSelListeners.forEach((listener) => listener(next));
-}
-function useMultiSelectionIds(): string[] {
-  const [ids, setIds] = useState(() => Array.from(_multiSelRef.current));
-  useEffect(() => {
-    _multiSelListeners.add(setIds);
-    return () => { _multiSelListeners.delete(setIds); };
-  }, []);
-  return ids;
-}
+// `state.events.selected` into the shared multiSelectStore ref so module-level
+// keyboard handlers AND resolver.tsx (multi-artboard group drag) can read the
+// full id list synchronously. See ./multiSelectStore.ts.
 
 /** BFS-collect all node IDs in a serialized craft subtree. */
 function collectSubtreeIds(state: Record<string, any>, rootId: string): string[] {
@@ -2949,14 +3036,18 @@ function collectSubtreeIds(state: Record<string, any>, rootId: string): string[]
 }
 
 /** Deep-clone a subtree from a serialized state, assigning fresh IDs throughout. */
+/** Monotonic counter guaranteeing clone-ID uniqueness even when multiple
+ *  subtrees are extracted within the same millisecond (multi-select copy). */
+let _cloneSeq = 0;
+
 function extractNodeSubtree(
   state: Record<string, any>,
   nodeId: string,
 ): { subtree: Record<string, any>; newRootId: string } {
   const allIds = collectSubtreeIds(state, nodeId);
-  const ts = Date.now();
+  const batch = `${Date.now()}-${++_cloneSeq}`;
   const idMap: Record<string, string> = {};
-  allIds.forEach((id, i) => { idMap[id] = `node-${ts}-${i}`; });
+  allIds.forEach((id, i) => { idMap[id] = `node-${batch}-${i}`; });
   const subtree: Record<string, any> = {};
   for (const id of allIds) {
     const node = JSON.parse(JSON.stringify(state[id]));
@@ -3170,7 +3261,7 @@ function deleteNodesFromState(
   }
 
   // Remove every collected node from the state map.
-  for (const id of allToRemove) {
+  for (const id of Array.from(allToRemove)) {
     const { [id]: _removed, ...rest } = newState;
     newState = rest;
   }
@@ -3204,7 +3295,13 @@ function deleteArtboardFromEditor(
   }
 }
 
-/** Paste clipboard subtrees as siblings of selectedId (or children of ROOT). */
+/** Paste clipboard subtrees as siblings of selectedId (or children of ROOT).
+ *
+ * Artboard clipboard entries are always pasted as top-level siblings under
+ * ROOT, offset 40 px right and 40 px down from their original position so
+ * the copies are immediately visible beside the originals.
+ *
+ * Component (non-artboard) entries use the existing sibling-insertion logic. */
 function pasteFromClipboard(
   state: Record<string, any>,
   selectedId: string | null,
@@ -3212,37 +3309,56 @@ function pasteFromClipboard(
   if (!_craftClipboard) return null;
   const entries = Array.isArray(_craftClipboard) ? _craftClipboard : [_craftClipboard];
 
-  // Determine initial paste location once; slide index forward for each entry.
-  let targetParentId: string;
-  let insertAfterIdx: number;
-  if (!selectedId || selectedId === "ROOT") {
-    targetParentId = "ROOT";
-    insertAfterIdx = -1;
-  } else {
-    const selNode = state[selectedId];
-    if (!selNode) { targetParentId = "ROOT"; insertAfterIdx = -1; }
-    else {
-      targetParentId = selNode.parent ?? "ROOT";
-      const siblings: string[] = state[targetParentId]?.nodes ?? [];
-      insertAfterIdx = siblings.indexOf(selectedId);
+  // Split clipboard into artboard vs component entries based on the root node's resolvedName.
+  const artboardEntries: typeof entries = [];
+  const componentEntries: typeof entries = [];
+  for (const entry of entries) {
+    const rootNode = entry.subtree[entry.rootId];
+    if (rootNode?.type?.resolvedName === "AstryxArtboard") {
+      artboardEntries.push(entry);
+    } else {
+      componentEntries.push(entry);
     }
   }
-  if (!state[targetParentId]) return null;
 
   let currentState = state;
-  for (const entry of entries) {
-    // Re-clone with fresh IDs so repeated pastes produce distinct nodes.
-    const { subtree: srcSubtree, rootId: srcRootId } = entry;
-    const { subtree, newRootId } = extractNodeSubtree(srcSubtree, srcRootId);
-    if (!currentState[targetParentId]) break;
-    const next = insertSubtreeInState(currentState, subtree, newRootId, targetParentId, insertAfterIdx);
-    if (!next) continue;
-    currentState = next;
-    // Each subsequent node goes right after the one we just inserted.
-    const siblings: string[] = currentState[targetParentId]?.nodes ?? [];
-    insertAfterIdx = siblings.indexOf(newRootId);
+
+  // ── Paste artboards under ROOT with a 40 px offset ─────────────────────
+  if (artboardEntries.length > 0) {
+    currentState = pasteArtboardsInState(currentState, artboardEntries, 40, 40);
   }
-  return currentState;
+
+  // ── Paste components via the original sibling-insertion logic ───────────
+  if (componentEntries.length > 0) {
+    let targetParentId: string;
+    let insertAfterIdx: number;
+    if (!selectedId || selectedId === "ROOT") {
+      targetParentId = "ROOT";
+      insertAfterIdx = -1;
+    } else {
+      const selNode = currentState[selectedId];
+      if (!selNode) { targetParentId = "ROOT"; insertAfterIdx = -1; }
+      else {
+        targetParentId = selNode.parent ?? "ROOT";
+        const siblings: string[] = currentState[targetParentId]?.nodes ?? [];
+        insertAfterIdx = siblings.indexOf(selectedId);
+      }
+    }
+    if (currentState[targetParentId]) {
+      for (const entry of componentEntries) {
+        const { subtree: srcSubtree, rootId: srcRootId } = entry;
+        const { subtree, newRootId } = extractNodeSubtree(srcSubtree, srcRootId);
+        if (!currentState[targetParentId]) break;
+        const next = insertSubtreeInState(currentState, subtree, newRootId, targetParentId, insertAfterIdx);
+        if (!next) continue;
+        currentState = next;
+        const siblings: string[] = currentState[targetParentId]?.nodes ?? [];
+        insertAfterIdx = siblings.indexOf(newRootId);
+      }
+    }
+  }
+
+  return currentState === state ? null : currentState;
 }
 
 // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
@@ -3278,13 +3394,18 @@ function KeyboardHandler() {
       const isMulti = multiIds.size > 1;
 
       // ── Helpers to resolve the effective target set ───────────────────────
-      /** Non-ROOT, non-artboard IDs from the multi-select set (or single selection). */
-      const resolveTargets = (state: Record<string, any>): string[] => {
+      /** All valid non-ROOT IDs from the multi-select set (or single selection).
+       *  Artboards ARE now included so multi-select can act on them. */
+      const resolveAllTargets = (state: Record<string, any>): string[] => {
         const candidates = isMulti ? Array.from(multiIds) : (id ? [id] : []);
-        return candidates.filter(nid => {
-          if (!nid || nid === "ROOT" || !state[nid]) return false;
-          return state[nid]?.data?.displayName !== "AstryxArtboard";
-        });
+        return candidates.filter(nid => !(!nid || nid === "ROOT" || !state[nid]));
+      };
+
+      /** Non-ROOT, non-artboard IDs only — for component-specific actions (cut). */
+      const resolveComponentTargets = (state: Record<string, any>): string[] => {
+        return resolveAllTargets(state).filter(
+          nid => state[nid]?.type?.resolvedName !== "AstryxArtboard",
+        );
       };
 
       // ── Delete / Backspace ────────────────────────────────────────────────
@@ -3292,8 +3413,9 @@ function KeyboardHandler() {
         if (isMulti) {
           e.preventDefault();
           try {
-            const s = JSON.parse(queryRef.current.serialize());
-            const targets = resolveTargets(s);
+            const raw = JSON.parse(queryRef.current.serialize());
+            const s = repairCraftState(raw) as Record<string, any>;
+            const targets = resolveAllTargets(s);
             if (targets.length === 0) return;
             const next = deleteNodesFromState(s, targets);
             actionsRef.current.deserialize(JSON.stringify(next));
@@ -3323,7 +3445,8 @@ function KeyboardHandler() {
           try {
             const s = JSON.parse(queryRef.current.serialize());
             if (isMulti) {
-              const targets = resolveTargets(s);
+              // Copy all targets — artboards and components alike
+              const targets = resolveAllTargets(s);
               copyNodesToClipboard(s, targets);
             } else {
               if (!id || id === "ROOT") return;
@@ -3333,13 +3456,14 @@ function KeyboardHandler() {
           return;
         }
 
-        // ── Cut — not for artboards ───────────────────────────────────────────
+        // ── Cut — artboards excluded (cut-delete is destructive; prefer Ctrl+X on components)
         if (k === "x") {
           e.preventDefault();
           try {
             const s = JSON.parse(queryRef.current.serialize());
             if (isMulti) {
-              const targets = resolveTargets(s);
+              // Cut only non-artboard nodes; artboards stay (no accidental mass-delete)
+              const targets = resolveComponentTargets(s);
               if (targets.length === 0) return;
               if (copyNodesToClipboard(s, targets)) {
                 const next = deleteNodesFromState(s, targets);
@@ -5495,4 +5619,4 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   );
 }
 
-export { createEmptyCraftState, deleteNodesFromState };
+export { createEmptyCraftState, deleteNodesFromState, extractNodeSubtree, copyNodesToClipboard, pasteFromClipboard };
