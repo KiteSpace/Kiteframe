@@ -310,6 +310,25 @@ export function repairCraftState(state: unknown): unknown {
     }
   }
 
+  // ── isCanvas enforcement for AstryxArtboard ──────────────────────────────
+  // Craft.js reads `isCanvas` from the stored node state (not from the
+  // component's static .craft config) to decide whether children are rendered
+  // inside a node. If `isCanvas` is absent or false on an AstryxArtboard, the
+  // canvas shows a tiny blank "Container" box even though the children exist
+  // in the node map and appear in the layers panel. This happens when designs
+  // are generated externally (workflow-bridge, etc.) and the generator omits
+  // the field. Enforce it here so every AstryxArtboard is always a canvas
+  // container, which is the only valid semantic for that component type.
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+    if (resolvedName === "AstryxArtboard" && n["isCanvas"] !== true) {
+      console.warn(`[repairCraftState] Enforcing isCanvas:true on AstryxArtboard node "${nodeId}"`);
+      map[nodeId] = { ...n, isCanvas: true };
+    }
+  }
+
   // ── Artboard enforcement ─────────────────────────────────────────────────
   // ROOT's direct children must be AstryxArtboard nodes. If the AI emits
   // ROOT → AstryxSection/Stack/etc → content (omitting the artboard wrapper),

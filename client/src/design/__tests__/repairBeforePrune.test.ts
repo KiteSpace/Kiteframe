@@ -194,3 +194,81 @@ describe("hydration repair of ROOT mis-typed as AstryxArtboard (blank undeletabl
     expect(repaired.ab1.props.label).toBe("Home");
   });
 });
+
+describe("isCanvas enforcement (workflow-bridge blank canvas regression)", () => {
+  /** Simulates a craft state produced by an external generator that omits
+   *  isCanvas on artboard nodes — the exact pattern seen in workflow-bridge
+   *  designs that render as blank "Container" boxes on the canvas. */
+  function workflowBridgeState() {
+    return {
+      ROOT: {
+        type: { resolvedName: "AstryxSection" },
+        isCanvas: true,
+        props: {},
+        nodes: ["artboard-pattern", "artboard-preview"],
+        linkedNodes: {},
+        parent: null,
+      },
+      "artboard-pattern": {
+        type: { resolvedName: "AstryxArtboard" },
+        // isCanvas intentionally absent — the bug
+        props: { label: "Pattern Selection" },
+        parent: "ROOT",
+        nodes: ["heading-1", "button-1"],
+        linkedNodes: {},
+      },
+      "artboard-preview": {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: false, // explicitly false — also the bug
+        props: { label: "Preview & Configuration" },
+        parent: "ROOT",
+        nodes: ["heading-2"],
+        linkedNodes: {},
+      },
+      "heading-1": { type: { resolvedName: "AstryxHeading" }, props: { text: "Choose a Pattern" }, parent: "artboard-pattern", nodes: [], linkedNodes: {} },
+      "button-1":  { type: { resolvedName: "AstryxButton" },  props: { label: "Select" },          parent: "artboard-pattern", nodes: [], linkedNodes: {} },
+      "heading-2": { type: { resolvedName: "AstryxHeading" }, props: { text: "Preview" },           parent: "artboard-preview", nodes: [], linkedNodes: {} },
+    };
+  }
+
+  it("sets isCanvas:true on artboard nodes that are missing the field", () => {
+    const repaired = repairCraftState(workflowBridgeState()) as any;
+    expect(repaired["artboard-pattern"].isCanvas).toBe(true);
+  });
+
+  it("sets isCanvas:true on artboard nodes where isCanvas was explicitly false", () => {
+    const repaired = repairCraftState(workflowBridgeState()) as any;
+    expect(repaired["artboard-preview"].isCanvas).toBe(true);
+  });
+
+  it("does not change isCanvas on non-artboard nodes", () => {
+    const repaired = repairCraftState(workflowBridgeState()) as any;
+    // heading and button nodes should not gain isCanvas
+    expect(repaired["heading-1"].isCanvas).toBeUndefined();
+    expect(repaired["button-1"].isCanvas).toBeUndefined();
+    expect(repaired["heading-2"].isCanvas).toBeUndefined();
+  });
+
+  it("preserves all other artboard props after the isCanvas fix", () => {
+    const repaired = repairCraftState(workflowBridgeState()) as any;
+    expect(repaired["artboard-pattern"].props.label).toBe("Pattern Selection");
+    expect(repaired["artboard-pattern"].nodes).toEqual(["heading-1", "button-1"]);
+    expect(repaired["artboard-pattern"].parent).toBe("ROOT");
+  });
+
+  it("works end-to-end via the JSON wrapper", () => {
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(workflowBridgeState()))) as any;
+    expect(repaired["artboard-pattern"].isCanvas).toBe(true);
+    expect(repaired["artboard-preview"].isCanvas).toBe(true);
+  });
+
+  it("already-correct artboards (isCanvas:true) are left unchanged", () => {
+    const state = {
+      ROOT: { type: { resolvedName: "AstryxSection" }, isCanvas: true, props: {}, nodes: ["ab1"], linkedNodes: {}, parent: null },
+      ab1: { type: { resolvedName: "AstryxArtboard" }, isCanvas: true, props: { label: "Good" }, parent: "ROOT", nodes: [], linkedNodes: {} },
+    };
+    const repaired = repairCraftState(state) as any;
+    expect(repaired.ab1.isCanvas).toBe(true);
+    expect(repaired.ab1.props.label).toBe("Good");
+  });
+});

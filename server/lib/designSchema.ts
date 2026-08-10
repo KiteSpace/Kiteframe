@@ -318,6 +318,22 @@ export function repairCraftState(state: unknown): unknown {
     };
   }
 
+  // ── isCanvas enforcement for AstryxArtboard ──────────────────────────────
+  // Craft.js reads `isCanvas` from the stored node state to decide whether a
+  // node renders its children. If absent or false on an AstryxArtboard, the
+  // canvas shows a blank "Container" box even though children exist and the
+  // layers panel shows them correctly. Enforce the field here so designs saved
+  // via the workflow-bridge or any external path always have a valid value.
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+    if (resolvedName === "AstryxArtboard" && n["isCanvas"] !== true) {
+      console.warn(`[repairCraftState] Enforcing isCanvas:true on AstryxArtboard node "${nodeId}"`);
+      map[nodeId] = { ...n, isCanvas: true };
+    }
+  }
+
   // ── Orphan reattachment (mirrors client craftValidator.repairCraftState) ──
   // The AI sometimes emits nodes (including whole artboard subtrees) whose
   // `parent` field is set but which are missing from that parent's `nodes`
