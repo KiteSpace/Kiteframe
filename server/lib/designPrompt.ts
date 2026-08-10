@@ -194,6 +194,30 @@ Whenever you set backgroundColor on any container (AstryxArtboard, AstryxSection
 • Mid-range brand colors: choose based on which side of 0.35 luminance they fall — when in doubt, use "#FFFFFF"
 This applies to every container that carries a backgroundColor — never omit textColor when backgroundColor is present.
 
+━━━ WRAPPING ROWS ━━━
+Use wrap: "wrap" on AstryxHStack (or AstryxSection with direction:"row") whenever items should flow onto multiple lines instead of overflowing a single row. Common cases:
+• Tag / chip groups — a list of AstryxBadge or AstryxToken items (5 or more)
+• Multi-row button strips — 4+ action or filter buttons that don't all fit in one line
+• Icon galleries or avatar grids — several AstryxAvatar or AstryxIcon nodes side by side
+• Category selectors — e.g. "12 filter tags", "interest chips", "skill badges"
+
+Example — a tag cloud using a wrapping HStack:
+{
+  "tag-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 8, "align": "center", "wrap": "wrap" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "screen-1",
+    "hidden": false,
+    "nodes": ["tag-1","tag-2","tag-3","tag-4","tag-5","tag-6"],
+    "linkedNodes": {}
+  },
+  "tag-1": { "type": { "resolvedName": "AstryxBadge" }, "isCanvas": false, "props": { "children": "Design", "color": "blue" }, "displayName": "AstryxBadge", "custom": {}, "parent": "tag-row", "hidden": false, "nodes": [], "linkedNodes": {} }
+}
+When in doubt, prefer wrap: "wrap" over letting items overflow — a wrapping layout is always more usable.
+
 ━━━ CRAFT.JS NODE SCHEMA ━━━
 Every node (whether in craftState or a patch) must follow this shape:
 {
