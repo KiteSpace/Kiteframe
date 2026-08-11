@@ -6,3 +6,4 @@
 - [Browser e2e behind sign-in](browser-e2e-auth-bypass.md) — forge a connect.sid session cookie + nix chromium + playwright-core to drive the auth-gated editor; scripts/e2e-*.mjs are reusable.
 - [Repair before pruning craft states](craft-repair-before-prune.md) — always repairCraftState before reachability pruning, or orphaned-but-valid artboards get deleted (blank canvas); empty ghosts still prune.
 - [AstryxCard is a full container](astryx-card-container.md) — craft.js isCanvas must be set in the component's static craft config AND the AI prompt must agree; if only one side is set, AI-generated nodes silently become non-droppable.
+- [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.

@@ -248,7 +248,10 @@ function useLeafNode() {
     nodeFlexShrink: node.data.props?.flexShrink as number | undefined,
     nodeFlexBasis:  node.data.props?.flexBasis  as number | undefined,
   }));
-  const { query } = useEditor(() => ({}));
+  // Also pull the full editor actions so the resize handler can call
+  // actions.history.ignore().setProp(...) to update the canvas during a drag
+  // without recording each intermediate position in the undo stack.
+  const { query, actions: editorActions } = useEditor(() => ({}));
 
   const isAbsolute = nodePosition === "absolute";
   const isFullWidth = FULL_WIDTH_LEAF.has(displayName);
@@ -264,8 +267,22 @@ function useLeafNode() {
   const handleNERef = useRef<HTMLDivElement | null>(null);
   const handleSWRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
-  const stateRef = useRef({ x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp });
-  stateRef.current = { x: nodeX, y: nodeY, zoom, isAbsolute, setProp: actions.setProp };
+  // stateRef is read inside native event handlers (no closure over props).
+  // setProp is the node-scoped action (used for drag-to-move and the final commit on resize).
+  // editorSetProp is the editor-scoped action that supports history.ignore() and is used
+  // for live intermediate updates during resize so each mousemove doesn't create an undo entry.
+  const stateRef = useRef({
+    x: nodeX, y: nodeY, zoom, isAbsolute,
+    setProp: actions.setProp,
+    editorSetProp: (nodeId: string, cb: (p: any) => void) => editorActions.history.ignore().setProp(nodeId, cb),
+    editorSetPropCommit: (nodeId: string, cb: (p: any) => void) => editorActions.setProp(nodeId, cb),
+  });
+  stateRef.current = {
+    x: nodeX, y: nodeY, zoom, isAbsolute,
+    setProp: actions.setProp,
+    editorSetProp: (nodeId: string, cb: (p: any) => void) => editorActions.history.ignore().setProp(nodeId, cb),
+    editorSetPropCommit: (nodeId: string, cb: (p: any) => void) => editorActions.setProp(nodeId, cb),
+  };
   // Live size snapshot so resize handlers don't close over stale props.
   const sizeRef = useRef({
     w: nodeWidth != null && nodeWidth !== "auto" ? Number(nodeWidth) : undefined,
@@ -317,6 +334,12 @@ function useLeafNode() {
 
   // Stable factory for all 8 resize directions — reads live values via refs.
   // n/w directions also shift x/y so the opposite edge stays fixed (absolute nodes only).
+  //
+  // History strategy: intermediate moves use history.ignore() so every pixel-step
+  // does NOT create an undo entry.  On pointer-up a single plain setProp() commits
+  // the final size — one undo step for the entire drag gesture, no matter how many
+  // mousemove events fired in between.  Gestures that produce no net change (click
+  // without drag, or drag back to origin) skip the final commit entirely.
   type ResizeDir8 = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
   const makeResizeHandler = useCallback((dir: ResizeDir8) => (e: MouseEvent) => {
     e.stopPropagation();
@@ -332,40 +355,71 @@ function useLeafNode() {
     // Capture start position so n/w handlers can shift x/y to keep the opposite edge fixed.
     const startPX = stateRef.current.x;
     const startPY = stateRef.current.y;
-    const onMove = (ev: MouseEvent) => {
-      const { zoom: cz, setProp, isAbsolute } = stateRef.current;
+
+    // Track whether the pointer has moved at all so no-op gestures add no entry.
+    let didMove = false;
+    // Cache the last computed values so pointer-up can commit them exactly once.
+    let lastW = startW, lastH = startH, lastPX = startPX, lastPY = startPY;
+
+    /** Compute the new dimensions for the current mouse position. */
+    const compute = (ev: MouseEvent, cz: number, isAbsolute: boolean) => {
       const dw = (ev.clientX - startMouseX) / cz;
       const dh = (ev.clientY - startMouseY) / cz;
-      setProp((p: any) => {
-        // East: right edge moves → width grows rightward
-        if (dir === "e" || dir === "se" || dir === "ne") {
-          p.width = Math.max(20, Math.round(startW + dw));
-          clearFlexSizingProps(p);
-        }
-        // South: bottom edge moves → height grows downward
-        if (dir === "s" || dir === "se" || dir === "sw") {
-          p.height = Math.max(20, Math.round(startH + dh));
-          clearFlexSizingProps(p);
-        }
-        // West: left edge moves → width grows leftward, x shifts right stays fixed
-        if (dir === "w" || dir === "nw" || dir === "sw") {
-          const newW = Math.max(20, Math.round(startW - dw));
-          p.width = newW;
-          clearFlexSizingProps(p);
-          if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
-        }
-        // North: top edge moves → height grows upward, y shifts so bottom stays fixed
-        if (dir === "n" || dir === "nw" || dir === "ne") {
-          const newH = Math.max(20, Math.round(startH - dh));
-          p.height = newH;
-          clearFlexSizingProps(p);
-          if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
-        }
+      const out = { w: lastW, h: lastH, px: startPX, py: startPY };
+      if (dir === "e" || dir === "se" || dir === "ne") out.w = Math.max(20, Math.round(startW + dw));
+      if (dir === "s" || dir === "se" || dir === "sw") out.h = Math.max(20, Math.round(startH + dh));
+      if (dir === "w" || dir === "nw" || dir === "sw") {
+        out.w = Math.max(20, Math.round(startW - dw));
+        if (isAbsolute) out.px = Math.round(startPX + (startW - out.w));
+      }
+      if (dir === "n" || dir === "nw" || dir === "ne") {
+        out.h = Math.max(20, Math.round(startH - dh));
+        if (isAbsolute) out.py = Math.round(startPY + (startH - out.h));
+      }
+      return out;
+    };
+
+    const nid = nodeIdRef.current;
+    const onMove = (ev: MouseEvent) => {
+      const { zoom: cz, isAbsolute, editorSetProp } = stateRef.current;
+      const { w, h, px, py } = compute(ev, cz, isAbsolute);
+      lastW = w; lastH = h; lastPX = px; lastPY = py;
+      didMove = true;
+      // Update the canvas live without recording a history entry.
+      editorSetProp(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") { p.width = w; clearFlexSizingProps(p); }
+        if (dir === "s" || dir === "se" || dir === "sw") { p.height = h; clearFlexSizingProps(p); }
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = w; clearFlexSizingProps(p); if (isAbsolute) p.x = px; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = h; clearFlexSizingProps(p); if (isAbsolute) p.y = py; }
       });
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      if (!didMove) return; // no-op drag — don't pollute history
+      const { isAbsolute, editorSetProp, editorSetPropCommit } = stateRef.current;
+      const changed =
+        lastW !== startW || lastH !== startH ||
+        (isAbsolute && (lastPX !== startPX || lastPY !== startPY));
+      if (!changed) return; // dragged back to origin — still no-op
+      // The props already hold the final values (from the last ignored move), so a
+      // plain setProp would produce empty immer patches and craft.js History.add()
+      // silently skips empty patches — no undo entry would be recorded.  Revert to
+      // the start values (still ignored) first, then commit the final values once.
+      // Both run synchronously in this handler, so nothing flickers on screen.
+      editorSetProp(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = startW;
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = startH;
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = startW; if (isAbsolute) p.x = startPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = startH; if (isAbsolute) p.y = startPY; }
+      });
+      // Commit the final state once as a single undoable history entry.
+      editorSetPropCommit(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") { p.width = lastW; clearFlexSizingProps(p); }
+        if (dir === "s" || dir === "se" || dir === "sw") { p.height = lastH; clearFlexSizingProps(p); }
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = lastW; clearFlexSizingProps(p); if (isAbsolute) p.x = lastPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = lastH; clearFlexSizingProps(p); if (isAbsolute) p.y = lastPY; }
+      });
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -615,7 +669,9 @@ function useContainerNode(position: string, x: number, y: number) {
   }));
 
   // Detect whether any node is currently being dragged in the editor.
-  const { query, isDragging } = useEditor((state) => ({
+  // Editor-scoped actions are needed for history.ignore() during resize —
+  // the node-scoped setProp cannot skip history entries.
+  const { query, isDragging, actions: editorActions } = useEditor((state) => ({
     isDragging: state.events.dragged.size > 0,
   }));
 
@@ -627,6 +683,8 @@ function useContainerNode(position: string, x: number, y: number) {
   const dragStartRef = useRef<{ mx: number; my: number; sx: number; sy: number } | null>(null);
   const stateRef = useRef({ x, y, zoom, isAbsolute, setProp: actions.setProp });
   stateRef.current = { x, y, zoom, isAbsolute, setProp: actions.setProp };
+  const editorActionsRef = useRef(editorActions);
+  editorActionsRef.current = editorActions;
   const queryRef = useRef(query);
   queryRef.current = query;
   const setGuidesRef = useRef(setGuides);
@@ -688,6 +746,10 @@ function useContainerNode(position: string, x: number, y: number) {
     h: nodeHeight != null && nodeHeight !== "auto" ? Number(nodeHeight) : undefined,
   };
 
+  // History strategy (same as useLeafNode): intermediate moves use
+  // history.ignore() so pixel-steps don't create undo entries; pointer-up
+  // reverts to start (ignored) then commits the final values once → one
+  // undoable step per drag gesture.  No-op gestures add nothing.
   type ResizeDir8 = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
   const makeResizeHandler = useCallback((dir: ResizeDir8) => (e: MouseEvent) => {
     e.stopPropagation();
@@ -699,36 +761,64 @@ function useContainerNode(position: string, x: number, y: number) {
     const startH = sizeRef.current.h ?? Math.round((elementRef.current?.getBoundingClientRect().height ?? 100) / z);
     const startPX = stateRef.current.x;
     const startPY = stateRef.current.y;
-    const onMove = (ev: MouseEvent) => {
-      const { zoom: cz, setProp, isAbsolute } = stateRef.current;
+
+    let didMove = false;
+    let lastW = startW, lastH = startH, lastPX = startPX, lastPY = startPY;
+
+    const compute = (ev: MouseEvent, cz: number, isAbsolute: boolean) => {
       const dw = (ev.clientX - startMouseX) / cz;
       const dh = (ev.clientY - startMouseY) / cz;
-      setProp((p: any) => {
-        if (dir === "e" || dir === "se" || dir === "ne") {
-          p.width = Math.max(20, Math.round(startW + dw));
-          clearFlexSizingProps(p);
-        }
-        if (dir === "s" || dir === "se" || dir === "sw") {
-          p.height = Math.max(20, Math.round(startH + dh));
-          clearFlexSizingProps(p);
-        }
-        if (dir === "w" || dir === "nw" || dir === "sw") {
-          const newW = Math.max(20, Math.round(startW - dw));
-          p.width = newW;
-          clearFlexSizingProps(p);
-          if (isAbsolute) p.x = Math.round(startPX + (startW - newW));
-        }
-        if (dir === "n" || dir === "nw" || dir === "ne") {
-          const newH = Math.max(20, Math.round(startH - dh));
-          p.height = newH;
-          clearFlexSizingProps(p);
-          if (isAbsolute) p.y = Math.round(startPY + (startH - newH));
-        }
+      const out = { w: lastW, h: lastH, px: startPX, py: startPY };
+      if (dir === "e" || dir === "se" || dir === "ne") out.w = Math.max(20, Math.round(startW + dw));
+      if (dir === "s" || dir === "se" || dir === "sw") out.h = Math.max(20, Math.round(startH + dh));
+      if (dir === "w" || dir === "nw" || dir === "sw") {
+        out.w = Math.max(20, Math.round(startW - dw));
+        if (isAbsolute) out.px = Math.round(startPX + (startW - out.w));
+      }
+      if (dir === "n" || dir === "nw" || dir === "ne") {
+        out.h = Math.max(20, Math.round(startH - dh));
+        if (isAbsolute) out.py = Math.round(startPY + (startH - out.h));
+      }
+      return out;
+    };
+
+    const nid = nodeIdRef.current;
+    const onMove = (ev: MouseEvent) => {
+      const { zoom: cz, isAbsolute } = stateRef.current;
+      const { w, h, px, py } = compute(ev, cz, isAbsolute);
+      lastW = w; lastH = h; lastPX = px; lastPY = py;
+      didMove = true;
+      editorActionsRef.current.history.ignore().setProp(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") { p.width = w; clearFlexSizingProps(p); }
+        if (dir === "s" || dir === "se" || dir === "sw") { p.height = h; clearFlexSizingProps(p); }
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = w; clearFlexSizingProps(p); if (isAbsolute) p.x = px; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = h; clearFlexSizingProps(p); if (isAbsolute) p.y = py; }
       });
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      if (!didMove) return;
+      const { isAbsolute } = stateRef.current;
+      const changed =
+        lastW !== startW || lastH !== startH ||
+        (isAbsolute && (lastPX !== startPX || lastPY !== startPY));
+      if (!changed) return;
+      // Revert to start (ignored) so the commit below produces real patches —
+      // craft.js History.add() skips empty patch sets.
+      editorActionsRef.current.history.ignore().setProp(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = startW;
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = startH;
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = startW; if (isAbsolute) p.x = startPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = startH; if (isAbsolute) p.y = startPY; }
+      });
+      // Commit once — the single undoable history entry for the whole gesture.
+      editorActionsRef.current.setProp(nid, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") { p.width = lastW; clearFlexSizingProps(p); }
+        if (dir === "s" || dir === "se" || dir === "sw") { p.height = lastH; clearFlexSizingProps(p); }
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = lastW; clearFlexSizingProps(p); if (isAbsolute) p.x = lastPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = lastH; clearFlexSizingProps(p); if (isAbsolute) p.y = lastPY; }
+      });
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -1793,6 +1883,11 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
   // Returns a native mousedown handler for a resize direction (all 8 compass directions).
   // n/w directions adjust position (x/y) so the opposite edge stays fixed.
   // Uses native MouseEvent so the handler fires before craft.js's listener on the frame.
+  //
+  // History strategy: intermediate moves use history.ignore() so every pixel-step
+  // does NOT create an undo entry.  On pointer-up a single plain setProp() commits
+  // the final size — one undo step for the entire drag gesture.  No-op gestures
+  // (click-without-drag, or drag back to origin) add no history entry at all.
   type ArtboardResizeDir = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
   const makeResizeHandler = useCallback((dir: ArtboardResizeDir) => (e: MouseEvent) => {
     e.stopPropagation();
@@ -1806,36 +1901,67 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
     const startPX = posRef.current.x;
     const startPY = posRef.current.y;
 
-    const onMove = (ev: MouseEvent) => {
-      const z = zoomRef.current;
+    let didMove = false;
+    let lastW = startW, lastH = startH, lastPX = startPX, lastPY = startPY;
+
+    /** Compute new dimensions for the current mouse position. */
+    const compute = (ev: MouseEvent, z: number) => {
       const dw = (ev.clientX - startMouseX) / z;
       const dh = (ev.clientY - startMouseY) / z;
-      actionsRef.current.setProp((p: any) => {
-        // East: right edge expands
-        if (dir === "e" || dir === "se" || dir === "ne") {
-          p.width = Math.max(100, Math.round(startW + dw));
-        }
-        // South: bottom edge expands
-        if (dir === "s" || dir === "se" || dir === "sw") {
-          p.height = Math.max(100, Math.round(startH + dh));
-        }
-        // West: left edge moves; x shifts so right edge is fixed
-        if (dir === "w" || dir === "nw" || dir === "sw") {
-          const newW = Math.max(100, Math.round(startW - dw));
-          p.width = newW;
-          p.x = Math.round(startPX + (startW - newW));
-        }
-        // North: top edge moves; y shifts so bottom edge is fixed
-        if (dir === "n" || dir === "nw" || dir === "ne") {
-          const newH = Math.max(100, Math.round(startH - dh));
-          p.height = newH;
-          p.y = Math.round(startPY + (startH - newH));
-        }
+      const out = { w: lastW, h: lastH, px: startPX, py: startPY };
+      if (dir === "e" || dir === "se" || dir === "ne") out.w = Math.max(100, Math.round(startW + dw));
+      if (dir === "s" || dir === "se" || dir === "sw") out.h = Math.max(100, Math.round(startH + dh));
+      if (dir === "w" || dir === "nw" || dir === "sw") {
+        out.w = Math.max(100, Math.round(startW - dw));
+        out.px = Math.round(startPX + (startW - out.w));
+      }
+      if (dir === "n" || dir === "nw" || dir === "ne") {
+        out.h = Math.max(100, Math.round(startH - dh));
+        out.py = Math.round(startPY + (startH - out.h));
+      }
+      return out;
+    };
+
+    const onMove = (ev: MouseEvent) => {
+      const z = zoomRef.current;
+      const { w, h, px, py } = compute(ev, z);
+      lastW = w; lastH = h; lastPX = px; lastPY = py;
+      didMove = true;
+      // Update live without recording a history entry (editor-scoped actions
+      // expose history.ignore(); the node-scoped setProp does not).
+      editorActionsRef.current.history.ignore().setProp(nodeIdRef.current, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = w;
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = h;
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = w; p.x = px; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = h; p.y = py; }
       });
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      if (!didMove) return;
+      const changed =
+        lastW !== startW || lastH !== startH ||
+        lastPX !== startPX || lastPY !== startPY;
+      if (!changed) return;
+      // The props already hold the final values (from the last ignored move), so a
+      // plain setProp would produce empty immer patches and craft.js History.add()
+      // silently skips empty patches — no undo entry would be recorded.  Revert to
+      // the start values (still ignored) first, then commit the final values once.
+      // Both run synchronously here, so nothing flickers on screen.
+      editorActionsRef.current.history.ignore().setProp(nodeIdRef.current, (p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = startW;
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = startH;
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = startW; p.x = startPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = startH; p.y = startPY; }
+      });
+      // Commit once as a single undoable history entry.
+      actionsRef.current.setProp((p: any) => {
+        if (dir === "e" || dir === "se" || dir === "ne") p.width = lastW;
+        if (dir === "s" || dir === "se" || dir === "sw") p.height = lastH;
+        if (dir === "w" || dir === "nw" || dir === "sw") { p.width = lastW; p.x = lastPX; }
+        if (dir === "n" || dir === "nw" || dir === "ne") { p.height = lastH; p.y = lastPY; }
+      });
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
