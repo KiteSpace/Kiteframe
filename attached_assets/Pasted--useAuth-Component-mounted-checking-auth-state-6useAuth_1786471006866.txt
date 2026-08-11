@@ -1,0 +1,35 @@
+🔐 useAuth: Component mounted, checking auth state...
+6useAuth-BFf852Q1.js:1940 🔄 Auth state changed: No user
+6useAuth-BFf852Q1.js:1940 ℹ️ No redirect result found
+KiteFrameCanvas-BtQAaONo.js:147 Plugin "advanced-interactions-pro" is already installed, replacing...
+use @ KiteFrameCanvas-BtQAaONo.js:147
+useAuth-BFf852Q1.js:1940 🔐 useAuth: Component mounted, checking auth state...
+KiteAIChat-D91veUYT.js:423 [Phase7] Workflow context: Object
+useAuth-BFf852Q1.js:1940 🔄 Auth state changed: No user
+useAuth-BFf852Q1.js:1940 ℹ️ No redirect result found
+KiteAIChat-D91veUYT.js:448 [KiteAIChat] Checking PromptContextStore attachments (with prompt): Object
+KiteAIChat-D91veUYT.js:408 [KiteAI] state=execution-ready score=5 confidence=1 (was: clarification)
+KiteAIChat-D91veUYT.js:408 [KiteAI] execution-ready
+KiteAIChat-D91veUYT.js:408 [KiteAI] reason: Actionability threshold met (score=5, confidence=1)
+KiteAIChat-D91veUYT.js:408 [KiteAI] vague replies: 0
+KiteAIChat-D91veUYT.js:448 [Phase7] Surface: home | State: execution-ready | Score: 5 | Confidence: 1.00
+KiteAIChat-D91veUYT.js:448 [KiteAIChat] Image attachment check: Object
+KiteAIChat-D91veUYT.js:466 [AiStabilization] Baseline captured: Object
+KiteAIChat-D91veUYT.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for workflow_reasoning
+KiteAIChat-D91veUYT.js:211 [AIRouter] Request started: Object
+KiteAIChat-D91veUYT.js:211 [AIRouter] Request completed: Object
+KiteAIChat-D91veUYT.js:468 [Phase6.5] MergeBranch decision: branch → resolved: branch | confidence: 1.00 | signals: no-existing-workflow
+KiteAIChat-D91veUYT.js:468 [AiStabilization] Skipping guardrails - HOME proposal phase (baseline generation)
+index-BS72Hjtt.js:198 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-BS72Hjtt.js:198
+6useAuth-BFf852Q1.js:1940 🔐 useAuth: Component mounted, checking auth state...
+6useAuth-BFf852Q1.js:1940 🔄 Auth state changed: No user
+6useAuth-BFf852Q1.js:1940 ℹ️ No redirect result found
+KiteFrameCanvas-BtQAaONo.js:147 Plugin "advanced-interactions-pro" is already installed, replacing...
+use @ KiteFrameCanvas-BtQAaONo.js:147
+DesignPage-BTR6RWUH.js:108 [sanitizeCraftState] Replacing unknown component "Root" on node "ROOT" with AstryxUnknown
+qe @ DesignPage-BTR6RWUH.js:108
+DesignPage-BTR6RWUH.js:116 [artboard-trace] hydrate: raw from DB Objectartboards: Array(5)0: {id: 'artboard-fleet', label: 'Navigate to Fleet Management', parent: 'ROOT', childCount: 3, inRootNodes: true, …}1: {id: 'artboard-adjust', label: 'Adjust Time Window', parent: 'ROOT', childCount: 6, inRootNodes: true, …}2: {id: 'artboard-details', label: 'View Asset Details', parent: 'ROOT', childCount: 4, inRootNodes: true, …}3: {id: 'artboard-checkout', label: 'Immediate Checkout', parent: 'ROOT', childCount: 5, inRootNodes: true, …}4: {id: 'artboard-schedule', label: 'Select Time Window', parent: 'ROOT', childCount: 6, inRootNodes: true, …}length: 5[[Prototype]]: Array(0)designId: "9b5342b6-e055-41b1-b54f-d16925e61415"disconnectedArtboardIds: []rootNodes: (5) ['artboard-fleet', 'artboard-checkout', 'artboard-schedule', 'artboard-adjust', 'artboard-details']source: "workflow-bridge"totalNodes: 50[[Prototype]]: Object
+DesignPage-BTR6RWUH.js:116 [artboard-trace] hydrate: after sanitize+repair Objectartboards: Array(5)0: {id: 'artboard-fleet', label: 'Navigate to Fleet Management', parent: 'ROOT', childCount: 3, inRootNodes: true, …}1: {id: 'artboard-adjust', label: 'Adjust Time Window', parent: 'ROOT', childCount: 6, inRootNodes: true, …}2: {id: 'artboard-details', label: 'View Asset Details', parent: 'ROOT', childCount: 4, inRootNodes: true, …}3: {id: 'artboard-checkout', label: 'Immediate Checkout', parent: 'ROOT', childCount: 5, inRootNodes: true, …}4: {id: 'artboard-schedule', label: 'Select Time Window', parent: 'ROOT', childCount: 6, inRootNodes: true, …}length: 5[[Prototype]]: Array(0)disconnectedArtboardIds: []rootNodes: (5) ['artboard-fleet', 'artboard-checkout', 'artboard-schedule', 'artboard-adjust', 'artboard-details']totalNodes: 50[[Prototype]]: Object
+DesignPage-BTR6RWUH.js:116 [artboard-trace] hydrate: disconnected detected Array(0)length: 0[[Prototype]]: Array(0)
+DesignPage-BTR6RWUH.js:116 [artboard-trace] hydrate: final (after prune) 
