@@ -419,6 +419,8 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
           onSave={canEdit ? handleSave : undefined}
           onBeforeUnloadSave={canEdit ? handleBeforeUnloadSave : undefined}
           onNotesChange={canEdit ? handleNotesChange : undefined}
+          designId={design.id}
+          currentUserId={currentUserId}
         />
       </div>
     </div>

@@ -5,6 +5,15 @@ import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftj
 import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import {
+  readDesignChat,
+  saveDesignChat,
+  subscribeDesignChat,
+  adoptPendingDesignTranscript,
+  type TranscriptEntry,
+  type DesignPreview,
+} from "@/lib/kiteaiTranscript";
+import { DesignProjectThumbnail } from "@/components/DesignProjectThumbnail";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -4250,7 +4259,87 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
 
 // ─── AI drawer (right rail, collapsible) ─────────────────────────────────────
 
-interface AIMessage { role: "ai" | "user"; text: string; pinnedElement?: PinnedElement | null; imagePreview?: string; }
+interface AIMessage {
+  role: "ai" | "user";
+  text: string;
+  pinnedElement?: PinnedElement | null;
+  imagePreview?: string;
+  /** Stable identity, required to persist and to merge across tabs. */
+  id?: string;
+  /** Ordering key for the merge; assigned on first persist if absent. */
+  timestamp?: Date;
+  /** Inline card for a design this message produced. */
+  designPreview?: DesignPreview;
+}
+
+// ─── Design chat persistence ─────────────────────────────────────────────────
+//
+// The panel's messages are stored in the shared transcript format rather than a
+// bespoke one, so the generation exchange recorded by the home screen can be
+// dropped straight into this thread and so both chats share one merge/cap
+// implementation. `role` is the only field that needs translating.
+
+let designMsgSeq = 0;
+function nextDesignMessageId(): string {
+  designMsgSeq += 1;
+  return `dm-${Date.now()}-${designMsgSeq}`;
+}
+
+/**
+ * Give every message a stable id and timestamp, preserving array order.
+ *
+ * Messages are appended from ~15 call sites as bare `{ role, text }` objects;
+ * normalising here keeps those call sites untouched. Timestamps are forced to
+ * increase so a batch appended within the same millisecond cannot be reordered
+ * by the chronological merge.
+ */
+function normalizeDesignMessages(list: AIMessage[]): AIMessage[] {
+  let changed = false;
+  let last = 0;
+  const out = list.map((m) => {
+    const existing = m.timestamp?.getTime();
+    if (m.id && existing !== undefined) {
+      last = Math.max(last, existing);
+      return m;
+    }
+    const ts = Math.max(last + 1, existing ?? Date.now());
+    last = ts;
+    changed = true;
+    return { ...m, id: m.id ?? nextDesignMessageId(), timestamp: new Date(ts) };
+  });
+  return changed ? out : list;
+}
+
+function toTranscriptEntries(messages: AIMessage[]): TranscriptEntry[] {
+  return messages
+    .filter((m) => !!m.id)
+    .map((m) => ({
+      id: m.id!,
+      role: m.role === "ai" ? ("assistant" as const) : ("user" as const),
+      content: m.text,
+      timestamp: m.timestamp ?? new Date(),
+      ...(m.pinnedElement ? { pinnedElement: m.pinnedElement } : {}),
+      ...(m.imagePreview ? { imagePreview: m.imagePreview } : {}),
+      ...(m.designPreview ? { designPreview: m.designPreview } : {}),
+    }));
+}
+
+function fromTranscriptEntries(entries: TranscriptEntry[]): AIMessage[] {
+  return entries.map((e) => ({
+    id: e.id,
+    role: e.role === "user" ? ("user" as const) : ("ai" as const),
+    text: typeof e.content === "string" ? e.content : "",
+    timestamp: e.timestamp,
+    pinnedElement: (e as any).pinnedElement ?? null,
+    imagePreview: typeof (e as any).imagePreview === "string" ? (e as any).imagePreview : undefined,
+    designPreview: e.designPreview,
+  }));
+}
+
+/** True when two threads are the same messages in the same order. */
+function sameDesignThread(a: AIMessage[], b: AIMessage[]): boolean {
+  return a.length === b.length && a.every((m, i) => m.id === b[i]?.id);
+}
 
 /**
  * Graph-aware merge for craft.js node maps.
@@ -4724,12 +4813,63 @@ function describeValidationError(errors: string[]): string {
 
 const INITIAL_MESSAGES: AIMessage[] = [
   {
+    // Fixed id and epoch timestamp: the greeting must dedupe against itself
+    // across reloads and always sort to the top of the thread.
+    id: "design-welcome",
+    timestamp: new Date(0),
     role: "ai",
     text: "Hi! I can add components to your artboards or modify existing ones — just describe what you want. If you ask for something outside the Astryx component library I'll let you know and suggest an alternative.",
   },
 ];
 
 // ─── Design panel (unified right rail: KiteAI · Layers · Notes) ──────────────
+
+/**
+ * Compact inline card for a design a message produced.
+ *
+ * Deliberately narrower than the project chat's version: this rail is ~320px
+ * and there is no "open design" action, because the design being previewed is
+ * the one already on screen.
+ */
+function DesignChatPreviewCard({ preview }: { preview: DesignPreview }) {
+  const { designId, title, screenLabels = [] } = preview;
+  const count = screenLabels.length;
+  return (
+    <div
+      className="mt-2 border border-border/70 rounded-lg overflow-hidden bg-background/60"
+      data-testid={`design-chat-preview-${designId}`}
+    >
+      <div className="h-20 bg-background border-b border-border/70 overflow-hidden">
+        <DesignProjectThumbnail designId={designId} name={title ?? "Generated design"} />
+      </div>
+      <div className="p-2">
+        <div className="text-[11px] font-medium truncate">{title ?? "Generated design"}</div>
+        {count > 0 && (
+          <>
+            <div className="mt-0.5 text-[10px] text-muted-foreground">
+              {count} screen{count === 1 ? "" : "s"}
+            </div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {screenLabels.slice(0, 4).map((label, i) => (
+                <span
+                  key={`${label}-${i}`}
+                  className="inline-block px-1.5 py-0.5 text-[9px] rounded-full bg-primary/10 text-primary border border-primary/20"
+                >
+                  {label}
+                </span>
+              ))}
+              {count > 4 && (
+                <span className="inline-block px-1.5 py-0.5 text-[9px] text-muted-foreground">
+                  +{count - 4} more
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type DesignPanelTab = "kite-ai" | "layers";
 
@@ -4741,9 +4881,13 @@ interface DesignPanelProps {
   notes: string;
   editable: boolean;
   onNotesChange?: (notes: string) => void;
+  /** Identity for the conversation. Without it the chat cannot be persisted. */
+  designId?: string;
+  /** Owner check for claiming a pre-project generation exchange. */
+  currentUserId?: string | null;
 }
 
-function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
+function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }: DesignPanelProps) {
   const { actions, query, selectedNodeId } = useEditor((state) => ({
     selectedNodeId: state.events.selected ? Array.from(state.events.selected)[0] : undefined,
   }));
@@ -4768,10 +4912,81 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<AIMessage[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<AIMessage[]>(() => {
+    if (!designId) return INITIAL_MESSAGES;
+    const stored = readDesignChat(designId);
+    return stored.length > 0 ? fromTranscriptEntries(stored) : INITIAL_MESSAGES;
+  });
   const [prompt, setPrompt] = useState("");
   const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Conversation persistence ───────────────────────────────────────────────
+  //
+  // Without this the thread lived only in component state: every reload, and
+  // every unmount of the editor, silently discarded the whole conversation.
+
+  // Which design the thread currently in `messages` belongs to. This is state,
+  // not a ref, so it changes in the same commit as the messages themselves.
+  //
+  // It is what stops a design switch from writing the previous conversation
+  // under the new design's key: when `designId` changes, React re-runs the
+  // effects below with the NEW id but the OLD messages, because the reload has
+  // not been applied yet. Every write is gated on the two agreeing.
+  const [threadDesignId, setThreadDesignId] = useState<string | undefined>(designId);
+  const threadIsCurrent = threadDesignId === designId;
+
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const threadDesignIdRef = useRef(threadDesignId);
+  threadDesignIdRef.current = threadDesignId;
+
+  /** Merge the in-memory thread with storage and adopt the result. */
+  const syncMessages = useCallback((id: string) => {
+    // Only fold memory back in if memory actually holds this design's thread.
+    if (threadDesignIdRef.current !== id) return;
+    const normalized = normalizeDesignMessages(messagesRef.current);
+    const merged = fromTranscriptEntries(saveDesignChat(id, toTranscriptEntries(normalized)));
+    setMessages((current) => (sameDesignThread(current, merged) ? current : merged));
+  }, []);
+
+  // Assign ids/timestamps first (messages are pushed as bare objects), then
+  // persist. saveDesignChat merges rather than overwrites, so a second tab open
+  // on the same design cannot erase what this one added.
+  useEffect(() => {
+    if (!designId || !threadIsCurrent) return;
+    const normalized = normalizeDesignMessages(messages);
+    if (normalized !== messages) {
+      setMessages(normalized);
+      return;
+    }
+    saveDesignChat(designId, toTranscriptEntries(normalized));
+  }, [messages, designId, threadIsCurrent]);
+
+  // Claim the exchange that generated this design. The home screen creates a
+  // design and navigates here before any chat exists, so the prompt, reply and
+  // preview are stashed and adopted on arrival. Scoped to the generating user
+  // and to this specific design so nothing can be misattributed.
+  //
+  // Declared before the reload effect so that on a design switch the adopted
+  // exchange is already in storage by the time the new thread is read.
+  useEffect(() => {
+    if (!designId) return;
+    const sync = () => syncMessages(designId);
+    const adopted = adoptPendingDesignTranscript(designId, currentUserId ?? undefined);
+    if (adopted.length > 0) sync();
+    return subscribeDesignChat(designId, sync);
+  }, [designId, currentUserId, syncMessages]);
+
+  // Switching the panel to a different design loads that design's own thread.
+  // Both state updates are batched, so `messages` and `threadDesignId` never
+  // disagree in a committed render.
+  useEffect(() => {
+    if (threadIsCurrent) return;
+    const stored = designId ? readDesignChat(designId) : [];
+    setMessages(stored.length > 0 ? fromTranscriptEntries(stored) : INITIAL_MESSAGES);
+    setThreadDesignId(designId);
+  }, [designId, threadIsCurrent]);
 
   // ── Thinking phrases ───────────────────────────────────────────────────────
   const THINKING_PHRASES = [
@@ -5296,6 +5511,7 @@ function DesignPanel({ notes, editable, onNotesChange }: DesignPanelProps) {
                     )
                   )}
                   {m.text}
+                  {m.designPreview && <DesignChatPreviewCard preview={m.designPreview} />}
                   {m.role === "user" && m.pinnedElement && (
                     <div className="flex items-center gap-1 mt-1.5 bg-white/15 rounded-md px-1.5 py-0.5">
                       <span className="text-[10px] leading-none">📌</span>
@@ -5530,9 +5746,13 @@ export interface DesignEditorProps {
   /** Keepalive transport for the beforeunload flush — see SaveWatcher. */
   onBeforeUnloadSave?: (state: string) => void;
   onNotesChange?: (notes: string) => void;
+  /** Identity for the right-rail KiteAI conversation, so it can be persisted. */
+  designId?: string;
+  /** Owner check for claiming the generation exchange that produced this design. */
+  currentUserId?: string | null;
 }
 
-export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onBeforeUnloadSave, onNotesChange }: DesignEditorProps) {
+export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpenProp, onSetNotesOpen, onSave, onBeforeUnloadSave, onNotesChange, designId, currentUserId }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [fitTrigger, setFitTrigger] = useState(0);
   const [notesOpenInternal, setNotesOpenInternal] = useState(false);
@@ -5598,6 +5818,8 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
               notes={notes ?? ""}
               editable={editable}
               onNotesChange={onNotesChange}
+              designId={designId}
+              currentUserId={currentUserId}
             />
           )}
         </div>

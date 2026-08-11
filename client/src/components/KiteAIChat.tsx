@@ -83,8 +83,11 @@ import {
   CHAT_STORAGE_KEY_PREFIX as TRANSCRIPT_KEY_PREFIX,
   subscribeTranscript,
   adoptPendingTranscript,
-  readTranscript,
+  saveTranscript,
+  readStoredMessages,
+  saveStoredMessages,
   type DesignPreview,
+  type TranscriptEntry,
 } from '@/lib/kiteaiTranscript';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
 import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
@@ -188,6 +191,11 @@ function getDefaultWelcomeMessage(): ChatMessage {
   };
 }
 
+/** Identity check by id + order, used to avoid re-rendering on a no-op merge. */
+function sameThread(a: { id: string }[], b: { id: string }[]): boolean {
+  return a.length === b.length && a.every((m, i) => m.id === b[i]?.id);
+}
+
 function rehydrateMessages(stored: any[]): ChatMessage[] {
   return stored.map((m: any) => ({
     ...m,
@@ -197,17 +205,8 @@ function rehydrateMessages(stored: any[]): ChatMessage[] {
 
 function loadMessagesFromStorage(storageKey: string): ChatMessage[] | null {
   if (typeof window === 'undefined') return null;
-  try {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return rehydrateMessages(parsed);
-      }
-    }
-  } catch {
-  }
-  return null;
+  const stored = readStoredMessages(storageKey);
+  return stored.length > 0 ? rehydrateMessages(stored) : null;
 }
 
 // Transcript message type for storing conversation history
@@ -423,18 +422,18 @@ export function KiteAIChatBrain({
   
   const prevProjectIdRef = useRef<string | undefined>(projectId);
   
+  // Persist via saveTranscript rather than writing the key directly: it merges
+  // with whatever is already stored, so a second tab open on the same project
+  // cannot clobber messages this one added (and vice versa).
+  //
+  // NOTE: We intentionally do NOT save to kiteframe-prompt-transcript here.
+  // The prompt transcript is ONLY for pre-project conversations from FullScreenChat.
+  // In-project chat messages are stored in kiteframe-kiteai-chat and shown separately
+  // in the Notes tab as "In-Project Chat". Saving to both would cause duplicates.
   useEffect(() => {
-    if (!storageKey) return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(messages));
-      
-      // NOTE: We intentionally do NOT save to kiteframe-prompt-transcript here.
-      // The prompt transcript is ONLY for pre-project conversations from FullScreenChat.
-      // In-project chat messages are stored in kiteframe-kiteai-chat and shown separately
-      // in the Notes tab as "In-Project Chat". Saving to both would cause duplicates.
-    } catch {
-    }
-  }, [messages, storageKey, projectId]);
+    if (!projectId) return;
+    saveTranscript(projectId, messages as unknown as TranscriptEntry[]);
+  }, [messages, projectId]);
   
   useEffect(() => {
     if (prevProjectIdRef.current === projectId) return;
@@ -460,16 +459,23 @@ export function KiteAIChatBrain({
   // effect above persists `messages`, so replacing state from storage while a
   // send is in flight could drop the in-memory message that has not been
   // written yet.
+  //
+  // The merge runs in both directions. Reading storage into memory picks up
+  // what another writer added; writing memory back into storage restores
+  // anything that writer's own save happened to drop. Without the second half,
+  // a message added here and then overwritten by another tab would be gone for
+  // good, because this tab's state never changed and so never re-saved.
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
   useEffect(() => {
     if (!projectId) return;
     const merge = () => {
-      const stored = readTranscript(projectId);
-      if (stored.length === 0) return;
-      setMessages((current) => {
-        const seen = new Set(current.map((m) => m.id));
-        const additions = stored.filter((m) => !seen.has(m.id)) as unknown as ChatMessage[];
-        return additions.length > 0 ? [...current, ...additions] : current;
-      });
+      const reconciled = saveTranscript(
+        projectId,
+        messagesRef.current as unknown as TranscriptEntry[],
+      ) as unknown as ChatMessage[];
+      setMessages((current) => sameThread(current, reconciled) ? current : reconciled);
     };
     // Adopt an exchange recorded before this project existed (home screen
     // generates a design before any project is attached). Scoped to the
@@ -3089,13 +3095,12 @@ function DiscussionView({
     return loadMessagesFromStorage(discussionStorageKey) || [getDiscussionWelcome()];
   });
 
+  // Merging save (not a raw overwrite) so a second tab on the same project
+  // cannot erase this thread. Storage full/unavailable is non-fatal — the
+  // conversation still works in-session.
   useEffect(() => {
     if (!discussionStorageKey) return;
-    try {
-      localStorage.setItem(discussionStorageKey, JSON.stringify(messages));
-    } catch {
-      // Storage full/unavailable — the conversation still works in-session.
-    }
+    saveStoredMessages(discussionStorageKey, messages as unknown as TranscriptEntry[]);
   }, [messages, discussionStorageKey]);
 
   const prevDiscussionProjectRef = useRef<string | undefined>(projectId);

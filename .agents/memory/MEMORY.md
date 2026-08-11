@@ -7,4 +7,6 @@
 - [Repair before pruning craft states](craft-repair-before-prune.md) — always repairCraftState before reachability pruning, or orphaned-but-valid artboards get deleted (blank canvas); empty ghosts still prune.
 - [AstryxCard is a full container](astryx-card-container.md) — craft.js isCanvas must be set in the component's static craft config AND the AI prompt must agree; if only one side is set, AI-generated nodes silently become non-droppable.
 - [ROOT must be a container](craft-root-must-be-container.md) — blank canvas + "success" + healthy node counts ⇒ ROOT's type got demoted to a leaf placeholder; ROOT is exempt from unknown-name substitution.
+- [Cross-tab localStorage merge](cross-tab-localstorage-merge.md) — union-by-id with storage as the merge base converges without CAS; an id tie-break in the sort reorders same-ms history and is wrong.
+- [State keyed by an id prop](persisting-state-keyed-by-id-prop.md) — the "which id does this data belong to" marker must be state, not a ref, or an id change persists the previous entity's data under the new key.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.
