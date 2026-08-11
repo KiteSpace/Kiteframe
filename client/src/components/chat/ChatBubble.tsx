@@ -1,9 +1,69 @@
 import { FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';
 import { WorkflowThumbnail } from './WorkflowThumbnail';
+import { DesignProjectThumbnail } from '../DesignProjectThumbnail';
+import type { DesignPreview } from '@/lib/kiteaiTranscript';
+
+/**
+ * Inline card showing the screens a generation produced, so the result is
+ * visible in the conversation itself rather than only on the canvas.
+ */
+function DesignPreviewCard({ preview }: { preview: DesignPreview }) {
+  const [, navigate] = useLocation();
+  const { designId, title, screenLabels = [] } = preview;
+  const count = screenLabels.length;
+
+  return (
+    <div
+      className="mt-3 border border-border rounded-lg overflow-hidden bg-muted/30"
+      data-testid={`design-preview-${designId}`}
+    >
+      <div className="h-32 bg-background border-b border-border overflow-hidden">
+        <DesignProjectThumbnail designId={designId} name={title ?? 'Generated design'} />
+      </div>
+      <div className="p-3">
+        <div className="text-xs font-medium truncate" data-testid="design-preview-title">
+          {title ?? 'Generated design'}
+        </div>
+        {count > 0 && (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {count} screen{count === 1 ? '' : 's'}
+          </div>
+        )}
+        {count > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {screenLabels.slice(0, 6).map((label, i) => (
+              <span
+                key={`${label}-${i}`}
+                className="inline-block px-2 py-0.5 text-[10px] rounded-full bg-primary/10 text-primary border border-primary/20"
+              >
+                {label}
+              </span>
+            ))}
+            {count > 6 && (
+              <span className="inline-block px-2 py-0.5 text-[10px] text-muted-foreground">
+                +{count - 6} more
+              </span>
+            )}
+          </div>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3 h-7 text-xs"
+          onClick={() => navigate(`/designs/${designId}`)}
+          data-testid={`design-preview-open-${designId}`}
+        >
+          Open design
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Sanitize assistant message content by removing leading scaffolding tokens
@@ -226,6 +286,10 @@ export function ChatBubble({
           nodes={message.workflowProposal.nodes}
           edges={message.workflowProposal.edges}
         />
+      )}
+
+      {message.designPreview && (
+        <DesignPreviewCard preview={message.designPreview} />
       )}
       
       {isLastInGroup && (

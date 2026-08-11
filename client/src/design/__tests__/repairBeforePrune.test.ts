@@ -115,6 +115,112 @@ describe("repair before prune (blank canvas regression)", () => {
   });
 });
 
+describe('ROOT typed with an unknown name (blank canvas regression)', () => {
+  /**
+   * Reproduces the exact failure seen in production: a workflow-bridge design
+   * whose ROOT arrived typed as craft.js's literal "Root". "Root" is not an
+   * allowed component, so sanitizeCraftState demoted it to AstryxUnknown — a
+   * LEAF placeholder that renders no children. Every node survived in the map
+   * (logs reported 50 nodes / 5 artboards, no disconnected nodes) but the
+   * canvas rendered nothing at all.
+   */
+  function literalRootTypedState() {
+    return {
+      ROOT: {
+        type: { resolvedName: "Root" },
+        isCanvas: true,
+        props: { direction: "row", gap: 80 },
+        displayName: "Root",
+        custom: {},
+        parent: null,
+        hidden: false,
+        nodes: ["artboard-fleet", "artboard-checkout"],
+        linkedNodes: {},
+      },
+      "artboard-fleet": {
+        type: { resolvedName: "AstryxArtboard" },
+        props: { label: "Navigate to Fleet Management" },
+        parent: "ROOT", nodes: ["h1"], linkedNodes: {}, isCanvas: true,
+      },
+      "artboard-checkout": {
+        type: { resolvedName: "AstryxArtboard" },
+        props: { label: "Immediate Checkout" },
+        parent: "ROOT", nodes: ["h2"], linkedNodes: {}, isCanvas: true,
+      },
+      h1: { type: { resolvedName: "AstryxHeading" }, props: { text: "Fleet" }, parent: "artboard-fleet", nodes: [], linkedNodes: {} },
+      h2: { type: { resolvedName: "AstryxHeading" }, props: { text: "Checkout" }, parent: "artboard-checkout", nodes: [], linkedNodes: {} },
+    };
+  }
+
+  it("repair corrects a ROOT typed 'Root' to a real container", () => {
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(literalRootTypedState()))) as any;
+    expect(repaired.ROOT.type.resolvedName).toBe("AstryxSection");
+    expect(repaired.ROOT.displayName).toBe("AstryxSection");
+    expect(repaired.ROOT.isCanvas).toBe(true);
+  });
+
+  it("sanitize never demotes ROOT to the non-container AstryxUnknown placeholder", async () => {
+    const { sanitizeCraftState } = await import("../craftValidator");
+    const sanitized = JSON.parse(sanitizeCraftState(JSON.stringify(literalRootTypedState()))) as any;
+    expect(sanitized.ROOT.type.resolvedName).not.toBe("AstryxUnknown");
+    expect(sanitized.ROOT.type.resolvedName).toBe("AstryxSection");
+    expect(sanitized.ROOT.isCanvas).toBe(true);
+  });
+
+  it("keeps every artboard and descendant through the full repair + prune + sanitize pipeline", async () => {
+    const { sanitizeCraftState, summarizeArtboards } = await import("../craftValidator");
+    const final = sanitizeCraftState(
+      pruneUnreachableCraftNodes(repairCraftStateJson(JSON.stringify(literalRootTypedState()))),
+    );
+    const parsed = JSON.parse(final) as any;
+    expect(parsed.ROOT.nodes).toEqual(["artboard-fleet", "artboard-checkout"]);
+    expect(parsed["artboard-fleet"]).toBeDefined();
+    expect(parsed["artboard-checkout"]).toBeDefined();
+    expect(parsed.h1).toBeDefined();
+    expect(parsed.h2).toBeDefined();
+    const summary = summarizeArtboards(final);
+    expect(summary.artboards.map((a: any) => a.id).sort()).toEqual(["artboard-checkout", "artboard-fleet"]);
+  });
+
+  it("still replaces unknown NON-root components with placeholders", async () => {
+    const { sanitizeCraftState } = await import("../craftValidator");
+    const state = literalRootTypedState() as any;
+    state.h1.type.resolvedName = "AstryxHallucinated";
+    const parsed = JSON.parse(sanitizeCraftState(JSON.stringify(state))) as any;
+    expect(parsed.h1.type.resolvedName).toBe("AstryxUnknown");
+    expect(parsed.h1.props.astryxComponent).toBe("AstryxHallucinated");
+    expect(parsed.ROOT.type.resolvedName).toBe("AstryxSection");
+  });
+
+  it("enforces isCanvas on a ROOT that has a valid type but is not a canvas", () => {
+    const state = literalRootTypedState() as any;
+    state.ROOT.type.resolvedName = "AstryxSection";
+    state.ROOT.displayName = "AstryxSection";
+    state.ROOT.isCanvas = false;
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(state))) as any;
+    expect(repaired.ROOT.isCanvas).toBe(true);
+    expect(repaired.ROOT.type.resolvedName).toBe("AstryxSection");
+  });
+
+  it("leaves a valid AstryxStack ROOT alone", () => {
+    const state = literalRootTypedState() as any;
+    state.ROOT.type.resolvedName = "AstryxStack";
+    state.ROOT.displayName = "AstryxStack";
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(state))) as any;
+    expect(repaired.ROOT.type.resolvedName).toBe("AstryxStack");
+  });
+
+  it("does not leave a synthesised ROOT with a displayName that round-trips as 'Root'", () => {
+    // ROOT omitted entirely → reconstruction fallback fires.
+    const noRoot = {
+      ab1: { type: { resolvedName: "AstryxArtboard" }, props: { label: "S1" }, parent: "ROOT", nodes: [], linkedNodes: {} },
+    };
+    const repaired = JSON.parse(repairCraftStateJson(JSON.stringify(noRoot))) as any;
+    expect(repaired.ROOT.displayName).toBe("AstryxSection");
+    expect(repaired.ROOT.displayName).not.toBe("Root");
+  });
+});
+
 describe("hydration repair of ROOT mis-typed as AstryxArtboard (blank undeletable screen regression)", () => {
   /**
    * Simulates a design already persisted to the DB before the server-side

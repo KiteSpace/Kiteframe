@@ -135,6 +135,78 @@ export function validateCraftState(state: unknown): CraftStateValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
+// ─── ROOT container contract ─────────────────────────────────────────────────
+// ROOT is craft.js's immutable canvas container. It must always resolve to a
+// real *container* component, because a non-container ROOT renders no children
+// at all — the entire design silently disappears even though every node is
+// still present and correctly parented in the state map.
+//
+// Only these names are acceptable on ROOT. Anything else (an artboard, an
+// unknown/hallucinated name, craft.js's own literal "Root", or the
+// AstryxUnknown placeholder) is coerced to AstryxSection.
+export const ROOT_CONTAINER_COMPONENTS: readonly string[] = [
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+];
+
+export function isValidRootComponent(resolvedName: unknown): boolean {
+  return typeof resolvedName === "string" && ROOT_CONTAINER_COMPONENTS.includes(resolvedName);
+}
+
+/**
+ * Force `map.ROOT` to be a valid, canvas-enabled container.
+ *
+ * Returns true when the ROOT node was modified. Safe to call repeatedly and
+ * safe to call on a map with no ROOT (it is a no-op in that case — ROOT
+ * reconstruction is handled separately).
+ *
+ * This MUST run before any pass that replaces unrecognized component names
+ * with AstryxUnknown, otherwise ROOT is turned into a non-container
+ * placeholder and the whole canvas renders blank.
+ */
+export function normalizeRootNode(map: Record<string, unknown>, logPrefix: string): boolean {
+  const root = map["ROOT"];
+  if (!root || typeof root !== "object") return false;
+
+  const rootNode = root as Record<string, unknown>;
+  const rootType = rootNode["type"];
+  const resolvedName =
+    rootType && typeof rootType === "object"
+      ? (rootType as Record<string, unknown>)["resolvedName"]
+      : undefined;
+
+  const typeIsValid = isValidRootComponent(resolvedName);
+  const isCanvasValid = rootNode["isCanvas"] === true;
+  if (typeIsValid && isCanvasValid) return false;
+
+  const existingProps =
+    rootNode["props"] && typeof rootNode["props"] === "object"
+      ? (rootNode["props"] as Record<string, unknown>)
+      : {};
+
+  const patch: Record<string, unknown> = { ...rootNode, isCanvas: true };
+
+  if (!typeIsValid) {
+    // `label` only means something on AstryxArtboard; strip it so a mis-typed
+    // artboard ROOT doesn't leave a stray label behind on the canvas container.
+    const { label: removedLabel, astryxComponent: _dropped, ...sanitizedProps } = existingProps;
+    console.warn(
+      `[${logPrefix}] ROOT.type was "${String(resolvedName ?? "(missing)")}"${
+        removedLabel !== undefined ? ` (label=${String(removedLabel)})` : ""
+      } — corrected to AstryxSection so the canvas renders its children`,
+    );
+    patch["type"] = { resolvedName: "AstryxSection" };
+    patch["displayName"] = "AstryxSection";
+    patch["props"] = sanitizedProps;
+  } else if (!isCanvasValid) {
+    console.warn(`[${logPrefix}] Enforcing isCanvas:true on ROOT`);
+  }
+
+  map["ROOT"] = patch;
+  return true;
+}
+
 // ─── Reference repairer ──────────────────────────────────────────────────────
 // Removes dangling parent/child cross-references from AI-generated craft state.
 // Call this before validateCraftState so broken references don't hard-fail saves.
@@ -197,35 +269,16 @@ export function repairCraftState(state: unknown): unknown {
   }
 
   // ── ROOT type normalization ──────────────────────────────────────────────
-  // Older saved designs (and occasional AI output) can have ROOT itself typed
-  // as AstryxArtboard, which renders as a blank, undeletable second screen.
-  // ROOT is the canvas container and must never be an artboard: reset the
-  // type to AstryxSection and strip the stray `label` prop. This runs during
-  // every hydration repair pass, so affected persisted designs self-heal the
-  // next time they are opened (and the repaired state is saved back on the
-  // next autosave).
-  {
-    const root = map["ROOT"] as Record<string, unknown> | undefined;
-    const rootType = root && typeof root === "object" ? root["type"] : undefined;
-    if (
-      rootType && typeof rootType === "object" &&
-      (rootType as Record<string, unknown>)["resolvedName"] === "AstryxArtboard"
-    ) {
-      const existingProps = (root!["props"] && typeof root!["props"] === "object"
-        ? root!["props"]
-        : {}) as Record<string, unknown>;
-      const { label: removedLabel, ...sanitizedProps } = existingProps;
-      console.warn(
-        `[repairCraftState] ROOT.type was AstryxArtboard (label=${String(removedLabel ?? "(none)")}) — corrected to AstryxSection`,
-      );
-      map["ROOT"] = {
-        ...root,
-        type: { resolvedName: "AstryxSection" },
-        displayName: "AstryxSection",
-        props: sanitizedProps,
-      };
-    }
-  }
+  // Saved designs and AI/bridge output can have ROOT typed as something that
+  // is not a container: AstryxArtboard (renders as a blank, undeletable second
+  // screen), craft.js's own literal "Root", or any hallucinated name (which a
+  // later sanitize pass would turn into the non-container AstryxUnknown
+  // placeholder, blanking the entire canvas). ROOT is the canvas container, so
+  // coerce it to AstryxSection and guarantee isCanvas. This runs during every
+  // hydration repair pass, so affected persisted designs self-heal the next
+  // time they are opened (and the repaired state is saved back on the next
+  // autosave).
+  normalizeRootNode(map, "repairCraftState");
 
   // ── ROOT reconstruction fallback ─────────────────────────────────────────
   // If the AI omits ROOT entirely, synthesise a minimal one so the canvas has
@@ -252,7 +305,11 @@ export function repairCraftState(state: unknown): unknown {
     }
     map["ROOT"] = {
       type: { resolvedName: "AstryxSection" },
-      displayName: "Root",
+      // Must match the resolved name. A displayName of "Root" round-trips back
+      // through craft.js's reverse resolver lookup as a literal "Root" type,
+      // which is not a known component and gets demoted to a non-container
+      // placeholder — blanking the canvas.
+      displayName: "AstryxSection",
       props: {},
       nodes: rootChildren,
       linkedNodes: {},
@@ -432,8 +489,19 @@ export function sanitizeCraftState(craftStateJson: string): string {
   if (!map || typeof map !== "object") return craftStateJson;
 
   let changed = false;
+
+  // ROOT is never a candidate for AstryxUnknown substitution. AstryxUnknown is
+  // a leaf placeholder that renders no children, so demoting ROOT to it blanks
+  // the entire canvas while leaving every node intact in the state map — the
+  // design looks successfully generated in logs but nothing is ever drawn.
+  // Normalize ROOT to a real container first so the loop below skips it.
+  if (normalizeRootNode(map, "sanitizeCraftState")) {
+    changed = true;
+  }
+
   for (const [nodeId, node] of Object.entries(map)) {
     if (!node || typeof node !== "object") continue;
+    if (nodeId === "ROOT") continue;
     const n = node as Record<string, unknown>;
     const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] as
       | string

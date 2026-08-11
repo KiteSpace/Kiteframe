@@ -58,6 +58,19 @@ export function validateExternalDesign(data: unknown): DesignValidationResult {
 // ─── craft.js state schema (new designs table) ────────────────────────────────
 // Allowed component resolvedName values — must stay in sync with client/src/design/resolver.tsx
 
+// ─── ROOT container contract ─────────────────────────────────────────────────
+// ROOT is craft.js's immutable canvas container and must always resolve to a
+// real *container* component. A non-container ROOT (an artboard, craft.js's own
+// literal "Root", a hallucinated name, or the AstryxUnknown leaf placeholder)
+// renders none of its children — the entire design silently disappears even
+// though every node is still present and correctly parented in the state map.
+// Must stay in sync with ROOT_CONTAINER_COMPONENTS in client/src/design/craftValidator.ts.
+export const ROOT_CONTAINER_COMPONENTS: readonly string[] = [
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+];
+
 export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   // Containers
   "AstryxSection",
@@ -258,8 +271,13 @@ export function repairCraftState(state: unknown): unknown {
     // Replace with AstryxUnknown so the canvas renders a placeholder instead.
     // This MUST run before displayName is derived so the display name always
     // reflects the final, validated resolved name.
+    //
+    // ROOT is deliberately exempt: AstryxUnknown is a leaf placeholder that
+    // renders no children, so demoting ROOT to it blanks the whole canvas even
+    // though every node survives in the state map. ROOT is normalized to a real
+    // container after this loop instead (see ROOT type normalization below).
     const resolvedName = typeObj["resolvedName"] as string;
-    if (resolvedName !== "AstryxUnknown" && !allowedSet.has(resolvedName)) {
+    if (nodeId !== "ROOT" && resolvedName !== "AstryxUnknown" && !allowedSet.has(resolvedName)) {
       console.warn(
         `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with AstryxUnknown`,
       );
@@ -327,7 +345,11 @@ export function repairCraftState(state: unknown): unknown {
     }
     map["ROOT"] = {
       type: { resolvedName: "AstryxSection" },
-      displayName: "Root",
+      // Must match the resolved name. A displayName of "Root" round-trips back
+      // through craft.js's reverse resolver lookup as a literal "Root" type,
+      // which is not a known component and gets demoted to a non-container
+      // placeholder — blanking the canvas.
+      displayName: "AstryxSection",
       props: {},
       nodes: rootChildren,
       linkedNodes: {},
@@ -336,6 +358,49 @@ export function repairCraftState(state: unknown): unknown {
       isCanvas: true,
       custom: {},
     };
+  }
+
+  // ── ROOT type normalization ──────────────────────────────────────────────
+  // ROOT must always resolve to a real container component. If it arrives as
+  // an artboard, craft.js's literal "Root", a hallucinated name, or with
+  // isCanvas unset, the canvas renders none of its children even though every
+  // node is present and correctly parented. Runs after the per-node loop (which
+  // deliberately skips ROOT) and after the reconstruction fallback, so an
+  // existing-but-invalid ROOT is always corrected.
+  {
+    const root = map["ROOT"] as Record<string, unknown> | undefined;
+    if (root && typeof root === "object") {
+      const rootType = root["type"];
+      const resolvedName =
+        rootType && typeof rootType === "object"
+          ? (rootType as Record<string, unknown>)["resolvedName"]
+          : undefined;
+      const typeIsValid =
+        typeof resolvedName === "string" && ROOT_CONTAINER_COMPONENTS.includes(resolvedName);
+      const isCanvasValid = root["isCanvas"] === true;
+
+      if (!typeIsValid || !isCanvasValid) {
+        const existingProps =
+          root["props"] && typeof root["props"] === "object"
+            ? (root["props"] as Record<string, unknown>)
+            : {};
+        const patch: Record<string, unknown> = { ...root, isCanvas: true };
+        if (!typeIsValid) {
+          const { label: removedLabel, astryxComponent: _dropped, ...sanitizedProps } = existingProps;
+          console.warn(
+            `[repairCraftState] ROOT.type was "${String(resolvedName ?? "(missing)")}"${
+              removedLabel !== undefined ? ` (label=${String(removedLabel)})` : ""
+            } — corrected to AstryxSection so the canvas renders its children`,
+          );
+          patch["type"] = { resolvedName: "AstryxSection" };
+          patch["displayName"] = "AstryxSection";
+          patch["props"] = sanitizedProps;
+        } else {
+          console.warn("[repairCraftState] Enforcing isCanvas:true on ROOT");
+        }
+        map["ROOT"] = patch;
+      }
+    }
   }
 
   // ── isCanvas enforcement for AstryxArtboard ──────────────────────────────

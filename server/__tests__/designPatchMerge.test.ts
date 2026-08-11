@@ -865,6 +865,33 @@ describe('sanitizeRootType', () => {
     };
   }
 
+  it("converts a ROOT typed with craft.js's literal 'Root' to AstryxSection", () => {
+    const state = makeMistypedRootState();
+    (state['ROOT'] as any).type = { resolvedName: 'Root' };
+    (state['ROOT'] as any).displayName = 'Root';
+    const root = sanitizeRootType(state)['ROOT'] as any;
+    expect(root.type.resolvedName).toBe('AstryxSection');
+    expect(root.displayName).toBe('AstryxSection');
+    expect(root.isCanvas).toBe(true);
+    expect(root.nodes).toEqual(['ab-1']);
+  });
+
+  it('rescues a ROOT already demoted to the AstryxUnknown placeholder', () => {
+    const state = makeMistypedRootState();
+    (state['ROOT'] as any).type = { resolvedName: 'AstryxUnknown' };
+    (state['ROOT'] as any).props = { astryxComponent: 'Root' };
+    const root = sanitizeRootType(state)['ROOT'] as any;
+    expect(root.type.resolvedName).toBe('AstryxSection');
+    expect(root.props.astryxComponent).toBeUndefined();
+    expect(root.nodes).toEqual(['ab-1']);
+  });
+
+  it('leaves a valid AstryxStack ROOT untouched', () => {
+    const state = makeMistypedRootState();
+    (state['ROOT'] as any).type = { resolvedName: 'AstryxStack' };
+    expect(sanitizeRootType(state)).toBe(state);
+  });
+
   it('converts a mis-typed ROOT from AstryxArtboard to AstryxSection', () => {
     const result = sanitizeRootType(makeMistypedRootState());
     const root = result['ROOT'] as any;
@@ -900,10 +927,11 @@ describe('sanitizeRootType', () => {
     expect((result['ab-1'] as any).props.label).toBe('Screen 1');
   });
 
-  it('is a no-op when ROOT is already a valid container type', () => {
+  it('is a no-op when ROOT is already a valid container AND a canvas', () => {
     const input: CraftState = {
       ROOT: {
         type: { resolvedName: 'AstryxSection' },
+        isCanvas: true,
         props: { direction: 'row' },
         nodes: ['ab-1'],
         linkedNodes: {},
@@ -913,6 +941,30 @@ describe('sanitizeRootType', () => {
     expect(sanitizeRootType(input)).toBe(input);
   });
 
+  // A container that is not a canvas renders none of its children, so a valid
+  // type name alone is not enough to keep the canvas from going blank.
+  it.each([
+    ['isCanvas: false', false],
+    ['isCanvas missing', undefined],
+  ])('forces isCanvas on a valid container ROOT with %s', (_label, isCanvas) => {
+    const input: CraftState = {
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' },
+        ...(isCanvas === undefined ? {} : { isCanvas }),
+        props: { direction: 'row' },
+        nodes: ['ab-1'],
+        linkedNodes: {},
+      },
+      'ab-1': { type: { resolvedName: 'AstryxArtboard' }, props: { label: 'Screen 1' }, nodes: [], linkedNodes: {} },
+    };
+    const root = sanitizeRootType(input)['ROOT'] as any;
+    expect(root.isCanvas).toBe(true);
+    // The type was already correct, so it and the props must be left alone.
+    expect(root.type.resolvedName).toBe('AstryxSection');
+    expect(root.props).toEqual({ direction: 'row' });
+    expect(root.nodes).toEqual(['ab-1']);
+  });
+
   it('is a no-op when the state has no ROOT (e.g. a partial patch)', () => {
     const patch: CraftState = {
       'btn-1': { type: { resolvedName: 'AstryxButton' }, props: { label: 'Go' }, nodes: [], linkedNodes: {} },
@@ -920,11 +972,19 @@ describe('sanitizeRootType', () => {
     expect(sanitizeRootType(patch)).toBe(patch);
   });
 
-  it('is a no-op when ROOT has a malformed or missing type field', () => {
-    const noType: CraftState = { ROOT: { props: {}, nodes: [], linkedNodes: {} } };
-    expect(sanitizeRootType(noType)).toBe(noType);
+  // A ROOT with no usable type cannot render its children either, so it must be
+  // repaired rather than waved through.
+  it('repairs a ROOT with a malformed or missing type field', () => {
+    const noType: CraftState = { ROOT: { props: {}, nodes: ['ab-1'], linkedNodes: {} } };
+    const repairedNoType = sanitizeRootType(noType)['ROOT'] as any;
+    expect(repairedNoType.type.resolvedName).toBe('AstryxSection');
+    expect(repairedNoType.isCanvas).toBe(true);
+    expect(repairedNoType.nodes).toEqual(['ab-1']);
+
     const stringType: CraftState = { ROOT: { type: 'div', props: {}, nodes: [], linkedNodes: {} } as any };
-    expect(sanitizeRootType(stringType)).toBe(stringType);
+    const repairedStringType = sanitizeRootType(stringType)['ROOT'] as any;
+    expect(repairedStringType.type.resolvedName).toBe('AstryxSection');
+    expect(repairedStringType.isCanvas).toBe(true);
   });
 
   it('does not mutate the input state', () => {

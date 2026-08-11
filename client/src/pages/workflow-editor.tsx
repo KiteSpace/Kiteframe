@@ -126,6 +126,7 @@ import {
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
+import { appendTranscript, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
@@ -3288,6 +3289,29 @@ function WorkflowEditorContent({
       if (createRes.status === 401) { openSignup(); return false; }
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+
+      // Record the generation in the project's KiteAI thread so the request,
+      // the reply, an inline preview of the screens, and the offer to make
+      // further changes are all visible in the conversation — not just on the
+      // canvas. Appended (never replacing), so any prior discussion survives.
+      if (sourceWorkflowId) {
+        try {
+          appendTranscript(
+            sourceWorkflowId,
+            buildGenerationExchange({
+              prompt,
+              designId: createData.id,
+              title: tabTitle,
+              screenLabels: extractScreenLabels(genData.craftState),
+              origin: "workflow",
+              workflowName: sourceTab.name,
+            }),
+          );
+        } catch {
+          // Never let transcript bookkeeping break a successful generation.
+        }
+      }
+
       openDesignTab(
         createData.id,
         tabTitle,

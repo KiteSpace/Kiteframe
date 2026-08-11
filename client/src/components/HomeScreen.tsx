@@ -53,6 +53,11 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { HomeHero } from "./HomeHero";
 import { useAuth } from "@/hooks/useAuth";
 import { DesignProjectThumbnail } from "./DesignProjectThumbnail";
+import {
+  stashPendingTranscript,
+  buildGenerationExchange,
+  extractScreenLabels,
+} from "@/lib/kiteaiTranscript";
 
 interface RecentProject {
   id: string;
@@ -318,6 +323,27 @@ export function HomeScreen({
           const createData = await createRes.json();
           if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
           console.log("[artboard-trace] home-ai: design created", { designId: createData.id });
+
+          // Record the exchange so the user's own words, KiteAI's reply, an
+          // inline preview and the offer to make changes all survive into the
+          // chat. There is no project to attach it to yet, so stash it — the
+          // next KiteAI chat to mount for a project adopts it.
+          try {
+            if (firebaseUser?.uid) {
+              stashPendingTranscript(
+                buildGenerationExchange({
+                  prompt,
+                  designId: createData.id,
+                  title: genData.title,
+                  screenLabels: extractScreenLabels(genData.craftState),
+                  origin: "home",
+                }),
+                { ownerId: firebaseUser.uid, designId: createData.id },
+              );
+            }
+          } catch {
+            // Never let transcript bookkeeping break a successful generation.
+          }
 
           if (onOpenDesign) {
             onOpenDesign(createData.id);

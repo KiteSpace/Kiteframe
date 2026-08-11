@@ -1,3 +1,5 @@
+import { ROOT_CONTAINER_COMPONENTS } from "./designSchema";
+
 /**
  * Server-side patch merge for the /api/ai/design endpoint.
  *
@@ -118,20 +120,42 @@ export function sanitizeRootType(state: CraftState): CraftState {
 
   const rootNode = root as Record<string, unknown>;
   const t = rootNode.type;
-  if (!t || typeof t !== 'object') return state;
+  const resolvedName = t && typeof t === 'object'
+    ? (t as Record<string, unknown>).resolvedName
+    : undefined;
 
-  const resolvedName = (t as Record<string, unknown>).resolvedName;
-  if (resolvedName !== 'AstryxArtboard') return state;
+  const typeIsValid =
+    typeof resolvedName === 'string' && ROOT_CONTAINER_COMPONENTS.includes(resolvedName);
+  // A container that is not a canvas still renders none of its children, so
+  // `isCanvas` is as much a part of the ROOT invariant as the type name is.
+  const isCanvasValid = rootNode.isCanvas === true;
 
-  // ROOT should never be typed as AstryxArtboard — correct it.
+  if (typeIsValid && isCanvasValid) return state;
+
+  // Cheapest correct repair: ROOT already names a real container and only
+  // `isCanvas` is wrong. Keep its type and props exactly as they are.
+  if (typeIsValid) {
+    console.warn(
+      '[sanitizeRootType] ROOT.type %s had isCanvas=%s — forced to true so it renders its children',
+      String(resolvedName),
+      String(rootNode.isCanvas),
+    );
+    return { ...state, ROOT: { ...rootNode, isCanvas: true } };
+  }
+
+  // ROOT is not a container type — correct it. This covers AstryxArtboard,
+  // craft.js's own literal "Root", the AstryxUnknown placeholder, a missing or
+  // malformed `type`, and any hallucinated name. Leaving it uncorrected blanks
+  // the whole canvas, because a non-container ROOT renders none of its children.
   const existingProps = (rootNode.props && typeof rootNode.props === 'object'
     ? rootNode.props
     : {}) as Record<string, unknown>;
   // Strip `label` from ROOT props (labels belong on AstryxArtboard children).
-  const { label: _removedLabel, ...sanitizedProps } = existingProps;
+  const { label: _removedLabel, astryxComponent: _droppedName, ...sanitizedProps } = existingProps;
 
   console.warn(
-    '[sanitizeRootType] ROOT.type was AstryxArtboard (label=%s) — corrected to AstryxSection',
+    '[sanitizeRootType] ROOT.type was %s (label=%s) — corrected to AstryxSection',
+    String(resolvedName ?? '(missing)'),
     _removedLabel ?? '(none)',
   );
 
@@ -142,6 +166,7 @@ export function sanitizeRootType(state: CraftState): CraftState {
       type: { resolvedName: 'AstryxSection' },
       displayName: 'AstryxSection',
       props: sanitizedProps,
+      isCanvas: true,
     },
   };
 }

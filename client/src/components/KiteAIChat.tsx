@@ -79,6 +79,13 @@ import {
 } from '@/ai/proposalParser';
 import { usePromptContextStore } from '@/contexts/PromptContextStore';
 import { useAiJobs } from '@/contexts/AiJobsContext';
+import {
+  CHAT_STORAGE_KEY_PREFIX as TRANSCRIPT_KEY_PREFIX,
+  subscribeTranscript,
+  adoptPendingTranscript,
+  readTranscript,
+  type DesignPreview,
+} from '@/lib/kiteaiTranscript';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
 import { useFeatureFlag } from '@/contexts/FeatureFlagContext';
 import { 
@@ -139,6 +146,12 @@ export interface ChatMessage {
     description?: string;
     status: 'pending' | 'accepted' | 'rejected';
   };
+  /**
+   * Inline preview of a generated design, rendered as a card in the chat so
+   * the result of a generation is visible in the conversation and not only on
+   * the canvas.
+   */
+  designPreview?: DesignPreview;
   meta?: {
     kiteRole?: KiteRole;
     confidence?: number;
@@ -157,7 +170,14 @@ interface WorkflowDiff {
   modified: { nodes: Node[]; edges: Edge[] };
 }
 
-const CHAT_STORAGE_KEY_PREFIX = 'kiteframe-kiteai-chat-';
+// Storage key + external append/subscribe helpers live in lib/kiteaiTranscript so
+// the generation flows (home screen, workflow→interface bridge) can record their
+// exchange in this same transcript without importing this component.
+const CHAT_STORAGE_KEY_PREFIX = TRANSCRIPT_KEY_PREFIX;
+
+// Read-only discussion threads persist separately from the main chat so the two
+// conversations never interleave, while still surviving unmount and reload.
+const DISCUSSION_STORAGE_KEY_PREFIX = 'kiteframe-kiteai-discussion-';
 
 function getDefaultWelcomeMessage(): ChatMessage {
   return {
@@ -261,6 +281,9 @@ export function KiteAIChatBrain({
   onCreateWorkflow,
   generationMode = 'workflow',
 }: KiteAIChatBrainProps) {
+  // Used to scope adoption of a pre-project generation exchange to the user who
+  // actually generated it (see adoptPendingTranscript).
+  const { user: authUser } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -425,6 +448,36 @@ export function KiteAIChatBrain({
     const loaded = loadMessagesFromStorage(storageKey);
     setMessages(loaded || [getDefaultWelcomeMessage()]);
   }, [projectId, storageKey]);
+
+  // ── External transcript appends ──────────────────────────────────────────
+  // Interface generation runs outside this component (home screen prompt and
+  // the workflow→interface bridge). Those flows append the exchange — prompt,
+  // reply, inline preview, and the offer to make changes — straight to the
+  // stored transcript. Merge anything they added into the rendered thread so
+  // it appears immediately instead of only after a remount.
+  //
+  // Merging by id (rather than replacing wholesale) is important: the write
+  // effect above persists `messages`, so replacing state from storage while a
+  // send is in flight could drop the in-memory message that has not been
+  // written yet.
+  useEffect(() => {
+    if (!projectId) return;
+    const merge = () => {
+      const stored = readTranscript(projectId);
+      if (stored.length === 0) return;
+      setMessages((current) => {
+        const seen = new Set(current.map((m) => m.id));
+        const additions = stored.filter((m) => !seen.has(m.id)) as unknown as ChatMessage[];
+        return additions.length > 0 ? [...current, ...additions] : current;
+      });
+    };
+    // Adopt an exchange recorded before this project existed (home screen
+    // generates a design before any project is attached). Scoped to the
+    // generating user so a different account on this browser cannot inherit it.
+    const adopted = adoptPendingTranscript(projectId, authUser?.uid);
+    if (adopted.length > 0) merge();
+    return subscribeTranscript(projectId, merge);
+  }, [projectId, authUser?.uid]);
 
   // Remount handoff: claim any AI jobs that completed at this route while the
   // chat surface was unmounted (e.g. user navigated to another tab waiting for
@@ -3018,12 +3071,43 @@ function DiscussionView({
 }: DiscussionViewProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [{
+
+  // The discussion thread is persisted per project. Without this it lived only
+  // in component state and was thrown away on every tab switch, unmount or
+  // reload, so a user who navigated away lost the whole conversation.
+  const discussionStorageKey = projectId ? `${DISCUSSION_STORAGE_KEY_PREFIX}${projectId}` : null;
+
+  const getDiscussionWelcome = (): ChatMessage => ({
     id: 'discussion-welcome',
     role: 'assistant',
     content: "Welcome to the discussion view. I can help you understand this workflow, identify potential edge cases, suggest improvements, or discuss missing steps.\n\nNote: chat responses use credits from your daily allowance.\n\nWhat would you like to discuss about this workflow?",
     timestamp: new Date()
-  }]);
+  });
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (!discussionStorageKey) return [getDiscussionWelcome()];
+    return loadMessagesFromStorage(discussionStorageKey) || [getDiscussionWelcome()];
+  });
+
+  useEffect(() => {
+    if (!discussionStorageKey) return;
+    try {
+      localStorage.setItem(discussionStorageKey, JSON.stringify(messages));
+    } catch {
+      // Storage full/unavailable — the conversation still works in-session.
+    }
+  }, [messages, discussionStorageKey]);
+
+  const prevDiscussionProjectRef = useRef<string | undefined>(projectId);
+  useEffect(() => {
+    if (prevDiscussionProjectRef.current === projectId) return;
+    prevDiscussionProjectRef.current = projectId;
+    if (!discussionStorageKey) {
+      setMessages([getDiscussionWelcome()]);
+      return;
+    }
+    setMessages(loadMessagesFromStorage(discussionStorageKey) || [getDiscussionWelcome()]);
+  }, [projectId, discussionStorageKey]);
   
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
