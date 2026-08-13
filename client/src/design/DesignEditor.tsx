@@ -5704,24 +5704,65 @@ function destackArtboards(state: Record<string, any>): Record<string, any> {
   return result;
 }
 
+/**
+ * Prepare a stored craft state for the canvas, or return null if it cannot be
+ * rendered. Validating first matters because a malformed or truncated string
+ * would produce a blank canvas with no error indicator rather than falling back
+ * to the default artboard.
+ *
+ * Shared by the initial mount and by live updates, so a viewer receiving a
+ * change sees it through exactly the same pipeline as the first load.
+ */
+function normalizeCraftStateForCanvas(craftState: string | null): string | null {
+  if (!craftState) return null;
+  try {
+    const parsed = JSON.parse(craftState);
+    const destacked = destackArtboards(parsed);
+    // Only re-stringify if destacking actually changed something
+    const json = destacked === parsed ? craftState : JSON.stringify(destacked);
+    return sanitizeCraftState(json);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Applies externally-changed craft state to an already-mounted editor.
+ *
+ * `<Frame data>` is only read when it mounts, so a read-only viewer watching a
+ * shared Interface would keep showing whatever it first loaded. Deserializing
+ * in place swaps the node tree without unmounting the canvas, which is what
+ * preserves the viewer's scroll and pan/zoom across an update.
+ *
+ * Mounted only for read-only viewers on purpose: running this in an editable
+ * session would let a stale prop overwrite the user's in-progress work.
+ */
+function CraftStateSync({ craftState }: { craftState: string | null }) {
+  const { actions } = useEditor();
+  // Seeded with the mount value: <Frame> has already rendered it, so applying
+  // it again would be a redundant deserialize on first paint.
+  const lastApplied = useRef<string | null>(craftState);
+
+  useEffect(() => {
+    if (craftState === lastApplied.current) return;
+    lastApplied.current = craftState;
+    const next = normalizeCraftStateForCanvas(craftState);
+    if (!next) return;
+    try {
+      actions.deserialize(next);
+    } catch (err) {
+      console.error("[design] failed to apply live update:", err);
+    }
+  }, [craftState, actions]);
+
+  return null;
+}
+
 function CanvasArea({ craftState }: { craftState: string | null }) {
-  // Validate before handing to craft.js — a malformed/truncated string would
-  // produce a blank canvas with no error indicator rather than falling back to
-  // the default artboard. If parsing fails, treat it as absent and render the
-  // safe default.
-  const validState = craftState
-    ? (() => {
-        try {
-          const parsed = JSON.parse(craftState);
-          const destacked = destackArtboards(parsed);
-          // Only re-stringify if destacking actually changed something
-          return destacked === parsed ? craftState : JSON.stringify(destacked);
-        } catch { return null; }
-      })()
-    : null;
+  const validState = normalizeCraftStateForCanvas(craftState);
 
   if (validState) {
-    return <Frame data={sanitizeCraftState(validState)} />;
+    return <Frame data={validState} />;
   }
   return (
     <Frame>
@@ -5802,6 +5843,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
             <div className="relative flex-1 min-h-0" data-canvas-area="true">
               <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
                 <CanvasArea craftState={craftState} />
+                {!editable && <CraftStateSync craftState={craftState} />}
               </InfiniteCanvas>
               {/* View-only notes overlay (editable users have Notes tab in DesignPanel) */}
               {!editable && (

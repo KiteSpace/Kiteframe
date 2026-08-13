@@ -8073,6 +8073,17 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (title !== undefined) payload.title = typeof title === 'string' ? title : null;
       if (notes !== undefined) payload.notes = typeof notes === 'string' ? notes : null;
       const updated = await storage.updateDesign(req.params.designId, payload as any);
+
+      // Push the change to anyone watching this Interface through its share
+      // link, so a viewer sees the owner's edit without refreshing. Sent
+      // through the public allowlist, never the raw record.
+      if (updated?.isShareEnabled && updated.shareUuid) {
+        (req.app as any).broadcastDesignShareUpdate?.(
+          updated.shareUuid,
+          toPublicDesignPayload(updated),
+        );
+      }
+
       res.json(updated);
     } catch (err) {
       console.error('[designs] PATCH failed:', err);
@@ -8138,6 +8149,15 @@ jane@example.com,Jane,Smith,pro,GroupC
       const userId = getUserIdFromRequest(req.user);
       const updated = await storage.disableDesignSharing(req.params.designId, userId);
       if (!updated) return res.status(404).json({ error: 'Design not found.' });
+
+      // Drop anyone currently watching this link straight away. Without this a
+      // viewer who connected before the revoke keeps the content on screen
+      // until they happen to reload. Covers both entry points, the editor's
+      // share dialog and the project tile menu, since both land here.
+      if (updated.shareUuid) {
+        (req.app as any).purgeShareSubscriptions?.(updated.shareUuid);
+      }
+
       res.json({ success: true, design: updated });
     } catch (err) {
       console.error('[designs] disable share failed:', err);
@@ -8145,23 +8165,36 @@ jane@example.com,Jane,Smith,pro,GroupC
     }
   });
 
-  // GET /api/design-view/:shareUuid — public read-only view of a shared design.
+  // The only shape of a design that may reach a public viewer.
   //
-  // Returns a deliberately trimmed payload: no owner id, no api key id, no
-  // internal workflow linkage. In particular claimedByUserId must never be sent,
-  // because the viewer treats an absent owner as "unclaimed" and would offer to
-  // claim someone else's design.
+  // Deliberately trimmed: no owner id, no api key id, no internal workflow
+  // linkage. In particular claimedByUserId must never be sent, because the
+  // viewer treats an absent owner as "unclaimed" and would offer to claim
+  // someone else's design.
+  //
+  // Every path that sends a design to a share-link audience must go through
+  // this, including live websocket updates — broadcasting the raw record would
+  // reintroduce the leak that the initial fetch is careful to avoid.
+  const toPublicDesignPayload = (design: {
+    id: string;
+    title: string | null;
+    notes: string | null;
+    craftState: unknown;
+    updatedAt: Date | null;
+  }) => ({
+    id: design.id,
+    title: design.title,
+    notes: design.notes,
+    craftState: design.craftState,
+    updatedAt: design.updatedAt,
+  });
+
+  // GET /api/design-view/:shareUuid — public read-only view of a shared design.
   app.get('/api/design-view/:shareUuid', async (req, res) => {
     try {
       const design = await storage.getDesignByShareUuid(req.params.shareUuid);
       if (!design) return res.status(404).json({ error: 'This share link is no longer active.' });
-      res.json({
-        id: design.id,
-        title: design.title,
-        notes: design.notes,
-        craftState: design.craftState,
-        updatedAt: design.updatedAt,
-      });
+      res.json(toPublicDesignPayload(design));
     } catch (err) {
       console.error('[designs] share view failed:', err);
       res.status(500).json({ error: 'Failed to load shared design.' });
@@ -8236,6 +8269,24 @@ jane@example.com,Jane,Smith,pro,GroupC
   
   // Expose broadcastShareUpdate on app for use in routes
   (app as any).broadcastShareUpdate = broadcastShareUpdate;
+
+  // Same channel, but for shared Interfaces. Kept as its own message type so a
+  // Workflow viewer can never misread an Interface payload (and vice versa) —
+  // the two subscribe through identical machinery but render nothing alike.
+  //
+  // `design` must already have been through toPublicDesignPayload.
+  const broadcastDesignShareUpdate = (shareId: string, design: unknown) => {
+    const subscribers = shareSubscriptions.get(shareId);
+    if (!subscribers || subscribers.size === 0) return;
+
+    const message = JSON.stringify({ type: 'design_share_update', shareId, design });
+    subscribers.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  };
+  (app as any).broadcastDesignShareUpdate = broadcastDesignShareUpdate;
 
   // Forcibly drop all live viewers of a share. Used when the owner locks down
   // or disables a share so currently-connected viewers are immediately excluded
@@ -8385,10 +8436,18 @@ jane@example.com,Jane,Smith,pro,GroupC
                   // Genuine project share: count only when not locked down.
                   isValidShare = !project.isShareLocked;
                 } else {
-                  // Fall back to legacy snapshot share links, which the view
-                  // handler still serves and broadcasts updates to.
-                  const shareLink = await storage.getShareLink(shareId);
-                  isValidShare = !!shareLink;
+                  // A shared Interface subscribes through the same channel.
+                  // getDesignByShareUuid only resolves while sharing is
+                  // switched on, so a revoked link is rejected here.
+                  const design = await storage.getDesignByShareUuid(shareId);
+                  if (design) {
+                    isValidShare = true;
+                  } else {
+                    // Fall back to legacy snapshot share links, which the view
+                    // handler still serves and broadcasts updates to.
+                    const shareLink = await storage.getShareLink(shareId);
+                    isValidShare = !!shareLink;
+                  }
                 }
               } catch (lookupError) {
                 console.error('Error validating share subscription:', lookupError);
