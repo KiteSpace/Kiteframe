@@ -6,6 +6,8 @@ import {
   computeDiagnosticDelta,
   shouldFlagProposalForNewIssues,
   filterDiagnosticsByMode,
+  projectAppliedWorkflow,
+  assessProposal,
   type AnalyzableWorkflow,
   type WorkflowDiagnosticIssue
 } from '../workflowDiagnostics';
@@ -318,5 +320,185 @@ describe('getSuggestedQuickActions', () => {
       
       expect(filtered).toHaveLength(0);
     });
+  });
+});
+
+/**
+ * A canvas that is already in good shape: it branches, it handles failure,
+ * and it terminates. Scores zero diagnostics.
+ */
+const healthyExistingCanvas: AnalyzableWorkflow = {
+  nodes: [
+    { id: 'x1', type: 'start', label: 'Start' },
+    { id: 'x2', type: 'decision', label: 'Payment authorized?' },
+    { id: 'x3', type: 'process', label: 'Ship order' },
+    { id: 'x4', type: 'error', label: 'Handle declined payment' },
+    { id: 'x5', type: 'end', label: 'Complete' },
+  ],
+  edges: [
+    { id: 'xe1', source: 'x1', target: 'x2' },
+    { id: 'xe2', source: 'x2', target: 'x3', label: 'Yes' },
+    { id: 'xe3', source: 'x2', target: 'x4', label: 'No' },
+    { id: 'xe4', source: 'x3', target: 'x5' },
+    { id: 'xe5', source: 'x4', target: 'x5' },
+  ],
+};
+
+/**
+ * A brand-new workflow, first draft: no failure path yet. This is what the AI
+ * returns when asked to build something new.
+ */
+const freshWorkflowWithoutFailurePath: AnalyzableWorkflow = {
+  nodes: [
+    { id: 'n1', type: 'start', label: 'Receive request' },
+    { id: 'n2', type: 'process', label: 'Review request' },
+    { id: 'n3', type: 'end', label: 'Done' },
+  ],
+  edges: [
+    { id: 'ne1', source: 'n1', target: 'n2' },
+    { id: 'ne2', source: 'n2', target: 'n3' },
+  ],
+};
+
+describe('projectAppliedWorkflow', () => {
+  it('keeps the existing canvas and adds the proposal to it', () => {
+    const applied = projectAppliedWorkflow(healthyExistingCanvas, freshWorkflowWithoutFailurePath);
+
+    expect(applied.nodes.map(n => n.id)).toEqual(
+      ['x1', 'x2', 'x3', 'x4', 'x5', 'n1', 'n2', 'n3']
+    );
+    expect(applied.edges).toHaveLength(7);
+  });
+
+  it('keeps both nodes when the proposal reuses an existing id', () => {
+    // Applying remaps incoming node ids, so a collision in the raw proposal
+    // never overwrites what is already on the canvas.
+    const collidingProposal: AnalyzableWorkflow = {
+      nodes: [{ id: 'x4', type: 'process', label: 'Continue anyway' }],
+      edges: [],
+    };
+
+    const applied = projectAppliedWorkflow(healthyExistingCanvas, collidingProposal);
+
+    expect(applied.nodes).toHaveLength(6);
+    expect(applied.nodes.filter(n => n.type === 'error')).toHaveLength(1);
+  });
+
+  it('handles an empty canvas', () => {
+    const applied = projectAppliedWorkflow({ nodes: [], edges: [] }, freshWorkflowWithoutFailurePath);
+
+    expect(applied).toEqual(freshWorkflowWithoutFailurePath);
+  });
+});
+
+describe('captureDiagnosticBaseline snapshots the graph', () => {
+  it('keeps the graph it measured so later comparisons are like-for-like', () => {
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+
+    expect(baseline.workflow.nodes.map(n => n.id)).toEqual(['x1', 'x2', 'x3', 'x4', 'x5']);
+  });
+
+  it('copies the graph so later canvas edits do not rewrite history', () => {
+    const liveCanvas: AnalyzableWorkflow = {
+      nodes: [...healthyExistingCanvas.nodes],
+      edges: [...healthyExistingCanvas.edges],
+    };
+    const baseline = captureDiagnosticBaseline(liveCanvas);
+
+    // The user keeps editing while the AI request is in flight.
+    liveCanvas.nodes.push({ id: 'x6', type: 'process', label: 'Added mid-flight' });
+
+    expect(baseline.workflow.nodes).toHaveLength(5);
+  });
+});
+
+describe('assessProposal', () => {
+  it('does not treat a brand-new workflow as damage to a healthy canvas', () => {
+    // The reported bug: asking for a NEW workflow beside a mature one was
+    // rejected because the new workflow, judged alone, has no failure path.
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+    expect(baseline.issues).toHaveLength(0);
+
+    const assessment = assessProposal(baseline, freshWorkflowWithoutFailurePath);
+
+    expect(assessment.delta.hasRegressions).toBe(false);
+    expect(assessment.delta.newlyIntroducedIssues).toHaveLength(0);
+  });
+
+  it('is only safe because the comparison is like-for-like', () => {
+    // Guards the actual fix: judging the proposal in isolation (the old
+    // behaviour) still reports regressions. If this ever stops being true the
+    // test above would pass for the wrong reason.
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+
+    const isolatedDelta = computeDiagnosticDelta(baseline, freshWorkflowWithoutFailurePath);
+
+    expect(isolatedDelta.hasRegressions).toBe(true);
+    expect(shouldFlagProposalForNewIssues(isolatedDelta)).toBe(true);
+  });
+
+  it('reports the missing failure path as advice, and keeps it actionable', () => {
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+
+    const assessment = assessProposal(baseline, freshWorkflowWithoutFailurePath);
+
+    expect(assessment.advisories.some(i => i.code === 'NO_FAILURE_PATH')).toBe(true);
+    expect(assessment.advisories.some(i => i.code === 'LINEAR_ONLY')).toBe(true);
+    // The advice must stay actionable — this is what the quick actions hang off.
+    expect(
+      assessment.advisories.find(i => i.code === 'NO_FAILURE_PATH')?.suggestedQuickActions
+    ).toContain('INCLUDE_EDGE_CASES');
+  });
+
+  it('cannot report a regression even when the proposal reuses existing ids', () => {
+    // Applying remaps ids and only ever adds, so the canvas keeps its error
+    // node no matter what the proposal calls its own nodes.
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+
+    const collidingProposal: AnalyzableWorkflow = {
+      nodes: [{ id: 'x4', type: 'process', label: 'Continue anyway' }],
+      edges: [],
+    };
+
+    const assessment = assessProposal(baseline, collidingProposal);
+
+    expect(assessment.delta.hasRegressions).toBe(false);
+  });
+
+  it('never calls the first workflow in an empty project a regression', () => {
+    // An empty canvas has zero diagnostics, so any finding in a first draft
+    // would look "net new" if it were judged as damage.
+    const baseline = captureDiagnosticBaseline({ nodes: [], edges: [] });
+    expect(baseline.issues).toHaveLength(0);
+
+    const assessment = assessProposal(baseline, freshWorkflowWithoutFailurePath);
+
+    expect(assessment.advisories.some(i => i.code === 'NO_FAILURE_PATH')).toBe(true);
+  });
+
+  it('reports nothing at all for a proposal that is already complete', () => {
+    const baseline = captureDiagnosticBaseline(healthyExistingCanvas);
+
+    const completeProposal: AnalyzableWorkflow = {
+      nodes: [
+        { id: 'n1', type: 'start', label: 'Start refund' },
+        { id: 'n2', type: 'decision', label: 'Refund eligible? tradeoff: speed vs fraud risk' },
+        { id: 'n3', type: 'process', label: 'Issue refund' },
+        { id: 'n4', type: 'error', label: 'Reject refund' },
+        { id: 'n5', type: 'end', label: 'Complete' },
+      ],
+      edges: [
+        { id: 'ne1', source: 'n1', target: 'n2' },
+        { id: 'ne2', source: 'n2', target: 'n3', label: 'Yes' },
+        { id: 'ne3', source: 'n2', target: 'n4', label: 'No' },
+        { id: 'ne4', source: 'n3', target: 'n5' },
+        { id: 'ne5', source: 'n4', target: 'n5' },
+      ],
+    };
+
+    const assessment = assessProposal(baseline, completeProposal);
+
+    expect(assessment.advisories).toHaveLength(0);
+    expect(assessment.delta.hasRegressions).toBe(false);
   });
 });

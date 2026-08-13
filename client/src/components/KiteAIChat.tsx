@@ -57,12 +57,14 @@ import {
   getSuggestedQuickActions, 
   isWorkflowValidForCreation,
   captureDiagnosticBaseline,
-  computeDiagnosticDelta,
+  assessProposal,
+  describeDiagnosticIssues,
   filterDiagnosticsByMode,
   type QuickActionType,
   type DiagnosticsContext,
   type DiagnosticsMode,
-  type DiagnosticBaseline
+  type DiagnosticBaseline,
+  type WorkflowDiagnosticIssue
 } from '@/utils/workflowDiagnostics';
 import { 
   AI_RESPONSE_TEMPLATES, 
@@ -1345,6 +1347,9 @@ export function KiteAIChatBrain({
             let proposalRejected = false;
             let rejectionReason: string | undefined;
             let stabilityMetrics: AiStabilityMetrics | undefined;
+            // Findings worth telling the user about, but never grounds for
+            // throwing the generated workflow away.
+            let proposalAdvisories: WorkflowDiagnosticIssue[] | undefined;
             
             // AI Stabilization Guardrail Bypass Logic:
             // - HOME proposals (baseline generation) must NEVER trigger guardrails
@@ -1372,42 +1377,14 @@ export function KiteAIChatBrain({
                 })),
               };
               
-              const baselineWorkflow = {
-                nodes: scopedNodes.map(n => ({ id: n.id, type: n.type || 'process', label: n.data?.label as string })),
-                edges: scopedEdges.map(e => ({ id: e.id, source: e.source, target: e.target, label: e.data?.label as string })),
-              };
+              // Compare against the graph the baseline was actually measured
+              // over. Re-deriving it from live canvas state would be unsafe:
+              // generation takes tens of seconds, and anything that changed in
+              // the meantime would show up as if the proposal had caused it.
+              const baselineWorkflow = baselineDiagnosticsRef.current.workflow;
               
-              // Phase 1: Compute diagnostic delta
-              const delta = computeDiagnosticDelta(baselineDiagnosticsRef.current, proposedWorkflow);
-              
-              stabilityMetrics = {
-                baselineIssueCount: delta.baselineIssueCount,
-                postProposalIssueCount: delta.postProposalIssueCount,
-                newIssueCount: delta.newlyIntroducedIssues.length,
-                resolvedIssueCount: delta.resolvedIssues.length,
-                proposalRejected: false,
-              };
-              
-              // Check if proposal introduced new issues
-              if (delta.hasRegressions) {
-                proposalRejected = true;
-                rejectionReason = 'This proposal introduced new issues and was not applied.';
-                stabilityMetrics.proposalRejected = true;
-                stabilityMetrics.rejectionReason = 'new_issues';
-                
-                console.warn('[AiStabilization] Proposal rejected - new issues:', delta.newlyIntroducedIssues);
-                
-                toast({
-                  title: "Proposal not applied",
-                  description: rejectionReason,
-                  variant: "destructive"
-                });
-              }
-              
-              // Phase 2: Fix-scope validation (only when modifying existing workflow)
-              // Skip when the user explicitly requests structural changes like adding failure paths,
-              // error handling, or creating/rebuilding the workflow — the guardrail is designed for
-              // narrow targeted repairs, not intentional structural expansions.
+              // Whether the user asked for new structure rather than a narrow
+              // repair. Used below to skip guardrails aimed at targeted fixes.
               const STRUCTURAL_EXPANSION_SIGNALS = [
                 'error handling', 'failure path', 'fallback', 'edge case',
                 'create', 'rebuild', 'redesign', 'redo', 'generate', 'make', 'build',
@@ -1420,6 +1397,38 @@ export function KiteAIChatBrain({
               const msgLower = messageContent.toLowerCase();
               const isStructuralExpansion = STRUCTURAL_EXPANSION_SIGNALS.some(sig => msgLower.includes(sig));
 
+              // Phase 1: Measure the proposal against the canvas as it would be
+              // once applied, rather than against the proposal in isolation.
+              //
+              // There is deliberately no rejection here any more. Diagnostics
+              // describe how complete a workflow is, and every accept path only
+              // ever ADDS to the canvas — so a proposal cannot take away a
+              // decision point or failure path the canvas already had, and a
+              // "net new issue" only ever meant "this new work is an early
+              // draft". Discarding the generation for that reason destroyed
+              // usable work and told the user nothing actionable. The findings
+              // now travel with the draft as advice instead. Destructive
+              // replacement keeps its own regression guard at the point the user
+              // actually chooses it.
+              const assessment = assessProposal(baselineDiagnosticsRef.current, proposedWorkflow);
+              const delta = assessment.delta;
+              proposalAdvisories = assessment.advisories;
+              
+              stabilityMetrics = {
+                baselineIssueCount: delta.baselineIssueCount,
+                postProposalIssueCount: delta.postProposalIssueCount,
+                newIssueCount: delta.newlyIntroducedIssues.length,
+                resolvedIssueCount: delta.resolvedIssues.length,
+                proposalRejected: false,
+                // Kept in step with what the user is actually shown below.
+                acceptedWithWarnings: assessment.advisories.length > 0,
+                warningCodes: Array.from(new Set(assessment.advisories.map(i => i.code))),
+              };
+              
+              // Phase 2: Fix-scope validation (only when modifying existing workflow)
+              // Skip when the user explicitly requests structural changes like adding failure paths,
+              // error handling, or creating/rebuilding the workflow — the guardrail is designed for
+              // narrow targeted repairs, not intentional structural expansions.
               if (!proposalRejected && scopedNodes.length > 0 && !isStructuralExpansion) {
                 const fixScope = createFixScope(baselineWorkflow);
                 const scopeResult = validateFixScope(fixScope, baselineWorkflow, proposedWorkflow);
@@ -1547,6 +1556,14 @@ export function KiteAIChatBrain({
                   label: (e.data as any)?.label
                 }))
               });
+              
+              // Name what the diagnostics actually found. These are reasons to
+              // keep improving the workflow, not reasons to withhold it, so they
+              // read as follow-ups rather than failures.
+              const advisories = proposalAdvisories ?? diagnostics;
+              if (advisories.length > 0) {
+                responseText += `\n\nWorth adding: ${describeDiagnosticIssues(advisories)}`;
+              }
               
               // Set workflow generation state and suggested quick actions
               // In HOME proposal phase (fullscreen mode), always show edge/fail actions

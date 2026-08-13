@@ -9,4 +9,5 @@
 - [ROOT must be a container](craft-root-must-be-container.md) — blank canvas + "success" + healthy node counts ⇒ ROOT's type got demoted to a leaf placeholder; ROOT is exempt from unknown-name substitution.
 - [Cross-tab localStorage merge](cross-tab-localstorage-merge.md) — union-by-id with storage as the merge base converges without CAS; an id tie-break in the sort reorders same-ms history and is wrong.
 - [State keyed by an id prop](persisting-state-keyed-by-id-prop.md) — the "which id does this data belong to" marker must be state, not a ref, or an id change persists the previous entity's data under the new key.
+- [Advisory diagnostics are not vetoes](advisory-diagnostics-not-vetoes.md) — gate AI proposals on the *projected applied* result, never the proposal alone; block on damage, warn on incompleteness, guard the empty baseline.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.

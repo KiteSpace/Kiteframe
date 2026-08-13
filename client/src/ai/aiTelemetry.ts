@@ -33,6 +33,13 @@ export type AiStabilityMetrics = {
   resolvedIssueCount: number;
   proposalRejected: boolean;
   rejectionReason?: 'over_construction' | 'scope_violation' | 'new_issues' | 'incomplete_schema';
+  /**
+   * The proposal was kept despite findings against it, because discarding
+   * generated work is worse than surfacing a warning the user can act on.
+   */
+  acceptedWithWarnings?: boolean;
+  /** Diagnostic codes reported to the user without blocking the proposal. */
+  warningCodes?: string[];
 };
 
 export function logAiInteraction(event: AiInteractionLog): void {

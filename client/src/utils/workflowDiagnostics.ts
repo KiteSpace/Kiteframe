@@ -227,6 +227,16 @@ export interface DiagnosticBaseline {
   issueCodes: Set<string>;
   nodeCount: number;
   edgeCount: number;
+  /**
+   * The exact graph these diagnostics were measured over.
+   *
+   * Kept on the snapshot so later comparisons can project "what the canvas
+   * would look like once this proposal is applied" against the same graph the
+   * baseline was taken from. Re-deriving the graph at comparison time is unsafe:
+   * generation takes tens of seconds, during which the canvas can change, which
+   * would silently compare two different worlds.
+   */
+  workflow: AnalyzableWorkflow;
 }
 
 /**
@@ -241,6 +251,8 @@ export function captureDiagnosticBaseline(workflow: AnalyzableWorkflow): Diagnos
     issueCodes: new Set(issues.map(i => i.code)),
     nodeCount: workflow.nodes.length,
     edgeCount: workflow.edges.length,
+    // Defensive copy: the caller's arrays are live canvas state.
+    workflow: { nodes: [...workflow.nodes], edges: [...workflow.edges] },
   };
 }
 
@@ -255,6 +267,16 @@ export interface DiagnosticDelta {
   newlyIntroducedIssues: WorkflowDiagnosticIssue[];
   resolvedIssues: WorkflowDiagnosticIssue[];
   hasNewIssues: boolean;
+  /**
+   * NOT a gate. This says "the proposal, measured on its own, carries findings
+   * the baseline did not" — which is only meaningful when `proposedWorkflow` is
+   * the *projected applied* graph (see `assessProposal`). Passing a bare
+   * proposal here compares a new workflow against a whole canvas and will
+   * report regressions for work that damages nothing.
+   *
+   * Do not reintroduce a rejection based on this field. Applying is additive,
+   * so a proposal cannot remove coverage the canvas already has.
+   */
   hasRegressions: boolean;
 }
 
@@ -294,13 +316,81 @@ export function computeDiagnosticDelta(
 }
 
 /**
- * Check if AI proposal should be flagged for introducing new issues.
- * 
- * Returns true ONLY if the proposal introduced genuinely new issue classes
- * that didn't exist before. Existing issues are ignored.
+ * @deprecated Non-gating. Retained for the regression tests that pin down why
+ * the old proposal-time veto was wrong; see `DiagnosticDelta.hasRegressions`.
+ * Use `assessProposal`, which reports advisories and never rejects.
  */
 export function shouldFlagProposalForNewIssues(delta: DiagnosticDelta): boolean {
   return delta.hasRegressions;
+}
+
+/**
+ * Project the graph that would exist once a proposal is applied to the canvas.
+ *
+ * Diagnosing the proposal on its own is not a like-for-like comparison against a
+ * baseline taken from the existing canvas: a brand-new workflow gets judged as
+ * if the rest of the canvas had ceased to exist, so anything the canvas already
+ * covered counts against it. Comparing the baseline to the *projected result* is
+ * what makes "did this change anything for the worse?" a meaningful question.
+ *
+ * Applying a draft is purely additive. Every accept path either appends the
+ * proposal or adds it as a separate copy with freshly generated node ids, so
+ * nothing already on the canvas is dropped or overwritten — which is why this is
+ * a plain concatenation rather than a merge.
+ */
+export function projectAppliedWorkflow(
+  existing: AnalyzableWorkflow,
+  proposed: AnalyzableWorkflow
+): AnalyzableWorkflow {
+  return {
+    nodes: [...existing.nodes, ...proposed.nodes],
+    edges: [...existing.edges, ...proposed.edges],
+  };
+}
+
+/**
+ * The result of judging a proposal against the baseline captured before it.
+ */
+export interface ProposalAssessment {
+  /** Baseline compared against the canvas as it would be after applying. */
+  delta: DiagnosticDelta;
+  /** The graph as it would be once the proposal is applied. */
+  appliedWorkflow: AnalyzableWorkflow;
+  /**
+   * Quality feedback about the proposal itself — incompleteness, not damage.
+   *
+   * There is deliberately no "regression" counterpart. Applying only ever adds
+   * to the canvas, so a proposal cannot remove a decision point or failure path
+   * that already exists; every finding here is about the new work being an early
+   * draft. Surface these as suggestions the user can act on, never as a reason
+   * to withhold the proposal. Genuinely destructive replacement is guarded at
+   * the point the user chooses it, not here.
+   */
+  advisories: WorkflowDiagnosticIssue[];
+}
+
+/**
+ * Judge an AI proposal against the baseline captured before generation.
+ */
+export function assessProposal(
+  baseline: DiagnosticBaseline,
+  proposedWorkflow: AnalyzableWorkflow
+): ProposalAssessment {
+  const appliedWorkflow = projectAppliedWorkflow(baseline.workflow, proposedWorkflow);
+
+  return {
+    delta: computeDiagnosticDelta(baseline, appliedWorkflow),
+    appliedWorkflow,
+    advisories: analyzeWorkflowDiagnostics(proposedWorkflow),
+  };
+}
+
+/**
+ * Render diagnostic issues as a single human-readable sentence fragment.
+ * Used so messages name the actual finding instead of saying "new issues".
+ */
+export function describeDiagnosticIssues(issues: WorkflowDiagnosticIssue[]): string {
+  return issues.map(i => i.message).join(' ');
 }
 
 /**
