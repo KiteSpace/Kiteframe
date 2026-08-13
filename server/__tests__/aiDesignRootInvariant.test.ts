@@ -202,6 +202,32 @@ describe('ROOT invariant across every AI design response path', () => {
   });
 });
 
+// ─── Client/server parity ────────────────────────────────────────────────────
+//
+// The list of component names allowed on ROOT is declared independently in the
+// server schema and the client validator. They must agree: if the client
+// accepts a name the server rewrites (or vice versa) the two repair passes
+// fight each other, and a state that looks correct on one side blanks the
+// canvas on the other. Compared via source text so this test does not have to
+// import the client's React-dependent module graph.
+
+describe('ROOT container list stays in sync between client and server', () => {
+  it('declares the same component names on both sides', () => {
+    const clientSource = readFileSync(
+      resolve(process.cwd(), 'client/src/design/craftValidator.ts'),
+      'utf8',
+    );
+    const block = clientSource.match(
+      /ROOT_CONTAINER_COMPONENTS[^=]*=\s*\[([\s\S]*?)\]/,
+    );
+    expect(block, 'ROOT_CONTAINER_COMPONENTS not found in the client validator').toBeTruthy();
+
+    const clientNames = Array.from(block![1].matchAll(/["']([^"']+)["']/g)).map((m) => m[1]);
+    expect(clientNames.length).toBeGreaterThan(0);
+    expect([...clientNames].sort()).toEqual([...ROOT_CONTAINER_COMPONENTS].sort());
+  });
+});
+
 // ─── Source-level guard ──────────────────────────────────────────────────────
 
 describe('no route returns a craft state without sanitising ROOT', () => {
@@ -209,12 +235,16 @@ describe('no route returns a craft state without sanitising ROOT', () => {
   const lines = routesSource.split('\n');
 
   /**
-   * Every `res.json(...)` call in the file, matched by balancing parentheses
+   * Every call matching `needle` in the file, matched by balancing parentheses
    * rather than by a single-line regex — so a response split across lines, or
    * formatted differently by a future author, is still seen by this guard.
+   *
+   * Both response transports must be covered: ordinary JSON replies and the
+   * SSE `sendEvent('complete', …)` used by the streaming import routes. The
+   * Figma import shipped an unsanitised ROOT precisely because this guard only
+   * looked at `res.json`.
    */
-  function extractResJsonCalls() {
-    const needle = 'res.json(';
+  function extractCalls(needle: string) {
     const calls: Array<{ lineNo: number; text: string }> = [];
     let idx = 0;
     while ((idx = routesSource.indexOf(needle, idx)) !== -1) {
@@ -238,13 +268,26 @@ describe('no route returns a craft state without sanitising ROOT', () => {
     return calls;
   }
 
-  // Any response that hands the client a craft state or a node patch.
-  const responses = extractResJsonCalls().filter((c) => /type:\s*['"](state|patch)['"]/.test(c.text));
+  // Any response that hands the client a craft state or a node patch, over
+  // either transport.
+  const responses = [
+    ...extractCalls('res.json('),
+    ...extractCalls("sendEvent('complete',"),
+  ].filter((c) => /type:\s*['"](state|patch)['"]/.test(c.text));
 
   it('finds the craft-state responses it is meant to be guarding', () => {
     // If this collapses to nothing, the extractor has drifted and every check
     // below would pass vacuously while inspecting no routes at all.
     expect(responses.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('sees the streaming import responses, not just the JSON ones', () => {
+    // The Figma import returns its state over SSE. If this guard stops seeing
+    // that transport, an unsanitised ROOT can ship there unnoticed again.
+    const sse = extractCalls("sendEvent('complete',").filter((c) =>
+      /type:\s*['"]state['"]/.test(c.text),
+    );
+    expect(sse.length).toBeGreaterThanOrEqual(1);
   });
 
   for (const { lineNo, text } of responses) {

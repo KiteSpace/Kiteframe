@@ -34,6 +34,19 @@ recognising fast: **blank canvas + "generation succeeded" + healthy node counts
 - Coercion should be logged, not silent: it means something upstream emitted a
   bad ROOT and the origin still needs fixing.
 
+**Guarding it:** the invariant is enforced by a source-scanning test that reads
+the routes file and asserts every craft-state response is sanitised. Such a
+guard is only as good as the *transports* it parses — the original version
+looked at JSON replies only, so the streaming (SSE) import route shipped an
+unsanitised ROOT while the guard reported full coverage. When adding an
+invariant guard of this kind, enumerate every way a response can leave the
+server, and add a non-vacuous assertion that each transport is actually being
+seen; otherwise the guard silently narrows as the code grows.
+
+The allowed-container list is declared separately on client and server. They are
+kept honest by a parity test rather than a shared module, so changing one side
+alone fails the suite instead of silently splitting the invariant in two.
+
 **Verifying:** a unit test alone is not enough here, because state can be
 perfectly valid and still paint nothing. Confirm in a real browser that
 artboard frames have non-trivial painted dimensions — a blank canvas still

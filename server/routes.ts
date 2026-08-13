@@ -3271,7 +3271,11 @@ Only include screens that need changes. "modify" requires both description and d
         }
       }
 
-      const finalState = combined;
+      // Same ROOT invariant as every other design response: a top-level node
+      // that is not a real container renders an empty canvas on the client.
+      // `combined.ROOT` is built locally and valid today, but this must not
+      // depend on that staying true.
+      const finalState = sanitizeRootType(combined as CraftState);
 
       sendEvent('complete', {
         type: 'state',
