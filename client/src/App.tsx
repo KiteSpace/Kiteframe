@@ -33,6 +33,7 @@ const MockupCodeDataReference = lazy(() => import("@/pages/mockup-code-data-refe
 const ViewOnlyViewer = lazy(() => import("@/pages/ViewOnlyViewer"));
 const ExternalWorkflowViewer = lazy(() => import("@/pages/ExternalWorkflowViewer"));
 const DesignPage = lazy(() => import("@/design/DesignPage"));
+const DesignShareView = lazy(() => import("@/design/DesignShareView"));
 const Benchmark = lazy(() => import("@/pages/Benchmark"));
 const DevDocs = lazy(() => import("@/pages/DevDocs"));
 const Legal = lazy(() => import("@/pages/Legal"));
@@ -169,6 +170,7 @@ function Router() {
         <Route path="/view/:shareId" component={ViewOnlyViewer} />
         <Route path="/workflows/:id" component={ExternalWorkflowViewer} />
         <Route path="/designs/:id" component={DesignPage} />
+        <Route path="/design-view/:shareUuid" component={DesignShareView} />
         <Route path="/benchmark" component={Benchmark} />
         <Route path="/legal" component={Legal} />
         <Route path="/faq" component={FAQ} />

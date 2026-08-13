@@ -96,6 +96,9 @@ export interface IStorage {
   getDesign(id: string): Promise<Design | undefined>;
   updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined>;
   claimDesign(id: string, userId: string): Promise<Design | undefined>;
+  enableDesignSharing(id: string, userId: string): Promise<Design | undefined>;
+  disableDesignSharing(id: string, userId: string): Promise<Design | undefined>;
+  getDesignByShareUuid(shareUuid: string): Promise<Design | undefined>;
   /** Returns the updatedAt timestamp of the saved_project with the given ID, or null if not found. */
   getWorkflowUpdatedAt(projectId: string): Promise<Date | null>;
 }
@@ -628,6 +631,42 @@ export class DatabaseStorage implements IStorage {
       .set({ claimedByUserId: userId, updatedAt: new Date() })
       .where(and(eq(designs.id, id), sql`claimed_by_user_id IS NULL`))
       .returning();
+    return row;
+  }
+
+  async enableDesignSharing(id: string, userId: string): Promise<Design | undefined> {
+    const [updated] = await db
+      .update(designs)
+      .set({
+        isShareEnabled: true,
+        shareUuid: crypto.randomUUID(),
+        lastSharedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(designs.id, id), eq(designs.claimedByUserId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async disableDesignSharing(id: string, userId: string): Promise<Design | undefined> {
+    // shareUuid is deliberately left in place, mirroring saved_projects: the
+    // link is dead because isShareEnabled is false, and re-sharing mints a new
+    // uuid so the old one can never be revived.
+    const [updated] = await db
+      .update(designs)
+      .set({ isShareEnabled: false, updatedAt: new Date() })
+      .where(and(eq(designs.id, id), eq(designs.claimedByUserId, userId)))
+      .returning();
+    return updated;
+  }
+
+  /** Resolves only while sharing is switched on, so revoking kills the link. */
+  async getDesignByShareUuid(shareUuid: string): Promise<Design | undefined> {
+    const [row] = await db
+      .select()
+      .from(designs)
+      .where(and(eq(designs.shareUuid, shareUuid), eq(designs.isShareEnabled, true)))
+      .limit(1);
     return row;
   }
 

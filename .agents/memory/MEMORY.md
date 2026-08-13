@@ -10,4 +10,6 @@
 - [Cross-tab localStorage merge](cross-tab-localstorage-merge.md) — union-by-id with storage as the merge base converges without CAS; an id tie-break in the sort reorders same-ms history and is wrong.
 - [State keyed by an id prop](persisting-state-keyed-by-id-prop.md) — the "which id does this data belong to" marker must be state, not a ref, or an id change persists the previous entity's data under the new key.
 - [Advisory diagnostics are not vetoes](advisory-diagnostics-not-vetoes.md) — gate AI proposals on the *projected applied* result, never the proposal alone; block on damage, warn on incompleteness, guard the empty baseline.
+- [Public design share payload](design-share-payload.md) — never send claimedByUserId to an anonymous viewer; an absent owner reads as "unclaimed" and offers a claim button.
+- [Stale routes & schema pushes](server-route-404-and-schema-push.md) — an /api 200 with no body preview in the log is the SPA fallback (route not registered — restart); drizzle-kit push needs a TTY.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.

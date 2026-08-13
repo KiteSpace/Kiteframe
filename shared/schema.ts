@@ -786,11 +786,18 @@ export const designs = pgTable("designs", {
   notes: text("notes"),
   sourceWorkflowId: varchar("source_workflow_id"),
   workflowSyncedAt: timestamp("workflow_synced_at"),
+  // View-only sharing, mirroring saved_projects. shareUuid is null until the
+  // owner shares, and is regenerated on every re-share so a revoked link stays
+  // dead.
+  shareUuid: varchar("share_uuid").unique(),
+  isShareEnabled: boolean("is_share_enabled").default(false),
+  lastSharedAt: timestamp("last_shared_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("IDX_designs_claimed_by_user").on(table.claimedByUserId),
   index("IDX_designs_source_workflow").on(table.sourceWorkflowId),
+  index("IDX_designs_share_uuid").on(table.shareUuid),
 ]);
 
 export const insertDesignSchema = createInsertSchema(designs).omit({

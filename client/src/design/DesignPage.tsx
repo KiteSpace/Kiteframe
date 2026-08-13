@@ -1,10 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X } from "lucide-react";
+import { Loader2, Check, AlertCircle, BookmarkPlus, StickyNote, Workflow, X, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
 import { DesignEditor } from "./DesignEditor";
+import { DesignShareModal } from "./DesignShareModal";
 import { sanitizeCraftState, pruneUnreachableCraftNodes, detectDisconnectedArtboards, repairCraftStateJson, summarizeArtboards } from "./resolver";
 import { useToast } from "@/hooks/use-toast";
 import type { Design } from "@shared/schema";
@@ -64,6 +65,7 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
   const { toast } = useToast();
   const saveStatusRef = useRef<"idle" | "saving" | "saved" | "error">("idle");
   const [notesOpen, setNotesOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [incompleteSaveWarning, setIncompleteSaveWarning] = useState(false);
   const [removedArtboards, setRemovedArtboards] = useState<{ id: string; label: string }[]>([]);
   const [repairSaved, setRepairSaved] = useState(false);
@@ -267,6 +269,12 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
           </button>
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
+            {canEdit && (
+              <Button size="sm" variant="outline" onClick={() => setShareOpen(true)} data-testid="button-share-design-inline">
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                Share
+              </Button>
+            )}
             {!canEdit && (
               <>
                 <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
@@ -311,6 +319,12 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
           </h1>
           <div className="flex items-center gap-2">
             {canEdit && <SaveStatusDot status={saveStatusRef.current} />}
+            {canEdit && (
+              <Button size="sm" variant="outline" onClick={() => setShareOpen(true)} data-testid="button-share-design">
+                <Share2 className="w-3.5 h-3.5 mr-1.5" />
+                Share
+              </Button>
+            )}
             {!canEdit && (
               <>
                 <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
@@ -423,6 +437,16 @@ function CraftDesignView({ design, currentUserId, inline, onNavigateToWorkflow }
           currentUserId={currentUserId}
         />
       </div>
+
+      {canEdit && (
+        <DesignShareModal
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          designId={design.id}
+          shareUuid={design.shareUuid ?? null}
+          isShareEnabled={!!design.isShareEnabled}
+        />
+      )}
     </div>
   );
 }

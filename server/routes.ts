@@ -7978,11 +7978,25 @@ jane@example.com,Jane,Smith,pro,GroupC
     }
   });
 
-  // GET /api/designs/:id — fetch a design (public)
-  app.get('/api/designs/:designId', async (req, res) => {
+  // GET /api/designs/:id — fetch a design by its own id.
+  //
+  // Not registered with isAuthenticated: unclaimed designs must stay readable
+  // by a logged-out visitor so the "Save to my account" claim funnel still
+  // works. Everything already owned is restricted to its owner — viewers use a
+  // share link (`GET /api/design-view/:shareUuid`) instead, which is what makes
+  // an Interface private until its owner shares it.
+  app.get('/api/designs/:designId', async (req: any, res) => {
     try {
       const design = await storage.getDesign(req.params.designId);
       if (!design) return res.status(404).json({ error: 'Design not found.' });
+
+      if (design.claimedByUserId) {
+        const userId = req.user ? getUserIdFromRequest(req.user) : null;
+        if (design.claimedByUserId !== userId) {
+          return res.status(403).json({ error: 'This design is private.' });
+        }
+      }
+
       // Compute staleness: compare workflowSyncedAt against the source workflow's updatedAt
       let isStale = false;
       if (design.sourceWorkflowId && design.workflowSyncedAt) {
@@ -8051,6 +8065,75 @@ jane@example.com,Jane,Smith,pro,GroupC
     } catch (err) {
       console.error('[designs] claim failed:', err);
       res.status(500).json({ error: 'Failed to claim design.' });
+    }
+  });
+
+  // POST /api/designs/:id/share — turn on view-only sharing (owner only).
+  // Idempotent: re-sharing an already-shared design returns the existing link
+  // rather than invalidating a link the owner may have already sent.
+  app.post('/api/designs/:designId/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const design = await storage.getDesign(req.params.designId);
+      if (!design) return res.status(404).json({ error: 'Design not found.' });
+      if (!design.claimedByUserId || design.claimedByUserId !== userId) {
+        return res.status(403).json({ error: 'You do not own this design.' });
+      }
+
+      if (design.isShareEnabled && design.shareUuid) {
+        return res.json({
+          shareUuid: design.shareUuid,
+          shareUrl: `/design-view/${design.shareUuid}`,
+          design,
+        });
+      }
+
+      const updated = await storage.enableDesignSharing(req.params.designId, userId);
+      if (!updated?.shareUuid) return res.status(500).json({ error: 'Failed to enable sharing.' });
+      res.json({
+        shareUuid: updated.shareUuid,
+        shareUrl: `/design-view/${updated.shareUuid}`,
+        design: updated,
+      });
+    } catch (err) {
+      console.error('[designs] enable share failed:', err);
+      res.status(500).json({ error: 'Failed to enable sharing.' });
+    }
+  });
+
+  // DELETE /api/designs/:id/share — revoke the link (owner only).
+  app.delete('/api/designs/:designId/share', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const updated = await storage.disableDesignSharing(req.params.designId, userId);
+      if (!updated) return res.status(404).json({ error: 'Design not found.' });
+      res.json({ success: true, design: updated });
+    } catch (err) {
+      console.error('[designs] disable share failed:', err);
+      res.status(500).json({ error: 'Failed to disable sharing.' });
+    }
+  });
+
+  // GET /api/design-view/:shareUuid — public read-only view of a shared design.
+  //
+  // Returns a deliberately trimmed payload: no owner id, no api key id, no
+  // internal workflow linkage. In particular claimedByUserId must never be sent,
+  // because the viewer treats an absent owner as "unclaimed" and would offer to
+  // claim someone else's design.
+  app.get('/api/design-view/:shareUuid', async (req, res) => {
+    try {
+      const design = await storage.getDesignByShareUuid(req.params.shareUuid);
+      if (!design) return res.status(404).json({ error: 'This share link is no longer active.' });
+      res.json({
+        id: design.id,
+        title: design.title,
+        notes: design.notes,
+        craftState: design.craftState,
+        updatedAt: design.updatedAt,
+      });
+    } catch (err) {
+      console.error('[designs] share view failed:', err);
+      res.status(500).json({ error: 'Failed to load shared design.' });
     }
   });
 
