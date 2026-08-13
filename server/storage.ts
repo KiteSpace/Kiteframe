@@ -20,6 +20,7 @@ import {
   type InsertExternalEntity,
   type Design,
   type InsertDesign,
+  type DesignSummary,
   users,
   savedProjects,
   projectFolders,
@@ -96,6 +97,7 @@ export interface IStorage {
   getDesign(id: string): Promise<Design | undefined>;
   updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined>;
   claimDesign(id: string, userId: string): Promise<Design | undefined>;
+  listDesignsByUser(userId: string): Promise<DesignSummary[]>;
   enableDesignSharing(id: string, userId: string): Promise<Design | undefined>;
   disableDesignSharing(id: string, userId: string): Promise<Design | undefined>;
   getDesignByShareUuid(shareUuid: string): Promise<Design | undefined>;
@@ -632,6 +634,28 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(designs.id, id), sql`claimed_by_user_id IS NULL`))
       .returning();
     return row;
+  }
+
+  /**
+   * Interfaces owned by a user, for the project grid. Deliberately selects
+   * columns rather than the whole row: craftState is the entire canvas and
+   * would make this list enormous, and the grid only needs a label, a
+   * timestamp and the share state. The owner id is never selected so it
+   * cannot leak into a response by accident.
+   */
+  async listDesignsByUser(userId: string): Promise<DesignSummary[]> {
+    return await db
+      .select({
+        id: designs.id,
+        title: designs.title,
+        shareUuid: designs.shareUuid,
+        isShareEnabled: designs.isShareEnabled,
+        createdAt: designs.createdAt,
+        updatedAt: designs.updatedAt,
+      })
+      .from(designs)
+      .where(eq(designs.claimedByUserId, userId))
+      .orderBy(desc(designs.updatedAt));
   }
 
   async enableDesignSharing(id: string, userId: string): Promise<Design | undefined> {

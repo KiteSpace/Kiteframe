@@ -808,3 +808,12 @@ export const insertDesignSchema = createInsertSchema(designs).omit({
 
 export type Design = typeof designs.$inferSelect;
 export type InsertDesign = z.infer<typeof insertDesignSchema>;
+
+/**
+ * A design row reduced to what a project tile needs. Excludes craftState
+ * (the whole canvas) and claimedByUserId (never sent to a client).
+ */
+export type DesignSummary = Pick<
+  Design,
+  "id" | "title" | "shareUuid" | "isShareEnabled" | "createdAt" | "updatedAt"
+>;

@@ -56,7 +56,9 @@ export function DesignShareModal({
       const res = await apiRequest("POST", `/api/designs/${designId}/share`, {});
       const data = await res.json();
       setShareUrl(shareUrlFor(data.shareUuid));
-      qc.invalidateQueries({ queryKey: ["/api/designs", designId] });
+      // Prefix key: refreshes this design AND the grid's Interface list, so a
+      // link generated here shows up as "Shared" on the project tile too.
+      qc.invalidateQueries({ queryKey: ["/api/designs"] });
     } catch {
       toast({
         title: "Could not create link",
@@ -73,7 +75,7 @@ export function DesignShareModal({
     try {
       await apiRequest("DELETE", `/api/designs/${designId}/share`);
       setShareUrl(null);
-      qc.invalidateQueries({ queryKey: ["/api/designs", designId] });
+      qc.invalidateQueries({ queryKey: ["/api/designs"] });
       toast({
         title: "Sharing disabled",
         description: "This Interface is now private. Existing links will no longer work.",

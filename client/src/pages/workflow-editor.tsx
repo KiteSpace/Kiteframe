@@ -86,6 +86,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useReplitAuth } from "../hooks/useReplitAuth";
 import { useCreditsGate } from "../hooks/useCreditsGate";
 import { useCloudProjects } from "../hooks/useCloudProjects";
+import { useCloudDesigns } from "../hooks/useCloudDesigns";
 import { useSubscription } from "../hooks/useSubscription";
 import { useExperimentOptions } from "../hooks/useExperimentOptions";
 import type {
@@ -532,6 +533,10 @@ function WorkflowEditorContent({
     refetch: refetchCloudProjects,
     isSaving: isCloudSaving,
   } = useCloudProjects();
+
+  // The user's Interfaces, so the Home grid can list every one of them rather
+  // than only those currently open as a tab.
+  const { designs: cloudDesigns } = useCloudDesigns();
 
   // AI Client wrapper that adapts the router to AiClient interface for legacy hooks
   const routerAiClient = useMemo<AiClient>(() => ({
@@ -8311,13 +8316,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           <>
           <HomeScreen
             recentProjects={[
-              // Local projects from tabs (stored in browser). For cloud-backed
-              // tabs, also surface share status so the badge/revoke UI works.
+              // Projects open as tabs. Share state is read from whatever backs
+              // the tab on the server — a design row for Interface tabs, a
+              // cloud project for workflow tabs. Crossing the two makes a card
+              // describe a different project's sharing entirely.
               ...tabs
                 .filter((tab) => tab.nodes.length > 0 || !!tab.designId)
                 .map((tab) => {
+                  const isDesignTab = !!tab.designId;
                   const cp = tab.cloudProjectId
                     ? cloudProjects.find((p) => p.id === tab.cloudProjectId)
+                    : null;
+                  const cd = tab.designId
+                    ? cloudDesigns.find((d) => d.id === tab.designId)
                     : null;
                   return {
                     id: tab.id,
@@ -8327,10 +8338,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       ? ("published" as const)
                       : ("private" as const),
                     thumbnail: tab.thumbnail || cp?.thumbnail || undefined,
-                    isLocal: true,
-                    shareUuid: cp?.shareUuid || undefined,
-                    isShareEnabled: cp?.isShareEnabled || false,
-                    fileType: tab.designId ? ("design" as const) : ("workflow" as const),
+                    // "Local" means nothing on the server backs this tab, which
+                    // is the only case where sharing is genuinely impossible.
+                    // An Interface tab is always backed by a design row, and a
+                    // workflow tab is backed once it has a cloud project.
+                    isLocal: isDesignTab
+                      ? !hasCloudAccess
+                      : !tab.cloudProjectId,
+                    shareUuid:
+                      (isDesignTab ? cd?.shareUuid : cp?.shareUuid) || undefined,
+                    isShareEnabled:
+                      (isDesignTab ? cd?.isShareEnabled : cp?.isShareEnabled) ||
+                      false,
+                    fileType: isDesignTab ? ("design" as const) : ("workflow" as const),
                     designId: tab.designId || undefined,
                   };
                 }),
@@ -8356,6 +8376,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       isLocal: false,
                       shareUuid: project.shareUuid || undefined,
                       isShareEnabled: project.isShareEnabled || false,
+                    }))
+                : []),
+              // The user's other Interfaces — the ones not currently open as a
+              // tab. Without these an Interface is invisible, and therefore
+              // unmanageable, until you happen to open it.
+              ...(hasCloudAccess
+                ? cloudDesigns
+                    .filter(
+                      (design) => !tabs.some((t) => t.designId === design.id),
+                    )
+                    .map((design) => ({
+                      id: `design:${design.id}`,
+                      name: design.title || "Untitled Interface",
+                      lastModified: new Date(
+                        design.updatedAt || design.createdAt || Date.now(),
+                      ),
+                      status: "private" as const,
+                      thumbnail: undefined,
+                      isLocal: false,
+                      shareUuid: design.shareUuid || undefined,
+                      isShareEnabled: design.isShareEnabled || false,
+                      fileType: "design" as const,
+                      designId: design.id,
+                      // Download/Duplicate/Delete are workflow-file operations
+                      // with no Interface equivalent — hide them rather than
+                      // offer menu items that quietly do nothing.
+                      fileActionsAvailable: false,
                     }))
                 : []),
             ].sort(
@@ -8532,12 +8579,40 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setFigmaImportMode("new-project");
               setShowFigmaModal(true);
             }}
-            onShareProject={async (projectId, onCopied) => {
-              // Resolve the cloud project: projectId may be a cloud project UUID
-              // (cloud-only entry) or a tab.id (cloud-backed tab). Try both.
-              let project = cloudProjects.find((p) => p.id === projectId);
+            onShareProject={async (card, onCopied) => {
+              // Interfaces and workflow projects are stored separately and
+              // share through their own endpoints — branch on the card's type
+              // so one can never be shared through the other's link.
+              if (card.fileType === "design" && card.designId) {
+                try {
+                  const result = await apiRequest(
+                    "POST",
+                    `/api/designs/${card.designId}/share`,
+                    {},
+                  );
+                  const data = await result.json();
+                  if (!data.shareUuid) throw new Error("No share link returned");
+                  await navigator.clipboard.writeText(
+                    `${window.location.origin}/design-view/${data.shareUuid}`,
+                  );
+                  queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+                  onCopied();
+                } catch (err) {
+                  console.error("[Share] Failed to share interface:", err);
+                  toast({
+                    title: "Share failed",
+                    description: "Could not generate share link. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+                return;
+              }
+
+              // Resolve the cloud project: the card id may be a cloud project
+              // UUID (cloud-only entry) or a tab.id (cloud-backed tab).
+              let project = cloudProjects.find((p) => p.id === card.id);
               if (!project) {
-                const tab = tabs.find((t) => t.id === projectId);
+                const tab = tabs.find((t) => t.id === card.id);
                 if (tab?.cloudProjectId) {
                   project = cloudProjects.find(
                     (p) => p.id === tab.cloudProjectId,
@@ -8579,12 +8654,31 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 });
               }
             }}
-            onRevokeProjectShare={async (projectId) => {
-              // Resolve cloud project — projectId may be a tab.id for
+            onRevokeProjectShare={async (card) => {
+              if (card.fileType === "design" && card.designId) {
+                try {
+                  await apiRequest("DELETE", `/api/designs/${card.designId}/share`);
+                  queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+                  toast({
+                    title: "Sharing disabled",
+                    description: `"${card.name}" is now private. The old link no longer works.`,
+                  });
+                } catch (err) {
+                  console.error("[Share] Failed to revoke interface share:", err);
+                  toast({
+                    title: "Error",
+                    description: "Could not revoke share link. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+                return;
+              }
+
+              // Resolve cloud project — the card id may be a tab.id for
               // cloud-backed tabs or a cloud UUID for cloud-only entries.
-              let project = cloudProjects.find((p) => p.id === projectId);
+              let project = cloudProjects.find((p) => p.id === card.id);
               if (!project) {
-                const tab = tabs.find((t) => t.id === projectId);
+                const tab = tabs.find((t) => t.id === card.id);
                 if (tab?.cloudProjectId) {
                   project = cloudProjects.find(
                     (p) => p.id === tab.cloudProjectId,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { SiteFooter } from "./SiteFooter";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,8 @@ import {
   Trash2,
   AlertCircle,
   Copy,
-  ChevronUp,
   Link,
+  Link2Off,
   Paintbrush,
   CheckSquare,
   Square,
@@ -70,6 +70,12 @@ interface RecentProject {
   isShareEnabled?: boolean;
   fileType?: "workflow" | "design";
   designId?: string;
+  /**
+   * Whether Download / Duplicate / Delete apply to this card. False for
+   * Interfaces that exist only on the server: those actions are all
+   * workflow-file operations that would silently do nothing.
+   */
+  fileActionsAvailable?: boolean;
 }
 
 interface WorkflowTemplate {
@@ -89,8 +95,11 @@ interface HomeScreenProps {
   onLoadTemplate: (templateType: string) => void;
   onUploadImage: () => void;
   onImportFigma?: () => void;
-  onShareProject?: (projectId: string, onCopied: () => void) => void;
-  onRevokeProjectShare?: (projectId: string) => void;
+  // Share actions take the whole card, not just an id: Workflows and
+  // Interfaces are stored separately and share through different endpoints,
+  // so the handler needs the card's type to avoid crossing the two.
+  onShareProject?: (project: RecentProject, onCopied: () => void) => void;
+  onRevokeProjectShare?: (project: RecentProject) => void;
   onDownloadProject?: (projectId: string) => void;
   onDuplicateProject?: (projectId: string) => void;
   onDeleteProject?: (projectId: string) => void;
@@ -409,9 +418,16 @@ export function HomeScreen({
 
   const clearSelection = useCallback(() => setSelectedProjectIds(new Set()), []);
 
+  // Only cards whose Delete action actually does something can be selected —
+  // otherwise "Select all" quietly includes items that bulk delete skips.
+  const selectableProjects = useMemo(
+    () => recentProjects.filter((p) => p.fileActionsAvailable !== false),
+    [recentProjects],
+  );
+
   const selectAll = useCallback(() => {
-    setSelectedProjectIds(new Set(recentProjects.map(p => p.id)));
-  }, [recentProjects]);
+    setSelectedProjectIds(new Set(selectableProjects.map(p => p.id)));
+  }, [selectableProjects]);
 
   const handleBulkDelete = useCallback(() => {
     if (!onDeleteProject) return;
@@ -465,7 +481,7 @@ export function HomeScreen({
         </div>
 
         {/* Selection checkbox — appears on hover or when selected */}
-        {showCheckbox && (
+        {showCheckbox && project.fileActionsAvailable !== false && (
           <button
             className={`absolute top-2 left-2 z-20 p-0.5 rounded transition-opacity ${
               isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
@@ -532,64 +548,88 @@ export function HomeScreen({
                   Share
                   <span className="ml-auto text-[10px] text-muted-foreground/60">cloud only</span>
                 </DropdownMenuItem>
+              ) : project.isShareEnabled ? (
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const x = e.clientX;
+                      const y = e.clientY;
+                      onShareProject?.(project, () => {
+                        setCopiedTooltip({ projectId: project.id, x, y });
+                        setTimeout(() => setCopiedTooltip(null), 1800);
+                      });
+                    }}
+                    data-testid={`menu-copy-share-link-${project.id}`}
+                  >
+                    <Link size={14} className="mr-2" />
+                    Copy share link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRevokeProjectShare?.(project);
+                    }}
+                    className="text-destructive focus:text-destructive"
+                    data-testid={`menu-revoke-share-${project.id}`}
+                  >
+                    <Link2Off size={14} className="mr-2" />
+                    Revoke share link
+                  </DropdownMenuItem>
+                </>
               ) : (
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
                     const x = e.clientX;
                     const y = e.clientY;
-                    onShareProject?.(project.id, () => {
+                    onShareProject?.(project, () => {
                       setCopiedTooltip({ projectId: project.id, x, y });
                       setTimeout(() => setCopiedTooltip(null), 1800);
                     });
                   }}
                   data-testid={`menu-share-${project.id}`}
                 >
-                  {project.isShareEnabled ? (
-                    <>
-                      <Link size={14} className="mr-2" />
-                      Copy link
-                    </>
-                  ) : (
-                    <>
-                      <Share2 size={14} className="mr-2" />
-                      Share
-                    </>
-                  )}
+                  <Share2 size={14} className="mr-2" />
+                  Share
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownloadProject?.(project.id);
-                }}
-                data-testid={`menu-download-${project.id}`}
-              >
-                <Download size={14} className="mr-2" />
-                Download
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDuplicateProject?.(project.id);
-                }}
-                data-testid={`menu-duplicate-${project.id}`}
-              >
-                <Copy size={14} className="mr-2" />
-                Duplicate Project
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteProjectId(project.id);
-                }}
-                className="text-destructive focus:text-destructive"
-                data-testid={`menu-delete-${project.id}`}
-              >
-                <Trash2 size={14} className="mr-2" />
-                Delete
-              </DropdownMenuItem>
+              {project.fileActionsAvailable !== false && (
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownloadProject?.(project.id);
+                    }}
+                    data-testid={`menu-download-${project.id}`}
+                  >
+                    <Download size={14} className="mr-2" />
+                    Download
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDuplicateProject?.(project.id);
+                    }}
+                    data-testid={`menu-duplicate-${project.id}`}
+                  >
+                    <Copy size={14} className="mr-2" />
+                    Duplicate Project
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteProjectId(project.id);
+                    }}
+                    className="text-destructive focus:text-destructive"
+                    data-testid={`menu-delete-${project.id}`}
+                  >
+                    <Trash2 size={14} className="mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -602,18 +642,15 @@ export function HomeScreen({
             {formatTimeAgo(project.lastModified)}
           </span>
           {project.isShareEnabled ? (
+            /* Indicator only — revoking lives in the card menu, so there is
+               exactly one place to do it rather than a hidden second one. */
             <Badge
               variant="secondary"
-              className="text-xs cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors flex items-center gap-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRevokeProjectShare?.(project.id);
-              }}
-              title="Click to stop sharing"
+              className="text-xs flex items-center gap-1"
+              title="Anyone with the link can view this"
               data-testid={`badge-shared-${project.id}`}
             >
               Shared
-              <ChevronUp size={10} />
             </Badge>
           ) : (
             <Badge
@@ -675,11 +712,11 @@ export function HomeScreen({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={numSelected === recentProjects.length ? clearSelection : selectAll}
+                    onClick={numSelected === selectableProjects.length ? clearSelection : selectAll}
                     className="text-muted-foreground hover:text-foreground text-sm"
                     data-testid="button-select-all"
                   >
-                    {numSelected === recentProjects.length ? "Deselect all" : "Select all"}
+                    {numSelected === selectableProjects.length ? "Deselect all" : "Select all"}
                   </Button>
                   <Button
                     variant="destructive"

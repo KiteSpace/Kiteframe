@@ -7978,6 +7978,33 @@ jane@example.com,Jane,Smith,pro,GroupC
     }
   });
 
+  // GET /api/designs — the signed-in user's own Interfaces, for the project grid.
+  //
+  // Owner-scoped by the storage query, so there is no id to tamper with. The
+  // payload is built field by field rather than spread: craftState would make
+  // this list enormous, and claimedByUserId must never reach a client. A dead
+  // shareUuid (left behind by a revoke) is withheld too, so the only uuid a
+  // client ever sees is one that currently resolves.
+  app.get('/api/designs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserIdFromRequest(req.user);
+      const rows = await storage.listDesignsByUser(userId);
+      res.json({
+        designs: rows.map((design) => ({
+          id: design.id,
+          title: design.title,
+          isShareEnabled: design.isShareEnabled === true,
+          shareUuid: design.isShareEnabled ? design.shareUuid : null,
+          createdAt: design.createdAt?.toISOString() ?? null,
+          updatedAt: design.updatedAt?.toISOString() ?? null,
+        })),
+      });
+    } catch (err) {
+      console.error('[designs] list failed:', err);
+      res.status(500).json({ error: 'Failed to list designs.' });
+    }
+  });
+
   // GET /api/designs/:id — fetch a design by its own id.
   //
   // Not registered with isAuthenticated: unclaimed designs must stay readable
