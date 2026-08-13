@@ -180,8 +180,15 @@ interface WorkflowDiff {
 // exchange in this same transcript without importing this component.
 const CHAT_STORAGE_KEY_PREFIX = TRANSCRIPT_KEY_PREFIX;
 
-// Read-only discussion threads persist separately from the main chat so the two
-// conversations never interleave, while still surviving unmount and reload.
+// Read-only discussion threads persist separately from the main chat.
+//
+// It is tempting to unify them — a conversation arguably belongs to a project,
+// not to the surface it was typed into. Do not. This panel is what a visitor
+// following a *shared link* sees (ViewOnlyViewer renders the panel read-only),
+// and localStorage is keyed by browser, not by account. Pointing this surface
+// at the owner's transcript would show the owner's private chat history to a
+// different person signed in on the same machine. The thread still persists
+// per project, so it survives tab switches and reloads either way.
 const DISCUSSION_STORAGE_KEY_PREFIX = 'kiteframe-kiteai-discussion-';
 
 function getDefaultWelcomeMessage(): ChatMessage {
@@ -3135,6 +3142,11 @@ function DiscussionView({
   
   const { toast } = useToast();
   const aiClient = useAi();
+  // Credit accounting for this panel's own requests. Without it the send path
+  // referenced an identifier that only exists in the editable chat, so every
+  // successful reply threw before it could be shown and surfaced as a generic
+  // "failed to get a response" toast.
+  const { markConsumed: markDiscussionJobConsumed } = useAiJobs();
   const { user, loading: authLoading, signIn } = useAuth();
   const { data: authProbe, isLoading: authProbeLoading } = useQuery<object | null>({
     queryKey: ['/api/subscription'],
@@ -3225,7 +3237,7 @@ ${workflowContext}`;
           ...conversationHistory
         ]
       });
-      if (response?.jobId) markJobConsumed(response.jobId);
+      if (response?.jobId) markDiscussionJobConsumed(response.jobId);
       
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now()}-response`,

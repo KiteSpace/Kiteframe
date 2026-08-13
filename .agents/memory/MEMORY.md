@@ -13,4 +13,5 @@
 - [Public design share payload](design-share-payload.md) — never send claimedByUserId to an anonymous viewer; an absent owner reads as "unclaimed" and offers a claim button.
 - [Stale routes & schema pushes](server-route-404-and-schema-push.md) — an /api 200 with no body preview in the log is the SPA fallback (route not registered — restart); drizzle-kit push needs a TTY.
 - [Design tabs carry the source workflow's cloud id](design-tab-vs-workflow-identity.md) — per-project state for an Interface tab must key off the design id; the tab's cloud project id is the parent workflow and silently answers with the wrong row.
+- [Shared-link surfaces & localStorage threads](browser-local-thread-scoping.md) — never point a read-only/shared-link view at a project-keyed chat thread; localStorage is per-browser, so it leaks the owner's history across accounts.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.

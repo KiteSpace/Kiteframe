@@ -127,7 +127,7 @@ import {
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
-import { appendTranscript, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
+import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
@@ -3299,22 +3299,29 @@ function WorkflowEditorContent({
       // the reply, an inline preview of the screens, and the offer to make
       // further changes are all visible in the conversation — not just on the
       // canvas. Appended (never replacing), so any prior discussion survives.
-      if (sourceWorkflowId) {
-        try {
-          appendTranscript(
-            sourceWorkflowId,
-            buildGenerationExchange({
-              prompt,
-              designId: createData.id,
-              title: tabTitle,
-              screenLabels: extractScreenLabels(genData.craftState),
-              origin: "workflow",
-              workflowName: sourceTab.name,
-            }),
-          );
-        } catch {
-          // Never let transcript bookkeeping break a successful generation.
-        }
+      //
+      // Two separate threads are involved and they are keyed differently. The
+      // design chat is keyed by design id — that is the panel the tab we are
+      // about to open renders, so it is the one the user actually lands on.
+      // The workflow's own chat is keyed by the same identifier ProjectPanel
+      // uses, which prefers projectUuid and falls back to the cloud id.
+      // Writing to the cloud id alone lands in a key neither surface reads,
+      // which is how this exchange previously went missing.
+      try {
+        const exchange = buildGenerationExchange({
+          prompt,
+          designId: createData.id,
+          title: tabTitle,
+          screenLabels: extractScreenLabels(genData.craftState),
+          origin: "workflow",
+          workflowName: sourceTab.name,
+        });
+        // Written before the tab opens, so it is present on first mount.
+        appendDesignChat(createData.id, exchange);
+        const workflowThreadId = sourceTab.projectUuid || sourceWorkflowId;
+        if (workflowThreadId) appendTranscript(workflowThreadId, exchange);
+      } catch {
+        // Never let transcript bookkeeping break a successful generation.
       }
 
       openDesignTab(
