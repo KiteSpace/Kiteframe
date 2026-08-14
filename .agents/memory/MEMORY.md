@@ -15,4 +15,5 @@
 - [Design tabs carry the source workflow's cloud id](design-tab-vs-workflow-identity.md) — per-project state for an Interface tab must key off the design id; the tab's cloud project id is the parent workflow and silently answers with the wrong row.
 - [Shared-link surfaces & localStorage threads](browser-local-thread-scoping.md) — never point a read-only/shared-link view at a project-keyed chat thread; localStorage is per-browser, so it leaks the owner's history across accounts.
 - [craft.js Frame data is mount-only](craft-frame-data-is-mount-only.md) — a changed craftState prop silently does nothing; live/read-only views must actions.deserialize inside the Editor.
+- [Previews own their containing block](preview-owns-its-containing-block.md) — an `absolute inset-0` root inherits bounds from an arbitrary ancestor and escapes unpositioned callers; fix in the component, and measure rects to test it.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.
