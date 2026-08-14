@@ -1,11 +1,10 @@
 import { FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';
 import { WorkflowThumbnail } from './WorkflowThumbnail';
-import { DesignProjectThumbnail } from '../DesignProjectThumbnail';
+import { useOpenDesign } from '@/design/DesignTabHost';
 import type { DesignPreview } from '@/lib/kiteaiTranscript';
 
 /**
@@ -13,7 +12,7 @@ import type { DesignPreview } from '@/lib/kiteaiTranscript';
  * visible in the conversation itself rather than only on the canvas.
  */
 function DesignPreviewCard({ preview }: { preview: DesignPreview }) {
-  const [, navigate] = useLocation();
+  const openDesign = useOpenDesign();
   const { designId, title, screenLabels = [] } = preview;
   const count = screenLabels.length;
 
@@ -22,9 +21,8 @@ function DesignPreviewCard({ preview }: { preview: DesignPreview }) {
       className="mt-3 border border-border rounded-lg overflow-hidden bg-muted/30"
       data-testid={`design-preview-${designId}`}
     >
-      <div className="h-32 bg-background border-b border-border overflow-hidden">
-        <DesignProjectThumbnail designId={designId} name={title ?? 'Generated design'} />
-      </div>
+      {/* No preview image: it could only ever show a cropped band of the first
+          screen, so the screen list below carries the summary on its own. */}
       <div className="p-3">
         <div className="text-xs font-medium truncate" data-testid="design-preview-title">
           {title ?? 'Generated design'}
@@ -55,7 +53,7 @@ function DesignPreviewCard({ preview }: { preview: DesignPreview }) {
           variant="outline"
           size="sm"
           className="mt-3 h-7 text-xs"
-          onClick={() => navigate(`/designs/${designId}`)}
+          onClick={() => openDesign(designId, title ?? undefined)}
           data-testid={`design-preview-open-${designId}`}
         >
           Open design

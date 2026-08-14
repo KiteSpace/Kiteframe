@@ -529,6 +529,17 @@ export interface GenerationExchangeInput {
   origin: 'home' | 'workflow';
   /** Workflow name, used to phrase the workflow-bridge messages. */
   workflowName?: string;
+  /**
+   * Whether to close with the invitation to keep changing the design.
+   *
+   * Only the design's own chat can act on that invitation. The workflow chat
+   * understands workflows and nothing else, so a follow-up typed there is read
+   * as a workflow request — offering to edit the design in that thread promises
+   * something the panel cannot do. The workflow-bridge records the same
+   * generation on both threads, so it asks for the offer on the design's copy
+   * only. Defaults to true, which suits every thread that belongs to a design.
+   */
+  includeEditOffer?: boolean;
 }
 
 /**
@@ -537,7 +548,7 @@ export interface GenerationExchangeInput {
  * closing message making it explicit that the design can still be changed.
  */
 export function buildGenerationExchange(input: GenerationExchangeInput): TranscriptEntry[] {
-  const { prompt, designId, title, screenLabels = [], origin, workflowName } = input;
+  const { prompt, designId, title, screenLabels = [], origin, workflowName, includeEditOffer = true } = input;
   const now = Date.now();
   const at = (offset: number) => new Date(now + offset);
 
@@ -570,15 +581,18 @@ export function buildGenerationExchange(input: GenerationExchangeInput): Transcr
       timestamp: at(1),
       designPreview: { designId, title, screenLabels },
     },
-    {
+  ];
+
+  if (includeEditOffer) {
+    entries.push({
       id: entryId('offer'),
       role: 'assistant',
       type: 'discussion',
       content:
         "You can keep going from here — tell me what to change and I'll update the design. For example: rename a screen, add a field or button, change the layout, or add another screen.",
       timestamp: at(2),
-    },
-  ];
+    });
+  }
 
   return entries;
 }

@@ -1,16 +1,18 @@
-// Real-browser proof that the generated-screen preview stays inside its card.
+// Real-browser proof of how a generated interface is presented in chat.
 //
-// The preview renders a live editor for the design's first artboard. It used to
-// position itself against whichever ancestor happened to be positioned, so in
-// the chat panels — which provide none — it escaped its card and painted an
-// artboard across the conversation.
+// Three things are asserted, all previously wrong:
+//   1. Neither chat card carries a preview graphic. The graphic could only show
+//      a cropped band of the first screen, and it used to escape its card
+//      entirely and paint an artboard across the conversation.
+//   2. The card still summarises the design — title, screen count, screens.
+//   3. Opening the design from the card opens a tab inside the app rather than
+//      navigating to the standalone design page and dropping the tab bar.
 //
-// Measuring rectangles is the point here. Asserting "the card is present" would
-// have passed the whole time the bug existed, so each surface is checked two
-// ways: the preview's own box must sit inside its card, and a hit test at the
-// centre of a chat message must reach the message rather than the preview.
+// The home-screen tile keeps its own checks: it is the remaining user of the
+// preview component, and its containment contract is what the escaping bug
+// violated, so it is measured rather than merely looked for.
 //
-//   CHROME_BIN=$(which chromium) node scripts/e2e-design-preview-containment.mjs
+//   CHROME_BIN=$(which chromium) node scripts/e2e-chat-design-card.mjs
 import pg from "pg";
 import crypto from "crypto";
 import { chromium } from "playwright-core";
@@ -27,6 +29,7 @@ await client.connect();
 const USER_ID = "e2e-preview-containment-user";
 const EMAIL = "e2e-preview-containment@example.com";
 const WORKFLOW_NAME = "Preview Containment Flow";
+const DESIGN_TITLE = "Preview Containment Interface";
 const PROJECT_UUID = "e2e-pc-" + crypto.randomBytes(6).toString("hex");
 
 const results = [];
@@ -51,9 +54,9 @@ await client.query(
 );
 await cleanup();
 
-// Multi-screen, and the first artboard carries real content so the preview
-// renders an actual artboard rather than the empty-state icon — the empty state
-// is small enough that it would hide the overflow this test exists to catch.
+// Multi-screen, and the first artboard carries real content so the home-screen
+// tile renders an actual artboard rather than the empty-state icon — the empty
+// state is small enough that it would hide the overflow this test measures.
 const craftState = {
   ROOT: {
     type: { resolvedName: "AstryxSection" }, displayName: "AstryxSection", isCanvas: true,
@@ -83,10 +86,12 @@ const craftState = {
   },
 };
 
+// Sourced the way the real thing is: this whole flow only happens for designs
+// generated from a workflow, and the inline view keys its header off that.
 const designRow = await client.query(
   `INSERT INTO designs (claimed_by_user_id, source, craft_state, title)
-   VALUES ($1, 'native', $2, 'Preview Containment Interface') RETURNING id`,
-  [USER_ID, JSON.stringify(craftState)],
+   VALUES ($1, 'workflow-bridge', $2, $3) RETURNING id`,
+  [USER_ID, JSON.stringify(craftState), DESIGN_TITLE],
 );
 const DESIGN_ID = designRow.rows[0].id;
 
@@ -123,79 +128,57 @@ const page = await ctx.newPage();
 
 /** Seed a generation exchange onto a thread using the app's own helpers. */
 const seedExchange = (target, id) =>
-  page.evaluate(async ({ target, id, designId, workflowName }) => {
+  page.evaluate(async ({ target, id, designId, workflowName, title }) => {
     const mod = await import("/src/lib/kiteaiTranscript.ts");
     const exchange = mod.buildGenerationExchange({
       origin: "workflow",
       prompt: "Generate an interface from this workflow.",
       workflowName,
       designId,
-      title: "Preview Containment Interface",
+      title,
       screenLabels: ["Mission Specs", "Fleet Management", "Rig Checkout"],
+      // The workflow thread never receives the closing offer in production.
+      includeEditOffer: target === "design",
     });
     if (target === "design") mod.appendDesignChat(id, exchange);
     else mod.appendTranscript(id, exchange);
-  }, { target, id, designId: DESIGN_ID, workflowName: WORKFLOW_NAME });
+  }, { target, id, designId: DESIGN_ID, workflowName: WORKFLOW_NAME, title: DESIGN_TITLE });
 
 /**
- * Does the preview sit inside its card, and can you still reach the message
- * behind it? Rects are compared with a pixel of tolerance for rounding.
+ * What does the card actually contain? The absence of a graphic is only
+ * meaningful alongside the presence of the summary, so both are reported: a
+ * card that failed to render would otherwise read as a pass.
  */
-const inspect = (cardSel) =>
-  page.evaluate((sel) => {
+const inspectCard = (cardSel, title) =>
+  page.evaluate(({ sel, title }) => {
     const card = document.querySelector(sel);
     if (!card) return { card: false };
-    const preview = card.querySelector('[aria-label$="design preview"]');
-    if (!preview) return { card: true, preview: false };
-
-    const c = card.getBoundingClientRect();
-    const p = preview.getBoundingClientRect();
-    const contained =
-      p.left >= c.left - 1 && p.right <= c.right + 1 &&
-      p.top >= c.top - 1 && p.bottom <= c.bottom + 1;
-
-    // Guard against a hollow pass. Containment of an empty placeholder would be
-    // trivial, so require the real artboard branch; and since the artboard is
-    // deliberately larger than the card, clipping is what keeps it inside —
-    // assert that too, or removing `overflow-hidden` would go unnoticed.
-    const ready = preview.getAttribute("data-preview-state") === "ready";
-    const content = preview.querySelector('[data-preview-content="true"]');
-    const cr = content?.getBoundingClientRect();
-    const clipped = !!cr && (cr.height > c.height + 1 || cr.width > c.width + 1);
-    const overflowHidden = getComputedStyle(preview).overflow === "hidden";
-
-    // Is anything painted over the conversation? Hit test the middle of every
-    // other text-bearing block in the scroll container and see whether the
-    // preview answers instead of the message.
-    const panel = card.closest('[class*="overflow-y"]') ?? card.parentElement;
-    let covered = 0;
-    let probed = 0;
-    for (const el of Array.from(panel?.querySelectorAll("p, span, div") ?? [])) {
-      if (card.contains(el)) continue;
-      if (!el.textContent?.trim()) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width < 20 || r.height < 8) continue;
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      if (!hit) continue;
-      probed += 1;
-      if (hit.closest('[aria-label$="design preview"]')) covered += 1;
-    }
-
+    const text = card.textContent ?? "";
+    const box = card.getBoundingClientRect();
     return {
-      card: true, preview: true, contained, covered, probed,
-      ready, clipped, overflowHidden,
-      cardBox: { w: Math.round(c.width), h: Math.round(c.height) },
-      previewBox: { w: Math.round(p.width), h: Math.round(p.height) },
-      overflow: {
-        right: Math.round(p.right - c.right),
-        bottom: Math.round(p.bottom - c.bottom),
-      },
+      card: true,
+      // The preview component labels itself, whichever state it renders in.
+      hasGraphic: !!card.querySelector('[aria-label$="design preview"], [data-preview-state]'),
+      hasTitle: text.includes(title),
+      hasScreenCount: /3 screens/.test(text),
+      screensNamed: ["Mission Specs", "Fleet Management", "Rig Checkout"].filter((s) => text.includes(s)).length,
+      height: Math.round(box.height),
     };
-  }, cardSel);
+  }, { sel: cardSel, title });
 
-const describe = (r) =>
-  `card=${r.cardBox?.w}x${r.cardBox?.h} preview=${r.previewBox?.w}x${r.previewBox?.h} ` +
-  `overflowRight=${r.overflow?.right} overflowBottom=${r.overflow?.bottom} covered=${r.covered}/${r.probed}`;
+/**
+ * Names of the open tabs in the editor's tab bar. Panels use `tab-…` test ids
+ * of their own, so tabs are identified by the name element they contain, and
+ * the name is read from its tooltip — the visible label is truncated at ten
+ * characters, which is short enough to make two different designs look alike.
+ */
+const tabNames = () =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll('[data-testid^="tab-"]'))
+      .map((el) => el.querySelector('[data-testid="text-workflow-name"]'))
+      .filter(Boolean)
+      .map((el) => (el.getAttribute("title") ?? el.textContent ?? "").replace(/ - Double-click to rename$/, "").trim()),
+  );
 
 try {
   // ── The Interface chat panel ───────────────────────────────────────────────
@@ -205,15 +188,12 @@ try {
   await page.reload({ waitUntil: "networkidle", timeout: 90000 });
   await page.waitForTimeout(5000);
 
-  const design = await inspect(`[data-testid="design-chat-preview-${DESIGN_ID}"]`);
-  check("The Interface chat shows the generated preview card", design.card && design.preview,
-    JSON.stringify(design));
-  if (design.preview) {
-    check("The Interface preview shows a real artboard, not a placeholder", design.ready, describe(design));
-    check("The preview stays inside its card in the Interface chat", design.contained, describe(design));
-    check("The Interface card is what crops the oversized artboard",
-      design.clipped && design.overflowHidden, describe(design));
-    check("The Interface preview never intercepts clicks meant for the conversation", design.covered === 0, describe(design));
+  const design = await inspectCard(`[data-testid="design-chat-preview-${DESIGN_ID}"]`, DESIGN_TITLE);
+  check("The Interface chat shows a card for the generated design", design.card, JSON.stringify(design));
+  if (design.card) {
+    check("The Interface card shows no preview graphic", !design.hasGraphic, JSON.stringify(design));
+    check("The Interface card still summarises the design",
+      design.hasTitle && design.hasScreenCount && design.screensNamed === 3, JSON.stringify(design));
   }
 
   // ── The workflow chat panel ────────────────────────────────────────────────
@@ -242,18 +222,73 @@ try {
   check("The workflow opens in the editor with its KiteAI panel", editorOpen);
   await page.waitForTimeout(4000);
 
-  const workflow = await inspect(`[data-testid="design-preview-${DESIGN_ID}"]`);
-  check("The workflow chat shows the generated preview card", workflow.card && workflow.preview,
-    JSON.stringify(workflow));
-  if (workflow.preview) {
-    check("The workflow preview shows a real artboard, not a placeholder", workflow.ready, describe(workflow));
-    check("The preview stays inside its card in the workflow chat", workflow.contained, describe(workflow));
-    check("The workflow card is what crops the oversized artboard",
-      workflow.clipped && workflow.overflowHidden, describe(workflow));
-    check("The workflow preview never intercepts clicks meant for the conversation", workflow.covered === 0, describe(workflow));
+  const workflow = await inspectCard(`[data-testid="design-preview-${DESIGN_ID}"]`, DESIGN_TITLE);
+  check("The workflow chat shows a card for the generated design", workflow.card, JSON.stringify(workflow));
+  if (workflow.card) {
+    check("The workflow card shows no preview graphic", !workflow.hasGraphic, JSON.stringify(workflow));
+    check("The workflow card still summarises the design",
+      workflow.hasTitle && workflow.hasScreenCount && workflow.screensNamed === 3, JSON.stringify(workflow));
   }
 
-  // ── The home screen, which already worked and must keep working ────────────
+  // The offer to keep editing belongs to the design's own chat only.
+  const workflowPanelText = await page.evaluate(() => document.body.innerText ?? "");
+  check("The workflow chat does not offer to edit the design",
+    !/tell me what to change/i.test(workflowPanelText));
+
+  // ── Opening the design from the card ───────────────────────────────────────
+  const tabsBefore = await tabNames();
+  const openBtn = page.locator(`[data-testid="design-preview-open-${DESIGN_ID}"]`).first();
+  const haveOpen = (await openBtn.count()) > 0;
+  check("The workflow card offers a way to open the design", haveOpen);
+  if (haveOpen) {
+    await openBtn.click();
+    await page.waitForTimeout(4000);
+
+    const url = new URL(page.url());
+    // Leaving for /designs/:id is exactly the bug: that page has no tab bar.
+    check("Opening the design keeps the user on the editor's own URL",
+      !url.pathname.startsWith("/designs/"), `path=${url.pathname}`);
+    const shellIntact = await page.locator('[data-testid="tab-home"]').count();
+    check("The app shell and its tab bar survive opening the design", shellIntact > 0);
+
+    const tabsAfter = await tabNames();
+    check("A tab for the design is added to the editor",
+      tabsAfter.length === tabsBefore.length + 1 && tabsAfter.some((n) => n.includes(DESIGN_TITLE)),
+      `before=${JSON.stringify(tabsBefore)} after=${JSON.stringify(tabsAfter)}`);
+
+    // Not just a tab entry: the design itself has to be what is now on screen.
+    // This control belongs to the inline design view's own header, so its
+    // presence means the design mounted inside the editor — not merely that a
+    // tab label appeared.
+    const designMounted = await page.locator('[data-testid="button-share-design-inline"]').count();
+    check("The design's editor is what the new tab shows", designMounted > 0);
+
+    // Going back and asking again must focus that tab, not stack up duplicates.
+    const workflowTab = page
+      .locator(`[data-testid^="tab-"]:has([data-testid="text-workflow-name"][title^="${WORKFLOW_NAME}"])`)
+      .first();
+    if ((await workflowTab.count()) > 0) {
+      await workflowTab.click();
+      await page.waitForTimeout(2500);
+      const reopen = page.locator(`[data-testid="design-preview-open-${DESIGN_ID}"]`).first();
+      if ((await reopen.count()) > 0) {
+        await reopen.click();
+        await page.waitForTimeout(3000);
+        const tabsAgain = await tabNames();
+        check("Opening it a second time switches to the existing tab",
+          tabsAgain.length === tabsAfter.length,
+          `after=${JSON.stringify(tabsAfter)} again=${JSON.stringify(tabsAgain)}`);
+      } else {
+        check("Opening it a second time switches to the existing tab", false,
+          "the card was not reachable after switching back to the workflow tab");
+      }
+    } else {
+      check("Opening it a second time switches to the existing tab", false,
+        `workflow tab not found among ${JSON.stringify(tabsAfter)}`);
+    }
+  }
+
+  // ── The home screen, which still renders previews and must keep working ────
   await page.goto(`https://${domain}/`, { waitUntil: "networkidle", timeout: 90000 });
   await page.waitForTimeout(5000);
 

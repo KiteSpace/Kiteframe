@@ -128,6 +128,7 @@ import {
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
+import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
 import { normalizeWorkflowGraph } from "@/utils/normalizeWorkflowGraph";
 import "../lib/kiteframe/styles/kiteframe.css";
@@ -3227,6 +3228,16 @@ function WorkflowEditorContent({
     setActiveTabId(newTab.id);
   }, [generateTabId, tabs]);
 
+  /**
+   * Handed to the panels below so anything inside them — notably the KiteAI
+   * chat's design card — can open an interface as a tab here, instead of
+   * navigating away to the standalone design page and leaving the app shell.
+   */
+  const designTabHost = useMemo(
+    () => ({ openDesign: (designId: string, title?: string) => openDesignTab(designId, title) }),
+    [openDesignTab],
+  );
+
   // Shared generation function: build a new design tab from any workflow tab.
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
@@ -3308,18 +3319,27 @@ function WorkflowEditorContent({
       // Writing to the cloud id alone lands in a key neither surface reads,
       // which is how this exchange previously went missing.
       try {
-        const exchange = buildGenerationExchange({
+        const exchangeInput = {
           prompt,
           designId: createData.id,
           title: tabTitle,
           screenLabels: extractScreenLabels(genData.craftState),
-          origin: "workflow",
+          origin: "workflow" as const,
           workflowName: sourceTab.name,
-        });
+        };
         // Written before the tab opens, so it is present on first mount.
-        appendDesignChat(createData.id, exchange);
+        appendDesignChat(createData.id, buildGenerationExchange(exchangeInput));
         const workflowThreadId = sourceTab.projectUuid || sourceWorkflowId;
-        if (workflowThreadId) appendTranscript(workflowThreadId, exchange);
+        if (workflowThreadId) {
+          // The workflow's thread records what was generated but omits the
+          // closing offer to keep editing the design: this panel only speaks
+          // workflows, so acting on that offer here is impossible. Editing the
+          // interface stays with the interface's own chat.
+          appendTranscript(
+            workflowThreadId,
+            buildGenerationExchange({ ...exchangeInput, includeEditOffer: false }),
+          );
+        }
       } catch {
         // Never let transcript bookkeeping break a successful generation.
       }
@@ -14034,6 +14054,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
             {/* Project Panel - docked right side */}
             {openTabs.length > 0 && !isPhoneViewOnly && (
+              <DesignTabHostProvider host={designTabHost}>
               <ProjectPanel
                 nodes={nodes}
                 edges={edges}
@@ -14488,6 +14509,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 hasActiveExperiment={experimentState.session !== null}
                 generatingExperimentInsightId={experimentState.generatingInsightId}
               />
+              </DesignTabHostProvider>
             )}
           </>
         )}

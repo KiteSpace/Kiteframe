@@ -264,6 +264,12 @@ try {
     earlierAt >= 0 && generationAt > earlierAt, `earlier=${earlierAt} generation=${generationAt}`);
   check("The generation exchange carries an inline preview",
     workflowThread.some((m) => m.hasPreview));
+  // …but not the invitation to keep editing the design. This panel only
+  // understands workflows, so a follow-up typed here would be read as a
+  // workflow request; offering it would promise something impossible.
+  check("The workflow's conversation does not offer to edit the design",
+    !workflowThread.some((m) => /tell me what to change/i.test(m.content ?? "")),
+    `entries=${workflowThread.length}`);
 
   // Persistence across a reload of the whole editor.
   await page.reload({ waitUntil: "networkidle", timeout: 90000 });

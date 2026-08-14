@@ -13,7 +13,6 @@ import {
   type TranscriptEntry,
   type DesignPreview,
 } from "@/lib/kiteaiTranscript";
-import { DesignProjectThumbnail } from "@/components/DesignProjectThumbnail";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -4839,9 +4838,8 @@ function DesignChatPreviewCard({ preview }: { preview: DesignPreview }) {
       className="mt-2 border border-border/70 rounded-lg overflow-hidden bg-background/60"
       data-testid={`design-chat-preview-${designId}`}
     >
-      <div className="h-20 bg-background border-b border-border/70 overflow-hidden">
-        <DesignProjectThumbnail designId={designId} name={title ?? "Generated design"} />
-      </div>
+      {/* No preview image: at this size it could only show a cropped band of
+          the first screen, which told the user less than the screen list does. */}
       <div className="p-2">
         <div className="text-[11px] font-medium truncate">{title ?? "Generated design"}</div>
         {count > 0 && (
