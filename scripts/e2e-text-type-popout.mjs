@@ -452,6 +452,243 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-6d-lists.png" });
 }
 
+// ── 6e. Boundary is visibly distinct when idle vs selected vs editing ────────
+{
+  const second = page.locator('[data-testid="rich-text-field-object"]').nth(1);
+  const readState = () => second.evaluate((el) => ({
+    state: el.getAttribute("data-border-state"),
+    borderStyle: getComputedStyle(el).borderTopStyle,
+    borderWidth: getComputedStyle(el).borderTopWidth,
+    borderColor: getComputedStyle(el).borderTopColor,
+    shadow: getComputedStyle(el).boxShadow,
+  }));
+
+  // Idle: click empty canvas to clear the selection
+  await page.mouse.click(1400, 900);
+  await page.waitForTimeout(500);
+  const idle = await readState();
+  check("idle field reports the idle boundary state", idle.state === "idle", JSON.stringify(idle));
+  check("idle boundary is dashed", idle.borderStyle === "dashed", `borderStyle=${idle.borderStyle}`);
+
+  // Selected: single click on the field
+  const box = await second.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 6);
+  await page.waitForTimeout(600);
+  const selected = await readState();
+  check("clicking the field reports the selected boundary state", selected.state === "selected", JSON.stringify(selected));
+  check("selected boundary is solid, not dashed", selected.borderStyle === "solid", `borderStyle=${selected.borderStyle}`);
+  check("selected boundary differs from idle", selected.borderColor !== idle.borderColor || selected.borderStyle !== idle.borderStyle,
+    `idle=${idle.borderColor}/${idle.borderStyle} selected=${selected.borderColor}/${selected.borderStyle}`);
+
+  // Editing: double click into the field
+  await second.dblclick();
+  await page.waitForTimeout(500);
+  const editing = await readState();
+  check("editing field reports the editing boundary state", editing.state === "editing", JSON.stringify(editing));
+  const shadowDiffers = editing.shadow !== selected.shadow && editing.shadow !== "none";
+  check("editing boundary is visibly distinct from selected", shadowDiffers,
+    `selected=${selected.shadow} editing=${editing.shadow}`);
+  await page.screenshot({ path: "/tmp/e2e-text-6e-borders.png" });
+}
+
+// ── 6f. Text colour applies to just the selected words ───────────────────────
+{
+  const second = page.locator('[data-testid="rich-text-field-object"]').nth(1);
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const editingOpen = await editor.isVisible().catch(() => false);
+  check("field open for the colour test", editingOpen);
+  if (editingOpen) {
+    // Select the word "Alpha" with a real double-click, not a scripted range
+    const alphaBox = await editor.evaluate((el) => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = (node.textContent || "").indexOf("Alpha");
+        if (i >= 0) {
+          const r = document.createRange();
+          r.setStart(node, i);
+          r.setEnd(node, i + 5);
+          const b = r.getBoundingClientRect();
+          return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        }
+      }
+      return null;
+    });
+    check("found the word Alpha to colour", !!alphaBox);
+    if (alphaBox) {
+      await page.mouse.dblclick(alphaBox.x, alphaBox.y);
+      await page.waitForTimeout(300);
+
+      const colorBtn = page.locator('[data-testid="rich-text-color"]');
+      check("format toolbar exposes a text colour control", await colorBtn.isVisible().catch(() => false));
+      await colorBtn.click();
+      await page.waitForTimeout(300);
+      const popover = page.locator('[data-testid="rich-text-color-popover"]');
+      check("colour control opens a swatch popover", await popover.isVisible().catch(() => false));
+      await page.screenshot({ path: "/tmp/e2e-text-6f-color-popover.png" });
+
+      await popover.locator('[data-testid="rich-text-color-ef4444"]').click();
+      await page.waitForTimeout(500);
+
+      const colored = await editor.evaluate((el) =>
+        [...el.querySelectorAll("span")]
+          .filter((s) => getComputedStyle(s).color === "rgb(239, 68, 68)")
+          .map((s) => s.textContent.replace(/\u200B/g, ""))
+          .join("|"),
+      );
+      check("chosen colour applied to the selected word", colored.includes("Alpha"), `colored=${colored}`);
+      check("colour did NOT leak onto the rest of the text", !colored.includes("Beta"), `colored=${colored}`);
+      check("popover closes after picking a colour", !(await popover.isVisible().catch(() => false)));
+
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(700);
+      const readColored = await second.evaluate((el) =>
+        [...el.querySelectorAll("span")]
+          .filter((s) => getComputedStyle(s).color === "rgb(239, 68, 68)")
+          .map((s) => s.textContent.replace(/\u200B/g, ""))
+          .join("|"),
+      );
+      check("coloured text renders in read mode", readColored.includes("Alpha"), `colored=${readColored}`);
+    }
+  }
+  await page.screenshot({ path: "/tmp/e2e-text-6f-color.png" });
+}
+
+// ── 6g. Lists work from a plain caret, with visible markers ──────────────────
+{
+  // Fresh field so the list behaviour is not confused by earlier content
+  const countFields = () => page.locator('[data-testid="rich-text-field-object"]').count();
+  const before = await countFields();
+  await page.locator('[data-testid="icon-type"]').first().click();
+  await page.waitForTimeout(400);
+  const card = page.locator('[data-testid="popout-text-type-text-field"]');
+  const cardBox = await card.boundingBox();
+  await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cardBox.x + 100, cardBox.y + 50, { steps: 5 });
+  // Free canvas: the right-hand assistant panel starts around x=1000
+  await page.mouse.move(300, 700, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(900);
+  check("third Text Field created for the list test", (await countFields()) === before + 1);
+
+  const third = page.locator('[data-testid="rich-text-field-object"]').nth(2);
+  await third.dblclick();
+  await page.waitForTimeout(500);
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const opened = await editor.isVisible().catch(() => false);
+  check("third Text Field opens for editing", opened);
+  if (opened) {
+    const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
+    await editor.click();
+    await page.keyboard.type("Milk");
+    await page.waitForTimeout(300);
+
+    // The caret is simply sitting after "Milk" — no selection at all.
+    // This is how a real user reaches for the list button.
+    const collapsed = await page.evaluate(() => window.getSelection().isCollapsed);
+    check("selection is a bare caret before clicking the list button", collapsed);
+
+    await toolbar.locator('[data-testid="rich-text-bullet-list"]').click();
+    await page.waitForTimeout(400);
+    const firstItem = await editor.evaluate((el) => {
+      const li = el.querySelector("ul li");
+      return li ? li.textContent.replace(/\u200B/g, "") : null;
+    });
+    check("bullet list created from a caret (no selection)", firstItem === "Milk", `li=${firstItem}`);
+
+    const markerVisible = await editor.evaluate((el) => {
+      const ul = el.querySelector("ul");
+      if (!ul) return null;
+      const cs = getComputedStyle(ul);
+      return { type: cs.listStyleType, padding: parseFloat(cs.paddingLeft) };
+    });
+    check("bullet markers are actually rendered (not reset away)",
+      !!markerVisible && markerVisible.type === "disc" && markerVisible.padding > 0,
+      JSON.stringify(markerVisible));
+
+    // The caret must still be where the user left it — at the end of "Milk"
+    const caretAtEnd = await page.evaluate(() => {
+      const s = window.getSelection();
+      if (!s || !s.isCollapsed) return "not-collapsed";
+      const li = document.querySelector('[data-testid="rich-text-editor"] ul li');
+      if (!li) return "no-li";
+      const pre = document.createRange();
+      pre.selectNodeContents(li);
+      pre.setEnd(s.getRangeAt(0).startContainer, s.getRangeAt(0).startOffset);
+      return pre.toString().length === li.textContent.length ? "at-end" : `at-${pre.toString().length}`;
+    });
+    check("caret stays put when the list is applied", caretAtEnd === "at-end", caretAtEnd);
+
+    // Enter continues the list with a second item
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Eggs");
+    await page.waitForTimeout(300);
+    const items = await editor.evaluate((el) =>
+      [...el.querySelectorAll("ul li")].map((li) => li.textContent.replace(/\u200B/g, "")),
+    );
+    check("Enter continues the bullet list", items.length === 2 && items[1] === "Eggs", JSON.stringify(items));
+
+    // Toggling off from a caret must un-list without eating the text
+    await toolbar.locator('[data-testid="rich-text-bullet-list"]').click();
+    await page.waitForTimeout(400);
+    const afterOff = await editor.evaluate((el) => ({
+      lis: el.querySelectorAll("ul li").length,
+      text: el.textContent.replace(/\u200B/g, ""),
+    }));
+    check("bullet list toggles off from a caret", afterOff.lis <= 1, JSON.stringify(afterOff));
+    check("no text is lost when the list is toggled off",
+      afterOff.text.includes("Milk") && afterOff.text.includes("Eggs"), afterOff.text.slice(0, 40));
+
+    // Numbered list, also from a caret
+    await toolbar.locator('[data-testid="rich-text-ordered-list"]').click();
+    await page.waitForTimeout(400);
+    const olMarker = await editor.evaluate((el) => {
+      const ol = el.querySelector("ol");
+      return ol ? getComputedStyle(ol).listStyleType : null;
+    });
+    check("numbered list created from a caret with visible numbers", olMarker === "decimal", `listStyleType=${olMarker}`);
+  }
+  await page.screenshot({ path: "/tmp/e2e-text-6g-caret-lists.png" });
+}
+
+// ── 6h. The field grows vertically as the text grows ─────────────────────────
+{
+  const third = page.locator('[data-testid="rich-text-field-object"]').nth(2);
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const layoutHeight = () => third.evaluate((el) => parseFloat(el.style.height));
+  const editingOpen = await editor.isVisible().catch(() => false);
+  check("field open for the auto-height test", editingOpen);
+  if (editingOpen) {
+    const before = await layoutHeight();
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press("Enter");
+      await page.keyboard.type(`Line ${i} of some reasonably long wrapping text`);
+    }
+    await page.waitForTimeout(600);
+    const after = await layoutHeight();
+    check("field grows vertically as text is typed", after > before + 20, `before=${before} after=${after}`);
+
+    const clipped = await editor.evaluate((el) => ({
+      scroll: el.scrollHeight,
+      client: el.clientHeight,
+    }));
+    check("grown field shows all of its text (nothing clipped)",
+      clipped.scroll <= clipped.client + 2, JSON.stringify(clipped));
+
+    // Growing must never undo a size the user chose — it only ever grows
+    await page.keyboard.press("Backspace");
+    await page.waitForTimeout(500);
+    const afterDelete = await layoutHeight();
+    check("field does not shrink back when text is removed", afterDelete >= after, `after=${after} afterDelete=${afterDelete}`);
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(700);
+    globalThis.__grownHeight = afterDelete;
+  }
+  await page.screenshot({ path: "/tmp/e2e-text-6h-autoheight.png" });
+}
+
 // ── 7. Reload page → content persists (localStorage tabs) ────────────────────
 {
   // Wait past the 1s debounced localStorage save before reloading
@@ -485,6 +722,29 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
     [...el.querySelectorAll("span")].some((s) => getComputedStyle(s).fontWeight === "300"),
   );
   check("font weight survives reload", !!weightStill);
+
+  const second = page.locator('[data-testid="rich-text-field-object"]').nth(1);
+  const colorStill = await second.evaluate((el) =>
+    [...el.querySelectorAll("span")]
+      .filter((s) => getComputedStyle(s).color === "rgb(239, 68, 68)")
+      .map((s) => s.textContent.replace(/\u200B/g, ""))
+      .join("|"),
+  ).catch(() => "");
+  check("text colour survives reload", colorStill.includes("Alpha"), `colored=${colorStill}`);
+
+  const third = page.locator('[data-testid="rich-text-field-object"]').nth(2);
+  const thirdPresent = await third.isVisible().catch(() => false);
+  const grown = globalThis.__grownHeight;
+  const heightStill = thirdPresent ? await third.evaluate((el) => parseFloat(el.style.height)) : 0;
+  check("auto-grown height survives reload",
+    thirdPresent && grown > 0 && Math.abs(heightStill - grown) <= 2,
+    `expected=${grown} actual=${heightStill}`);
+
+  const listStill = thirdPresent && await third.evaluate((el) => {
+    const ol = el.querySelector("ol");
+    return !!ol && getComputedStyle(ol).listStyleType === "decimal";
+  });
+  check("list markers survive reload in read mode", !!listStill);
   await page.screenshot({ path: "/tmp/e2e-text-7-reloaded.png" });
 }
 

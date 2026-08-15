@@ -1302,6 +1302,7 @@ export interface RichTextRun {
   underline?: boolean;
   fontSize?: number;       // overrides block default when set
   fontWeight?: number;     // numeric weight e.g. 400, 700, 900
+  color?: string;          // normalised #rrggbb, overrides object textColor
 }
 
 // A block is either a paragraph or a list item

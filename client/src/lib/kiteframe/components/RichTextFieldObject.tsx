@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { CanvasObject, RichTextFieldData, RichTextBlock, RichTextRun } from '../types';
 import { ResizeHandle } from './ResizeHandle';
+import { COLOR_PALETTE } from './LinearToolbar';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -23,6 +24,41 @@ const BLOCK_TAGS = new Set([
 ]);
 
 const ZERO_WIDTH = /\u200B/g;
+
+/** Tailwind's preflight resets `ul, ol { list-style: none }`, so list markers
+ *  must be re-declared explicitly everywhere a list is rendered — the editor,
+ *  the generated HTML and the read-only view — or bullets/numbers vanish. */
+const LIST_MARKER: Record<'bullet' | 'ordered', string> = {
+  bullet: 'disc',
+  ordered: 'decimal',
+};
+const LIST_PADDING_LEFT = '1.4em';
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+const RGB_COLOR = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*[\d.]+\s*)?\)$/;
+
+/** Normalise a colour to `#rrggbb`. Anything unrecognised is dropped rather
+ *  than interpolated into a style attribute. */
+function sanitizeColor(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const raw = value.trim().toLowerCase();
+  if (!raw) return undefined;
+  if (HEX_COLOR.test(raw)) {
+    if (raw.length === 4) {
+      return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
+    }
+    return raw;
+  }
+  const m = raw.match(RGB_COLOR);
+  if (m) {
+    const channel = (s: string) => {
+      const n = Math.min(255, Math.max(0, Math.round(parseFloat(s))));
+      return n.toString(16).padStart(2, '0');
+    };
+    return `#${channel(m[1])}${channel(m[2])}${channel(m[3])}`;
+  }
+  return undefined;
+}
 
 function sanitizeFontSize(value: unknown): number | undefined {
   const n = typeof value === 'number' ? value : parseInt(String(value), 10);
@@ -58,6 +94,8 @@ function sanitizeBlocks(input: unknown): RichTextBlock[] {
       if (fs !== undefined) run.fontSize = fs;
       const fw = r.fontWeight !== undefined ? sanitizeFontWeight(r.fontWeight) : undefined;
       if (fw !== undefined) run.fontWeight = fw;
+      const color = sanitizeColor(r.color);
+      if (color !== undefined) run.color = color;
       runs.push(run);
     }
     if (runs.length === 0) runs.push({ text: '' });
@@ -92,6 +130,7 @@ function renderRuns(runs: RichTextRun[]) {
       fontStyle: run.italic ? 'italic' : undefined,
       textDecoration: run.underline ? 'underline' : undefined,
       fontSize: run.fontSize ? `${run.fontSize}px` : undefined,
+      color: run.color ?? undefined,
     };
     return (
       <span key={i} style={style}>
@@ -119,11 +158,17 @@ interface FormatToolbarProps {
   state: FormatState;
 }
 
-const TOOLBAR_WIDTH = 340;
+const TOOLBAR_WIDTH = 386;
 const TOOLBAR_HEIGHT = 36;
 const TOOLBAR_GAP = 8;
 
 function FormatToolbar({ anchorRect, onCommand, state }: FormatToolbarProps) {
+  // Hooks must run unconditionally — the early returns below come after them.
+  const [colorOpen, setColorOpen] = useState(false);
+  useEffect(() => {
+    if (!anchorRect) setColorOpen(false);
+  }, [anchorRect]);
+
   if (!anchorRect) return null;
 
   let left = anchorRect.left + anchorRect.width / 2 - TOOLBAR_WIDTH / 2;
@@ -235,6 +280,69 @@ function FormatToolbar({ anchorRect, onCommand, state }: FormatToolbarProps) {
         <option value="900">Black</option>
       </select>
       <div className="w-px h-4 bg-border mx-0.5" />
+      {/* Text colour */}
+      <div className="relative">
+        <button
+          type="button"
+          title="Text colour"
+          data-testid="rich-text-color"
+          data-active={colorOpen ? 'true' : 'false'}
+          onMouseDown={(e) => {
+            e.preventDefault(); // keep the selection alive in the editor
+            e.stopPropagation();
+            setColorOpen((open) => !open);
+          }}
+          className={
+            'flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors ' +
+            (colorOpen ? 'bg-accent text-accent-foreground' : 'hover:bg-accent')
+          }
+        >
+          <span style={{ fontWeight: 700 }}>A</span>
+          <span
+            className="rounded-sm border border-border"
+            style={{
+              width: 12,
+              height: 4,
+              background:
+                'linear-gradient(90deg,#ef4444 0%,#eab308 35%,#22c55e 65%,#3b82f6 100%)',
+            }}
+          />
+        </button>
+        {colorOpen && (
+          <div
+            data-testid="rich-text-color-popover"
+            className="absolute bg-card border border-border rounded-md shadow-lg p-1.5 grid gap-1"
+            style={{
+              top: 'calc(100% + 8px)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              // The containing block is the narrow button wrapper; without an
+              // intrinsic width the columns collapse and the swatches overlap.
+              width: 'max-content',
+              gridTemplateColumns: 'repeat(7, 16px)',
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {COLOR_PALETTE.map((color) => (
+              <button
+                key={color}
+                type="button"
+                title={color}
+                data-testid={`rich-text-color-${color.replace('#', '')}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCommand('foreColor', color);
+                  setColorOpen(false);
+                }}
+                className="rounded-sm border border-border hover:scale-110 transition-transform"
+                style={{ width: 16, height: 16, backgroundColor: color }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="w-px h-4 bg-border mx-0.5" />
       {btn('• List', 'insertUnorderedList', {
         title: 'Bullet list',
         testId: 'rich-text-bullet-list',
@@ -266,6 +374,18 @@ interface RichTextFieldObjectProps {
   selectedCanvasObjectCount?: number;
 }
 
+/** Wrapper height = content height + the 2px border on each edge. */
+const CONTENT_HEIGHT_ALLOWANCE = 4;
+/** Matches the resize handle's maxHeight so auto-grow and manual resize agree. */
+const MAX_AUTO_HEIGHT = 900;
+/** Sub-pixel rounding must not trigger an endless grow-by-one. */
+const AUTO_GROW_TOLERANCE = 1;
+
+/** Commands that operate on a range of characters. With only a caret in the
+ *  document they would do nothing useful, so the last real selection is
+ *  restored for them — block-level commands act on the caret instead. */
+const RANGE_REQUIRED_COMMANDS = new Set(['fontSize', 'fontWeight', 'foreColor']);
+
 const EMPTY_FORMAT_STATE: FormatState = {
   bold: false,
   italic: false,
@@ -294,6 +414,10 @@ export function RichTextFieldObject({
   // interacting with the toolbar's <select> elements moves focus (and can
   // collapse the selection) before onChange fires.
   const savedRangeRef = useRef<Range | null>(null);
+  // Last in-editor range of ANY kind, including a bare caret. Block-level
+  // commands (lists) act on the caret's block, so they must not fall back to
+  // a stale non-collapsed range from somewhere else in the document.
+  const caretRangeRef = useRef<Range | null>(null);
   // The editor's innerHTML is seeded once per editing session. Re-deriving it
   // from props on every render would reset the DOM (and the caret) whenever
   // the debounced sync writes blocks back to the store.
@@ -305,6 +429,8 @@ export function RichTextFieldObject({
   // the one that existed when they were scheduled — see scheduleSync.
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
 
   const data = object.data as RichTextFieldData;
   // Validate persisted/imported data before rendering or generating HTML
@@ -316,6 +442,26 @@ export function RichTextFieldObject({
   const height = object.style?.height ?? object.height ?? 120;
   const isSelected = object.selected;
   const typography = objectTypography(data);
+  // Auto-grow reads the live size from a ref: it runs from DOM event handlers
+  // that may fire before React has re-rendered with the size it just wrote.
+  const sizeRef = useRef({ width, height });
+  sizeRef.current = { width, height };
+
+  /** Grow the field so the text is never clipped as the user types.
+   *  Grow-only by design: it must never undo a height the user dragged to,
+   *  and a one-directional adjustment cannot oscillate. */
+  const growToFit = useCallback(() => {
+    const el = editorRef.current;
+    if (!el || !onResizeRef.current) return;
+    // scrollHeight is a layout value in CSS pixels, so it is unaffected by the
+    // canvas zoom transform — no viewport maths needed here.
+    const needed = Math.min(MAX_AUTO_HEIGHT, el.scrollHeight + CONTENT_HEIGHT_ALLOWANCE);
+    if (needed > sizeRef.current.height + AUTO_GROW_TOLERANCE) {
+      // No resizeInfo: the top-left corner stays put and only the bottom edge
+      // moves down, which is what growing downwards means.
+      onResizeRef.current(sizeRef.current.width, needed);
+    }
+  }, []);
 
   // ── Serialise contenteditable → RichTextBlock[] ─────────────────────────
   const serialise = useCallback((): RichTextBlock[] => {
@@ -383,6 +529,14 @@ export function RichTextFieldObject({
       if (style.fontStyle === 'normal') next.italic = false;
       if (style.textDecoration?.includes('underline')) next.underline = true;
       if (style.textDecoration === 'none') next.underline = false;
+      // Colour can arrive as an inline style or as a legacy <font color> tag
+      // (execCommand emits the latter in some browsers).
+      const styleColor = sanitizeColor(style.color);
+      if (styleColor !== undefined) next.color = styleColor;
+      if (tag === 'font') {
+        const attrColor = sanitizeColor(el.getAttribute('color'));
+        if (attrColor !== undefined) next.color = attrColor;
+      }
 
       el.childNodes.forEach((child) => processNode(child, ctx, next));
     };
@@ -531,6 +685,7 @@ export function RichTextFieldObject({
       else if (run.bold) styles.push('font-weight:700');
       if (run.italic) styles.push('font-style:italic');
       if (run.underline) styles.push('text-decoration:underline');
+      if (run.color) styles.push(`color:${run.color}`);
       if (styles.length > 0) {
         return `<span style="${styles.join(';')}">${html}</span>`;
       }
@@ -552,7 +707,10 @@ export function RichTextFieldObject({
         if (type === 'bullet' || type === 'ordered') {
           const tag = type === 'bullet' ? 'ul' : 'ol';
           const lis = items.map((b) => `<li>${b.runs.map(runToHtml).join('')}</li>`).join('');
-          return `<${tag} style="margin:0;padding-left:1.2em;">${lis}</${tag}>`;
+          return (
+            `<${tag} style="margin:0;padding-left:${LIST_PADDING_LEFT};` +
+            `list-style-type:${LIST_MARKER[type]};list-style-position:outside;">${lis}</${tag}>`
+          );
         }
         return `<div>${items[0].runs.map(runToHtml).join('')}</div>`;
       })
@@ -563,8 +721,12 @@ export function RichTextFieldObject({
   const commitEdit = useCallback(() => {
     cancelPendingSync();
     const newBlocks = editorRef.current ? serialise() : null;
+    // Only one write here: the host rebuilds both callbacks around the same
+    // canvasObjects snapshot, so a resize and an update fired back-to-back
+    // would clobber each other. Height has already been grown on input.
     if (newBlocks) onUpdateRef.current?.({ blocks: newBlocks });
     savedRangeRef.current = null;
+    caretRangeRef.current = null;
     setIsEditing(false);
     setAnchorRect(null);
     setFormatState(EMPTY_FORMAT_STATE);
@@ -613,7 +775,9 @@ export function RichTextFieldObject({
     sel?.addRange(range);
     updateAnchorRect();
     refreshFormatState();
-  }, [isEditing, updateAnchorRect, refreshFormatState]);
+    // A field saved before auto-height existed may already be overflowing.
+    growToFit();
+  }, [isEditing, updateAnchorRect, refreshFormatState, growToFit]);
 
   // Keep the toolbar glued to the field as the canvas pans, zooms or the
   // field is moved/resized.
@@ -651,6 +815,7 @@ export function RichTextFieldObject({
     if (sel && sel.rangeCount > 0) {
       const range = sel.getRangeAt(0);
       if (editorRef.current?.contains(range.commonAncestorContainer)) {
+        caretRangeRef.current = range.cloneRange();
         if (!sel.isCollapsed) savedRangeRef.current = range.cloneRange();
         refreshFormatState();
       }
@@ -680,19 +845,39 @@ export function RichTextFieldObject({
       if (!editor) return;
       editor.focus();
 
-      // Interacting with a <select> in the toolbar moves focus out of the
-      // contenteditable and collapses the selection before onChange fires.
-      // Restore the last known in-editor selection so the command applies
-      // to the text the user actually selected.
+      // Work out what the command should apply to. A plain caret is a valid
+      // target for the block-level commands (lists) and for the inline
+      // toggles, so it must NOT be replaced by a stale saved selection —
+      // doing that applied list commands to whatever was highlighted last.
       const sel = window.getSelection();
-      const hasEditorSelection =
-        !!sel &&
-        sel.rangeCount > 0 &&
-        !sel.isCollapsed &&
-        editor.contains(sel.getRangeAt(0).commonAncestorContainer);
-      if (!hasEditorSelection && savedRangeRef.current) {
-        sel?.removeAllRanges();
-        sel?.addRange(savedRangeRef.current.cloneRange());
+      const liveRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+      const liveInEditor = !!liveRange && editor.contains(liveRange.commonAncestorContainer);
+
+      /** Re-select a remembered range, but only if it still points at live
+       *  nodes inside this editor — formatting can detach the old nodes. */
+      const restore = (range: Range | null): boolean => {
+        if (!range || !sel) return false;
+        const container = range.commonAncestorContainer;
+        if (!container.isConnected || !editor.contains(container)) return false;
+        try {
+          sel.removeAllRanges();
+          sel.addRange(range.cloneRange());
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      if (liveInEditor && liveRange && !liveRange.collapsed) {
+        // A real selection is already live — use it untouched.
+      } else if (liveInEditor) {
+        // Just a caret in the editor. Range-only commands need the last real
+        // selection; everything else legitimately acts on the caret.
+        if (RANGE_REQUIRED_COMMANDS.has(cmd)) restore(savedRangeRef.current);
+      } else {
+        // Focus/selection is outside the editor (the toolbar's <select>
+        // elements move it before onChange fires). Restore what we remember.
+        if (!restore(savedRangeRef.current)) restore(caretRangeRef.current);
       }
 
       // Emit semantic tags (<b>/<i>/<u>) rather than inline styles — the
@@ -712,14 +897,81 @@ export function RichTextFieldObject({
         savedRangeRef.current = r.cloneRange();
       };
 
+      /** Character offset of a collapsed caret within the editor, or null if
+       *  there is no caret here. Used to survive DOM restructuring: turning a
+       *  block into a list replaces its nodes, and the browser can drop the
+       *  caret at the start of the rebuilt item. */
+      const caretCharOffset = (): number | null => {
+        const s = window.getSelection();
+        if (!s || s.rangeCount === 0 || !s.isCollapsed) return null;
+        const r = s.getRangeAt(0);
+        if (!editor.contains(r.startContainer)) return null;
+        const pre = document.createRange();
+        pre.selectNodeContents(editor);
+        try {
+          pre.setEnd(r.startContainer, r.startOffset);
+        } catch {
+          return null;
+        }
+        return pre.toString().length;
+      };
+
+      /** Put the caret back at the same character offset in the rebuilt DOM. */
+      const restoreCaretCharOffset = (offset: number) => {
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let remaining = offset;
+        let last: Text | null = null;
+        let node: Node | null;
+        const place = (text: Text, at: number) => {
+          const r = document.createRange();
+          r.setStart(text, at);
+          r.collapse(true);
+          const s = window.getSelection();
+          s?.removeAllRanges();
+          s?.addRange(r);
+        };
+        while ((node = walker.nextNode())) {
+          const text = node as Text;
+          if (remaining <= text.data.length) {
+            place(text, remaining);
+            return;
+          }
+          remaining -= text.data.length;
+          last = text;
+        }
+        if (last) place(last, last.data.length);
+      };
+
+      /** Tailwind's preflight strips list markers, and execCommand creates
+       *  bare <ul>/<ol> elements. Restyle every list in the editor so the
+       *  bullets/numbers are visible and match the read-only rendering. */
+      const styleLists = () => {
+        editor.querySelectorAll('ul, ol').forEach((node) => {
+          const list = node as HTMLElement;
+          const marker = list.tagName.toLowerCase() === 'ol' ? 'ordered' : 'bullet';
+          list.style.margin = '0';
+          list.style.paddingLeft = LIST_PADDING_LEFT;
+          list.style.listStyleType = LIST_MARKER[marker];
+          list.style.listStylePosition = 'outside';
+        });
+      };
+
       switch (cmd) {
         case 'bold':
         case 'italic':
         case 'underline':
-        case 'insertUnorderedList':
-        case 'insertOrderedList':
           document.execCommand(cmd);
           break;
+        case 'insertUnorderedList':
+        case 'insertOrderedList': {
+          const caretOffset = caretCharOffset();
+          document.execCommand(cmd);
+          styleLists();
+          // Without this the caret lands at the start of the new list item,
+          // so the next Enter inserts an empty bullet ABOVE the user's text.
+          if (caretOffset !== null) restoreCaretCharOffset(caretOffset);
+          break;
+        }
         case 'fontSize': {
           const size = sanitizeFontSize(value);
           const current = window.getSelection();
@@ -769,16 +1021,41 @@ export function RichTextFieldObject({
           }
           break;
         }
+        case 'foreColor': {
+          const color = sanitizeColor(value);
+          const current = window.getSelection();
+          if (!color || !current || current.isCollapsed || current.rangeCount === 0) break;
+          const range = current.getRangeAt(0);
+          const span = document.createElement('span');
+          span.style.color = color;
+          try {
+            span.appendChild(range.extractContents());
+            // Colours already applied inside the selection would win over the
+            // new wrapper, so drop them — the user recoloured this whole span.
+            span.querySelectorAll<HTMLElement>('[style*="color"]').forEach((el) => {
+              el.style.removeProperty('color');
+            });
+            span.querySelectorAll('font[color]').forEach((el) => el.removeAttribute('color'));
+            range.insertNode(span);
+            selectSpanContents(span);
+          } catch {
+            /* selection could not be wrapped — leave the document untouched */
+          }
+          break;
+        }
         default:
           return;
       }
 
       refreshFormatState();
+      // Formatting can reflow the text onto more lines (bigger font, a list
+      // indent) — keep the field tall enough for it.
+      growToFit();
       // Persist promptly so the change survives a re-render or an autosave
       // that happens before the user leaves edit mode.
       scheduleSync(150);
     },
-    [refreshFormatState, scheduleSync],
+    [refreshFormatState, scheduleSync, growToFit],
   );
 
   // ── Read-only rendering of blocks ────────────────────────────────────────
@@ -797,7 +1074,15 @@ export function RichTextFieldObject({
       if (group.type === 'bullet' || group.type === 'ordered') {
         const ListTag = group.type === 'bullet' ? 'ul' : 'ol';
         return (
-          <ListTag key={gi} style={{ margin: 0, paddingLeft: '1.2em' }}>
+          <ListTag
+            key={gi}
+            style={{
+              margin: 0,
+              paddingLeft: LIST_PADDING_LEFT,
+              listStyleType: LIST_MARKER[group.type],
+              listStylePosition: 'outside',
+            }}
+          >
             {group.items.map((block, bi) => (
               <li key={bi}>{renderRuns(block.runs)}</li>
             ))}
@@ -809,6 +1094,33 @@ export function RichTextFieldObject({
   };
 
   const isOnlySelected = isSelected && selectedCanvasObjectCount === 1;
+
+  // Three visually distinct boundary states. Editing is deliberately stronger
+  // than selected so the user can tell "this is highlighted" apart from
+  // "I am typing in this".
+  const borderState: 'editing' | 'selected' | 'idle' = isEditing
+    ? 'editing'
+    : isSelected
+      ? 'selected'
+      : 'idle';
+  // NOTE: the theme variables already include the hsl() wrapper (e.g.
+  // `--primary: hsl(221.2, 83.2%, 53.3%)`), so they must be used as
+  // `var(--primary)`. Wrapping them again produces `hsl(hsl(...))`, which is
+  // invalid — the whole declaration is dropped and the border disappears.
+  const BORDER_BY_STATE: Record<typeof borderState, string> = {
+    editing: '2px solid var(--primary)',
+    selected: '2px solid var(--primary)',
+    idle: '2px dashed color-mix(in srgb, var(--muted-foreground) 55%, transparent)',
+  };
+  const RING_BY_STATE: Record<typeof borderState, string | undefined> = {
+    // A wide, brighter halo — unmistakable while the caret is in the field.
+    editing:
+      '0 0 0 4px color-mix(in srgb, var(--primary) 30%, transparent),' +
+      ' 0 2px 10px color-mix(in srgb, var(--primary) 25%, transparent)',
+    // A tight, faint halo: clearly "selected" but clearly not "editing".
+    selected: '0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent)',
+    idle: undefined,
+  };
 
   const contentStyle: React.CSSProperties = {
     width: '100%',
@@ -828,6 +1140,7 @@ export function RichTextFieldObject({
       <div
         ref={wrapperRef}
         data-testid="rich-text-field-object"
+        data-border-state={borderState}
         style={{
           position: 'absolute',
           left: object.position.x,
@@ -838,9 +1151,8 @@ export function RichTextFieldObject({
           userSelect: isEditing ? 'text' : 'none',
           zIndex: object.zIndex ?? 1,
           backgroundColor: data.backgroundColor ?? 'transparent',
-          border: isSelected
-            ? '2px solid hsl(var(--primary))'
-            : '1.5px dashed hsl(var(--border))',
+          border: BORDER_BY_STATE[borderState],
+          boxShadow: RING_BY_STATE[borderState],
           borderRadius: 4,
           boxSizing: 'border-box',
           // No overflow clipping here — see contentStyle above.
@@ -870,7 +1182,12 @@ export function RichTextFieldObject({
             data-testid="rich-text-editor"
             dangerouslySetInnerHTML={{ __html: editHtmlRef.current }}
             onKeyDown={handleKeyDown}
-            onInput={() => scheduleSync()}
+            onInput={() => {
+              // Grow first (synchronous, reads the just-updated DOM) so the
+              // text never disappears under the bottom edge as it is typed.
+              growToFit();
+              scheduleSync();
+            }}
             onBlur={(e) => {
               // Don't commit when focus moves into the formatting toolbar
               // (e.g. opening the font size/weight <select>) — the user is
@@ -892,7 +1209,7 @@ export function RichTextFieldObject({
               );
               if (allEmpty) {
                 return (
-                  <span style={{ color: 'hsl(var(--muted-foreground))', fontStyle: 'italic' }}>
+                  <span style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
                     Double-click to edit…
                   </span>
                 );

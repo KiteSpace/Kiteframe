@@ -19,3 +19,5 @@
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.
 - [Fixed overlays inside the canvas](fixed-overlay-inside-transformed-canvas.md) — the pan/zoom transform reparents `position: fixed`; portal floating bars to <body> or they land on the element they anchor to and eat its clicks.
 - [Canvas object type whitelists](canvas-object-type-whitelists.md) — a new workflow CanvasObject type must be added to the server save-validation whitelist and export schema too, or objects silently vanish on reload.
+- [Theme vars already include hsl()](theme-css-vars-already-wrapped.md) — write `var(--primary)`, never `hsl(var(--primary))`; the double wrap is invalid and silently drops the whole border/colour declaration.
+- [Tailwind preflight kills list markers](tailwind-preflight-list-markers.md) — any rich-text/contentEditable ul/ol must re-declare list-style-type and padding-left in every render path or bullets vanish.
