@@ -21,3 +21,5 @@
 - [Canvas object type whitelists](canvas-object-type-whitelists.md) — a new workflow CanvasObject type must be added to the server save-validation whitelist and export schema too, or objects silently vanish on reload.
 - [Theme vars already include hsl()](theme-css-vars-already-wrapped.md) — write `var(--primary)`, never `hsl(var(--primary))`; the double wrap is invalid and silently drops the whole border/colour declaration.
 - [Tailwind preflight kills list markers](tailwind-preflight-list-markers.md) — any rich-text/contentEditable ul/ol must re-declare list-style-type and padding-left in every render path or bullets vanish.
+- [Editor undo is off by one](editor-undo-off-by-one.md) — history stores only "before" snapshots, so the FIRST Ctrl+Z is a no-op for every action; don't misread it as your feature failing to record history.
+- [User-owned borders vs selection cues](user-owned-border-selection-cue.md) — once a border is user-configurable, selection/editing must be signalled by an outside-the-box ring, and the border space reserved transparently.

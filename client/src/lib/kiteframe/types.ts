@@ -1318,7 +1318,11 @@ export interface RichTextFieldData {
   fontSize: number;
   fontFamily: string;
   textColor: string;
+  /** Fill behind the text. Absent means transparent. */
   backgroundColor?: string;
+  /** Border colour chosen by the user. Absent means no visible border —
+   *  a text field draws no boundary of its own until one is picked. */
+  borderColor?: string;
   [key: string]: any;
 }
 

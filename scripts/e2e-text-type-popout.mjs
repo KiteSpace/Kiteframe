@@ -452,23 +452,31 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-6d-lists.png" });
 }
 
-// ── 6e. Boundary is visibly distinct when idle vs selected vs editing ────────
+// ── 6e. No border by default; selected vs editing still clearly distinct ─────
 {
   const second = page.locator('[data-testid="rich-text-field-object"]').nth(1);
   const readState = () => second.evaluate((el) => ({
     state: el.getAttribute("data-border-state"),
+    userBorder: el.getAttribute("data-user-border"),
     borderStyle: getComputedStyle(el).borderTopStyle,
     borderWidth: getComputedStyle(el).borderTopWidth,
     borderColor: getComputedStyle(el).borderTopColor,
     shadow: getComputedStyle(el).boxShadow,
   }));
+  // A border is "invisible" if it is removed OR painted fully transparent.
+  const noVisibleBorder = (s) =>
+    s.borderStyle === "none" ||
+    s.borderWidth === "0px" ||
+    /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(s.borderColor);
 
   // Idle: click empty canvas to clear the selection
   await page.mouse.click(1400, 900);
   await page.waitForTimeout(500);
   const idle = await readState();
   check("idle field reports the idle boundary state", idle.state === "idle", JSON.stringify(idle));
-  check("idle boundary is dashed", idle.borderStyle === "dashed", `borderStyle=${idle.borderStyle}`);
+  check("an unselected field draws NO border by default", noVisibleBorder(idle), JSON.stringify(idle));
+  check("an unselected field draws no halo either", idle.shadow === "none", `shadow=${idle.shadow}`);
+  check("no border colour is stored on a fresh field", idle.userBorder === "none", `userBorder=${idle.userBorder}`);
 
   // Selected: single click on the field
   const box = await second.boundingBox();
@@ -476,9 +484,9 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.waitForTimeout(600);
   const selected = await readState();
   check("clicking the field reports the selected boundary state", selected.state === "selected", JSON.stringify(selected));
-  check("selected boundary is solid, not dashed", selected.borderStyle === "solid", `borderStyle=${selected.borderStyle}`);
-  check("selected boundary differs from idle", selected.borderColor !== idle.borderColor || selected.borderStyle !== idle.borderStyle,
-    `idle=${idle.borderColor}/${idle.borderStyle} selected=${selected.borderColor}/${selected.borderStyle}`);
+  check("selecting a field makes it visibly identifiable", selected.shadow !== "none" && selected.shadow !== idle.shadow,
+    `idle=${idle.shadow} selected=${selected.shadow}`);
+  check("selecting a field does not invent a border on it", noVisibleBorder(selected), JSON.stringify(selected));
 
   // Editing: double click into the field
   await second.dblclick();
@@ -689,6 +697,142 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-6h-autoheight.png" });
 }
 
+// ── 6i. Border and background colours from the linear toolbar ────────────────
+{
+  const third = page.locator('[data-testid="rich-text-field-object"]').nth(2);
+  const readBox = () => third.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const inner = el.firstElementChild;
+    return {
+      userBorder: el.getAttribute("data-user-border"),
+      userBackground: el.getAttribute("data-user-background"),
+      borderColor: cs.borderTopColor,
+      borderWidth: cs.borderTopWidth,
+      background: cs.backgroundColor,
+      rect: { w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height },
+      contentW: inner ? inner.clientWidth : 0,
+      scroll: inner ? inner.scrollHeight : 0,
+      client: inner ? inner.clientHeight : 0,
+    };
+  });
+
+  // Select (not edit) the field so the object-level linear toolbar appears
+  await page.mouse.click(1400, 900);
+  await page.waitForTimeout(300);
+  // Click near the TOP edge: this field has auto-grown past the bottom of the
+  // viewport, so its lower edge is not clickable.
+  const tb = await third.boundingBox();
+  await page.mouse.click(tb.x + tb.width / 2, tb.y + 6);
+  await page.waitForTimeout(700);
+
+  const before = await readBox();
+
+  const colorBtn = page.locator('[data-testid="toolbar-button-color"], [title="Color"]').first();
+  let opened = false;
+  try {
+    await colorBtn.click({ timeout: 4000 });
+    await page.waitForTimeout(400);
+    opened = await page.locator('[data-testid="toolbar-color-submenu"]').isVisible().catch(() => false);
+  } catch (e) {
+    console.log("color button click failed:", e.message?.slice(0, 120));
+  }
+  check("linear toolbar opens the colour picker for a text field", opened);
+  await page.screenshot({ path: "/tmp/e2e-text-6i-color-menu.png" });
+
+  if (opened) {
+    const targets = page.locator('[data-testid="toolbar-color-targets"]');
+    check("colour picker offers text / border / background targets",
+      await targets.isVisible().catch(() => false));
+
+    // ── Border colour ──
+    await page.locator('[data-testid="toolbar-color-target-border"]').click();
+    await page.waitForTimeout(250);
+    await page.locator('[data-testid="toolbar-color-22c55e"]').click();
+    await page.waitForTimeout(600);
+    const withBorder = await readBox();
+    check("chosen border colour is applied to the field",
+      withBorder.userBorder === "#22c55e" && withBorder.borderColor === "rgb(34, 197, 94)",
+      JSON.stringify({ userBorder: withBorder.userBorder, borderColor: withBorder.borderColor }));
+    check("adding a border does not change the field's size",
+      Math.abs(withBorder.rect.w - before.rect.w) < 0.5 && Math.abs(withBorder.rect.h - before.rect.h) < 0.5,
+      `before=${JSON.stringify(before.rect)} after=${JSON.stringify(withBorder.rect)}`);
+    check("adding a border does not reflow the text",
+      withBorder.contentW === before.contentW, `before=${before.contentW} after=${withBorder.contentW}`);
+    check("a grown field still shows all its text once bordered",
+      withBorder.scroll <= withBorder.client + 2,
+      JSON.stringify({ scroll: withBorder.scroll, client: withBorder.client }));
+
+    // ── Background colour ──
+    await page.locator('[data-testid="toolbar-color-target-background"]').click();
+    await page.waitForTimeout(250);
+    await page.locator('[data-testid="toolbar-color-eab308"]').click();
+    await page.waitForTimeout(600);
+    const withBg = await readBox();
+    check("chosen background colour fills the field",
+      withBg.userBackground === "#eab308" && withBg.background === "rgb(234, 179, 8)",
+      JSON.stringify({ userBackground: withBg.userBackground, background: withBg.background }));
+    check("setting a background leaves the border colour alone",
+      withBg.userBorder === "#22c55e", `userBorder=${withBg.userBorder}`);
+    await page.screenshot({ path: "/tmp/e2e-text-6i-colored.png" });
+
+    // ── Clearing the background again ──
+    const noneBtn = page.locator('[data-testid="toolbar-color-none"]');
+    check("a 'none' option is offered for the background",
+      await noneBtn.isVisible().catch(() => false));
+    await noneBtn.click();
+    await page.waitForTimeout(600);
+    const cleared = await readBox();
+    check("background can be cleared back to none",
+      cleared.userBackground === "none" &&
+        /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/.test(cleared.background),
+      JSON.stringify({ userBackground: cleared.userBackground, background: cleared.background }));
+    check("clearing the background keeps the border", cleared.userBorder === "#22c55e",
+      `userBorder=${cleared.userBorder}`);
+
+    // ── Colour changes are recorded in the undo history ──
+    // NOTE: the editor's history stores "before" snapshots while the index
+    // points at the newest one, so the first Ctrl+Z lands on a state identical
+    // to the live one for EVERY action, not just colours. We therefore assert
+    // that colour edits are undoable at all, not that one press is enough.
+    let presses = 0;
+    let undone = await readBox();
+    while (presses < 2 && undone.userBorder !== "none") {
+      await page.keyboard.press("Control+z");
+      await page.waitForTimeout(800);
+      undone = await readBox();
+      presses++;
+    }
+    check("colour changes are recorded in the undo history",
+      undone.userBorder === "none", `presses=${presses} userBorder=${undone.userBorder}`);
+
+    // Re-apply both colours so the reload check has something to verify
+    await page.mouse.click(1400, 900);
+    await page.waitForTimeout(300);
+    const tb2 = await third.boundingBox();
+    await page.mouse.click(tb2.x + tb2.width / 2, tb2.y + 6);
+    await page.waitForTimeout(700);
+    await page.locator('[data-testid="toolbar-button-color"]').click();
+    await page.waitForTimeout(400);
+    await page.locator('[data-testid="toolbar-color-target-border"]').click();
+    await page.waitForTimeout(250);
+    await page.locator('[data-testid="toolbar-color-22c55e"]').click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-testid="toolbar-color-target-background"]').click();
+    await page.waitForTimeout(250);
+    await page.locator('[data-testid="toolbar-color-eab308"]').click();
+    await page.waitForTimeout(600);
+    const restored = await readBox();
+    check("both colours can be re-applied after undo",
+      restored.userBorder === "#22c55e" && restored.userBackground === "#eab308",
+      JSON.stringify({ border: restored.userBorder, background: restored.userBackground }));
+    globalThis.__thirdBorder = restored.userBorder;
+    globalThis.__thirdBackground = restored.userBackground;
+  }
+  await page.mouse.click(1400, 900);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: "/tmp/e2e-text-6i-final.png" });
+}
+
 // ── 7. Reload page → content persists (localStorage tabs) ────────────────────
 {
   // Wait past the 1s debounced localStorage save before reloading
@@ -745,6 +889,21 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
     return !!ol && getComputedStyle(ol).listStyleType === "decimal";
   });
   check("list markers survive reload in read mode", !!listStill);
+
+  const paint = thirdPresent
+    ? await third.evaluate((el) => ({
+        userBorder: el.getAttribute("data-user-border"),
+        userBackground: el.getAttribute("data-user-background"),
+        borderColor: getComputedStyle(el).borderTopColor,
+        background: getComputedStyle(el).backgroundColor,
+      }))
+    : null;
+  check("border colour survives reload",
+    !!paint && paint.userBorder === globalThis.__thirdBorder && paint.borderColor === "rgb(34, 197, 94)",
+    JSON.stringify(paint));
+  check("background colour survives reload",
+    !!paint && paint.userBackground === globalThis.__thirdBackground && paint.background === "rgb(234, 179, 8)",
+    JSON.stringify(paint));
   await page.screenshot({ path: "/tmp/e2e-text-7-reloaded.png" });
 }
 

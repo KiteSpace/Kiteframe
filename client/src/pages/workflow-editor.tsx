@@ -17059,13 +17059,29 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setLinearToolbar(null);
             }
           }}
-          onCanvasObjectColorChange={(color) => {
+          onCanvasObjectColorChange={(color, target) => {
             if (linearToolbar.canvasObject) {
               saveToHistory("Change canvas object color");
               const objType = linearToolbar.canvasObject.type;
               updateActiveTab({
                 canvasObjects: canvasObjects.map((obj) => {
                   if (obj.id !== linearToolbar.canvasObject!.id) return obj;
+                  if (objType === "text-field") {
+                    // Text fields colour their text, border or background
+                    // independently; `null` clears the target back to none.
+                    const key =
+                      target === "border"
+                        ? "borderColor"
+                        : target === "background"
+                          ? "backgroundColor"
+                          : "textColor";
+                    const data = { ...obj.data, [key]: color ?? undefined };
+                    if (color === null) delete (data as any)[key];
+                    return { ...obj, data };
+                  }
+                  // Every other object type ignores `target` and keeps its
+                  // original single-colour behaviour.
+                  if (color === null) return obj;
                   if (objType === "sticky") {
                     return {
                       ...obj,
@@ -17094,7 +17110,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         strokeOpacity: 1.0,
                       },
                     };
-                  } else if (objType === "text" || objType === "text-field") {
+                  } else if (objType === "text") {
                     return { ...obj, data: { ...obj.data, textColor: color } };
                   }
                   return obj;

@@ -103,7 +103,14 @@ interface LinearToolbarProps {
   onRefineMockupSubmit?: (prompt: string) => Promise<void>;
   onRefineMockupCancel?: () => void;
   onGenerateWorkflow?: () => void;
-  onCanvasObjectColorChange?: (color: string) => void;
+  /** `target` is only supplied for text fields, which can colour their text,
+   *  their border or their background independently. `null` clears the
+   *  chosen target back to none. Every other object type is called with a
+   *  colour and no target, exactly as before. */
+  onCanvasObjectColorChange?: (
+    color: string | null,
+    target?: 'text' | 'border' | 'background',
+  ) => void;
   onCanvasObjectStyleChange?: (style: {
     borderStyle?: string;
     borderWidth?: number;
@@ -266,6 +273,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   onBulkEdgeStyleChange,
 }) => {
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(initialSubmenu);
+  /** Which part of a text field the colour swatches paint. Text fields are the
+   *  only object type that exposes more than one target. */
+  const [colorTarget, setColorTarget] = useState<'text' | 'border' | 'background'>('text');
   const [iconVisible, setIconVisible] = useState(node?.data?.iconVisible ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
   const [refinePrompt, setRefinePrompt] = useState('');
@@ -442,6 +452,9 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     if (onClick) {
       onClick();
     } else if (hasSubmenu) {
+      // Always reopen the colour picker on "Text" rather than remembering the
+      // target from a previous object.
+      if (buttonId === 'color' && activeSubmenu !== 'color') setColorTarget('text');
       setActiveSubmenu(activeSubmenu === buttonId ? null : buttonId);
     }
   }, [activeSubmenu]);
@@ -775,53 +788,117 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
 
   const buttons = getButtons();
 
-  const renderColorSubmenu = () => (
-    <div 
-      ref={submenuRef}
-      className={cn(
-        "absolute left-1/2 -translate-x-1/2 flex gap-1 p-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
-        showAbove ? "bottom-full mb-2" : "top-full mt-2"
-      )}
-    >
-      {COLOR_PALETTE.map((color) => (
-        <button
-          key={color}
-          className={cn(
-            "w-7 h-7 rounded-full border-2 transition-transform hover:scale-125",
-            color === '#ffffff' ? 'border-gray-300' : 'border-transparent'
+  const renderColorSubmenu = () => {
+    // Text fields can colour three different things, so they get a target
+    // selector above the swatches. Every other target keeps the plain row.
+    const isTextField = isCanvasObjectTarget && canvasObject?.type === 'text-field';
+    const TARGETS: { id: 'text' | 'border' | 'background'; label: string }[] = [
+      { id: 'text', label: 'Text' },
+      { id: 'border', label: 'Border' },
+      { id: 'background', label: 'Background' },
+    ];
+    // Text always has a colour; a border or a background can be turned off.
+    const canClear = isTextField && colorTarget !== 'text';
+    const currentColor = isTextField
+      ? colorTarget === 'text'
+        ? canvasObject?.data?.textColor
+        : colorTarget === 'border'
+          ? canvasObject?.data?.borderColor
+          : canvasObject?.data?.backgroundColor
+      : undefined;
+
+    const applyColor = (color: string) => {
+      if (isNodeTarget && onColorChange) {
+        // White color uses default theme colors
+        if (color === '#ffffff') {
+          onColorChange({
+            headerBackground: '#f8fafc',
+            bodyBackground: '#ffffff',
+            borderColor: '#e2e8f0',
+            headerTextColor: '#0f172a',
+            bodyTextColor: '#334155'
+          });
+        } else {
+          const headerTextColor = getOptimalTextColor(color);
+          onColorChange({
+            headerBackground: color,
+            bodyBackground: getTintedBodyColor(color, 0.1),
+            borderColor: color,
+            headerTextColor
+          });
+        }
+      } else if (isEdgeTarget && onEdgeColorChange) {
+        onEdgeColorChange(color);
+      } else if (isCanvasObjectTarget && onCanvasObjectColorChange) {
+        onCanvasObjectColorChange(color, isTextField ? colorTarget : undefined);
+      }
+    };
+
+    return (
+      <div
+        ref={submenuRef}
+        className={cn(
+          "absolute left-1/2 -translate-x-1/2 p-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150",
+          showAbove ? "bottom-full mb-2" : "top-full mt-2"
+        )}
+        data-testid="toolbar-color-submenu"
+      >
+        {isTextField && (
+          <div className="flex gap-1 mb-2" data-testid="toolbar-color-targets">
+            {TARGETS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setColorTarget(t.id)}
+                data-active={colorTarget === t.id ? 'true' : 'false'}
+                className={cn(
+                  "flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap",
+                  colorTarget === t.id
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                )}
+                data-testid={`toolbar-color-target-${t.id}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-1 flex-wrap max-w-[280px]">
+          {canClear && (
+            <button
+              type="button"
+              title={`No ${colorTarget}`}
+              onClick={() => onCanvasObjectColorChange?.(null, colorTarget)}
+              className={cn(
+                "w-7 h-7 rounded-full border-2 transition-transform hover:scale-125 relative overflow-hidden bg-white dark:bg-gray-900",
+                !currentColor ? "border-blue-500" : "border-gray-300 dark:border-gray-600"
+              )}
+              data-testid="toolbar-color-none"
+            >
+              {/* Diagonal strike — the usual "no colour" affordance */}
+              <span className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2 rotate-45 bg-red-500" />
+            </button>
           )}
-          style={{ backgroundColor: color }}
-          onClick={() => {
-            if (isNodeTarget && onColorChange) {
-              // White color uses default theme colors
-              if (color === '#ffffff') {
-                onColorChange({ 
-                  headerBackground: '#f8fafc',
-                  bodyBackground: '#ffffff',
-                  borderColor: '#e2e8f0',
-                  headerTextColor: '#0f172a',
-                  bodyTextColor: '#334155'
-                });
-              } else {
-                const headerTextColor = getOptimalTextColor(color);
-                onColorChange({ 
-                  headerBackground: color,
-                  bodyBackground: getTintedBodyColor(color, 0.1),
-                  borderColor: color,
-                  headerTextColor
-                });
-              }
-            } else if (isEdgeTarget && onEdgeColorChange) {
-              onEdgeColorChange(color);
-            } else if (isCanvasObjectTarget && onCanvasObjectColorChange) {
-              onCanvasObjectColorChange(color);
-            }
-          }}
-          data-testid={`toolbar-color-${color.replace('#', '')}`}
-        />
-      ))}
-    </div>
-  );
+          {COLOR_PALETTE.map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={cn(
+                "w-7 h-7 rounded-full border-2 transition-transform hover:scale-125",
+                currentColor === color
+                  ? 'border-blue-500'
+                  : color === '#ffffff' ? 'border-gray-300' : 'border-transparent'
+              )}
+              style={{ backgroundColor: color }}
+              onClick={() => applyColor(color)}
+              data-testid={`toolbar-color-${color.replace('#', '')}`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const renderStyleSubmenu = () => {
     // Determine the current style based on target type

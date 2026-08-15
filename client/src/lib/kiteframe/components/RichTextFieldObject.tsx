@@ -374,8 +374,13 @@ interface RichTextFieldObjectProps {
   selectedCanvasObjectCount?: number;
 }
 
-/** Wrapper height = content height + the 2px border on each edge. */
-const CONTENT_HEIGHT_ALLOWANCE = 4;
+/** The wrapper always reserves this much border on every edge, painting it
+ *  transparent when the user has not chosen a border colour. Reserving the
+ *  space unconditionally means adding or clearing a border never reflows the
+ *  text or changes the field's footprint on the canvas. */
+const BORDER_WIDTH = 2;
+/** Wrapper height = content height + the reserved border on each edge. */
+const CONTENT_HEIGHT_ALLOWANCE = BORDER_WIDTH * 2;
 /** Matches the resize handle's maxHeight so auto-grow and manual resize agree. */
 const MAX_AUTO_HEIGHT = 900;
 /** Sub-pixel rounding must not trigger an endless grow-by-one. */
@@ -1103,22 +1108,29 @@ export function RichTextFieldObject({
     : isSelected
       ? 'selected'
       : 'idle';
+  // The element's own border belongs to the USER — it shows only the colour
+  // they picked, and nothing else may overwrite it. An unset border is painted
+  // transparent rather than removed so the reserved space (and therefore the
+  // text layout) is identical either way.
+  const userBorderColor = sanitizeColor(data.borderColor);
+  const userBackgroundColor = sanitizeColor(data.backgroundColor);
+  // Selection and editing are therefore signalled entirely by rings drawn
+  // OUTSIDE the box, which cannot disturb the border, the layout, or the
+  // field's position on the canvas.
   // NOTE: the theme variables already include the hsl() wrapper (e.g.
   // `--primary: hsl(221.2, 83.2%, 53.3%)`), so they must be used as
   // `var(--primary)`. Wrapping them again produces `hsl(hsl(...))`, which is
-  // invalid — the whole declaration is dropped and the border disappears.
-  const BORDER_BY_STATE: Record<typeof borderState, string> = {
-    editing: '2px solid var(--primary)',
-    selected: '2px solid var(--primary)',
-    idle: '2px dashed color-mix(in srgb, var(--muted-foreground) 55%, transparent)',
-  };
+  // invalid — the whole declaration is dropped and the ring disappears.
   const RING_BY_STATE: Record<typeof borderState, string | undefined> = {
-    // A wide, brighter halo — unmistakable while the caret is in the field.
+    // A solid, wide halo with a soft glow — unmistakable while the caret is in
+    // the field.
     editing:
-      '0 0 0 4px color-mix(in srgb, var(--primary) 30%, transparent),' +
-      ' 0 2px 10px color-mix(in srgb, var(--primary) 25%, transparent)',
-    // A tight, faint halo: clearly "selected" but clearly not "editing".
-    selected: '0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent)',
+      '0 0 0 3px var(--primary),' +
+      ' 0 2px 12px color-mix(in srgb, var(--primary) 30%, transparent)',
+    // A thinner, softer halo: clearly "selected" but clearly not "editing".
+    selected: '0 0 0 2px color-mix(in srgb, var(--primary) 60%, transparent)',
+    // Idle fields are bare — no boundary of any kind unless the user gave the
+    // field a border colour of its own.
     idle: undefined,
   };
 
@@ -1141,6 +1153,8 @@ export function RichTextFieldObject({
         ref={wrapperRef}
         data-testid="rich-text-field-object"
         data-border-state={borderState}
+        data-user-border={userBorderColor ?? 'none'}
+        data-user-background={userBackgroundColor ?? 'none'}
         style={{
           position: 'absolute',
           left: object.position.x,
@@ -1150,8 +1164,8 @@ export function RichTextFieldObject({
           cursor: isEditing ? 'text' : 'default',
           userSelect: isEditing ? 'text' : 'none',
           zIndex: object.zIndex ?? 1,
-          backgroundColor: data.backgroundColor ?? 'transparent',
-          border: BORDER_BY_STATE[borderState],
+          backgroundColor: userBackgroundColor ?? 'transparent',
+          border: `${BORDER_WIDTH}px solid ${userBorderColor ?? 'transparent'}`,
           boxShadow: RING_BY_STATE[borderState],
           borderRadius: 4,
           boxSizing: 'border-box',
