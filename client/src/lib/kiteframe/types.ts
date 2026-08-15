@@ -275,7 +275,7 @@ export interface ExperimentNodeData extends BaseNodeData {
   issueDescription?: string;
 }
 
-export type CanvasObjectType = 'text' | 'sticky' | 'shape';
+export type CanvasObjectType = 'text' | 'sticky' | 'shape' | 'text-field';
 
 // ============= COMPOUND NODE TYPES =============
 // Used for Compound Nodes that contain multiple subcomponents (Elementor-style builder)
@@ -1294,12 +1294,39 @@ export interface ColorContrast {
   isLightColor: (color: string) => boolean;
 }
 
+// Rich text run – a contiguous span of text with optional marks
+export interface RichTextRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  fontSize?: number;       // overrides block default when set
+  fontWeight?: number;     // numeric weight e.g. 400, 700, 900
+}
+
+// A block is either a paragraph or a list item
+export interface RichTextBlock {
+  type: 'paragraph' | 'bullet' | 'ordered';
+  runs: RichTextRun[];
+}
+
+// Data stored inside a text-field canvas object
+export interface RichTextFieldData {
+  blocks: RichTextBlock[];
+  // Typography defaults (apply to runs that don't override)
+  fontSize: number;
+  fontFamily: string;
+  textColor: string;
+  backgroundColor?: string;
+  [key: string]: any;
+}
+
 // Canvas Objects - not connectable, no handles
 export type CanvasObject = {
   id: string;
   type: CanvasObjectType;
   position: Position;
-  data: TextNodeData | StickyNoteData | ShapeNodeData;
+  data: TextNodeData | StickyNoteData | ShapeNodeData | RichTextFieldData;
   style?: { width?: number; height?: number };
   selected?: boolean;
   hidden?: boolean;

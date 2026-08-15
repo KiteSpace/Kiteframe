@@ -54,6 +54,7 @@ import { ExperimentEditButton } from "./ExperimentEditButton";
 import type { ExperimentMeta, ExperimentMode } from "../types";
 import { StatusBadge } from "./StatusBadge";
 import { TextObject } from "./TextObject";
+import { RichTextFieldObject } from "./RichTextFieldObject";
 import { StickyNoteObject } from "./StickyNoteObject";
 import { ShapeObject } from "./ShapeObject";
 import { InlineTextEditor } from "./InlineTextEditor";
@@ -5608,6 +5609,90 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                             : canvasObject,
                       );
                       props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
+                    viewport={viewport}
+                  />
+                );
+              }
+
+              if (obj.type === "text-field") {
+                return (
+                  <RichTextFieldObject
+                    key={obj.id}
+                    object={
+                      obj as CanvasObject & {
+                        data: import("../types").RichTextFieldData;
+                      }
+                    }
+                    selectedCanvasObjectCount={selectedCanvasObjectCount}
+                    onUpdate={(updates) => {
+                      const updatedObjects = (props.canvasObjects || []).map(
+                        (canvasObject) =>
+                          canvasObject.id === obj.id
+                            ? ({
+                                ...canvasObject,
+                                data: { ...canvasObject.data, ...updates },
+                              } as CanvasObject)
+                            : canvasObject,
+                      );
+                      props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
+                    onResize={(width, height, resizeInfo) => {
+                      const currentObject = (props.canvasObjects || []).find(
+                        (co) => co.id === obj.id,
+                      );
+                      if (!currentObject) return;
+
+                      const currentWidth =
+                        currentObject.style?.width ||
+                        currentObject.width ||
+                        300;
+                      const currentHeight =
+                        currentObject.style?.height ||
+                        currentObject.height ||
+                        120;
+                      const currentPos = currentObject.position;
+
+                      const deltaWidth = width - currentWidth;
+                      const deltaHeight = height - currentHeight;
+
+                      let newPosition = { ...currentPos };
+
+                      if (resizeInfo?.position) {
+                        switch (resizeInfo.position) {
+                          case "top-left":
+                            newPosition.x -= deltaWidth;
+                            newPosition.y -= deltaHeight;
+                            break;
+                          case "top-right":
+                            newPosition.y -= deltaHeight;
+                            break;
+                          case "bottom-left":
+                            newPosition.x -= deltaWidth;
+                            break;
+                          case "bottom-right":
+                            break;
+                        }
+                      }
+
+                      const updatedObjects = (props.canvasObjects || []).map(
+                        (canvasObject) =>
+                          canvasObject.id === obj.id
+                            ? {
+                                ...canvasObject,
+                                style: { ...canvasObject.style, width, height },
+                                position: newPosition,
+                              }
+                            : canvasObject,
+                      );
+                      props.onCanvasObjectsChange?.(updatedObjects);
+                    }}
+                    onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
+                    onClick={(e) => handleCanvasObjectClick(obj.id, e)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      props.onCanvasObjectRightClick?.(e, obj);
                     }}
                     viewport={viewport}
                   />

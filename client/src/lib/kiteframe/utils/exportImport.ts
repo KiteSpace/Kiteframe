@@ -98,7 +98,7 @@ const EdgeSchema = z.object({
 // Schema for canvas object
 const CanvasObjectSchema = z.object({
   id: z.string(),
-  type: z.enum(['text', 'shape', 'sticky', 'group']),
+  type: z.enum(['text', 'text-field', 'shape', 'sticky', 'group']),
   position: z.object({
     x: z.number(),
     y: z.number()
@@ -321,13 +321,16 @@ function sanitizeWorkflowData(data: {
   }));
 
   // Sanitize canvas objects
-  const sanitizedCanvasObjects = data.canvasObjects?.map(obj => ({
-    ...obj,
-    data: {
-      ...obj.data,
-      text: obj.data.text ? sanitizeText(obj.data.text) : undefined
+  const sanitizedCanvasObjects = data.canvasObjects?.map(obj => {
+    const objData = obj.data as Record<string, any>;
+    if (typeof objData.text === 'string' && objData.text) {
+      return {
+        ...obj,
+        data: { ...obj.data, text: sanitizeText(objData.text) }
+      } as CanvasObject;
     }
-  }));
+    return obj;
+  });
 
   return {
     nodes: sanitizedNodes,
@@ -568,7 +571,12 @@ export function importWorkflow(
     const migratedData = migrateWorkflowData(validData, CURRENT_VERSION);
     
     // Sanitize imported data
-    const sanitizedData = sanitizeWorkflowData(migratedData.workflow);
+    const sanitizedData = sanitizeWorkflowData(migratedData.workflow as unknown as {
+      nodes: Node[];
+      edges: Edge[];
+      canvasObjects?: CanvasObject[];
+      viewport?: { x: number; y: number; zoom: number };
+    });
 
     // Extract documentation if present
     let documentation: ImportedDocumentation | undefined;

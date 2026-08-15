@@ -19,8 +19,8 @@ interface CollapsedSidebarProps {
   onCreateTemplate?: (templateType: string) => void;
   onCreateTemplateAtPosition?: (templateType: string, position: { x: number; y: number }) => void;
   onApplyTheme?: (theme: WorkflowTheme) => void;
-  activePopout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null;
-  setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | null) => void;
+  activePopout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | 'text-type' | null;
+  setActivePopout: (popout: 'node-types' | 'shapes' | 'templates' | 'themes' | 'boosts' | 'text-type' | null) => void;
   sidebarIcons: Record<string, LucideIcon>;
   viewport: { x: number; y: number; zoom: number };
   isExpanded?: boolean;
@@ -83,8 +83,10 @@ export function CollapsedSidebar({
         setActivePopout(newNodeTypesState);
         break;
       case 'type':
-        // Click creates text at center, drag-and-drop creates at mouse position
-        onCreateNode('text');
+        // Click opens the text-type popout (Label vs Text Field); drag-and-drop still creates a label at mouse position
+        const newTextTypeState = activePopout === 'text-type' ? null : 'text-type';
+        console.log('🎯 SETTING TEXT TYPE POPOUT:', { from: activePopout, to: newTextTypeState });
+        setActivePopout(newTextTypeState);
         break;
       case 'sticky-note':
         // Click creates sticky note at center, drag-and-drop creates at mouse position

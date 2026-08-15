@@ -17,3 +17,4 @@
 - [craft.js Frame data is mount-only](craft-frame-data-is-mount-only.md) — a changed craftState prop silently does nothing; live/read-only views must actions.deserialize inside the Editor.
 - [Previews own their containing block](preview-owns-its-containing-block.md) — an `absolute inset-0` root inherits bounds from an arbitrary ancestor and escapes unpositioned callers; fix in the component, and measure rects to test it.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.
+- [Canvas object type whitelists](canvas-object-type-whitelists.md) — a new workflow CanvasObject type must be added to the server save-validation whitelist and export schema too, or objects silently vanish on reload.

@@ -372,7 +372,7 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
 
       if (!obj.type) {
         errors.push(`Canvas object ${obj.id || index} is missing required 'type' field`);
-      } else if (!['text', 'shape', 'sticky', 'group'].includes(obj.type)) {
+      } else if (!['text', 'text-field', 'shape', 'sticky', 'group'].includes(obj.type)) {
         errors.push(`Canvas object ${obj.id || index} has invalid type: ${obj.type}`);
       }
 

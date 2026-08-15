@@ -45,6 +45,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { CollapsedSidebar } from "@/components/CollapsedSidebar";
 import { NodeTypesPopout } from "@/components/NodeTypesPopout";
 import { ShapesPopout } from "@/components/ShapesPopout";
+import { TextTypePopout } from "@/components/TextTypePopout";
 import { Toolbar } from "@/components/Toolbar";
 import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
@@ -4291,6 +4292,49 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     [activeTab, nodes, edges, canvasObjects, viewport, setTabs],
   );
 
+  // Create a text canvas object (Label or rich Text Field) at the given world position
+  const createCanvasTextObject = useCallback(
+    (textType: "text" | "text-field", position: { x: number; y: number }) => {
+      saveToHistory("Add canvas object");
+
+      const newCanvasObject: CanvasObject =
+        textType === "text"
+          ? {
+              id: `object-${Date.now()}`,
+              type: "text",
+              position,
+              data: {
+                text: "Click to edit text",
+                fontSize: 16,
+                fontFamily: "Inter, system-ui, sans-serif",
+                textColor: "#000000",
+              } as any,
+              width: 200,
+              height: 50,
+              selected: false,
+            }
+          : {
+              id: `object-${Date.now()}`,
+              type: "text-field",
+              position,
+              data: {
+                blocks: [{ type: "paragraph", runs: [{ text: "" }] }],
+                fontSize: 14,
+                fontFamily: "Inter, system-ui, sans-serif",
+                textColor: "#000000",
+              } as any,
+              width: 300,
+              height: 120,
+              selected: false,
+            };
+
+      updateActiveTab({
+        canvasObjects: [...canvasObjects, newCanvasObject],
+      });
+    },
+    [saveToHistory, updateActiveTab, canvasObjects],
+  );
+
   // Accept Proposal - commits active variant to canvas with undo support (Phase 2)
   // Uses ref to read latest proposal state at click time (prevents variant drift bug)
   const handleAcceptProposal = useCallback(() => {
@@ -6649,7 +6693,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Popout state for collapsed sidebar
   const [activePopout, setActivePopout] = useState<
-    "node-types" | "shapes" | "templates" | "themes" | "boosts" | null
+    "node-types" | "shapes" | "templates" | "themes" | "boosts" | "text-type" | null
   >(null);
 
   // Toolbar expanded state (icons only vs icons + labels)
@@ -9073,7 +9117,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     toggleSidebar={toggleSidebar}
                     onCreateNode={(type: string) => {
                       // Handle creating canvas objects for text/sticky/shape types
-                      if (["text", "sticky", "shape"].includes(type)) {
+                      if (["text", "text-field", "sticky", "shape"].includes(type)) {
                         saveToHistory("Add canvas object");
 
                         let newCanvasObject: CanvasObject;
@@ -9091,6 +9135,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             } as any,
                             width: 200,
                             height: 50,
+                            selected: false,
+                          };
+                        } else if (type === "text-field") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "text-field",
+                            position: getViewportCenteredPosition(),
+                            data: {
+                              blocks: [
+                                { type: "paragraph", runs: [{ text: "" }] },
+                              ],
+                              fontSize: 14,
+                              fontFamily: "Inter, system-ui, sans-serif",
+                              textColor: "#000000",
+                            } as any,
+                            width: 300,
+                            height: 120,
                             selected: false,
                           };
                         } else if (type === "sticky") {
@@ -9220,7 +9281,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                       position: { x: number; y: number },
                     ) => {
                       // Handle position-based creation from drag-and-drop for canvas objects
-                      if (["text", "sticky", "shape"].includes(type)) {
+                      if (["text", "text-field", "sticky", "shape"].includes(type)) {
                         saveToHistory("Add canvas object");
 
                         let newCanvasObject: CanvasObject;
@@ -9238,6 +9299,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                             } as any,
                             width: 200,
                             height: 50,
+                            selected: false,
+                          };
+                        } else if (type === "text-field") {
+                          newCanvasObject = {
+                            id: `object-${Date.now()}`,
+                            type: "text-field",
+                            position,
+                            data: {
+                              blocks: [
+                                { type: "paragraph", runs: [{ text: "" }] },
+                              ],
+                              fontSize: 14,
+                              fontFamily: "Inter, system-ui, sans-serif",
+                              textColor: "#000000",
+                            } as any,
+                            width: 300,
+                            height: 120,
                             selected: false,
                           };
                         } else if (type === "sticky") {
@@ -9904,6 +9982,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         description: `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1)} shape added to canvas`,
                         variant: "default",
                       });
+                    }}
+                  />
+
+                  {/* Text Type Popout (Label vs Text Field) */}
+                  <TextTypePopout
+                    isOpen={activePopout === "text-type"}
+                    onClose={() => setActivePopout(null)}
+                    viewport={viewport}
+                    isToolbarExpanded={isToolbarExpanded}
+                    onCreateTextType={(textType) => {
+                      createCanvasTextObject(textType, getViewportCenteredPosition());
+                    }}
+                    onCreateTextTypeAtPosition={(textType, position) => {
+                      createCanvasTextObject(textType, position);
                     }}
                   />
                 </>
