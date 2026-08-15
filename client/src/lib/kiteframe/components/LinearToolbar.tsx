@@ -701,7 +701,7 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         }
       ];
       
-      if (objType === 'sticky' || objType === 'text') {
+      if (objType === 'sticky' || objType === 'text' || objType === 'text-field') {
         buttons.push({
           id: 'text',
           icon: <Type size={18} />,

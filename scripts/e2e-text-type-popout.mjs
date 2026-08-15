@@ -114,23 +114,114 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-4-editing.png" });
 }
 
-// ── 5. Select a word, format toolbar appears, apply Bold ─────────────────────
+// ── 4b. Format toolbar is anchored to the field, not the selection ───────────
 {
-  // Select the word "rich" via double-click directly on the text (top-left of editor)
+  const rtf = page.locator('[data-testid="rich-text-field-object"]').first();
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
+
+  const visibleWithNoSelection = await toolbar.isVisible().catch(() => false);
+  check("format toolbar is visible on entering edit (no selection yet)", visibleWithNoSelection);
+
+  const fieldBox = await rtf.boundingBox();
+  const tb0 = await toolbar.boundingBox().catch(() => null);
+  if (tb0 && fieldBox) {
+    const centredOnField = Math.abs((tb0.x + tb0.width / 2) - (fieldBox.x + fieldBox.width / 2)) <= 4;
+    check("format toolbar is horizontally centred on the field", centredOnField,
+      `toolbarCx=${(tb0.x + tb0.width / 2).toFixed(1)} fieldCx=${(fieldBox.x + fieldBox.width / 2).toFixed(1)}`);
+    check("format toolbar sits above the field", tb0.y + tb0.height <= fieldBox.y + 1,
+      `toolbarBottom=${(tb0.y + tb0.height).toFixed(1)} fieldTop=${fieldBox.y.toFixed(1)}`);
+  } else {
+    check("format toolbar is horizontally centred on the field", false, "no toolbar box");
+    check("format toolbar sits above the field", false, "no toolbar box");
+  }
+
+  // Select two different words — the toolbar must not move
+  const box = await editor.boundingBox();
+  await page.mouse.dblclick(box.x + 20, box.y + 16);
+  await page.waitForTimeout(250);
+  const tb1 = await toolbar.boundingBox().catch(() => null);
+  await page.mouse.dblclick(box.x + 95, box.y + 16);
+  await page.waitForTimeout(250);
+  const tb2 = await toolbar.boundingBox().catch(() => null);
+  const stable = !!tb0 && !!tb1 && !!tb2 &&
+    Math.abs(tb1.x - tb0.x) < 2 && Math.abs(tb1.y - tb0.y) < 2 &&
+    Math.abs(tb2.x - tb0.x) < 2 && Math.abs(tb2.y - tb0.y) < 2;
+  check("format toolbar does not move when the selection changes", stable,
+    `t0=${tb0 && tb0.x.toFixed(0) + "," + tb0.y.toFixed(0)} t1=${tb1 && tb1.x.toFixed(0) + "," + tb1.y.toFixed(0)} t2=${tb2 && tb2.x.toFixed(0) + "," + tb2.y.toFixed(0)}`);
+  await page.screenshot({ path: "/tmp/e2e-text-4b-toolbar-anchor.png" });
+}
+
+// ── 5. Bold applies, toggles off, and toggles back on ───────────────────────
+{
   const editor = page.locator('[data-testid="rich-text-editor"]');
   const box = await editor.boundingBox();
-  await page.mouse.dblclick(box.x + 45, box.y + 16); // over the word text on the first line
-  await page.waitForTimeout(500);
-  const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
-  const toolbarVisible = await toolbar.isVisible().catch(() => false);
-  check("format toolbar appears on selection", toolbarVisible);
-  await page.screenshot({ path: "/tmp/e2e-text-5-toolbar.png" });
-  if (toolbarVisible) {
-    await toolbar.locator('button[title="Bold"]').click();
+  const selectRich = async () => {
+    await page.mouse.dblclick(box.x + 45, box.y + 16); // the word "rich"
     await page.waitForTimeout(300);
-    const hasBold = await editor.evaluate((el) => !!el.querySelector("b, strong, span[style*='font-weight']"));
-    check("Bold applied to selected text", hasBold);
-  }
+  };
+  const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
+  const boldBtn = toolbar.locator('[data-testid="rich-text-bold"]');
+  const countBold = () => editor.evaluate((el) => el.querySelectorAll("b, strong").length);
+
+  await selectRich();
+  const toolbarVisible = await toolbar.isVisible().catch(() => false);
+  check("format toolbar available for bold test", toolbarVisible);
+
+  await boldBtn.click();
+  await page.waitForTimeout(300);
+  const afterOn = await countBold();
+  check("Bold applied to selected text", afterOn > 0, `boldTags=${afterOn}`);
+
+  const activeAfterOn = await boldBtn.getAttribute("data-active");
+  check("Bold button reflects the active state", activeAfterOn === "true", `data-active=${activeAfterOn}`);
+
+  // Toggle off again on the same word
+  await selectRich();
+  await boldBtn.click();
+  await page.waitForTimeout(300);
+  const afterOff = await countBold();
+  check("Bold toggles back off", afterOff === 0, `boldTags=${afterOff}`);
+
+  // Re-apply so later persistence checks have something to verify
+  await selectRich();
+  await boldBtn.click();
+  await page.waitForTimeout(300);
+  const afterReOn = await countBold();
+  check("Bold re-applies after being toggled off", afterReOn > 0, `boldTags=${afterReOn}`);
+  await page.screenshot({ path: "/tmp/e2e-text-5-bold.png" });
+}
+
+// ── 5a. Italic and underline apply to the selection ──────────────────────────
+{
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const box = await editor.boundingBox();
+  const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
+
+  await page.mouse.dblclick(box.x + 20, box.y + 16); // "Hello"
+  await page.waitForTimeout(300);
+  await toolbar.locator('[data-testid="rich-text-italic"]').click();
+  await page.waitForTimeout(300);
+  const italicCount = await editor.evaluate((el) => el.querySelectorAll("i, em").length);
+  check("Italic applied to selected text", italicCount > 0, `italicTags=${italicCount}`);
+
+  await page.mouse.dblclick(box.x + 20, box.y + 16);
+  await page.waitForTimeout(300);
+  await toolbar.locator('[data-testid="rich-text-underline"]').click();
+  await page.waitForTimeout(300);
+  const underlineCount = await editor.evaluate((el) => el.querySelectorAll("u").length);
+  check("Underline applied to selected text", underlineCount > 0, `underlineTags=${underlineCount}`);
+
+  // Toggle italic back off — the underline must survive
+  await page.mouse.dblclick(box.x + 20, box.y + 16);
+  await page.waitForTimeout(300);
+  await toolbar.locator('[data-testid="rich-text-italic"]').click();
+  await page.waitForTimeout(300);
+  const italicAfterOff = await editor.evaluate((el) => el.querySelectorAll("i, em").length);
+  const underlineAfterOff = await editor.evaluate((el) => el.querySelectorAll("u").length);
+  check("Italic toggles back off", italicAfterOff === 0, `italicTags=${italicAfterOff}`);
+  check("Underline survives toggling italic off", underlineAfterOff > 0, `underlineTags=${underlineAfterOff}`);
+  await page.screenshot({ path: "/tmp/e2e-text-5a-italic-underline.png" });
 }
 
 // ── 5b. Font size select applies to selection ─────────────────────────────────
@@ -199,6 +290,55 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-6-committed.png" });
 }
 
+// ── 6a. Selection border and resize handles are NOT clipped ──────────────────
+{
+  const rtf = page.locator('[data-testid="rich-text-field-object"]').first();
+  // Single click selects the field (and shows the resize handles)
+  const fb = await rtf.boundingBox();
+  await page.mouse.click(fb.x + fb.width / 2, fb.y + fb.height - 8);
+  await page.waitForTimeout(600);
+
+  const overflow = await rtf.evaluate((el) => getComputedStyle(el).overflow);
+  check("text field wrapper does not clip its overflow", overflow === "visible", `overflow=${overflow}`);
+
+  const positions = ["top-left", "top-right", "bottom-left", "bottom-right"];
+  const field = await rtf.boundingBox();
+  let allPresent = true;
+  let allOutside = true;
+  const detail = [];
+  for (const pos of positions) {
+    const h = page.locator(`[data-testid="resize-handle-${pos}"]`).first();
+    const hb = await h.boundingBox().catch(() => null);
+    if (!hb || hb.width <= 0 || hb.height <= 0) { allPresent = false; detail.push(`${pos}:missing`); continue; }
+    const cx = hb.x + hb.width / 2;
+    const cy = hb.y + hb.height / 2;
+    // Each handle is centred on a corner, so half of it sits outside the field
+    const outsideX = pos.includes("left") ? hb.x < field.x : hb.x + hb.width > field.x + field.width;
+    const outsideY = pos.includes("top") ? hb.y < field.y : hb.y + hb.height > field.y + field.height;
+    if (!(outsideX && outsideY)) { allOutside = false; detail.push(`${pos}:inside`); }
+    else detail.push(`${pos}:${cx.toFixed(0)},${cy.toFixed(0)}`);
+  }
+  check("all four resize handles are rendered", allPresent, detail.join(" "));
+  check("resize handles extend outside the field bounds (not clipped)", allOutside, detail.join(" "));
+
+  // Bottom handles are never covered by the toolbar — prove they are painted
+  const hitTest = await page.evaluate(() => {
+    const out = {};
+    for (const pos of ["bottom-left", "bottom-right"]) {
+      const el = document.querySelector(`[data-testid="resize-handle-${pos}"]`);
+      if (!el) { out[pos] = "missing"; continue; }
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      out[pos] = hit ? (hit.getAttribute("data-testid") || hit.tagName) : "none";
+    }
+    return out;
+  });
+  const hitOk = hitTest["bottom-left"] === "resize-handle-bottom-left" &&
+                hitTest["bottom-right"] === "resize-handle-bottom-right";
+  check("resize handles are hit-testable at their corners", hitOk, JSON.stringify(hitTest));
+  await page.screenshot({ path: "/tmp/e2e-text-6a-handles.png" });
+}
+
 // ── 6b. Drag Label card to canvas → exactly ONE label at drop position ───────
 {
   const countLabels = () => page.locator('[data-testid^="text-object-"]').count();
@@ -240,6 +380,78 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   await page.screenshot({ path: "/tmp/e2e-text-6c-drag-field.png" });
 }
 
+// ── 6d. Bullet list can be created and toggled off ───────────────────────────
+{
+  const second = page.locator('[data-testid="rich-text-field-object"]').nth(1);
+  await second.dblclick();
+  await page.waitForTimeout(500);
+  const editor = page.locator('[data-testid="rich-text-editor"]');
+  const opened = await editor.isVisible().catch(() => false);
+  check("second Text Field opens for editing", opened);
+  if (opened) {
+    await editor.click();
+    await page.keyboard.type("Alpha");
+    await page.keyboard.press("Shift+Enter");
+    await page.keyboard.type("Beta");
+    await page.waitForTimeout(300);
+
+    // Shift+Enter emits an in-block <br>; it must survive serialisation
+    const brCount = await editor.evaluate((el) => el.querySelectorAll("br").length);
+    check("Shift+Enter inserts a soft line break", brCount >= 1, `br=${brCount}`);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(700);
+    const lines = await second.evaluate((el) => {
+      const content = el.firstElementChild;
+      return content ? Array.from(content.children).map((c) => c.textContent) : [];
+    });
+    check("soft line break survives as two lines in read mode",
+      lines.length === 2 && lines[0].includes("Alpha") && lines[1].includes("Beta"),
+      JSON.stringify(lines));
+
+    await second.dblclick();
+    await page.waitForTimeout(500);
+
+    const toolbar = page.locator('[data-testid="rich-text-format-toolbar"]');
+    const selectAll = async () => {
+      await editor.evaluate((el) => {
+        const r = document.createRange();
+        r.selectNodeContents(el);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      });
+      await page.waitForTimeout(200);
+    };
+
+    await selectAll();
+    await toolbar.locator('[data-testid="rich-text-bullet-list"]').click();
+    await page.waitForTimeout(400);
+    const liCount = await editor.evaluate((el) => el.querySelectorAll("ul li").length);
+    check("bullet list created from the selection", liCount >= 2, `li=${liCount}`);
+
+    await selectAll();
+    await toolbar.locator('[data-testid="rich-text-bullet-list"]').click();
+    await page.waitForTimeout(400);
+    const ulAfterOff = await editor.evaluate((el) => el.querySelectorAll("ul").length);
+    const textAfterOff = await editor.evaluate((el) => el.textContent.replace(/\u200B/g, ""));
+    check("bullet list toggles back off", ulAfterOff === 0, `ul=${ulAfterOff}`);
+    check("text survives toggling the list off", textAfterOff.includes("Alpha") && textAfterOff.includes("Beta"), textAfterOff.slice(0, 40));
+
+    // Numbered list, then commit so read mode + reload can be verified
+    await selectAll();
+    await toolbar.locator('[data-testid="rich-text-ordered-list"]').click();
+    await page.waitForTimeout(400);
+    const olCount = await editor.evaluate((el) => el.querySelectorAll("ol li").length);
+    check("numbered list created from the selection", olCount >= 2, `li=${olCount}`);
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(600);
+    const readOl = await second.evaluate((el) => el.querySelectorAll("ol li").length);
+    check("numbered list renders in read mode", readOl >= 2, `li=${readOl}`);
+  }
+  await page.screenshot({ path: "/tmp/e2e-text-6d-lists.png" });
+}
+
 // ── 7. Reload page → content persists (localStorage tabs) ────────────────────
 {
   // Wait past the 1s debounced localStorage save before reloading
@@ -274,6 +486,50 @@ try { await page.keyboard.press("Escape"); await page.waitForTimeout(300); } cat
   );
   check("font weight survives reload", !!weightStill);
   await page.screenshot({ path: "/tmp/e2e-text-7-reloaded.png" });
+}
+
+// ── 8. Linear toolbar "T" popover styles the whole Text Field ────────────────
+{
+  const rtf = page.locator('[data-testid="rich-text-field-object"]').first();
+  const present = await rtf.isVisible().catch(() => false);
+  check("Text Field available for toolbar popover test", present);
+  if (present) {
+    const fb = await rtf.boundingBox();
+    await page.mouse.click(fb.x + fb.width / 2, fb.y + fb.height - 8);
+    await page.waitForTimeout(700);
+
+    const typeBtn = page.locator('[data-testid="toolbar-button-text"]');
+    const hasTypeBtn = await typeBtn.isVisible().catch(() => false);
+    check("selected Text Field shows the T (Text Style) button", hasTypeBtn);
+
+    if (hasTypeBtn) {
+      await typeBtn.click();
+      await page.waitForTimeout(400);
+      const sizeBtn = page.locator('[data-testid="toolbar-fontsize-18"]');
+      const submenuOpen = await sizeBtn.isVisible().catch(() => false);
+      check("T button opens the typography popover", submenuOpen);
+      await page.screenshot({ path: "/tmp/e2e-text-8-popover.png" });
+
+      if (submenuOpen) {
+        await sizeBtn.click();
+        await page.waitForTimeout(600);
+        const containerSize = await rtf.evaluate((el) => {
+          const content = el.firstElementChild;
+          return content ? getComputedStyle(content).fontSize : "";
+        });
+        check("font size from the popover applies to the whole field", containerSize === "18px", `fontSize=${containerSize}`);
+
+        await page.locator('[data-testid="toolbar-align-center"]').click();
+        await page.waitForTimeout(600);
+        const align = await rtf.evaluate((el) => {
+          const content = el.firstElementChild;
+          return content ? getComputedStyle(content).textAlign : "";
+        });
+        check("alignment from the popover applies to the whole field", align === "center", `textAlign=${align}`);
+      }
+    }
+  }
+  await page.screenshot({ path: "/tmp/e2e-text-8-styled.png" });
 }
 
 console.log("\nSummary:", results.every((r) => r.ok) ? "ALL PASS" : "FAILURES PRESENT");

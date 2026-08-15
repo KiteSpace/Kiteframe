@@ -618,6 +618,11 @@ type Props = {
     e: React.MouseEvent,
     canvasObject: CanvasObject,
   ) => void;
+  /** Inline text editing on a canvas object started or stopped. */
+  onCanvasObjectEditingChange?: (
+    canvasObjectId: string,
+    isEditing: boolean,
+  ) => void;
   onEdgeClick?: (e: React.MouseEvent, edge: Edge) => void;
   onEdgeDoubleClick?: (e: React.MouseEvent, edge: Edge) => void;
   onNodeResize?: (id: string, w: number, h: number) => void;
@@ -5689,6 +5694,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onStartDrag={(e) => handleCanvasObjectDragStart(obj.id, e)}
                     onClick={(e) => handleCanvasObjectClick(obj.id, e)}
+                    onEditingChange={(editing) =>
+                      props.onCanvasObjectEditingChange?.(obj.id, editing)
+                    }
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();

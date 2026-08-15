@@ -6635,8 +6635,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      const objWidth = currentObject.width ?? 150;
-      const objHeight = currentObject.height ?? 100;
+      const objWidth =
+        currentObject.style?.width ?? currentObject.width ?? 150;
+      const objHeight =
+        currentObject.style?.height ?? currentObject.height ?? 100;
       const screenX =
         currentObject.position.x * viewport.zoom + viewport.x + containerLeft;
       const screenY =
@@ -12097,8 +12099,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               const containerLeft = containerRect?.left ?? 0;
                               const containerTop = containerRect?.top ?? 0;
 
-                              const objWidth = canvasObject.width ?? 150;
-                              const objHeight = canvasObject.height ?? 100;
+                              const objWidth =
+                                canvasObject.style?.width ??
+                                canvasObject.width ??
+                                150;
+                              const objHeight =
+                                canvasObject.style?.height ??
+                                canvasObject.height ??
+                                100;
                               // World-to-screen: (worldPos * zoom) + panOffset + containerOffset
                               const screenX =
                                 canvasObject.position.x * viewport.zoom +
@@ -12157,6 +12165,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         y: e.clientY,
                         canvasObject,
                       });
+                    }}
+                    onCanvasObjectEditingChange={(
+                      canvasObjectId: string,
+                      editing: boolean,
+                    ) => {
+                      if (!editing) return;
+                      // The inline format bar is anchored above the object —
+                      // hide the object-level toolbar so they don't overlap.
+                      if (clickDelayTimeoutRef.current) {
+                        clearTimeout(clickDelayTimeoutRef.current);
+                        clickDelayTimeoutRef.current = null;
+                      }
+                      // Close it whatever it currently targets: a toolbar left
+                      // open for another object would still overlap this one's
+                      // format bar.
+                      void canvasObjectId;
+                      setLinearToolbar(null);
                     }}
                     onImageButtonClick={setShowImageModal}
                     onUndo={effectiveReadOnly ? handleViewReset : handleUndo}
@@ -17069,7 +17094,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         strokeOpacity: 1.0,
                       },
                     };
-                  } else if (objType === "text") {
+                  } else if (objType === "text" || objType === "text-field") {
                     return { ...obj, data: { ...obj.data, textColor: color } };
                   }
                   return obj;

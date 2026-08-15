@@ -27,6 +27,7 @@ interface WorkflowCanvasProps {
   onNodeRightClick?: (e: React.MouseEvent, node: Node) => void;
   onCanvasObjectClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
   onCanvasObjectRightClick?: (e: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectEditingChange?: (canvasObjectId: string, isEditing: boolean) => void;
   onImageButtonClick?: (nodeId: string) => void;
   viewport: { x: number; y: number; zoom: number };
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void;
@@ -128,6 +129,7 @@ export function WorkflowCanvas({
   onNodeRightClick,
   onCanvasObjectClick,
   onCanvasObjectRightClick,
+  onCanvasObjectEditingChange,
   onImageButtonClick,
   viewport,
   onViewportChange,
@@ -658,6 +660,7 @@ export function WorkflowCanvas({
         onNodeRightClick={onNodeRightClickGuarded}
         onCanvasObjectClick={onCanvasObjectClick}
         onCanvasObjectRightClick={onCanvasObjectRightClick}
+        onCanvasObjectEditingChange={onCanvasObjectEditingChange}
         onImageButtonClick={onImageButtonClick}
         viewport={viewport}
         onViewportChange={onViewportChange}

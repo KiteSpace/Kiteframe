@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { CanvasObject, RichTextFieldData, RichTextBlock, RichTextRun } from '../types';
 import { ResizeHandle } from './ResizeHandle';
 
@@ -14,6 +15,14 @@ const MIN_FONT_SIZE = 6;
 const MAX_FONT_SIZE = 200;
 const ALLOWED_FONT_WEIGHTS = new Set([100, 200, 300, 400, 500, 600, 700, 800, 900]);
 const BLOCK_TYPES = new Set<RichTextBlock['type']>(['paragraph', 'bullet', 'ordered']);
+
+/** Elements that terminate the current paragraph when found at the editor root. */
+const BLOCK_TAGS = new Set([
+  'div', 'p', 'li', 'blockquote', 'pre', 'section', 'article',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+]);
+
+const ZERO_WIDTH = /\u200B/g;
 
 function sanitizeFontSize(value: unknown): number | undefined {
   const n = typeof value === 'number' ? value : parseInt(String(value), 10);
@@ -57,15 +66,32 @@ function sanitizeBlocks(input: unknown): RichTextBlock[] {
   return blocks.length > 0 ? blocks : emptyDoc();
 }
 
-/** Render a single block's runs as JSX (read-only mode) */
-function renderRuns(runs: RichTextRun[], defaultFontSize: number, defaultColor: string) {
+/** Object-level typography, shared by the editor and the read-only view so
+ *  the "Text Style" popover in the linear toolbar affects both identically. */
+function objectTypography(data: RichTextFieldData): React.CSSProperties {
+  const decoration = String(data.textDecoration ?? '');
+  const weight = data.fontWeight;
+  return {
+    fontSize: data.fontSize ? `${data.fontSize}px` : '14px',
+    fontFamily: data.fontFamily ?? 'Inter, system-ui, sans-serif',
+    color: data.textColor ?? '#000000',
+    fontWeight: weight === 'bold' ? 700 : weight === 'normal' ? 400 : undefined,
+    fontStyle: decoration.includes('italic') ? 'italic' : undefined,
+    textDecoration: decoration.includes('line-through') ? 'line-through' : undefined,
+    textAlign: (data.textAlign as React.CSSProperties['textAlign']) ?? undefined,
+  };
+}
+
+/** Render a single block's runs as JSX (read-only mode).
+ *  Marks the run does NOT carry are left undefined so the object-level
+ *  typography above keeps applying (otherwise a span would clobber it). */
+function renderRuns(runs: RichTextRun[]) {
   return runs.map((run, i) => {
     const style: React.CSSProperties = {
-      fontWeight: run.bold ? (run.fontWeight ?? 700) : (run.fontWeight ?? 400),
-      fontStyle: run.italic ? 'italic' : 'normal',
-      textDecoration: run.underline ? 'underline' : 'none',
+      fontWeight: run.fontWeight ?? (run.bold ? 700 : undefined),
+      fontStyle: run.italic ? 'italic' : undefined,
+      textDecoration: run.underline ? 'underline' : undefined,
       fontSize: run.fontSize ? `${run.fontSize}px` : undefined,
-      color: defaultColor,
     };
     return (
       <span key={i} style={style}>
@@ -77,55 +103,97 @@ function renderRuns(runs: RichTextRun[], defaultFontSize: number, defaultColor: 
 
 // ─── Format toolbar ─────────────────────────────────────────────────────────
 
-interface FormatToolbarProps {
-  anchorRect: DOMRect | null;
-  containerRect: DOMRect | null;
-  onCommand: (cmd: string, value?: string) => void;
-  zoom: number;
+interface FormatState {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  bullet: boolean;
+  ordered: boolean;
 }
 
-function FormatToolbar({ anchorRect, containerRect, onCommand, zoom }: FormatToolbarProps) {
-  if (!anchorRect || !containerRect) return null;
+interface FormatToolbarProps {
+  /** Screen rect of the text field itself — the toolbar is anchored to this,
+   *  never to the current text selection, so it does not jump around. */
+  anchorRect: DOMRect | null;
+  onCommand: (cmd: string, value?: string) => void;
+  state: FormatState;
+}
 
-  // Position above the selection, centred
-  const toolbarWidth = 320;
-  const toolbarHeight = 36;
-  const gap = 6;
+const TOOLBAR_WIDTH = 340;
+const TOOLBAR_HEIGHT = 36;
+const TOOLBAR_GAP = 8;
 
-  let left = anchorRect.left + anchorRect.width / 2 - toolbarWidth / 2;
-  let top = anchorRect.top - toolbarHeight - gap;
+function FormatToolbar({ anchorRect, onCommand, state }: FormatToolbarProps) {
+  if (!anchorRect) return null;
 
-  // Keep inside viewport
+  let left = anchorRect.left + anchorRect.width / 2 - TOOLBAR_WIDTH / 2;
+  let top = anchorRect.top - TOOLBAR_HEIGHT - TOOLBAR_GAP;
+
+  // Keep inside the viewport; flip below the field when there is no room above
   if (left < 8) left = 8;
-  if (left + toolbarWidth > window.innerWidth - 8) left = window.innerWidth - 8 - toolbarWidth;
-  if (top < 8) top = anchorRect.bottom + gap; // flip below if too high
+  if (left + TOOLBAR_WIDTH > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - 8 - TOOLBAR_WIDTH);
+  }
+  if (top < 8) top = anchorRect.bottom + TOOLBAR_GAP;
 
-  const btn = (label: string, cmd: string, value?: string, title?: string) => (
+  // The canvas layer this component lives in is CSS-transformed, which makes
+  // `position: fixed` resolve against that ancestor instead of the viewport.
+  // Portal to <body> so the screen coordinates above mean what they say —
+  // otherwise the bar lands on top of the field and swallows its clicks.
+  const mount = typeof document !== 'undefined' ? document.body : null;
+  if (!mount) return null;
+
+  const btn = (
+    label: React.ReactNode,
+    cmd: string,
+    opts: { title: string; testId: string; active?: boolean; style?: React.CSSProperties },
+  ) => (
     <button
-      key={cmd + (value ?? '')}
-      title={title ?? label}
+      key={cmd}
+      type="button"
+      title={opts.title}
+      data-testid={opts.testId}
+      data-active={opts.active ? 'true' : 'false'}
       onMouseDown={(e) => {
-        e.preventDefault(); // keep focus in editor
-        onCommand(cmd, value);
+        e.preventDefault(); // keep focus (and the selection) in the editor
+        e.stopPropagation();
+        onCommand(cmd);
       }}
-      className="px-1.5 py-0.5 text-xs font-medium rounded hover:bg-accent transition-colors"
+      className={
+        'px-1.5 py-0.5 text-xs rounded transition-colors ' +
+        (opts.active ? 'bg-accent text-accent-foreground' : 'hover:bg-accent')
+      }
+      style={opts.style}
     >
       {label}
     </button>
   );
 
-  return (
+  return createPortal(
     <div
       className="fixed flex items-center gap-0.5 bg-card border border-border rounded-md shadow-lg px-2 py-1"
-      style={{ zIndex: 9999, left, top, height: toolbarHeight, minWidth: toolbarWidth }}
+      style={{ zIndex: 10000, left, top, height: TOOLBAR_HEIGHT, width: TOOLBAR_WIDTH }}
       data-testid="rich-text-format-toolbar"
-      onMouseDown={(e) => e.preventDefault()} // prevent blur
+      onMouseDown={(e) => e.preventDefault()} // prevent blur/commit
     >
-      {btn('B', 'bold', undefined, 'Bold')}
-      <div className="w-px h-4 bg-border mx-0.5" />
-      {btn('I', 'italic', undefined, 'Italic')}
-      <div className="w-px h-4 bg-border mx-0.5" />
-      {btn('U', 'underline', undefined, 'Underline')}
+      {btn('B', 'bold', {
+        title: 'Bold',
+        testId: 'rich-text-bold',
+        active: state.bold,
+        style: { fontWeight: 700 },
+      })}
+      {btn('I', 'italic', {
+        title: 'Italic',
+        testId: 'rich-text-italic',
+        active: state.italic,
+        style: { fontStyle: 'italic' },
+      })}
+      {btn('U', 'underline', {
+        title: 'Underline',
+        testId: 'rich-text-underline',
+        active: state.underline,
+        style: { textDecoration: 'underline' },
+      })}
       <div className="w-px h-4 bg-border mx-0.5" />
       {/* Font size */}
       <select
@@ -134,14 +202,17 @@ function FormatToolbar({ anchorRect, containerRect, onCommand, zoom }: FormatToo
         className="text-xs border border-border rounded px-1 py-0.5 bg-background h-6 cursor-pointer"
         defaultValue=""
         onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => { onCommand('fontSize', e.target.value); e.target.value = ''; }}
+        onChange={(e) => {
+          const v = e.target.value;
+          e.target.value = '';
+          onCommand('fontSize', v);
+        }}
       >
         <option value="" disabled>Size</option>
         {[10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64].map((s) => (
           <option key={s} value={String(s)}>{s}</option>
         ))}
       </select>
-      <div className="w-px h-4 bg-border mx-0.5" />
       {/* Font weight */}
       <select
         title="Font weight"
@@ -149,7 +220,11 @@ function FormatToolbar({ anchorRect, containerRect, onCommand, zoom }: FormatToo
         className="text-xs border border-border rounded px-1 py-0.5 bg-background h-6 cursor-pointer"
         defaultValue=""
         onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => { onCommand('fontWeight', e.target.value); e.target.value = ''; }}
+        onChange={(e) => {
+          const v = e.target.value;
+          e.target.value = '';
+          onCommand('fontWeight', v);
+        }}
       >
         <option value="" disabled>Weight</option>
         <option value="300">Light</option>
@@ -160,10 +235,18 @@ function FormatToolbar({ anchorRect, containerRect, onCommand, zoom }: FormatToo
         <option value="900">Black</option>
       </select>
       <div className="w-px h-4 bg-border mx-0.5" />
-      {btn('• List', 'insertUnorderedList', undefined, 'Bullet list')}
-      <div className="w-px h-4 bg-border mx-0.5" />
-      {btn('1. List', 'insertOrderedList', undefined, 'Numbered list')}
-    </div>
+      {btn('• List', 'insertUnorderedList', {
+        title: 'Bullet list',
+        testId: 'rich-text-bullet-list',
+        active: state.bullet,
+      })}
+      {btn('1. List', 'insertOrderedList', {
+        title: 'Numbered list',
+        testId: 'rich-text-ordered-list',
+        active: state.ordered,
+      })}
+    </div>,
+    mount,
   );
 }
 
@@ -176,9 +259,20 @@ interface RichTextFieldObjectProps {
   onStartDrag?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  /** Fired when inline editing starts/stops so the host can hide the
+   *  object-level linear toolbar while the format bar is on screen. */
+  onEditingChange?: (isEditing: boolean) => void;
   viewport?: { x: number; y: number; zoom: number };
   selectedCanvasObjectCount?: number;
 }
+
+const EMPTY_FORMAT_STATE: FormatState = {
+  bold: false,
+  italic: false,
+  underline: false,
+  bullet: false,
+  ordered: false,
+};
 
 export function RichTextFieldObject({
   object,
@@ -187,18 +281,30 @@ export function RichTextFieldObject({
   onStartDrag,
   onClick,
   onContextMenu,
+  onEditingChange,
   viewport,
   selectedCanvasObjectCount = 0,
 }: RichTextFieldObjectProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
-  const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const [formatState, setFormatState] = useState<FormatState>(EMPTY_FORMAT_STATE);
   const editorRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // Last non-collapsed selection range inside the editor. Needed because
   // interacting with the toolbar's <select> elements moves focus (and can
   // collapse the selection) before onChange fires.
   const savedRangeRef = useRef<Range | null>(null);
+  // The editor's innerHTML is seeded once per editing session. Re-deriving it
+  // from props on every render would reset the DOM (and the caret) whenever
+  // the debounced sync writes blocks back to the store.
+  const editHtmlRef = useRef<string>('');
+  const syncTimerRef = useRef<number | null>(null);
+  const onEditingChangeRef = useRef(onEditingChange);
+  onEditingChangeRef.current = onEditingChange;
+  // Deferred writes (debounced sync, commit) must use the newest callback, not
+  // the one that existed when they were scheduled — see scheduleSync.
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
   const data = object.data as RichTextFieldData;
   // Validate persisted/imported data before rendering or generating HTML
@@ -208,8 +314,8 @@ export function RichTextFieldObject({
   );
   const width = object.style?.width ?? object.width ?? 300;
   const height = object.style?.height ?? object.height ?? 120;
-  const zoom = viewport?.zoom ?? 1;
   const isSelected = object.selected;
+  const typography = objectTypography(data);
 
   // ── Serialise contenteditable → RichTextBlock[] ─────────────────────────
   const serialise = useCallback((): RichTextBlock[] => {
@@ -223,18 +329,36 @@ export function RichTextFieldObject({
     // flatten — each element layers its marks on top of the inherited ones.
     type Fmt = Omit<RichTextRun, 'text'>;
 
-    const processNode = (node: Node, parentBlock: RichTextBlock, fmt: Fmt) => {
+    const pushRun = (block: RichTextBlock, rawText: string, fmt: Fmt) => {
+      // Zero-width spaces are only placeholders for empty runs in the
+      // generated HTML — they must never accumulate in the stored document.
+      const text = rawText.replace(ZERO_WIDTH, '');
+      if (!text) return;
+      block.runs.push({ text, ...fmt });
+    };
+
+    /** Lets a nested <br> end the block it is sitting in and start the next
+     *  one, instead of silently vanishing along with the line break. */
+    interface BlockCtx {
+      getBlock: () => RichTextBlock;
+      split: () => void;
+    }
+
+    const processNode = (node: Node, ctx: BlockCtx, fmt: Fmt) => {
       if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent ?? '';
-        if (text) {
-          parentBlock.runs.push({ text, ...fmt });
-        }
+        pushRun(ctx.getBlock(), node.textContent ?? '', fmt);
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       const el = node as HTMLElement;
       const tag = el.tagName.toLowerCase();
       const style = el.style;
+
+      // Shift+Enter (and pasted markup) produce a <br> inside the block
+      if (tag === 'br') {
+        ctx.split();
+        return;
+      }
 
       const next: Fmt = { ...fmt };
       if (tag === 'b' || tag === 'strong') next.bold = true;
@@ -243,100 +367,295 @@ export function RichTextFieldObject({
       if (style.fontWeight) {
         const fw = sanitizeFontWeight(style.fontWeight === 'bold' ? 700 : style.fontWeight);
         if (fw !== undefined) next.fontWeight = fw;
-        if (style.fontWeight === 'bold' || (fw !== undefined && fw >= 700)) next.bold = true;
+        if (style.fontWeight === 'normal') {
+          next.bold = false;
+        } else if (style.fontWeight === 'bold' || (fw !== undefined && fw >= 700)) {
+          next.bold = true;
+        } else if (fw !== undefined) {
+          next.bold = false;
+        }
       }
       if (style.fontSize) {
         const fs = sanitizeFontSize(style.fontSize);
         if (fs !== undefined) next.fontSize = fs;
       }
       if (style.fontStyle === 'italic') next.italic = true;
+      if (style.fontStyle === 'normal') next.italic = false;
       if (style.textDecoration?.includes('underline')) next.underline = true;
+      if (style.textDecoration === 'none') next.underline = false;
 
-      el.childNodes.forEach((child) => processNode(child, parentBlock, next));
+      el.childNodes.forEach((child) => processNode(child, ctx, next));
     };
 
-    const processBlockEl = (el: HTMLElement, type: RichTextBlock['type']): RichTextBlock => {
-      const block: RichTextBlock = { type, runs: [] };
-      el.childNodes.forEach((child) => processNode(child, block, {}));
-      if (block.runs.length === 0) block.runs.push({ text: '' });
-      return block;
+    /** One source element can yield several blocks when it contains <br>s. */
+    const processBlockEl = (el: HTMLElement, type: RichTextBlock['type']): RichTextBlock[] => {
+      const blocks: RichTextBlock[] = [];
+      let current: RichTextBlock = { type, runs: [] };
+      const ctx: BlockCtx = {
+        getBlock: () => current,
+        split: () => {
+          blocks.push(current);
+          current = { type, runs: [] };
+        },
+      };
+      el.childNodes.forEach((child) => {
+        // A nested list inside a list item is flattened into its own blocks
+        // by the caller; ignore it here so its text is not duplicated.
+        const tag =
+          child.nodeType === Node.ELEMENT_NODE
+            ? (child as HTMLElement).tagName.toLowerCase()
+            : '';
+        if (tag === 'ul' || tag === 'ol') return;
+        processNode(child, ctx, {});
+      });
+      blocks.push(current);
+      for (const b of blocks) if (b.runs.length === 0) b.runs.push({ text: '' });
+      return blocks;
     };
 
-    el.childNodes.forEach((node) => {
+    // Lists produced by execCommand can be nested; walk them depth-first so
+    // every list item becomes a block of the right type.
+    const processList = (listEl: HTMLElement) => {
+      const type: RichTextBlock['type'] =
+        listEl.tagName.toLowerCase() === 'ol' ? 'ordered' : 'bullet';
+      Array.from(listEl.children).forEach((child) => {
+        const tag = child.tagName.toLowerCase();
+        if (tag === 'li') {
+          result.push(...processBlockEl(child as HTMLElement, type));
+          Array.from(child.children).forEach((grand) => {
+            const gTag = grand.tagName.toLowerCase();
+            if (gTag === 'ul' || gTag === 'ol') processList(grand as HTMLElement);
+          });
+        } else if (tag === 'ul' || tag === 'ol') {
+          processList(child as HTMLElement);
+        }
+      });
+    };
+
+    // contentEditable freely emits bare text nodes and inline elements at the
+    // root (especially after toggling lists off). Collect them into an
+    // implicit paragraph instead of dropping them.
+    let inlineBlock: RichTextBlock | null = null;
+    const flushInline = () => {
+      if (!inlineBlock) return;
+      if (inlineBlock.runs.length === 0) inlineBlock.runs.push({ text: '' });
+      result.push(inlineBlock);
+      inlineBlock = null;
+    };
+    const inlineTarget = (): RichTextBlock => {
+      if (!inlineBlock) inlineBlock = { type: 'paragraph', runs: [] };
+      return inlineBlock;
+    };
+
+    Array.from(el.childNodes).forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = (node.textContent ?? '').replace(ZERO_WIDTH, '');
+        if (text) pushRun(inlineTarget(), text, {});
+        return;
+      }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       const child = node as HTMLElement;
       const tag = child.tagName.toLowerCase();
-      if (tag === 'ul') {
-        child.querySelectorAll('li').forEach((li) => {
-          result.push(processBlockEl(li, 'bullet'));
-        });
-      } else if (tag === 'ol') {
-        child.querySelectorAll('li').forEach((li) => {
-          result.push(processBlockEl(li, 'ordered'));
-        });
-      } else {
-        result.push(processBlockEl(child, 'paragraph'));
+
+      if (tag === 'ul' || tag === 'ol') {
+        flushInline();
+        processList(child);
+        return;
       }
+      if (tag === 'br') {
+        // Ends the implicit paragraph being collected; only a <br> with
+        // nothing before it means a genuinely blank line.
+        if (inlineBlock) flushInline();
+        else result.push({ type: 'paragraph', runs: [{ text: '' }] });
+        return;
+      }
+      if (BLOCK_TAGS.has(tag)) {
+        flushInline();
+        result.push(...processBlockEl(child, 'paragraph'));
+        // A list nested directly inside a root-level block still counts
+        Array.from(child.children).forEach((grand) => {
+          const gTag = grand.tagName.toLowerCase();
+          if (gTag === 'ul' || gTag === 'ol') processList(grand as HTMLElement);
+        });
+        return;
+      }
+      // Inline element at the root (b/i/u/span/font/…)
+      processNode(child, { getBlock: inlineTarget, split: flushInline }, {});
     });
+    flushInline();
 
     return result.length ? result : emptyDoc();
   }, []);
 
+  const cancelPendingSync = useCallback(() => {
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+  }, []);
+
+  /** Push the live editor content into the canvas object without leaving
+   *  edit mode, so formatting is persisted (and autosaved) as it happens. */
+  const syncNow = useCallback(() => {
+    cancelPendingSync();
+    if (!editorRef.current) return;
+    onUpdateRef.current?.({ blocks: serialise() });
+  }, [cancelPendingSync, serialise]);
+
+  const scheduleSync = useCallback(
+    (delay = 300) => {
+      cancelPendingSync();
+      syncTimerRef.current = window.setTimeout(() => {
+        syncTimerRef.current = null;
+        if (!editorRef.current) return;
+        // Always go through the ref: the host rebuilds `onUpdate` around a
+        // fresh snapshot of the canvas objects on every render, so a callback
+        // captured when the timer was scheduled would resurrect the objects
+        // as they were before any concurrent edit.
+        onUpdateRef.current?.({ blocks: serialise() });
+      }, delay);
+    },
+    [cancelPendingSync, serialise],
+  );
+
+  useEffect(() => () => cancelPendingSync(), [cancelPendingSync]);
+
+  // ── Build initial HTML from blocks ───────────────────────────────────────
+  const blocksToHtml = useCallback((source: RichTextBlock[]): string => {
+    const runToHtml = (run: RichTextRun): string => {
+      let html = run.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (!html) html = '\u200B';
+      const styles: string[] = [];
+      if (run.fontSize) styles.push(`font-size:${run.fontSize}px`);
+      if (run.fontWeight) styles.push(`font-weight:${run.fontWeight}`);
+      else if (run.bold) styles.push('font-weight:700');
+      if (run.italic) styles.push('font-style:italic');
+      if (run.underline) styles.push('text-decoration:underline');
+      if (styles.length > 0) {
+        return `<span style="${styles.join(';')}">${html}</span>`;
+      }
+      return html;
+    };
+
+    const grouped: Array<{ type: RichTextBlock['type']; items: RichTextBlock[] }> = [];
+    for (const block of source) {
+      const last = grouped[grouped.length - 1];
+      if (last && last.type === block.type && block.type !== 'paragraph') {
+        last.items.push(block);
+      } else {
+        grouped.push({ type: block.type, items: [block] });
+      }
+    }
+
+    return grouped
+      .map(({ type, items }) => {
+        if (type === 'bullet' || type === 'ordered') {
+          const tag = type === 'bullet' ? 'ul' : 'ol';
+          const lis = items.map((b) => `<li>${b.runs.map(runToHtml).join('')}</li>`).join('');
+          return `<${tag} style="margin:0;padding-left:1.2em;">${lis}</${tag}>`;
+        }
+        return `<div>${items[0].runs.map(runToHtml).join('')}</div>`;
+      })
+      .join('');
+  }, []);
+
   // ── Commit edit ──────────────────────────────────────────────────────────
   const commitEdit = useCallback(() => {
-    const newBlocks = serialise();
-    onUpdate?.({ blocks: newBlocks });
+    cancelPendingSync();
+    const newBlocks = editorRef.current ? serialise() : null;
+    if (newBlocks) onUpdateRef.current?.({ blocks: newBlocks });
+    savedRangeRef.current = null;
     setIsEditing(false);
-    setSelectionRect(null);
-  }, [serialise, onUpdate]);
+    setAnchorRect(null);
+    setFormatState(EMPTY_FORMAT_STATE);
+    onEditingChangeRef.current?.(false);
+  }, [cancelPendingSync, serialise]);
 
   // ── Enter edit mode ──────────────────────────────────────────────────────
   const enterEdit = useCallback(() => {
+    // Freeze the HTML for the whole session (see editHtmlRef)
+    editHtmlRef.current = blocksToHtml(sanitizeBlocks(object.data?.blocks));
     setIsEditing(true);
+    onEditingChangeRef.current?.(true);
+  }, [blocksToHtml, object.data]);
+
+  /** Recompute the toolbar anchor from the field's own screen rect. */
+  const updateAnchorRect = useCallback(() => {
+    if (wrapperRef.current) {
+      setAnchorRect(wrapperRef.current.getBoundingClientRect());
+    }
+  }, []);
+
+  const refreshFormatState = useCallback(() => {
+    try {
+      setFormatState({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        bullet: document.queryCommandState('insertUnorderedList'),
+        ordered: document.queryCommandState('insertOrderedList'),
+      });
+    } catch {
+      /* queryCommandState is unavailable in some environments */
+    }
   }, []);
 
   // Focus editor after entering edit mode
   useEffect(() => {
-    if (isEditing && editorRef.current) {
-      editorRef.current.focus();
-      // Move cursor to end
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(editorRef.current);
-      range.collapse(false);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      updateContainerRect();
-    }
-  }, [isEditing]);
+    if (!isEditing || !editorRef.current) return;
+    editorRef.current.focus();
+    // Move cursor to end
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.current);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    updateAnchorRect();
+    refreshFormatState();
+  }, [isEditing, updateAnchorRect, refreshFormatState]);
 
-  const updateContainerRect = () => {
-    if (wrapperRef.current) {
-      setContainerRect(wrapperRef.current.getBoundingClientRect());
-    }
-  };
+  // Keep the toolbar glued to the field as the canvas pans, zooms or the
+  // field is moved/resized.
+  useEffect(() => {
+    if (!isEditing) return;
+    updateAnchorRect();
+  }, [
+    isEditing,
+    updateAnchorRect,
+    viewport?.x,
+    viewport?.y,
+    viewport?.zoom,
+    width,
+    height,
+    object.position.x,
+    object.position.y,
+  ]);
 
-  // Track selection for toolbar positioning
+  useEffect(() => {
+    if (!isEditing) return;
+    const onWindowChange = () => updateAnchorRect();
+    window.addEventListener('resize', onWindowChange);
+    window.addEventListener('scroll', onWindowChange, true);
+    return () => {
+      window.removeEventListener('resize', onWindowChange);
+      window.removeEventListener('scroll', onWindowChange, true);
+    };
+  }, [isEditing, updateAnchorRect]);
+
+  // Track the live selection so format commands can be restored onto it and
+  // the toolbar can show which marks are active.
   const handleSelectionChange = useCallback(() => {
     if (!isEditing) return;
     const sel = window.getSelection();
-    if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+    if (sel && sel.rangeCount > 0) {
       const range = sel.getRangeAt(0);
-      // Only track selections that live inside this editor
       if (editorRef.current?.contains(range.commonAncestorContainer)) {
-        savedRangeRef.current = range.cloneRange();
-        setSelectionRect(range.getBoundingClientRect());
+        if (!sel.isCollapsed) savedRangeRef.current = range.cloneRange();
+        refreshFormatState();
       }
-    } else {
-      // Keep the toolbar mounted while the user interacts with it (e.g. an
-      // open <select> steals focus and may collapse the editor selection).
-      const active = document.activeElement as HTMLElement | null;
-      if (active && active.closest('[data-testid="rich-text-format-toolbar"]')) {
-        return;
-      }
-      setSelectionRect(null);
     }
-  }, [isEditing]);
+  }, [isEditing, refreshFormatState]);
 
   useEffect(() => {
     document.addEventListener('selectionchange', handleSelectionChange);
@@ -355,121 +674,112 @@ export function RichTextFieldObject({
   );
 
   // ── Format command ───────────────────────────────────────────────────────
-  const handleFormatCommand = useCallback((cmd: string, value?: string) => {
-    editorRef.current?.focus();
-    // Interacting with a <select> in the toolbar moves focus out of the
-    // contenteditable and collapses the selection before onChange fires.
-    // Restore the last known in-editor selection so the command applies
-    // to the text the user actually selected.
-    const currentSel = window.getSelection();
-    if (
-      savedRangeRef.current &&
-      (!currentSel ||
-        currentSel.isCollapsed ||
-        currentSel.rangeCount === 0 ||
-        !editorRef.current?.contains(currentSel.getRangeAt(0).commonAncestorContainer))
-    ) {
-      currentSel?.removeAllRanges();
-      currentSel?.addRange(savedRangeRef.current.cloneRange());
-    }
-    switch (cmd) {
-      case 'bold':
-        document.execCommand('bold');
-        break;
-      case 'italic':
-        document.execCommand('italic');
-        break;
-      case 'underline':
-        document.execCommand('underline');
-        break;
-      case 'insertUnorderedList':
-        document.execCommand('insertUnorderedList');
-        break;
-      case 'insertOrderedList':
-        document.execCommand('insertOrderedList');
-        break;
-      case 'fontSize': {
-        const size = sanitizeFontSize(value);
-        if (size !== undefined) {
-          // execCommand fontSize only supports 1-7; use span instead
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed) {
-            document.execCommand('fontSize', false, '7'); // placeholder
-            // Replace all <font size="7"> with <span style="font-size:...px">
-            editorRef.current?.querySelectorAll('font[size="7"]').forEach((f) => {
-              const span = document.createElement('span');
-              span.style.fontSize = `${size}px`;
-              span.innerHTML = f.innerHTML;
-              f.replaceWith(span);
-            });
-          }
-        }
-        break;
+  const handleFormatCommand = useCallback(
+    (cmd: string, value?: string) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.focus();
+
+      // Interacting with a <select> in the toolbar moves focus out of the
+      // contenteditable and collapses the selection before onChange fires.
+      // Restore the last known in-editor selection so the command applies
+      // to the text the user actually selected.
+      const sel = window.getSelection();
+      const hasEditorSelection =
+        !!sel &&
+        sel.rangeCount > 0 &&
+        !sel.isCollapsed &&
+        editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+      if (!hasEditorSelection && savedRangeRef.current) {
+        sel?.removeAllRanges();
+        sel?.addRange(savedRangeRef.current.cloneRange());
       }
-      case 'fontWeight': {
-        const weight = sanitizeFontWeight(value);
-        if (weight !== undefined) {
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-            const range = sel.getRangeAt(0);
+
+      // Emit semantic tags (<b>/<i>/<u>) rather than inline styles — the
+      // serialiser and the toggle-off behaviour both rely on them.
+      try {
+        document.execCommand('styleWithCSS', false, 'false');
+      } catch {
+        /* not supported everywhere */
+      }
+
+      const selectSpanContents = (span: HTMLElement) => {
+        const s = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(span);
+        s?.removeAllRanges();
+        s?.addRange(r);
+        savedRangeRef.current = r.cloneRange();
+      };
+
+      switch (cmd) {
+        case 'bold':
+        case 'italic':
+        case 'underline':
+        case 'insertUnorderedList':
+        case 'insertOrderedList':
+          document.execCommand(cmd);
+          break;
+        case 'fontSize': {
+          const size = sanitizeFontSize(value);
+          const current = window.getSelection();
+          if (size === undefined || !current || current.isCollapsed) break;
+          // execCommand fontSize only accepts the legacy 1–7 scale; use it as
+          // a marker and swap the <font> tags for real pixel sizes.
+          document.execCommand('fontSize', false, '7');
+          const created: HTMLElement[] = [];
+          editor.querySelectorAll('font[size="7"]').forEach((f) => {
             const span = document.createElement('span');
-            span.style.fontWeight = String(weight);
-            try {
-              range.surroundContents(span);
-            } catch {
-              // selection crosses element boundaries — wrap extracted content
-              const fragment = range.extractContents();
-              span.appendChild(fragment);
-              range.insertNode(span);
-            }
+            span.style.fontSize = `${size}px`;
+            while (f.firstChild) span.appendChild(f.firstChild);
+            f.replaceWith(span);
+            created.push(span);
+          });
+          if (created.length > 0) {
+            const s = window.getSelection();
+            const r = document.createRange();
+            r.setStartBefore(created[0]);
+            r.setEndAfter(created[created.length - 1]);
+            s?.removeAllRanges();
+            s?.addRange(r);
+            savedRangeRef.current = r.cloneRange();
           }
+          break;
         }
-        break;
-      }
-    }
-  }, []);
-
-  // ── Build initial HTML from blocks ───────────────────────────────────────
-  const blocksToHtml = (blocks: RichTextBlock[]): string => {
-    const runToHtml = (run: RichTextRun): string => {
-      let html = run.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      if (!html) html = '\u200B';
-      const styles: string[] = [];
-      if (run.fontSize) styles.push(`font-size:${run.fontSize}px`);
-      if (run.fontWeight) styles.push(`font-weight:${run.fontWeight}`);
-      if (run.italic) styles.push('font-style:italic');
-      if (run.underline) styles.push('text-decoration:underline');
-      if (run.bold && !run.fontWeight) styles.push('font-weight:700');
-      if (styles.length > 0) {
-        return `<span style="${styles.join(';')}">${html}</span>`;
-      }
-      return html;
-    };
-
-    const grouped: Array<{ type: RichTextBlock['type']; items: RichTextBlock[] }> = [];
-    for (const block of blocks) {
-      const last = grouped[grouped.length - 1];
-      if (last && last.type === block.type && block.type !== 'paragraph') {
-        last.items.push(block);
-      } else {
-        grouped.push({ type: block.type, items: [block] });
-      }
-    }
-
-    return grouped
-      .map(({ type, items }) => {
-        if (type === 'bullet') {
-          const lis = items.map((b) => `<li>${b.runs.map(runToHtml).join('')}</li>`).join('');
-          return `<ul style="margin:0;padding-left:1.2em;">${lis}</ul>`;
+        case 'fontWeight': {
+          const weight = sanitizeFontWeight(value);
+          const current = window.getSelection();
+          if (
+            weight === undefined ||
+            !current ||
+            current.isCollapsed ||
+            current.rangeCount === 0
+          ) {
+            break;
+          }
+          const range = current.getRangeAt(0);
+          const span = document.createElement('span');
+          span.style.fontWeight = String(weight);
+          try {
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
+            selectSpanContents(span);
+          } catch {
+            /* selection could not be wrapped — leave the document untouched */
+          }
+          break;
         }
-        if (type === 'ordered') {
-          const lis = items.map((b) => `<li>${b.runs.map(runToHtml).join('')}</li>`).join('');
-          return `<ol style="margin:0;padding-left:1.2em;">${lis}</ol>`;
-        }
-        return `<div>${items[0].runs.map(runToHtml).join('')}</div>`;
-      })
-      .join('');
-  };
+        default:
+          return;
+      }
+
+      refreshFormatState();
+      // Persist promptly so the change survives a re-render or an autosave
+      // that happens before the user leaves edit mode.
+      scheduleSync(150);
+    },
+    [refreshFormatState, scheduleSync],
+  );
 
   // ── Read-only rendering of blocks ────────────────────────────────────────
   const renderBlocks = () => {
@@ -484,33 +794,34 @@ export function RichTextFieldObject({
     }
 
     return grouped.map((group, gi) => {
-      if (group.type === 'bullet') {
+      if (group.type === 'bullet' || group.type === 'ordered') {
+        const ListTag = group.type === 'bullet' ? 'ul' : 'ol';
         return (
-          <ul key={gi} style={{ margin: 0, paddingLeft: '1.2em' }}>
+          <ListTag key={gi} style={{ margin: 0, paddingLeft: '1.2em' }}>
             {group.items.map((block, bi) => (
-              <li key={bi}>{renderRuns(block.runs, data.fontSize ?? 14, data.textColor ?? '#000000')}</li>
+              <li key={bi}>{renderRuns(block.runs)}</li>
             ))}
-          </ul>
+          </ListTag>
         );
       }
-      if (group.type === 'ordered') {
-        return (
-          <ol key={gi} style={{ margin: 0, paddingLeft: '1.2em' }}>
-            {group.items.map((block, bi) => (
-              <li key={bi}>{renderRuns(block.runs, data.fontSize ?? 14, data.textColor ?? '#000000')}</li>
-            ))}
-          </ol>
-        );
-      }
-      return (
-        <div key={gi}>
-          {renderRuns(group.items[0].runs, data.fontSize ?? 14, data.textColor ?? '#000000')}
-        </div>
-      );
+      return <div key={gi}>{renderRuns(group.items[0].runs)}</div>;
     });
   };
 
   const isOnlySelected = isSelected && selectedCanvasObjectCount === 1;
+
+  const contentStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    padding: '8px',
+    boxSizing: 'border-box',
+    lineHeight: 1.5,
+    // The content scrolls/clips here, NOT on the wrapper — the wrapper hosts
+    // the selection border and the resize handles, which sit half outside its
+    // bounds and would otherwise be cut off.
+    overflowX: 'hidden',
+    ...typography,
+  };
 
   return (
     <>
@@ -532,7 +843,7 @@ export function RichTextFieldObject({
             : '1.5px dashed hsl(var(--border))',
           borderRadius: 4,
           boxSizing: 'border-box',
-          overflow: 'hidden',
+          // No overflow clipping here — see contentStyle above.
         }}
         onMouseDown={(e) => {
           if (isEditing) {
@@ -546,7 +857,7 @@ export function RichTextFieldObject({
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          enterEdit();
+          if (!isEditing) enterEdit();
         }}
         onContextMenu={onContextMenu}
       >
@@ -557,8 +868,9 @@ export function RichTextFieldObject({
             contentEditable
             suppressContentEditableWarning
             data-testid="rich-text-editor"
-            dangerouslySetInnerHTML={{ __html: blocksToHtml(blocks) }}
+            dangerouslySetInnerHTML={{ __html: editHtmlRef.current }}
             onKeyDown={handleKeyDown}
+            onInput={() => scheduleSync()}
             onBlur={(e) => {
               // Don't commit when focus moves into the formatting toolbar
               // (e.g. opening the font size/weight <select>) — the user is
@@ -569,35 +881,11 @@ export function RichTextFieldObject({
               }
               commitEdit();
             }}
-            style={{
-              width: '100%',
-              height: '100%',
-              outline: 'none',
-              padding: '8px',
-              fontSize: data.fontSize ? `${data.fontSize}px` : '14px',
-              fontFamily: data.fontFamily ?? 'Inter, system-ui, sans-serif',
-              color: data.textColor ?? '#000000',
-              boxSizing: 'border-box',
-              overflowY: 'auto',
-              lineHeight: 1.5,
-            }}
+            style={{ ...contentStyle, outline: 'none', overflowY: 'auto' }}
           />
         ) : (
           /* ── Read-only view ── */
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              padding: '8px',
-              fontSize: data.fontSize ? `${data.fontSize}px` : '14px',
-              fontFamily: data.fontFamily ?? 'Inter, system-ui, sans-serif',
-              color: data.textColor ?? '#000000',
-              boxSizing: 'border-box',
-              overflowY: 'hidden',
-              lineHeight: 1.5,
-              pointerEvents: 'none',
-            }}
-          >
+          <div style={{ ...contentStyle, overflowY: 'hidden', pointerEvents: 'none' }}>
             {(() => {
               const allEmpty = blocks.every((b) =>
                 b.runs.every((r) => !r.text || r.text === '\u200B'),
@@ -614,7 +902,7 @@ export function RichTextFieldObject({
           </div>
         )}
 
-        {/* Resize handles */}
+        {/* Resize handles — direct children of the unclipped wrapper */}
         {isOnlySelected && !isEditing && onResize && (
           <>
             {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((pos) => (
@@ -634,13 +922,12 @@ export function RichTextFieldObject({
         )}
       </div>
 
-      {/* Format toolbar (only while editing and text is selected) */}
-      {isEditing && selectionRect && (
+      {/* Format toolbar — anchored to the field, visible for the whole session */}
+      {isEditing && (
         <FormatToolbar
-          anchorRect={selectionRect}
-          containerRect={containerRect}
+          anchorRect={anchorRect}
           onCommand={handleFormatCommand}
-          zoom={zoom}
+          state={formatState}
         />
       )}
     </>

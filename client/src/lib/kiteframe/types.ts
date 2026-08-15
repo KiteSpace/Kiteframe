@@ -1361,6 +1361,7 @@ export interface KiteFrameProps {
   onCanvasObjectClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
   onCanvasObjectDoubleClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
   onCanvasObjectRightClick?: (event: React.MouseEvent, canvasObject: CanvasObject) => void;
+  onCanvasObjectEditingChange?: (canvasObjectId: string, isEditing: boolean) => void;
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onCanvasClick?: (event: React.MouseEvent) => void;
   onImageButtonClick?: (nodeId: string) => void;
