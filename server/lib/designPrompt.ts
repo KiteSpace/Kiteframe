@@ -64,6 +64,19 @@ export const ASTRYX_COMPONENT_LIST = [
   "AstryxNavbar",
   "AstryxSidebar",
   "AstryxBreadcrumb",
+  "AstryxNavMenu",
+  "AstryxMobileNav",
+  "AstryxNavIcon",
+  "AstryxPagination",
+  "AstryxLink",
+  // Display primitives
+  "AstryxTimestamp",
+  "AstryxIndicator",
+  "AstryxThumbnail",
+  "AstryxAvatarGroup",
+  // Selectable cards
+  "AstryxClickableCard",
+  "AstryxSelectableCard",
   // Overlays
   "AstryxModal",
   "AstryxDrawer",
@@ -206,6 +219,22 @@ All four share label/open/invalid/disabled/required. The first three take a sing
 • AstryxNavbar    top nav bar  props: { logo:string, links:string (comma-separated nav links, e.g. "Home,Features,Pricing"), actions:string (comma-separated CTA labels, e.g. "Sign In,Get Started") }
 • AstryxSidebar   side nav     props: { logo:string, items:string (comma-separated nav items, e.g. "Dashboard,Analytics,Settings"), active:string (name of the active item) }
 • AstryxBreadcrumb breadcrumb trail props: { items:string (comma-separated path segments, e.g. "Home,Projects,Detail") }
+• AstryxNavMenu   nav item row/column props: { items:string (comma-separated; "Label:12" adds a count badge, "---" a separator), active:string, orientation:"horizontal"|"vertical", showIcons:boolean }
+• AstryxMobileNav bottom tab bar     props: { items:string (comma-separated "Label:iconName", e.g. "Home:home,Search:search"), active:string, position:"bottom"|"top", showLabels:boolean }
+• AstryxNavIcon   one nav icon, meant for use inside bars and menus props: { glyph:string (icon name or literal glyph), label:string, badge:string (e.g. "3"), active:boolean, showLabel:boolean }
+• AstryxPagination page control      props: { pageCount:number, currentPage:number, showArrows:boolean, align:"start"|"center"|"end" }
+• AstryxLink      inline text link   props: { label:string, href:string, underline:"always"|"hover"|"none", external:boolean, size:"xs"|"sm"|"md"|"lg" }
+
+— DISPLAY PRIMITIVES —
+• AstryxTimestamp   relative time label props: { value:string (an ISO date renders as "2 hours ago"; any other text is shown verbatim), prefix:string (e.g. "Updated"), showIcon:boolean, size:"xs"|"sm"|"md", muted:boolean }
+• AstryxIndicator   status dot or count props: { variant:"dot"|"pulse"|"count", tone:"neutral"|"info"|"success"|"warning"|"danger", count:number, label:string }
+• AstryxThumbnail   small image tile    props: { src?:string, label:string, size:number (24-320 px), radius:"none"|"sm"|"md"|"lg"|"full", showLabel:boolean }
+• AstryxAvatarGroup stacked avatars     props: { names:string (comma-separated full names), max:number (how many are shown), overflowCount:number (0 = derive "+N" from the names that did not fit), size:"xs"|"sm"|"md"|"lg" }
+
+— SELECTABLE CARDS —
+Both are CONTAINERS (isCanvas:true): their content goes in nodes[], exactly like AstryxCard. Their states are props, so the hovered/selected variant can be shown directly.
+• AstryxClickableCard  card that reads as clickable props: { variant:"elevated"|"outlined"|"ghost", interactive:boolean, hovered:boolean (draws the hover state), padding:number, gap:number }
+• AstryxSelectableCard card with a selected state  props: { variant:"elevated"|"outlined"|"ghost", selected:boolean, indicator:"check"|"radio"|"none", padding:number, disabled:boolean, gap:number }
 
 — OVERLAYS —
 • AstryxModal  dialog/modal  props: { title:string, description:string, confirmLabel:string (e.g. "Confirm"), cancelLabel:string (e.g. "Cancel") }
@@ -324,7 +353,7 @@ Every node (whether in craftState or a patch) must follow this shape:
 NESTING RULES:
 • ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
 • AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
-• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxOverlay. All others are leaves (isCanvas:false, nodes:[]) — including every other overlay and menu, which carry their content in props rather than children.
+• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxOverlay, AstryxClickableCard, AstryxSelectableCard. All others are leaves (isCanvas:false, nodes:[]) — including every other overlay and menu, which carry their content in props rather than children.
 • AstryxCard is a container (isCanvas:true) — give it a nodes[] array with its child components (typically a Stack or HStack wrapping its content). Use it to group related content in a styled box.
 • Form composition: AstryxFormLayout holds AstryxField children; each AstryxField holds exactly ONE input node and carries its own label/helpText/error props — do NOT also set the input's own label prop, and do NOT put a separate AstryxText label beside it.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.

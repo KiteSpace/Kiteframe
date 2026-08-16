@@ -95,6 +95,17 @@ import {
   AstryxComplexSelector,
   AstryxPowerSearch,
   AstryxTokenizer,
+  AstryxNavMenu,
+  AstryxMobileNav,
+  AstryxNavIcon,
+  AstryxPagination,
+  AstryxLink,
+  AstryxTimestamp,
+  AstryxIndicator,
+  AstryxThumbnail,
+  AstryxAvatarGroup,
+  AstryxClickableCard,
+  AstryxSelectableCard,
   createEmptyCraftState,
   sanitizeCraftState,
   validateCraftState,
@@ -186,6 +197,18 @@ import {
   AstryxTokenizer as AstryxTokenizerBase,
   INPUT_DEFAULTS,
   ICON_GLYPHS,
+  AstryxNavMenu as AstryxNavMenuBase,
+  AstryxMobileNav as AstryxMobileNavBase,
+  AstryxNavIcon as AstryxNavIconBase,
+  AstryxPagination as AstryxPaginationBase,
+  AstryxLink as AstryxLinkBase,
+  AstryxTimestamp as AstryxTimestampBase,
+  AstryxIndicator as AstryxIndicatorBase,
+  AstryxThumbnail as AstryxThumbnailBase,
+  AstryxAvatarGroup as AstryxAvatarGroupBase,
+  AstryxClickableCard as AstryxClickableCardBase,
+  AstryxSelectableCard as AstryxSelectableCardBase,
+  NAV_DISPLAY_DEFAULTS,
 } from "@/components/astryx";
 
 // ─── Preview error boundary ────────────────────────────────────────────────────
@@ -658,6 +681,46 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
           </div>
         ),
       },
+      {
+        name: "Timestamp",   description: "Relative time",
+        getElement: () => <AstryxTimestamp {...NAV_DISPLAY_DEFAULTS.AstryxTimestamp} />,
+        preview: <AstryxTimestampBase {...NAV_DISPLAY_DEFAULTS.AstryxTimestamp} />,
+      },
+      {
+        name: "Indicator",   description: "Status dot / count",
+        getElement: () => <AstryxIndicator {...NAV_DISPLAY_DEFAULTS.AstryxIndicator} />,
+        preview: <AstryxIndicatorBase {...NAV_DISPLAY_DEFAULTS.AstryxIndicator} />,
+      },
+      {
+        name: "Thumbnail",   description: "Image tile",
+        getElement: () => <AstryxThumbnail {...NAV_DISPLAY_DEFAULTS.AstryxThumbnail} />,
+        preview: <AstryxThumbnailBase {...NAV_DISPLAY_DEFAULTS.AstryxThumbnail} size={56} />,
+      },
+      {
+        name: "AvatarGroup", description: "Stacked avatars",
+        getElement: () => <AstryxAvatarGroup {...NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup} />,
+        preview: <AstryxAvatarGroupBase {...NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup} size="sm" />,
+      },
+      {
+        name: "ClickableCard",  description: "Card that reads as clickable",
+        getElement: () => <Element canvas is={AstryxClickableCard} {...NAV_DISPLAY_DEFAULTS.AstryxClickableCard} gap={12} />,
+        preview: (
+          <AstryxClickableCardBase {...NAV_DISPLAY_DEFAULTS.AstryxClickableCard} hovered padding={10}>
+            <div style={{ height: 7, width: "70%", background: "hsl(var(--border))", borderRadius: 3, marginBottom: 5 }} />
+            <div style={{ height: 5, width: "90%", background: "hsl(var(--muted))", borderRadius: 3 }} />
+          </AstryxClickableCardBase>
+        ),
+      },
+      {
+        name: "SelectableCard", description: "Card with a selected state",
+        getElement: () => <Element canvas is={AstryxSelectableCard} {...NAV_DISPLAY_DEFAULTS.AstryxSelectableCard} gap={12} />,
+        preview: (
+          <AstryxSelectableCardBase {...NAV_DISPLAY_DEFAULTS.AstryxSelectableCard} padding={10}>
+            <div style={{ height: 7, width: "70%", background: "hsl(var(--border))", borderRadius: 3, marginBottom: 5 }} />
+            <div style={{ height: 5, width: "90%", background: "hsl(var(--muted))", borderRadius: 3 }} />
+          </AstryxSelectableCardBase>
+        ),
+      },
     ],
   },
   {
@@ -732,6 +795,33 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Breadcrumb",  description: "Page breadcrumb",
         getElement: () => <AstryxBreadcrumb items="Home,Section,Page" />,
         preview: <AstryxBreadcrumbBase items="Home,Section,Page" />,
+      },
+      // Like the overlay tiles, each of these drops the full default prop set
+      // so the serialized node never leans on a runtime default that could move.
+      {
+        name: "NavMenu",     description: "Nav item row",
+        getElement: () => <AstryxNavMenu {...NAV_DISPLAY_DEFAULTS.AstryxNavMenu} />,
+        preview: <AstryxNavMenuBase {...NAV_DISPLAY_DEFAULTS.AstryxNavMenu} items="Overview,Projects:12,Reports" />,
+      },
+      {
+        name: "MobileNav",   description: "Bottom tab bar",
+        getElement: () => <AstryxMobileNav {...NAV_DISPLAY_DEFAULTS.AstryxMobileNav} />,
+        preview: <AstryxMobileNavBase {...NAV_DISPLAY_DEFAULTS.AstryxMobileNav} items="Home:home,Search:search,Profile:user" />,
+      },
+      {
+        name: "NavIcon",     description: "Single nav icon",
+        getElement: () => <AstryxNavIcon {...NAV_DISPLAY_DEFAULTS.AstryxNavIcon} />,
+        preview: <AstryxNavIconBase {...NAV_DISPLAY_DEFAULTS.AstryxNavIcon} active badge="3" />,
+      },
+      {
+        name: "Pagination",  description: "Page control",
+        getElement: () => <AstryxPagination {...NAV_DISPLAY_DEFAULTS.AstryxPagination} />,
+        preview: <AstryxPaginationBase {...NAV_DISPLAY_DEFAULTS.AstryxPagination} pageCount={5} currentPage={2} />,
+      },
+      {
+        name: "Link",        description: "Inline text link",
+        getElement: () => <AstryxLink {...NAV_DISPLAY_DEFAULTS.AstryxLink} />,
+        preview: <AstryxLinkBase {...NAV_DISPLAY_DEFAULTS.AstryxLink} label="View documentation" external />,
       },
     ],
   },
@@ -1910,6 +2000,118 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
   );
 
+  // ── Navigation, display primitives & selectable cards ───────────────────────
+  // Same defaults discipline as the overlay rows: every fallback reads from
+  // NAV_DISPLAY_DEFAULTS, the constant the components and the toolbox tiles also
+  // use, so the inspector can never write back a value the component did not
+  // mean — see .agents/memory/inspector-default-drift.md.
+
+  if (displayName === "AstryxNavMenu") return (
+    <>
+      <PropRow label={NAV_ITEMS_LABEL}><TextProp value={props.items ?? NAV_DISPLAY_DEFAULTS.AstryxNavMenu.items} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Active item"><TextProp value={props.active ?? NAV_DISPLAY_DEFAULTS.AstryxNavMenu.active} onChange={(v) => setProp("active", v)} /></PropRow>
+      <PropRow label="Orientation"><SelectProp value={props.orientation ?? NAV_DISPLAY_DEFAULTS.AstryxNavMenu.orientation} options={["horizontal","vertical"]} onChange={(v) => setProp("orientation", v)} /></PropRow>
+      <BoolPropRow label="Show icons" value={props.showIcons ?? NAV_DISPLAY_DEFAULTS.AstryxNavMenu.showIcons} onChange={(v) => setProp("showIcons", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxMobileNav") return (
+    <>
+      <PropRow label={'Items ("Label:iconName")'}><TextProp value={props.items ?? NAV_DISPLAY_DEFAULTS.AstryxMobileNav.items} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Active item"><TextProp value={props.active ?? NAV_DISPLAY_DEFAULTS.AstryxMobileNav.active} onChange={(v) => setProp("active", v)} /></PropRow>
+      <PropRow label="Bar position"><SelectProp value={props.position ?? NAV_DISPLAY_DEFAULTS.AstryxMobileNav.position} options={["bottom","top"]} onChange={(v) => setProp("position", v)} /></PropRow>
+      <BoolPropRow label="Show labels" value={props.showLabels ?? NAV_DISPLAY_DEFAULTS.AstryxMobileNav.showLabels} onChange={(v) => setProp("showLabels", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxNavIcon") return (
+    <>
+      <PropRow label="Icon (name or glyph)"><TextProp value={props.glyph ?? NAV_DISPLAY_DEFAULTS.AstryxNavIcon.glyph} onChange={(v) => setProp("glyph", v)} /></PropRow>
+      <PropRow label="Label"><TextProp value={props.label ?? NAV_DISPLAY_DEFAULTS.AstryxNavIcon.label} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Badge"><TextProp value={props.badge ?? NAV_DISPLAY_DEFAULTS.AstryxNavIcon.badge} onChange={(v) => setProp("badge", v)} /></PropRow>
+      <BoolPropRow label="Active" value={props.active ?? NAV_DISPLAY_DEFAULTS.AstryxNavIcon.active} onChange={(v) => setProp("active", v)} />
+      <BoolPropRow label="Show label" value={props.showLabel ?? NAV_DISPLAY_DEFAULTS.AstryxNavIcon.showLabel} onChange={(v) => setProp("showLabel", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxPagination") return (
+    <>
+      <PropRow label="Page count"><NumberProp value={props.pageCount ?? NAV_DISPLAY_DEFAULTS.AstryxPagination.pageCount} min={1} max={999} onChange={(v) => setProp("pageCount", v)} /></PropRow>
+      <PropRow label="Current page"><NumberProp value={props.currentPage ?? NAV_DISPLAY_DEFAULTS.AstryxPagination.currentPage} min={1} max={999} onChange={(v) => setProp("currentPage", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? NAV_DISPLAY_DEFAULTS.AstryxPagination.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <BoolPropRow label="Show arrows" value={props.showArrows ?? NAV_DISPLAY_DEFAULTS.AstryxPagination.showArrows} onChange={(v) => setProp("showArrows", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxLink") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? props.children ?? NAV_DISPLAY_DEFAULTS.AstryxLink.label} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Href"><TextProp value={props.href ?? NAV_DISPLAY_DEFAULTS.AstryxLink.href} onChange={(v) => setProp("href", v)} /></PropRow>
+      <PropRow label="Underline"><SelectProp value={props.underline ?? NAV_DISPLAY_DEFAULTS.AstryxLink.underline} options={["always","hover","none"]} onChange={(v) => setProp("underline", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? NAV_DISPLAY_DEFAULTS.AstryxLink.size} options={["xs","sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
+      <BoolPropRow label="External" value={props.external ?? NAV_DISPLAY_DEFAULTS.AstryxLink.external} onChange={(v) => setProp("external", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxTimestamp") return (
+    <>
+      {/* A date is rendered relatively ("2 hours ago"); any other text is shown
+          verbatim, which is how a design pins a specific moment. */}
+      <PropRow label="Value (date or text)"><TextProp value={props.value ?? NAV_DISPLAY_DEFAULTS.AstryxTimestamp.value} onChange={(v) => setProp("value", v)} /></PropRow>
+      <PropRow label="Prefix"><TextProp value={props.prefix ?? NAV_DISPLAY_DEFAULTS.AstryxTimestamp.prefix} onChange={(v) => setProp("prefix", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? NAV_DISPLAY_DEFAULTS.AstryxTimestamp.size} options={["xs","sm","md"]} onChange={(v) => setProp("size", v)} /></PropRow>
+      <BoolPropRow label="Show icon" value={props.showIcon ?? NAV_DISPLAY_DEFAULTS.AstryxTimestamp.showIcon} onChange={(v) => setProp("showIcon", v)} />
+      <BoolPropRow label="Muted" value={props.muted ?? NAV_DISPLAY_DEFAULTS.AstryxTimestamp.muted} onChange={(v) => setProp("muted", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxIndicator") return (
+    <>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? NAV_DISPLAY_DEFAULTS.AstryxIndicator.variant} options={["dot","pulse","count"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Tone"><SelectProp value={props.tone ?? NAV_DISPLAY_DEFAULTS.AstryxIndicator.tone} options={["neutral","info","success","warning","danger"]} onChange={(v) => setProp("tone", v)} /></PropRow>
+      <PropRow label="Count"><NumberProp value={props.count ?? NAV_DISPLAY_DEFAULTS.AstryxIndicator.count} min={0} max={9999} onChange={(v) => setProp("count", v)} /></PropRow>
+      <PropRow label="Label"><TextProp value={props.label ?? NAV_DISPLAY_DEFAULTS.AstryxIndicator.label} onChange={(v) => setProp("label", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxThumbnail") return (
+    <>
+      <PropRow label="Image URL"><TextProp value={props.src ?? NAV_DISPLAY_DEFAULTS.AstryxThumbnail.src} onChange={(v) => setProp("src", v)} /></PropRow>
+      <PropRow label="Label"><TextProp value={props.label ?? NAV_DISPLAY_DEFAULTS.AstryxThumbnail.label} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Size (px)"><NumberProp value={props.size ?? NAV_DISPLAY_DEFAULTS.AstryxThumbnail.size} min={24} max={320} onChange={(v) => setProp("size", v)} /></PropRow>
+      <PropRow label="Corner radius"><SelectProp value={props.radius ?? NAV_DISPLAY_DEFAULTS.AstryxThumbnail.radius} options={["none","sm","md","lg","full"]} onChange={(v) => setProp("radius", v)} /></PropRow>
+      <BoolPropRow label="Show label" value={props.showLabel ?? NAV_DISPLAY_DEFAULTS.AstryxThumbnail.showLabel} onChange={(v) => setProp("showLabel", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxAvatarGroup") return (
+    <>
+      <PropRow label="Names (comma-sep)"><TextProp value={props.names ?? NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.names} onChange={(v) => setProp("names", v)} /></PropRow>
+      <PropRow label="Avatars shown"><NumberProp value={props.max ?? NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.max} min={1} max={12} onChange={(v) => setProp("max", v)} /></PropRow>
+      <PropRow label="Overflow (0 = auto)"><NumberProp value={props.overflowCount ?? NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.overflowCount} min={0} max={999} onChange={(v) => setProp("overflowCount", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.size} options={["xs","sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxClickableCard") return (
+    <>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? NAV_DISPLAY_DEFAULTS.AstryxClickableCard.variant} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Padding"><NumberProp value={props.padding ?? NAV_DISPLAY_DEFAULTS.AstryxClickableCard.padding} min={0} max={96} onChange={(v) => setProp("padding", v)} /></PropRow>
+      <BoolPropRow label="Interactive" value={props.interactive ?? NAV_DISPLAY_DEFAULTS.AstryxClickableCard.interactive} onChange={(v) => setProp("interactive", v)} />
+      <BoolPropRow label="Hover state" value={props.hovered ?? NAV_DISPLAY_DEFAULTS.AstryxClickableCard.hovered} onChange={(v) => setProp("hovered", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxSelectableCard") return (
+    <>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.variant} options={["elevated","outlined","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Selection mark"><SelectProp value={props.indicator ?? NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.indicator} options={["check","radio","none"]} onChange={(v) => setProp("indicator", v)} /></PropRow>
+      <PropRow label="Padding"><NumberProp value={props.padding ?? NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.padding} min={0} max={96} onChange={(v) => setProp("padding", v)} /></PropRow>
+      <BoolPropRow label="Selected" value={props.selected ?? NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.selected} onChange={(v) => setProp("selected", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled ?? NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
   return <p className="text-xs text-muted-foreground">No editable properties.</p>;
 }
 
@@ -1950,6 +2152,8 @@ function BoolPropRow({ label, value, onChange }: { label: string; value: any; on
 // list-bearing component in the palette uses. The label spells out the extras so
 // the syntax is discoverable without leaving the inspector.
 const MENU_ITEMS_LABEL = 'Items ("---" = divider, "Label:⌘K", "!" = destructive)';
+// Navigation reuses the same list syntax; the ":" suffix is a count badge here.
+const NAV_ITEMS_LABEL = 'Items ("---" = divider, "Label:12" = count badge)';
 
 const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);

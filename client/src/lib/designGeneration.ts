@@ -116,7 +116,7 @@ RULES:
 - All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
-- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard, AstryxOverlay.
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard, AstryxOverlay, AstryxClickableCard, AstryxSelectableCard.
 - LEAVES (isCanvas=false, nodes=[]): all remaining components (see quick-reference below).
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
@@ -208,6 +208,21 @@ All four share label/open/invalid/disabled/required. The first three take a sing
 - AstryxNavbar:     top navigation bar, props: { brand: string, links: string (comma-separated) }
 - AstryxSidebar:    vertical navigation panel, props: { items: string (comma-separated), active: string }
 - AstryxBreadcrumb: breadcrumb trail, props: { items: string (comma-separated) }
+- AstryxNavMenu:    nav item row/column, props: { items: string (comma-separated; "Label:12" adds a count badge, "---" a separator), active: string, orientation: "horizontal"|"vertical", showIcons: boolean }
+- AstryxMobileNav:  bottom tab bar, props: { items: string (comma-separated "Label:iconName", e.g. "Home:home,Search:search"), active: string, position: "bottom"|"top", showLabels: boolean }
+- AstryxNavIcon:    one nav icon, meant for use inside bars and menus, props: { glyph: string (icon name or literal glyph), label: string, badge: string, active: boolean, showLabel: boolean }
+- AstryxPagination: page control, props: { pageCount: number, currentPage: number, showArrows: boolean, align: "start"|"center"|"end" }
+- AstryxLink:       inline text link, props: { label: string, href: string, underline: "always"|"hover"|"none", external: boolean, size: "xs"|"sm"|"md"|"lg" }
+
+— DISPLAY PRIMITIVES —
+- AstryxTimestamp:   relative time label, props: { value: string (an ISO date renders as "2 hours ago"; any other text is shown verbatim), prefix: string, showIcon: boolean, size: "xs"|"sm"|"md", muted: boolean }
+- AstryxIndicator:   status dot or count, props: { variant: "dot"|"pulse"|"count", tone: "neutral"|"info"|"success"|"warning"|"danger", count: number, label: string }
+- AstryxThumbnail:   small image tile, props: { src: string (optional), label: string, size: number (24-320 px), radius: "none"|"sm"|"md"|"lg"|"full", showLabel: boolean }
+- AstryxAvatarGroup: stacked avatars, props: { names: string (comma-separated full names), max: number (how many are shown), overflowCount: number (0 = derive "+N" from the names that did not fit), size: "xs"|"sm"|"md"|"lg" }
+
+— SELECTABLE CARDS (both isCanvas=true; content goes in nodes[] like AstryxCard) —
+- AstryxClickableCard:  card that reads as clickable, props: { variant: "elevated"|"outlined"|"ghost", interactive: boolean, hovered: boolean (draws the hover state), padding: number, gap: number }
+- AstryxSelectableCard: card with a selected state, props: { variant: "elevated"|"outlined"|"ghost", selected: boolean, indicator: "check"|"radio"|"none", padding: number, disabled: boolean, gap: number }
 
 — OVERLAYS —
 - AstryxModal:  dialog/modal overlay, props: { title: string, children: string }

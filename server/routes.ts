@@ -2689,10 +2689,9 @@ Only include screens that need changes. "modify" requires both description and d
         model: 'claude-sonnet-4-5-20250929',
         maxTokens,
         messages: [
-          { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           ...chatMessages,
         ],
-      });
+      }, undefined, { systemPrompt: DESIGN_SYSTEM_PROMPT });
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
       }
@@ -2815,11 +2814,10 @@ Only include screens that need changes. "modify" requires both description and d
         model: 'claude-sonnet-4-5-20250929',
         maxTokens: 12000,
         messages: [
-          { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      });
+      }, undefined, { systemPrompt });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
@@ -2920,11 +2918,10 @@ Only include screens that need changes. "modify" requires both description and d
         model: 'claude-sonnet-4-5-20250929',
         maxTokens: 16000,
         messages: [
-          { role: 'system', content: DESIGN_SYSTEM_PROMPT },
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      });
+      }, undefined, { systemPrompt: DESIGN_SYSTEM_PROMPT });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Reference edit failed' });
@@ -3038,11 +3035,10 @@ Only include screens that need changes. "modify" requires both description and d
         model: 'claude-sonnet-4-5-20250929',
         maxTokens: 12000,
         messages: [
-          { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      });
+      }, undefined, { systemPrompt });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
@@ -3186,7 +3182,6 @@ Only include screens that need changes. "modify" requires both description and d
               model: 'claude-sonnet-4-5-20250929',
               maxTokens: 8000,
               messages: [
-                { role: 'system', content: systemPrompt },
                 {
                   role: 'user',
                   content: [
@@ -3196,7 +3191,7 @@ Only include screens that need changes. "modify" requires both description and d
                 },
                 { role: 'assistant', content: '{' },
               ],
-            });
+            }, undefined, { systemPrompt });
             done++;
             if (!aiResult.ok) {
               sendEvent('progress', { done, total, frameName: label, skipped: true });

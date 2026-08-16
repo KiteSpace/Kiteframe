@@ -81,6 +81,18 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   "AstryxComplexSelector",
   "AstryxPowerSearch",
   "AstryxTokenizer",
+  // Navigation, display primitives & selectable cards
+  "AstryxNavMenu",
+  "AstryxMobileNav",
+  "AstryxNavIcon",
+  "AstryxPagination",
+  "AstryxLink",
+  "AstryxTimestamp",
+  "AstryxIndicator",
+  "AstryxThumbnail",
+  "AstryxAvatarGroup",
+  "AstryxClickableCard",
+  "AstryxSelectableCard",
   // Navigation
   "AstryxNavbar",
   "AstryxSidebar",
@@ -315,6 +327,8 @@ export const ALWAYS_CANVAS_COMPONENTS: readonly string[] = [
   "AstryxInputGroup",
   "AstryxFieldStatus",
   "AstryxOverlay",
+  "AstryxClickableCard",
+  "AstryxSelectableCard",
 ];
 
 /**

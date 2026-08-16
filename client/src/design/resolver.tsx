@@ -86,6 +86,17 @@ import {
   AstryxLightbox as AstryxLightboxBase,
   OVERLAY_SCRIMS,
   OVERLAY_DEFAULTS,
+  // Navigation, display primitives & selectable cards
+  AstryxNavMenu as AstryxNavMenuBase,
+  AstryxMobileNav as AstryxMobileNavBase,
+  AstryxNavIcon as AstryxNavIconBase,
+  AstryxPagination as AstryxPaginationBase,
+  AstryxLink as AstryxLinkBase,
+  AstryxTimestamp as AstryxTimestampBase,
+  AstryxIndicator as AstryxIndicatorBase,
+  AstryxThumbnail as AstryxThumbnailBase,
+  AstryxAvatarGroup as AstryxAvatarGroupBase,
+  NAV_DISPLAY_DEFAULTS,
   // Charts
   AstryxBarChart as AstryxBarChartBase,
   AstryxLineChart as AstryxLineChartBase,
@@ -268,6 +279,8 @@ const FULL_WIDTH_LEAF = new Set([
   "AstryxPopover", "AstryxTooltip", "AstryxHoverCard",
   "AstryxDropdownMenu", "AstryxContextMenu", "AstryxMoreMenu",
   "AstryxAlertDialog", "AstryxToast", "AstryxLightbox",
+  // Navigation bars and page controls are block-level rows, like Navbar.
+  "AstryxNavMenu", "AstryxMobileNav", "AstryxPagination",
 ]);
 
 function useLeafNode() {
@@ -1632,6 +1645,247 @@ export function AstryxCodeBlock(props: AstryxProps) {
 }
 (AstryxCodeBlock as any).craft = { displayName: "AstryxCodeBlock", rules: { canMoveIn: () => false } };
 
+// ─── Navigation, display primitives & selectable cards ────────────────────────
+//
+// The nine navigation and display components are leaves: their content lives in
+// props, so clicking one selects the node instead of "using" the control. The
+// two cards are containers — isCanvas is declared in the static craft config
+// here AND described as a container in the AI prompt, because setting only one
+// side produces a node the AI generates but nothing can be dropped into.
+
+export function AstryxNavMenu(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxNavMenuBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxNavMenu as any).craft = { displayName: "AstryxNavMenu", rules: { canMoveIn: () => false } };
+
+export function AstryxMobileNav(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxMobileNavBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxMobileNav as any).craft = { displayName: "AstryxMobileNav", rules: { canMoveIn: () => false } };
+
+export function AstryxNavIcon(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxNavIconBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxNavIcon as any).craft = { displayName: "AstryxNavIcon", rules: { canMoveIn: () => false } };
+
+export function AstryxPagination(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxPaginationBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxPagination as any).craft = { displayName: "AstryxPagination", rules: { canMoveIn: () => false } };
+
+export function AstryxLink(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxLinkBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxLink as any).craft = { displayName: "AstryxLink", rules: { canMoveIn: () => false } };
+
+export function AstryxTimestamp(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTimestampBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTimestamp as any).craft = { displayName: "AstryxTimestamp", rules: { canMoveIn: () => false } };
+
+export function AstryxIndicator(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxIndicatorBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxIndicator as any).craft = { displayName: "AstryxIndicator", rules: { canMoveIn: () => false } };
+
+export function AstryxThumbnail(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxThumbnailBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxThumbnail as any).craft = { displayName: "AstryxThumbnail", rules: { canMoveIn: () => false } };
+
+export function AstryxAvatarGroup(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxAvatarGroupBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxAvatarGroup as any).craft = { displayName: "AstryxAvatarGroup", rules: { canMoveIn: () => false } };
+
+// Both cards follow AstryxCard exactly: connectRef sits on the card visual so
+// craft children nest inside the connected element and drop targeting lands on
+// the card itself rather than on a wrapper around it.
+
+export function AstryxClickableCard({
+  children,
+  variant = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.variant,
+  interactive = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.interactive,
+  hovered = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.hovered,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.padding,
+  gap = 12,
+  position = "flow", x = 0, y = 0,
+  backgroundColor, textColor, borderRadius: borderRadiusToken,
+}: AstryxProps) {
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } =
+    useContainerNode(position, x, y);
+  const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
+  const variantClass =
+    variant === "outlined" ? "bg-white border border-gray-300" :
+    variant === "ghost"    ? "bg-gray-50 border border-transparent" :
+                             "bg-white shadow-md border border-gray-100";
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      className={`rounded-lg ${variantClass} ${hovered ? "shadow-lg ring-1 ring-gray-300" : ""}`}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        gap: Math.max(0, Number(gap) || 0),
+        padding: Math.min(96, Math.max(0, Number(padding) || 0)),
+        minHeight: 56,
+        boxSizing: "border-box",
+        ...(interactive && !isAbsolute ? { cursor: "pointer" } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {isEmpty
+        ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop card content here</div>
+        : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxClickableCard as any).craft = { displayName: "AstryxClickableCard", isCanvas: true, rules: { canMoveIn: () => true } };
+
+export function AstryxSelectableCard({
+  children,
+  variant = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.variant,
+  selected: selectedProp = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.selected,
+  indicator = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.indicator,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.padding,
+  disabled = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.disabled,
+  gap = 12,
+  position = "flow", x = 0, y = 0,
+  backgroundColor, textColor, borderRadius: borderRadiusToken,
+}: AstryxProps) {
+  const { connectRef, isEmpty, selected: nodeSelected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } =
+    useContainerNode(position, x, y);
+  const resolvedRadius = borderRadiusToken !== undefined ? (RADIUS_TOKEN[borderRadiusToken as string] ?? 8) : undefined;
+  const variantClass =
+    variant === "elevated" ? "bg-white shadow-md border border-gray-100" :
+    variant === "ghost"    ? "bg-gray-50 border border-transparent" :
+                             "bg-white border border-gray-300";
+  // The card's own "selected" design state and the editor's node selection are
+  // different things: the first is a border + tint drawn inside the card, the
+  // second is the outside-the-box editor ring, so the two never look alike.
+  const designSelected = !!selectedProp;
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      className={`rounded-lg ${variantClass} ${designSelected ? "border-blue-500 ring-2 ring-blue-500" : ""} ${disabled ? "opacity-50" : ""}`}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        gap: Math.max(0, Number(gap) || 0),
+        padding: Math.min(96, Math.max(0, Number(padding) || 0)),
+        minHeight: 56,
+        boxSizing: "border-box",
+        ...(!disabled && !isAbsolute ? { cursor: "pointer" } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(!nodeSelected && backgroundColor
+          ? { background: backgroundColor as string }
+          : designSelected ? { background: "rgba(239,246,255,0.6)" } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...(resolvedRadius !== undefined ? { borderRadius: resolvedRadius } : {}),
+        ...(nodeSelected ? { outline: "2px solid #3b82f6", outlineOffset: 4 } : {}),
+        ...(isDragOver && !nodeSelected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 4 } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {indicator !== "none" ? (
+        <div style={{ display: "flex", justifyContent: "flex-end", flex: "unset" as any }}>
+          <SelectionMark indicator={indicator} selected={designSelected} />
+        </div>
+      ) : null}
+      {isEmpty
+        ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop card content here</div>
+        : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxSelectableCard as any).craft = { displayName: "AstryxSelectableCard", isCanvas: true, rules: { canMoveIn: () => true } };
+
+/** Inline check/radio affordance — never absolutely positioned, so it cannot overhang the card. */
+function SelectionMark({ indicator, selected }: { indicator: any; selected: boolean }) {
+  if (indicator === "radio") {
+    return (
+      <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border-2 ${selected ? "border-blue-600" : "border-gray-300"}`}>
+        {selected ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold ${
+      selected ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 text-transparent"
+    }`}>
+      ✓
+    </span>
+  );
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 export function AstryxList({ children, position = "flow", x = 0, y = 0 }: AstryxProps) {
@@ -2894,6 +3148,18 @@ export const resolver = {
   // Media
   AstryxVideoPlayer,
   AstryxCodeBlock,
+  // Navigation, display primitives & selectable cards
+  AstryxNavMenu,
+  AstryxMobileNav,
+  AstryxNavIcon,
+  AstryxPagination,
+  AstryxLink,
+  AstryxTimestamp,
+  AstryxIndicator,
+  AstryxThumbnail,
+  AstryxAvatarGroup,
+  AstryxClickableCard,
+  AstryxSelectableCard,
   // List
   AstryxList,
   AstryxListItem,

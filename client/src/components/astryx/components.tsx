@@ -2228,6 +2228,532 @@ export function AstryxOverlay({
   );
 }
 
+// ─── Navigation, display primitives & selectable cards ────────────────────────
+//
+// Bounds discipline here is the same as the overlay section above: every label
+// is user- or AI-supplied, so anything rendering one is allowed to shrink
+// (`min-w-0`) and to wrap or ellipse rather than push itself past the artboard
+// edge. Nothing in this section positions itself absolutely outside its own box
+// — a notification badge is an inline pill, not an overhanging dot — because a
+// component placed at the artboard edge would otherwise paint outside the frame.
+//
+// The item-bearing navigation components reuse `parseMenuItems` from the menu
+// section: one comma-separated string, "---" for a separator and a ":" suffix
+// for the per-item extra (a count badge for NavMenu, an icon name for
+// MobileNav). One list syntax across the palette means one thing to learn.
+
+export const NAV_DISPLAY_DEFAULTS = {
+  AstryxNavMenu: {
+    items: "Overview,Projects:12,Reports,---,Settings",
+    active: "Overview",
+    orientation: "horizontal",
+    showIcons: false,
+  },
+  AstryxMobileNav: {
+    items: "Home:home,Search:search,Alerts:bell,Profile:user",
+    active: "Home",
+    position: "bottom",
+    showLabels: true,
+  },
+  AstryxNavIcon: {
+    glyph: "home",
+    label: "Home",
+    badge: "",
+    active: false,
+    showLabel: true,
+  },
+  AstryxPagination: {
+    pageCount: 8,
+    currentPage: 3,
+    showArrows: true,
+    align: "start",
+  },
+  AstryxLink: {
+    label: "View documentation",
+    href: "/docs",
+    underline: "hover",
+    external: false,
+    size: "sm",
+  },
+  AstryxTimestamp: {
+    value: "2 hours ago",
+    prefix: "Updated",
+    showIcon: true,
+    size: "sm",
+    muted: true,
+  },
+  AstryxIndicator: {
+    variant: "dot",
+    tone: "success",
+    count: 3,
+    label: "Live",
+  },
+  AstryxThumbnail: {
+    src: "",
+    label: "cover.jpg",
+    size: 72,
+    radius: "md",
+    showLabel: true,
+  },
+  AstryxAvatarGroup: {
+    names: "Alice Chen,Ben Ortiz,Cara Diaz,Dan Ellis,Eve Ng",
+    max: 3,
+    overflowCount: 0,
+    size: "md",
+  },
+  AstryxClickableCard: {
+    variant: "elevated",
+    interactive: true,
+    hovered: false,
+    padding: 16,
+  },
+  AstryxSelectableCard: {
+    variant: "outlined",
+    selected: true,
+    indicator: "check",
+    padding: 16,
+    disabled: false,
+  },
+} as const;
+
+/** Labels shrink and wrap instead of pushing their component past the frame. */
+const navLabelStyle: CSSProperties = { minWidth: 0, overflowWrap: "anywhere" };
+
+const clampNumber = (value: any, min: number, max: number, fallback: number) => {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+
+/** An icon name from ICON_GLYPHS, a literal glyph, or the label's first letter. */
+function navGlyph(nameOrGlyph: any, fallbackLabel: any = ""): string {
+  const raw = String(nameOrGlyph ?? "").trim();
+  if (!raw) return String(fallbackLabel).trim().charAt(0).toUpperCase() || "◈";
+  return ICON_GLYPHS[raw.toLowerCase()] ?? raw.charAt(0).toUpperCase();
+}
+
+/**
+ * Relative time for a design surface. A parseable date becomes "2 hours ago";
+ * anything else is a literal the designer typed and is shown verbatim, which is
+ * what makes the displayed value fully inspector-settable. Deliberately a pure
+ * function of (value, now) with no timer — a design never ticks.
+ */
+export function formatRelativeTime(value: any, now: number = Date.now()): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return raw;
+  const deltaSec = Math.round((now - parsed) / 1000);
+  const future = deltaSec < 0;
+  const abs = Math.abs(deltaSec);
+  const say = (n: number, unit: string) => {
+    const phrase = `${n} ${unit}${n === 1 ? "" : "s"}`;
+    return future ? `in ${phrase}` : `${phrase} ago`;
+  };
+  if (abs < 45) return future ? "in a moment" : "just now";
+  if (abs < 3600) return say(Math.round(abs / 60), "minute");
+  if (abs < 86400) return say(Math.round(abs / 3600), "hour");
+  if (abs < 604800) return say(Math.round(abs / 86400), "day");
+  if (abs < 2629800) return say(Math.round(abs / 604800), "week");
+  if (abs < 31557600) return say(Math.round(abs / 2629800), "month");
+  return say(Math.round(abs / 31557600), "year");
+}
+
+/**
+ * The page numbers a pagination control shows, with "…" where a run is elided.
+ * Always includes the first and last page and a window around the current one.
+ */
+export function paginationPages(pageCount: any, currentPage: any): (number | "…")[] {
+  const total = clampNumber(pageCount, 1, 999, 1);
+  const current = clampNumber(currentPage, 1, total, 1);
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("…");
+  for (let p = start; p <= end; p++) pages.push(p);
+  if (end < total - 1) pages.push("…");
+  pages.push(total);
+  return pages;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export function AstryxNavMenu({
+  items = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.items,
+  active = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.active,
+  orientation = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.orientation,
+  showIcons = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.showIcons,
+}: AstryxProps) {
+  const parsed = parseMenuItems(items);
+  const vertical = orientation === "vertical";
+  return (
+    <nav className={`w-full flex ${vertical ? "flex-col items-stretch gap-0.5" : "flex-row flex-wrap items-center gap-1"}`}>
+      {parsed.length === 0 ? (
+        <span className="px-2 py-1 text-xs text-gray-400">No items</span>
+      ) : parsed.map((item, i) =>
+        item.kind === "separator" ? (
+          vertical
+            ? <div key={i} className="my-1 h-px w-full bg-gray-200" />
+            : <div key={i} className="mx-1 h-4 w-px shrink-0 bg-gray-200" />
+        ) : (
+          <span
+            key={i}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${
+              item.label === active ? "bg-blue-50 font-medium text-blue-700"
+                : item.destructive ? "text-red-600" : "text-gray-600"
+            }`}
+            style={navLabelStyle}
+          >
+            {showIcons ? <span className="shrink-0 text-xs opacity-60">◈</span> : null}
+            <span className="min-w-0">{item.label}</span>
+            {item.shortcut ? (
+              <span className="shrink-0 rounded-full bg-gray-100 px-1.5 text-[10px] font-medium leading-4 text-gray-600">{item.shortcut}</span>
+            ) : null}
+          </span>
+        ),
+      )}
+    </nav>
+  );
+}
+
+export function AstryxMobileNav({
+  items = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.items,
+  active = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.active,
+  position = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.position,
+  showLabels = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.showLabels,
+}: AstryxProps) {
+  const parsed = parseMenuItems(items).filter((i) => i.kind === "item");
+  return (
+    <nav
+      className={`w-full flex items-stretch justify-around gap-1 bg-white px-2 py-2 ${
+        position === "top" ? "border-b" : "border-t"
+      } border-gray-200`}
+    >
+      {parsed.length === 0 ? (
+        <span className="px-2 py-1 text-xs text-gray-400">No items</span>
+      ) : parsed.map((item, i) => {
+        const isActive = item.label === active;
+        return (
+          <span
+            key={i}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md px-1 py-1 ${
+              isActive ? "text-blue-600" : "text-gray-500"
+            }`}
+          >
+            <span className="text-base leading-none">{navGlyph(item.shortcut, item.label)}</span>
+            {showLabels ? (
+              <span className="min-w-0 max-w-full truncate text-[11px] font-medium">{item.label}</span>
+            ) : null}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AstryxNavIcon({
+  glyph = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.glyph,
+  label = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.label,
+  badge = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.badge,
+  active = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.active,
+  showLabel = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.showLabel,
+}: AstryxProps) {
+  const badgeText = String(badge ?? "").trim();
+  const labelText = String(label ?? "").trim();
+  return (
+    <span
+      className={`inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
+        active ? "bg-blue-50 font-medium text-blue-700" : "text-gray-600"
+      }`}
+      style={navLabelStyle}
+    >
+      <span className="shrink-0 text-base leading-none">{navGlyph(glyph, labelText)}</span>
+      {showLabel && labelText ? <span className="min-w-0">{labelText}</span> : null}
+      {badgeText ? (
+        <span className="shrink-0 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-4 text-white">{badgeText}</span>
+      ) : null}
+    </span>
+  );
+}
+
+export function AstryxPagination({
+  pageCount = NAV_DISPLAY_DEFAULTS.AstryxPagination.pageCount,
+  currentPage = NAV_DISPLAY_DEFAULTS.AstryxPagination.currentPage,
+  showArrows = NAV_DISPLAY_DEFAULTS.AstryxPagination.showArrows,
+  align = NAV_DISPLAY_DEFAULTS.AstryxPagination.align,
+}: AstryxProps) {
+  const total = clampNumber(pageCount, 1, 999, 1);
+  const current = clampNumber(currentPage, 1, total, 1);
+  const pages = paginationPages(total, current);
+  const justify = align === "center" ? "justify-center" : align === "end" ? "justify-end" : "justify-start";
+  const arrowClass = (disabled: boolean) =>
+    `inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md border border-gray-300 px-2 text-sm ${
+      disabled ? "text-gray-300" : "text-gray-600 bg-white"
+    }`;
+  return (
+    <nav className={`w-full flex flex-wrap items-center gap-1 ${justify}`}>
+      {showArrows ? <span className={arrowClass(current <= 1)}>‹</span> : null}
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`gap-${i}`} className="inline-flex h-7 w-6 shrink-0 items-center justify-center text-sm text-gray-400">…</span>
+        ) : (
+          <span
+            key={p}
+            className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-2 text-sm ${
+              p === current ? "bg-blue-600 font-medium text-white" : "border border-gray-300 bg-white text-gray-700"
+            }`}
+          >
+            {p}
+          </span>
+        ),
+      )}
+      {showArrows ? <span className={arrowClass(current >= total)}>›</span> : null}
+    </nav>
+  );
+}
+
+export function AstryxLink({
+  label,
+  children,
+  href = NAV_DISPLAY_DEFAULTS.AstryxLink.href,
+  underline = NAV_DISPLAY_DEFAULTS.AstryxLink.underline,
+  external = NAV_DISPLAY_DEFAULTS.AstryxLink.external,
+  size = NAV_DISPLAY_DEFAULTS.AstryxLink.size,
+}: AstryxProps) {
+  // `children` is accepted as well as `label` because that is the convention the
+  // AI already follows for every other text-bearing component in the palette.
+  const text = String(label ?? children ?? NAV_DISPLAY_DEFAULTS.AstryxLink.label);
+  const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base", lg: "text-lg" }, size, "text-sm");
+  const underlineClass = underline === "always" ? "underline" : underline === "none" ? "no-underline" : "hover:underline";
+  return (
+    <span
+      className={`inline-flex max-w-full cursor-pointer items-center gap-1 text-blue-600 ${sizeClass} ${underlineClass}`}
+      style={navLabelStyle}
+      title={href ? String(href) : undefined}
+    >
+      <span className="min-w-0">{text}</span>
+      {external ? <span className="shrink-0 text-xs opacity-70">↗</span> : null}
+    </span>
+  );
+}
+
+// ── Display primitives ────────────────────────────────────────────────────────
+
+export function AstryxTimestamp({
+  value = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.value,
+  prefix = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.prefix,
+  showIcon = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.showIcon,
+  size = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.size,
+  muted = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.muted,
+}: AstryxProps) {
+  const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base" }, size, "text-sm");
+  const display = formatRelativeTime(value);
+  const prefixText = String(prefix ?? "").trim();
+  return (
+    <span
+      className={`inline-flex max-w-full flex-wrap items-center gap-1.5 ${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`}
+      style={navLabelStyle}
+    >
+      {showIcon ? <span className="shrink-0 opacity-70">◷</span> : null}
+      {prefixText ? <span className="min-w-0">{prefixText}</span> : null}
+      <span className="min-w-0 font-medium">{display || "—"}</span>
+    </span>
+  );
+}
+
+const INDICATOR_TONES: Record<string, { dot: string; pill: string }> = {
+  neutral: { dot: "bg-gray-400",   pill: "bg-gray-100 text-gray-700" },
+  info:    { dot: "bg-blue-500",   pill: "bg-blue-100 text-blue-800" },
+  success: { dot: "bg-green-500",  pill: "bg-green-100 text-green-800" },
+  warning: { dot: "bg-amber-500",  pill: "bg-amber-100 text-amber-800" },
+  danger:  { dot: "bg-red-500",    pill: "bg-red-100 text-red-800" },
+};
+
+export function AstryxIndicator({
+  variant = NAV_DISPLAY_DEFAULTS.AstryxIndicator.variant,
+  tone = NAV_DISPLAY_DEFAULTS.AstryxIndicator.tone,
+  count = NAV_DISPLAY_DEFAULTS.AstryxIndicator.count,
+  label = NAV_DISPLAY_DEFAULTS.AstryxIndicator.label,
+}: AstryxProps) {
+  const palette = pick(INDICATOR_TONES, tone, INDICATOR_TONES.neutral);
+  const labelText = String(label ?? "").trim();
+  if (variant === "count") {
+    const n = clampNumber(count, 0, 9999, 0);
+    return (
+      <span className="inline-flex max-w-full flex-wrap items-center gap-1.5" style={navLabelStyle}>
+        <span className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold ${palette.pill}`}>
+          {n > 99 ? "99+" : n}
+        </span>
+        {labelText ? <span className="min-w-0 text-sm text-gray-700">{labelText}</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-1.5" style={navLabelStyle}>
+      <span className="relative inline-flex h-2.5 w-2.5 shrink-0">
+        {variant === "pulse" ? (
+          <span className={`absolute inset-0 rounded-full opacity-60 animate-ping ${palette.dot}`} />
+        ) : null}
+        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${palette.dot}`} />
+      </span>
+      {labelText ? <span className="min-w-0 text-sm text-gray-700">{labelText}</span> : null}
+    </span>
+  );
+}
+
+const THUMBNAIL_RADII: Record<string, number> = { none: 0, sm: 4, md: 8, lg: 12, full: 9999 };
+
+export function AstryxThumbnail({
+  src = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.src,
+  label = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.label,
+  size = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.size,
+  radius = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.radius,
+  showLabel = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.showLabel,
+}: AstryxProps) {
+  const px = clampNumber(size, 24, 320, 72);
+  const borderRadius = pick(THUMBNAIL_RADII, radius, 8);
+  const labelText = String(label ?? "").trim();
+  const srcText = String(src ?? "").trim();
+  return (
+    <span className="inline-flex max-w-full flex-col gap-1" style={{ width: px }}>
+      <span
+        className="flex items-center justify-center overflow-hidden border border-gray-200 bg-gray-100 text-gray-400"
+        style={{ width: px, height: px, maxWidth: "100%", borderRadius }}
+      >
+        {srcText
+          ? <img src={srcText} alt={labelText} className="h-full w-full object-cover" />
+          : <span className="text-lg">▣</span>}
+      </span>
+      {showLabel && labelText ? (
+        <span className="min-w-0 truncate text-[11px] text-gray-500" style={{ maxWidth: px }}>{labelText}</span>
+      ) : null}
+    </span>
+  );
+}
+
+const AVATAR_GROUP_SIZES: Record<string, number> = { xs: 24, sm: 32, md: 40, lg: 56 };
+
+export function AstryxAvatarGroup({
+  names = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.names,
+  max = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.max,
+  overflowCount = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.overflowCount,
+  size = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.size,
+}: AstryxProps) {
+  const list = String(names ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const visibleMax = clampNumber(max, 1, 12, 3);
+  const shown = list.slice(0, visibleMax);
+  // An explicit overflow count wins so a design can show "+12" without listing
+  // twelve names; 0 means "derive it from the names that did not fit".
+  const explicit = clampNumber(overflowCount, 0, 999, 0);
+  const overflow = explicit > 0 ? explicit : Math.max(0, list.length - shown.length);
+  const dim = pick(AVATAR_GROUP_SIZES, size, 40);
+  const circle: CSSProperties = {
+    width: dim, height: dim, fontSize: Math.round(dim * 0.36),
+    boxShadow: "0 0 0 2px #ffffff",
+  };
+  const initials = (name: string) =>
+    name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <span className="inline-flex max-w-full items-center">
+      {shown.length === 0 ? (
+        <span className="text-xs text-gray-400">No people</span>
+      ) : shown.map((name, i) => (
+        <span
+          key={`${name}-${i}`}
+          title={name}
+          className={`inline-flex shrink-0 items-center justify-center rounded-full bg-blue-500 font-medium text-white ${i > 0 ? "-ml-2" : ""}`}
+          style={circle}
+        >
+          {initials(name) || "?"}
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span
+          className={`inline-flex shrink-0 items-center justify-center rounded-full bg-gray-200 font-medium text-gray-700 ${shown.length > 0 ? "-ml-2" : ""}`}
+          style={circle}
+        >
+          +{overflow}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// ── Selectable cards ──────────────────────────────────────────────────────────
+//
+// Both are containers: their content is craft children, not props. The
+// interactive and selected states are plain props so the selected variant can
+// be designed directly in the inspector rather than only appearing on hover.
+
+const CARD_VARIANT_CLASS: Record<string, string> = {
+  elevated: "bg-white shadow-md border border-gray-100",
+  outlined: "bg-white border border-gray-300",
+  ghost:    "bg-gray-50 border border-transparent",
+};
+
+export function AstryxClickableCard({
+  children = "Clickable card content",
+  variant = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.variant,
+  interactive = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.interactive,
+  hovered = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.hovered,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.padding,
+}: AstryxProps) {
+  const variantClass = pick(CARD_VARIANT_CLASS, variant, CARD_VARIANT_CLASS.elevated);
+  return (
+    <div
+      className={`w-full rounded-lg ${variantClass} ${interactive ? "cursor-pointer" : ""} ${
+        hovered ? "shadow-lg ring-1 ring-gray-300" : ""
+      }`}
+      style={{ padding: clampNumber(padding, 0, 96, 16) }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AstryxSelectableCard({
+  children = "Selectable card content",
+  variant = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.variant,
+  selected = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.selected,
+  indicator = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.indicator,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.padding,
+  disabled = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.disabled,
+}: AstryxProps) {
+  const variantClass = pick(CARD_VARIANT_CLASS, variant, CARD_VARIANT_CLASS.outlined);
+  return (
+    <div
+      className={`w-full rounded-lg ${variantClass} ${
+        selected ? "border-blue-500 bg-blue-50/40 ring-2 ring-blue-500" : ""
+      } ${disabled ? "opacity-50" : "cursor-pointer"}`}
+      style={{ padding: clampNumber(padding, 0, 96, 16) }}
+    >
+      {indicator !== "none" ? (
+        <div className="mb-2 flex w-full justify-end">{selectionMark(indicator, !!selected)}</div>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+/** The check or radio affordance, drawn inline so it never overhangs the card. */
+function selectionMark(indicator: any, selected: boolean) {
+  if (indicator === "radio") {
+    return (
+      <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border-2 ${selected ? "border-blue-600" : "border-gray-300"}`}>
+        {selected ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold ${
+      selected ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 text-transparent"
+    }`}>
+      ✓
+    </span>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -2318,4 +2844,18 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   ComplexSelector:  AstryxComplexSelector,
   PowerSearch:      AstryxPowerSearch,
   Tokenizer:        AstryxTokenizer,
+  // Navigation
+  NavMenu:          AstryxNavMenu,
+  MobileNav:        AstryxMobileNav,
+  NavIcon:          AstryxNavIcon,
+  Pagination:       AstryxPagination,
+  Link:             AstryxLink,
+  // Display primitives
+  Timestamp:        AstryxTimestamp,
+  Indicator:        AstryxIndicator,
+  Thumbnail:        AstryxThumbnail,
+  AvatarGroup:      AstryxAvatarGroup,
+  // Selectable cards
+  ClickableCard:    AstryxClickableCard,
+  SelectableCard:   AstryxSelectableCard,
 };

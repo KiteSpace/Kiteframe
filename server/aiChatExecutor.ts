@@ -34,7 +34,21 @@ function isSimpleWorkflowPrompt(msgs: any[]): boolean {
   return wordCount <= 20 && !COMPLEXITY_KEYWORDS.test(text);
 }
 
-export async function executeAiChat(body: any, signal?: AbortSignal): Promise<AiChatExecResult> {
+/**
+ * Server-only options. These are function arguments precisely so that no HTTP
+ * payload can reach them: `/api/ai/chat` and the async job worker hand `body`
+ * to this function straight from the client request.
+ */
+export interface AiChatInternalOptions {
+  /** Trusted system prompt. Only route handlers may supply this. */
+  systemPrompt?: string;
+}
+
+export async function executeAiChat(
+  body: any,
+  signal?: AbortSignal,
+  internal?: AiChatInternalOptions,
+): Promise<AiChatExecResult> {
   try {
     const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType } = body;
 
@@ -53,10 +67,33 @@ export async function executeAiChat(body: any, signal?: AbortSignal): Promise<Ai
       }
     }
 
-    const messages = (body.messages || []).map((msg: any) => ({
+    // NOTHING in `body` is trusted: `/api/ai/chat` and the job worker forward a
+    // client request body here verbatim. The only trusted system prompt is the
+    // `internal` argument, which is unreachable from any HTTP payload - in
+    // particular a client-supplied `body.systemPrompt` is never read.
+    //
+    // The trusted prompt skips sanitization because it is a server-owned
+    // constant (the Astryx design catalog and vision extension). Sanitizing it
+    // truncated the ~28k-char design template to 10k, hiding most of the
+    // component list - and all of the output-format rules - from the model.
+    const trustedSystemPrompt =
+      typeof internal?.systemPrompt === 'string' && internal.systemPrompt.length > 0
+        ? internal.systemPrompt
+        : '';
+
+    // Client messages can never occupy the provider's system channel. Any role
+    // other than 'assistant' is demoted to 'user' before provider translation,
+    // so a `role: 'system'` in the request body carries no privilege, and every
+    // string payload is sanitized and length-bounded.
+    const sanitizedMessages = (body.messages || []).map((msg: any) => ({
       ...msg,
+      role: msg?.role === 'assistant' ? 'assistant' : 'user',
       content: typeof msg.content === 'string' ? sanitizeAiPrompt(msg.content) : msg.content,
     }));
+
+    const messages = trustedSystemPrompt
+      ? [{ role: 'system', content: trustedSystemPrompt }, ...sanitizedMessages]
+      : sanitizedMessages;
 
     let activeProvider = resolvedProvider || provider;
     let activeApiKey = clientApiKey;

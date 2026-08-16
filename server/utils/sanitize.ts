@@ -55,13 +55,35 @@ export function sanitizeNodeDescription(description: string | undefined | null):
 }
 
 /**
- * Sanitize AI prompt - prevent injection attacks
+ * Upper bound on a single user-supplied prompt string sent to a model API.
+ *
+ * Must stay above the largest payload the AI routes accept, or content is
+ * silently truncated after route validation has already passed. The design
+ * routes cap `prompt` at 8k and `currentCraftState` at 40k and concatenate
+ * both into one user message, plus framing text.
+ */
+export const MAX_AI_PROMPT_CHARS = 60000;
+
+/**
+ * Sanitize a USER-SUPPLIED prompt on its way to a model API.
+ *
+ * This is deliberately NOT an HTML sanitizer. The output is sent to an LLM
+ * endpoint and is never rendered as markup, so HTML-escaping here buys no
+ * safety and actively corrupts structured payloads: it strips framing tags
+ * such as <CURRENT_CANVAS> and rewrites `&` to `&amp;` inside JSON canvas
+ * state. Escaping on the way OUT is the wrong layer for XSS; that belongs at
+ * the point where model output is rendered or stored.
+ *
+ * Every message in executeAiChat is passed through this, and client message
+ * roles are demoted to user/assistant so none can reach the provider's system
+ * channel. Server-owned system prompts bypass it only via executeAiChat's
+ * `internal` function argument, which no HTTP body can reach.
  */
 export function sanitizeAiPrompt(prompt: string | undefined | null): string {
   if (!prompt || typeof prompt !== 'string') return '';
-  
+
   // Remove any attempts at prompt injection
-  let cleaned = prompt
+  const cleaned = prompt
     // Remove common injection patterns
     .replace(/ignore\s+(all\s+)?previous\s+(instructions?|prompts?)/gi, '')
     .replace(/disregard\s+(all\s+)?previous/gi, '')
@@ -73,12 +95,9 @@ export function sanitizeAiPrompt(prompt: string | undefined | null): string {
     // Remove potential script tags
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '');
-  
-  // Sanitize remaining HTML
-  cleaned = sanitizeText(cleaned);
-  
+
   // Limit length
-  return cleaned.substring(0, 10000);
+  return cleaned.substring(0, MAX_AI_PROMPT_CHARS);
 }
 
 /**

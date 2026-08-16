@@ -73,6 +73,11 @@ const DOCUMENTED_COMPONENTS = [
   'AstryxDivider',
   // Navigation
   'AstryxNavbar', 'AstryxSidebar', 'AstryxBreadcrumb',
+  'AstryxNavMenu', 'AstryxMobileNav', 'AstryxNavIcon', 'AstryxPagination', 'AstryxLink',
+  // Display primitives
+  'AstryxTimestamp', 'AstryxIndicator', 'AstryxThumbnail', 'AstryxAvatarGroup',
+  // Selectable cards (containers)
+  'AstryxClickableCard', 'AstryxSelectableCard',
   // Overlays
   'AstryxModal', 'AstryxDrawer', 'AstryxSheet',
   // Anchored overlays

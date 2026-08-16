@@ -116,12 +116,11 @@ export async function designGenerationHandler(req: Request, res: Response) {
       model: MODEL,
       maxTokens: 16000,
       messages: [
-        { role: 'system', content: DESIGN_SYSTEM_PROMPT },
         ...historyMessages,
         { role: 'user', content: userMessage },
         { role: 'assistant', content: '{' },
       ],
-    });
+    }, undefined, { systemPrompt: DESIGN_SYSTEM_PROMPT });
 
     if (!result.ok) {
       logRejected({ prompt: promptSnippet, selectedElementDisplayName, reason: 'ai_error', durationMs: Date.now() - startMs, model: MODEL });
