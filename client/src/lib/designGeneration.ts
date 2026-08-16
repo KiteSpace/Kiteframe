@@ -150,6 +150,23 @@ COMPONENT QUICK-REFERENCE:
 - AstryxCheckboxList: multi-select checkbox list, props: { label?: string, options: string (comma-separated), selected: string (comma-separated subset) }
 - AstryxIconButton: icon-only button, props: { name: string (icon name, e.g. "search"), variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
 
+— DATE & TIME INPUTS —
+All four share label/open/invalid/disabled/required. The first three take a single "placeholder"; AstryxDateRangeInput has two ends, so it takes startPlaceholder and endPlaceholder instead and ignores "placeholder". Set open: true only when the design should show the picker expanded; the panel renders inline below the field, pushing later content down.
+- AstryxDateInput: date field, props: { label?: string, value: string (display text, e.g. "Aug 16, 2026"), placeholder: string, month: string (panel heading, e.g. "August 2026"), selectedDay: number (1-31, highlighted in the panel), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxTimeInput: time field, props: { label?: string, value: string (e.g. "10:30"), placeholder: string, times: string (comma-separated options), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxDateTimeInput: date + time field, props: { label?: string, value: string (e.g. "Aug 16, 2026 · 10:30"), placeholder: string, month: string, selectedDay: number, times: string (comma-separated), selectedTime: string, open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxDateRangeInput: date range field, props: { label?: string, startValue: string, endValue: string, startPlaceholder: string, endPlaceholder: string, month: string, rangeStart: number (1-31), rangeEnd: number (1-31), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+
+— FILE INPUT —
+- AstryxFileInput: upload field, props: { label?: string, placeholder: string (empty-state prompt), fileName: string (set it to show the populated state, leave "" for the dropzone), fileSize: string, hint: string (accepted formats), invalid: boolean, disabled: boolean, required: boolean }
+
+— ADVANCED SELECTION & SEARCH —
+- AstryxTypeahead: search-as-you-type field, props: { label?: string, query: string (typed text), placeholder: string, suggestions: string (comma-separated), highlighted: string (must match one suggestion), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxMultiSelector: multi-select dropdown, props: { label?: string, placeholder: string, options: string (comma-separated), selected: string (comma-separated subset, shown as chips in the field), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxComplexSelector: rich option list, props: { label?: string, placeholder: string, options: string (comma-separated "Title:Description" pairs), selected: string (must match a Title), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxPowerSearch: search bar with filter chips, props: { placeholder: string, query: string, filters: string (comma-separated "key:value" chips), resultCount: string (e.g. "42 results"), suggestions: string (comma-separated), open: boolean, disabled: boolean }
+- AstryxTokenizer: tag/token entry, props: { label?: string, tokens: string (comma-separated chips), placeholder: string, max: number (0 = no limit; exceeding it renders the error state), invalid: boolean, disabled: boolean, required: boolean }
+
 — STATUS & FEEDBACK —
 - AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
 - AstryxBanner:      alert bar, props: { children: string, variant: "info"|"success"|"warning"|"error" }

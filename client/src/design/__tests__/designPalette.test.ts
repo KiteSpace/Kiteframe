@@ -61,6 +61,13 @@ const DOCUMENTED_COMPONENTS = [
   // Form inputs
   'AstryxTextArea', 'AstryxSwitch', 'AstryxNumberInput', 'AstryxToggleButton',
   'AstryxSegmentedControl', 'AstryxCheckboxList', 'AstryxIconButton',
+  // Date & time inputs
+  'AstryxDateInput', 'AstryxTimeInput', 'AstryxDateTimeInput', 'AstryxDateRangeInput',
+  // File input
+  'AstryxFileInput',
+  // Advanced selection & search
+  'AstryxTypeahead', 'AstryxMultiSelector', 'AstryxComplexSelector',
+  'AstryxPowerSearch', 'AstryxTokenizer',
   // Content
   'AstryxCard', 'AstryxChatMessage', 'AstryxEmptyState', 'AstryxToken',
   'AstryxDivider',

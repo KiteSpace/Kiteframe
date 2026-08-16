@@ -975,6 +975,616 @@ export function AstryxIconButton({ name = "star", variant = "outline", size = "m
   );
 }
 
+// ─── Date, time and advanced selection inputs ─────────────────────────────────
+//
+// These are DESIGN-TIME representations, not working widgets. They must look
+// convincing and expose their populated / invalid / open states as props, so a
+// designer can compose the "filled" or "error" state from the inspector instead
+// of having to interact with the control to reach it.
+//
+// Any panel these open — a calendar, a suggestion list — renders INLINE, in
+// normal flow beneath the field. The canvas applies a pan/zoom transform, and a
+// transformed ancestor becomes the containing block for `position: fixed`, so a
+// portalled or fixed panel escapes the artboard it belongs to. See
+// .agents/memory/fixed-overlay-inside-transformed-canvas.md.
+
+/** Comma-separated string or array → trimmed list. */
+function toList(value: any): string[] {
+  if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
+  return String(value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Default prop values for the controls below, shared by the components and by
+ * the design inspector.
+ *
+ * The inspector has to fall back to exactly what the canvas renders when a prop
+ * is absent. If the two drift, the inspector shows a value the design is not
+ * using — and the moment the user edits any field in that panel, the shown
+ * value is written back, silently replacing the real one. Keeping one constant
+ * makes that drift impossible rather than something to re-check by hand.
+ */
+export const INPUT_DEFAULTS = {
+  AstryxDateInput: {
+    placeholder: "Select a date…",
+    month: "August 2026",
+    selectedDay: 16,
+  },
+  AstryxTimeInput: {
+    placeholder: "Select a time…",
+    times: "09:00,09:30,10:00,10:30,11:00,11:30",
+  },
+  AstryxDateTimeInput: {
+    placeholder: "Select date and time…",
+    month: "August 2026",
+    selectedDay: 16,
+    times: "09:00,09:30,10:00,10:30,11:00,11:30",
+    selectedTime: "10:00",
+  },
+  AstryxDateRangeInput: {
+    startPlaceholder: "Start date",
+    endPlaceholder: "End date",
+    month: "August 2026",
+    rangeStart: 12,
+    rangeEnd: 20,
+  },
+  AstryxFileInput: {
+    placeholder: "Drop a file here, or browse",
+    fileSize: "248 KB",
+    hint: "PNG, JPG or PDF up to 10 MB",
+  },
+  AstryxTypeahead: {
+    placeholder: "Start typing to search…",
+    suggestions: "Alice Chen,Alicia Moore,Alistair Reed,Amara Osei",
+  },
+  AstryxMultiSelector: {
+    placeholder: "Select options…",
+    options: "Design,Engineering,Marketing,Sales,Support",
+    selected: "Design,Engineering",
+  },
+  AstryxComplexSelector: {
+    placeholder: "Choose a plan…",
+    options: "Starter:For small teams getting going,Growth:Everything in Starter plus analytics,Scale:Advanced controls and SSO",
+    selected: "Growth",
+  },
+  AstryxPowerSearch: {
+    placeholder: "Search everything…",
+    filters: "status:Active,owner:Alice Chen",
+    suggestions: "Recent: quarterly report,Recent: onboarding checklist",
+  },
+  AstryxTokenizer: {
+    placeholder: "Add a tag…",
+    tokens: "design,research,prototype",
+  },
+} as const;
+
+function fieldShellClass(invalid?: boolean, disabled?: boolean) {
+  return [
+    "flex w-full items-center gap-2 rounded-md border px-3 py-1.5",
+    invalid ? "border-red-400" : "border-gray-300",
+    disabled ? "bg-gray-50 opacity-60" : "bg-white",
+  ].join(" ");
+}
+
+function FieldShellLabel({ label, required }: AstryxProps) {
+  if (!label) return null;
+  return (
+    <label className="text-xs font-medium text-gray-700">
+      {label}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+/** Dropdown panel. Deliberately in normal flow — never portalled or fixed. */
+function InlinePanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-1 w-full rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {children}
+    </div>
+  );
+}
+
+function CalendarGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function ClockGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <circle cx="12" cy="12" r="9" strokeWidth={2} />
+      <path strokeLinecap="round" strokeWidth={2} d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function SearchGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+}
+
+function ChevronGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+/**
+ * Compact month grid shared by the date family, so the four controls read as
+ * one set. `selectedDay` / `rangeStart` / `rangeEnd` are day numbers rather
+ * than parsed dates: real calendar and locale logic is out of scope here, and a
+ * day number is what the inspector can meaningfully offer.
+ */
+function MiniMonth({ month = "August 2026", selectedDay, rangeStart, rangeEnd }: AstryxProps) {
+  const dayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const cells: (number | null)[] = [
+    null, null,
+    ...Array.from({ length: 31 }, (_, i) => i + 1),
+    null, null,
+  ];
+  const sel = Number(selectedDay);
+  const from = Number(rangeStart);
+  const to = Number(rangeEnd);
+  const hasRange = Number.isFinite(from) && Number.isFinite(to);
+  const isEdge = (d: number) => d === sel || (hasRange && (d === from || d === to));
+  const isInside = (d: number) => hasRange && d > from && d < to;
+
+  return (
+    <div className="p-2">
+      <div className="flex items-center justify-between mb-1.5 px-1">
+        <span className="text-[10px] text-gray-400">◀</span>
+        <span className="text-[11px] font-medium text-gray-800">{month}</span>
+        <span className="text-[10px] text-gray-400">▶</span>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {dayNames.map((d) => (
+          <div key={d} className="text-center text-[9px] text-gray-400">{d}</div>
+        ))}
+        {cells.map((d, i) => (
+          <div
+            key={i}
+            className={`text-center text-[10px] py-0.5 rounded ${
+              d == null
+                ? ""
+                : isEdge(d)
+                ? "bg-blue-600 text-white font-medium"
+                : isInside(d)
+                ? "bg-blue-50 text-blue-700"
+                : "text-gray-700"
+            }`}
+          >
+            {d ?? ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimeColumn({ times, selectedTime }: AstryxProps) {
+  const list = toList(times);
+  return (
+    <div className="max-h-36 overflow-hidden">
+      {list.map((t) => (
+        <div
+          key={t}
+          className={`px-3 py-1 text-[11px] cursor-pointer ${
+            t === selectedTime ? "bg-blue-600 text-white font-medium" : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {t}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxDateInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxDateInput.placeholder,
+  month = INPUT_DEFAULTS.AstryxDateInput.month,
+  selectedDay = INPUT_DEFAULTS.AstryxDateInput.selectedDay,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <CalendarGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <MiniMonth month={month} selectedDay={selectedDay} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTimeInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxTimeInput.placeholder,
+  times = INPUT_DEFAULTS.AstryxTimeInput.times,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <ClockGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <TimeColumn times={times} selectedTime={value} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxDateTimeInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxDateTimeInput.placeholder,
+  month = INPUT_DEFAULTS.AstryxDateTimeInput.month,
+  selectedDay = INPUT_DEFAULTS.AstryxDateTimeInput.selectedDay,
+  times = INPUT_DEFAULTS.AstryxDateTimeInput.times,
+  selectedTime = INPUT_DEFAULTS.AstryxDateTimeInput.selectedTime,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <CalendarGlyph />
+        <ClockGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <div className="flex">
+            <div className="flex-1 border-r border-gray-100">
+              <MiniMonth month={month} selectedDay={selectedDay} />
+            </div>
+            <div className="w-20 shrink-0 py-2">
+              <TimeColumn times={times} selectedTime={selectedTime} />
+            </div>
+          </div>
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxDateRangeInput({
+  label, startValue = "", endValue = "",
+  startPlaceholder = INPUT_DEFAULTS.AstryxDateRangeInput.startPlaceholder,
+  endPlaceholder = INPUT_DEFAULTS.AstryxDateRangeInput.endPlaceholder,
+  month = INPUT_DEFAULTS.AstryxDateRangeInput.month,
+  rangeStart = INPUT_DEFAULTS.AstryxDateRangeInput.rangeStart,
+  rangeEnd = INPUT_DEFAULTS.AstryxDateRangeInput.rangeEnd,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const startFilled = String(startValue).trim().length > 0;
+  const endFilled = String(endValue).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${startFilled ? "text-gray-900" : "text-gray-400"}`}>
+          {startFilled ? startValue : startPlaceholder}
+        </span>
+        <span className="text-gray-300 text-sm shrink-0">→</span>
+        <span className={`flex-1 truncate text-sm ${endFilled ? "text-gray-900" : "text-gray-400"}`}>
+          {endFilled ? endValue : endPlaceholder}
+        </span>
+        <CalendarGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <MiniMonth month={month} rangeStart={rangeStart} rangeEnd={rangeEnd} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxFileInput({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxFileInput.placeholder,
+  fileName = "",
+  fileSize = INPUT_DEFAULTS.AstryxFileInput.fileSize,
+  hint = INPUT_DEFAULTS.AstryxFileInput.hint,
+  invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(fileName).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      {filled ? (
+        <div
+          className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+          style={borderRadius !== undefined ? { borderRadius } : undefined}
+        >
+          <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-sm shrink-0">▤</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-gray-900 truncate">{fileName}</p>
+            <p className="text-xs text-gray-500">{fileSize}</p>
+          </div>
+          <span className="text-gray-400 text-sm shrink-0 cursor-pointer hover:text-gray-600">×</span>
+        </div>
+      ) : (
+        <div
+          className={`flex w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed px-3 py-5 text-center ${invalid ? "border-red-400 bg-red-50/40" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-gray-50/60"}`}
+          style={borderRadius !== undefined ? { borderRadius } : undefined}
+        >
+          <span className="text-gray-400 text-base leading-none">↑</span>
+          <p className="text-sm text-gray-600">{placeholder}</p>
+          {hint && <p className="text-xs text-gray-400">{hint}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTypeahead({
+  label, query = "",
+  placeholder = INPUT_DEFAULTS.AstryxTypeahead.placeholder,
+  suggestions = INPUT_DEFAULTS.AstryxTypeahead.suggestions,
+  highlighted = "", open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const list = toList(suggestions);
+  const typed = String(query);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <SearchGlyph />
+        <span className={`flex-1 truncate text-sm ${typed ? "text-gray-900" : "text-gray-400"}`}>
+          {typed || placeholder}
+        </span>
+        {typed && <span className="text-gray-400 text-sm shrink-0">×</span>}
+      </div>
+      {open && list.length > 0 && (
+        <InlinePanel>
+          {list.map((s) => {
+            // Bold the typed prefix so the match is legible at a glance.
+            const matches = typed && s.toLowerCase().startsWith(typed.toLowerCase());
+            return (
+              <div
+                key={s}
+                className={`px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                  s === highlighted ? "bg-blue-50 text-blue-900" : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {matches ? (
+                  <>
+                    <span className="font-semibold">{s.slice(0, typed.length)}</span>
+                    {s.slice(typed.length)}
+                  </>
+                ) : (
+                  s
+                )}
+              </div>
+            );
+          })}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxMultiSelector({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxMultiSelector.placeholder,
+  options = INPUT_DEFAULTS.AstryxMultiSelector.options,
+  selected = INPUT_DEFAULTS.AstryxMultiSelector.selected,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const optionList = toList(options);
+  const selectedList = toList(selected);
+  const selectedSet = new Set(selectedList);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-1 min-w-0">
+          {selectedList.length === 0 ? (
+            <span className="text-sm text-gray-400 px-1">{placeholder}</span>
+          ) : (
+            selectedList.map((s) => (
+              <span key={s} className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700">
+                {s}
+                <span className="text-gray-400">×</span>
+              </span>
+            ))
+          )}
+        </div>
+        <ChevronGlyph />
+      </div>
+      {open && optionList.length > 0 && (
+        <InlinePanel>
+          {optionList.map((opt) => {
+            const isChecked = selectedSet.has(opt);
+            return (
+              <div key={opt} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer">
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+                  {isChecked && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                {opt}
+              </div>
+            );
+          })}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxComplexSelector({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxComplexSelector.placeholder,
+  options = INPUT_DEFAULTS.AstryxComplexSelector.options,
+  selected = INPUT_DEFAULTS.AstryxComplexSelector.selected,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  // Each option is "Title:Description" — the description is what makes this
+  // control worth using over a plain Select.
+  const rows = toList(options).map((entry) => {
+    const idx = entry.indexOf(":");
+    return idx === -1
+      ? { title: entry, description: "" }
+      : { title: entry.slice(0, idx).trim(), description: entry.slice(idx + 1).trim() };
+  });
+  const chosen = rows.find((r) => r.title === selected);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <div className="flex-1 min-w-0">
+          {chosen ? (
+            <>
+              <p className="text-sm text-gray-900 truncate">{chosen.title}</p>
+              {chosen.description && <p className="text-xs text-gray-500 truncate">{chosen.description}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">{placeholder}</p>
+          )}
+        </div>
+        <ChevronGlyph />
+      </div>
+      {open && rows.length > 0 && (
+        <InlinePanel>
+          {rows.map((r) => (
+            <div
+              key={r.title}
+              className={`flex items-start gap-2 px-3 py-2 border-b border-gray-100 last:border-0 cursor-pointer ${
+                r.title === selected ? "bg-blue-50" : "hover:bg-gray-50"
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm truncate ${r.title === selected ? "text-blue-900 font-medium" : "text-gray-900"}`}>{r.title}</p>
+                {r.description && <p className="text-xs text-gray-500 truncate">{r.description}</p>}
+              </div>
+              {r.title === selected && <span className="text-blue-600 text-xs shrink-0 mt-0.5">✓</span>}
+            </div>
+          ))}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxPowerSearch({
+  placeholder = INPUT_DEFAULTS.AstryxPowerSearch.placeholder, query = "",
+  filters = INPUT_DEFAULTS.AstryxPowerSearch.filters,
+  resultCount = "",
+  suggestions = INPUT_DEFAULTS.AstryxPowerSearch.suggestions,
+  open = false, disabled = false, borderRadius,
+}: AstryxProps) {
+  const filterList = toList(filters);
+  const suggestionList = toList(suggestions);
+  const typed = String(query);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border border-gray-300 px-3 py-2 ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <SearchGlyph />
+        <div className="flex flex-1 flex-wrap items-center gap-1 min-w-0">
+          {filterList.map((f) => {
+            const idx = f.indexOf(":");
+            const key = idx === -1 ? f : f.slice(0, idx);
+            const val = idx === -1 ? "" : f.slice(idx + 1);
+            return (
+              <span key={f} className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                <span className="opacity-70">{key}:</span>
+                {val}
+                <span className="text-blue-300">×</span>
+              </span>
+            );
+          })}
+          <span className={`text-sm ${typed ? "text-gray-900" : "text-gray-400"}`}>{typed || placeholder}</span>
+        </div>
+        {resultCount !== "" && <span className="text-xs text-gray-400 shrink-0">{resultCount}</span>}
+      </div>
+      {open && suggestionList.length > 0 && (
+        <InlinePanel>
+          {suggestionList.map((s) => (
+            <div key={s} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer">
+              <span className="text-gray-300 text-xs">⌕</span>
+              <span className="truncate">{s}</span>
+            </div>
+          ))}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTokenizer({
+  label,
+  tokens = INPUT_DEFAULTS.AstryxTokenizer.tokens,
+  placeholder = INPUT_DEFAULTS.AstryxTokenizer.placeholder,
+  max = 0, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const tokenList = toList(tokens);
+  const limit = Number(max) || 0;
+  const overLimit = limit > 0 && tokenList.length > limit;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full flex-wrap items-center gap-1 rounded-md border px-2 py-1.5 ${invalid || overLimit ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        {tokenList.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+            {t}
+            <span className="text-gray-400 cursor-pointer hover:text-gray-600">×</span>
+          </span>
+        ))}
+        <span className="flex-1 min-w-[60px] text-sm text-gray-400 px-1">{placeholder}</span>
+        {limit > 0 && (
+          <span className={`text-xs shrink-0 ${overLimit ? "text-red-500" : "text-gray-400"}`}>
+            {tokenList.length}/{limit}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -1039,4 +1649,17 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   SegmentedControl: AstryxSegmentedControl,
   CheckboxList:     AstryxCheckboxList,
   IconButton:       AstryxIconButton,
+  // Date & time
+  DateInput:        AstryxDateInput,
+  TimeInput:        AstryxTimeInput,
+  DateTimeInput:    AstryxDateTimeInput,
+  DateRangeInput:   AstryxDateRangeInput,
+  // File
+  FileInput:        AstryxFileInput,
+  // Advanced selection & search
+  Typeahead:        AstryxTypeahead,
+  MultiSelector:    AstryxMultiSelector,
+  ComplexSelector:  AstryxComplexSelector,
+  PowerSearch:      AstryxPowerSearch,
+  Tokenizer:        AstryxTokenizer,
 };

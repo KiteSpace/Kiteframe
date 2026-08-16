@@ -75,6 +75,16 @@ import {
   AstryxSegmentedControl,
   AstryxCheckboxList,
   AstryxIconButton,
+  AstryxDateInput,
+  AstryxTimeInput,
+  AstryxDateTimeInput,
+  AstryxDateRangeInput,
+  AstryxFileInput,
+  AstryxTypeahead,
+  AstryxMultiSelector,
+  AstryxComplexSelector,
+  AstryxPowerSearch,
+  AstryxTokenizer,
   createEmptyCraftState,
   sanitizeCraftState,
   validateCraftState,
@@ -143,6 +153,17 @@ import {
   AstryxSegmentedControl as AstryxSegmentedControlBase,
   AstryxCheckboxList as AstryxCheckboxListBase,
   AstryxIconButton as AstryxIconButtonBase,
+  AstryxDateInput as AstryxDateInputBase,
+  AstryxTimeInput as AstryxTimeInputBase,
+  AstryxDateTimeInput as AstryxDateTimeInputBase,
+  AstryxDateRangeInput as AstryxDateRangeInputBase,
+  AstryxFileInput as AstryxFileInputBase,
+  AstryxTypeahead as AstryxTypeaheadBase,
+  AstryxMultiSelector as AstryxMultiSelectorBase,
+  AstryxComplexSelector as AstryxComplexSelectorBase,
+  AstryxPowerSearch as AstryxPowerSearchBase,
+  AstryxTokenizer as AstryxTokenizerBase,
+  INPUT_DEFAULTS,
   ICON_GLYPHS,
 } from "@/components/astryx";
 
@@ -468,6 +489,68 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "IconButton", description: "Icon-only button",
         getElement: () => <AstryxIconButton name="search" variant="outline" size="md" />,
         preview: <AstryxIconButtonBase name="search" variant="outline" size="md" />,
+      },
+    ],
+  },
+  {
+    name: "Date & Time",
+    items: [
+      {
+        name: "DateInput", description: "Date picker field",
+        getElement: () => <AstryxDateInput label="Due date" value="Aug 16, 2026" selectedDay={16} />,
+        preview: <AstryxDateInputBase value="Aug 16, 2026" />,
+      },
+      {
+        name: "TimeInput", description: "Time picker field",
+        getElement: () => <AstryxTimeInput label="Start time" value="10:30" />,
+        preview: <AstryxTimeInputBase value="10:30" />,
+      },
+      {
+        name: "DateTimeInput", description: "Date and time field",
+        // The displayed value, the highlighted day and the highlighted time all
+        // have to agree, or opening the panel contradicts the field.
+        getElement: () => <AstryxDateTimeInput label="Starts at" value="Aug 16, 2026 · 10:30" selectedDay={16} selectedTime="10:30" />,
+        preview: <AstryxDateTimeInputBase value="Aug 16 · 10:30" />,
+      },
+      {
+        name: "DateRangeInput", description: "Date range field",
+        getElement: () => <AstryxDateRangeInput label="Period" startValue="Aug 12" endValue="Aug 20" />,
+        preview: <AstryxDateRangeInputBase startValue="Aug 12" endValue="Aug 20" />,
+      },
+      {
+        name: "FileInput", description: "File upload field",
+        getElement: () => <AstryxFileInput label="Attachment" />,
+        preview: <AstryxFileInputBase fileName="report.pdf" fileSize="248 KB" />,
+      },
+    ],
+  },
+  {
+    name: "Selection & Search",
+    items: [
+      {
+        name: "Typeahead", description: "Search-as-you-type",
+        getElement: () => <AstryxTypeahead label="Assignee" query="Ali" open highlighted="Alice Chen" />,
+        preview: <AstryxTypeaheadBase query="Ali" />,
+      },
+      {
+        name: "MultiSelector", description: "Multi-select dropdown",
+        getElement: () => <AstryxMultiSelector label="Teams" selected="Design,Engineering" />,
+        preview: <AstryxMultiSelectorBase selected="Design" options="Design,Sales" />,
+      },
+      {
+        name: "ComplexSelector", description: "Rich option list",
+        getElement: () => <AstryxComplexSelector label="Plan" selected="Growth" />,
+        preview: <AstryxComplexSelectorBase selected="Growth" />,
+      },
+      {
+        name: "PowerSearch", description: "Search with filters",
+        getElement: () => <AstryxPowerSearch query="report" resultCount="42 results" />,
+        preview: <AstryxPowerSearchBase query="report" filters="status:Active" />,
+      },
+      {
+        name: "Tokenizer", description: "Tag entry field",
+        getElement: () => <AstryxTokenizer label="Tags" tokens="design,research,prototype" />,
+        preview: <AstryxTokenizerBase tokens="design,research" />,
       },
     ],
   },
@@ -1467,6 +1550,151 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
+  // ─── Date, time and advanced selection inputs ───────────────────────────────
+  // Every state these controls can be in is reachable from here: `open` expands
+  // the inline panel, `invalid` renders the error treatment, and the value props
+  // switch between the empty and populated states. A designer should never have
+  // to interact with a control to compose the state they want to show.
+
+  if (displayName === "AstryxDateInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Value"><TextProp value={props.value ?? ""} onChange={(v) => setProp("value", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxDateInput.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Panel month"><TextProp value={props.month ?? INPUT_DEFAULTS.AstryxDateInput.month} onChange={(v) => setProp("month", v)} /></PropRow>
+      <PropRow label="Selected day"><NumberProp value={props.selectedDay ?? INPUT_DEFAULTS.AstryxDateInput.selectedDay} min={1} max={31} onChange={(v) => setProp("selectedDay", v)} /></PropRow>
+      <BoolPropRow label="Show calendar" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxTimeInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Value"><TextProp value={props.value ?? ""} onChange={(v) => setProp("value", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxTimeInput.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Times (comma-sep)"><TextProp value={props.times ?? INPUT_DEFAULTS.AstryxTimeInput.times} onChange={(v) => setProp("times", v)} /></PropRow>
+      <BoolPropRow label="Show times" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxDateTimeInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Value"><TextProp value={props.value ?? ""} onChange={(v) => setProp("value", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxDateTimeInput.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Panel month"><TextProp value={props.month ?? INPUT_DEFAULTS.AstryxDateTimeInput.month} onChange={(v) => setProp("month", v)} /></PropRow>
+      <PropRow label="Selected day"><NumberProp value={props.selectedDay ?? INPUT_DEFAULTS.AstryxDateTimeInput.selectedDay} min={1} max={31} onChange={(v) => setProp("selectedDay", v)} /></PropRow>
+      <PropRow label="Times (comma-sep)"><TextProp value={props.times ?? INPUT_DEFAULTS.AstryxDateTimeInput.times} onChange={(v) => setProp("times", v)} /></PropRow>
+      <PropRow label="Selected time"><TextProp value={props.selectedTime ?? INPUT_DEFAULTS.AstryxDateTimeInput.selectedTime} onChange={(v) => setProp("selectedTime", v)} /></PropRow>
+      <BoolPropRow label="Show picker" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxDateRangeInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Start value"><TextProp value={props.startValue ?? ""} onChange={(v) => setProp("startValue", v)} /></PropRow>
+      <PropRow label="End value"><TextProp value={props.endValue ?? ""} onChange={(v) => setProp("endValue", v)} /></PropRow>
+      <PropRow label="Start placeholder"><TextProp value={props.startPlaceholder ?? INPUT_DEFAULTS.AstryxDateRangeInput.startPlaceholder} onChange={(v) => setProp("startPlaceholder", v)} /></PropRow>
+      <PropRow label="End placeholder"><TextProp value={props.endPlaceholder ?? INPUT_DEFAULTS.AstryxDateRangeInput.endPlaceholder} onChange={(v) => setProp("endPlaceholder", v)} /></PropRow>
+      <PropRow label="Panel month"><TextProp value={props.month ?? INPUT_DEFAULTS.AstryxDateRangeInput.month} onChange={(v) => setProp("month", v)} /></PropRow>
+      <PropRow label="Range start day"><NumberProp value={props.rangeStart ?? INPUT_DEFAULTS.AstryxDateRangeInput.rangeStart} min={1} max={31} onChange={(v) => setProp("rangeStart", v)} /></PropRow>
+      <PropRow label="Range end day"><NumberProp value={props.rangeEnd ?? INPUT_DEFAULTS.AstryxDateRangeInput.rangeEnd} min={1} max={31} onChange={(v) => setProp("rangeEnd", v)} /></PropRow>
+      <BoolPropRow label="Show calendar" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxFileInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Prompt"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxFileInput.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Hint"><TextProp value={props.hint ?? INPUT_DEFAULTS.AstryxFileInput.hint} onChange={(v) => setProp("hint", v)} /></PropRow>
+      <PropRow label="File name"><TextProp value={props.fileName ?? ""} onChange={(v) => setProp("fileName", v)} /></PropRow>
+      <PropRow label="File size"><TextProp value={props.fileSize ?? INPUT_DEFAULTS.AstryxFileInput.fileSize} onChange={(v) => setProp("fileSize", v)} /></PropRow>
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxTypeahead") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Query"><TextProp value={props.query ?? ""} onChange={(v) => setProp("query", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxTypeahead.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Suggestions (comma-sep)"><TextProp value={props.suggestions ?? INPUT_DEFAULTS.AstryxTypeahead.suggestions} onChange={(v) => setProp("suggestions", v)} /></PropRow>
+      <PropRow label="Highlighted"><TextProp value={props.highlighted ?? ""} onChange={(v) => setProp("highlighted", v)} /></PropRow>
+      <BoolPropRow label="Show suggestions" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxMultiSelector") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxMultiSelector.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? INPUT_DEFAULTS.AstryxMultiSelector.options} onChange={(v) => setProp("options", v)} /></PropRow>
+      <PropRow label="Selected (comma-sep)"><TextProp value={props.selected ?? INPUT_DEFAULTS.AstryxMultiSelector.selected} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <BoolPropRow label="Show options" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxComplexSelector") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxComplexSelector.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label='Options ("Title:Description")'>
+        <TextProp value={props.options ?? INPUT_DEFAULTS.AstryxComplexSelector.options} onChange={(v) => setProp("options", v)} />
+      </PropRow>
+      <PropRow label="Selected title"><TextProp value={props.selected ?? INPUT_DEFAULTS.AstryxComplexSelector.selected} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <BoolPropRow label="Show options" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxPowerSearch") return (
+    <>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxPowerSearch.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Query"><TextProp value={props.query ?? ""} onChange={(v) => setProp("query", v)} /></PropRow>
+      <PropRow label='Filters ("key:value")'><TextProp value={props.filters ?? INPUT_DEFAULTS.AstryxPowerSearch.filters} onChange={(v) => setProp("filters", v)} /></PropRow>
+      <PropRow label="Result count"><TextProp value={props.resultCount ?? ""} onChange={(v) => setProp("resultCount", v)} /></PropRow>
+      <PropRow label="Suggestions (comma-sep)"><TextProp value={props.suggestions ?? INPUT_DEFAULTS.AstryxPowerSearch.suggestions} onChange={(v) => setProp("suggestions", v)} /></PropRow>
+      <BoolPropRow label="Show suggestions" value={props.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxTokenizer") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Tokens (comma-sep)"><TextProp value={props.tokens ?? INPUT_DEFAULTS.AstryxTokenizer.tokens} onChange={(v) => setProp("tokens", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? INPUT_DEFAULTS.AstryxTokenizer.placeholder} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Max (0 = none)"><NumberProp value={props.max ?? 0} min={0} onChange={(v) => setProp("max", v)} /></PropRow>
+      <BoolPropRow label="Error state" value={props.invalid} onChange={(v) => setProp("invalid", v)} />
+      <BoolPropRow label="Required" value={props.required} onChange={(v) => setProp("required", v)} />
+      <BoolPropRow label="Disabled" value={props.disabled} onChange={(v) => setProp("disabled", v)} />
+    </>
+  );
+
   if (displayName === "AstryxArtboard") return (
     <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
   );
@@ -1494,6 +1722,18 @@ const SPACING_PRESETS = [
   { label: "Comfortable", sub: "gap 12 · pad 16", gap: 12, padding: 16 },
   { label: "Spacious",    sub: "gap 20 · pad 24", gap: 20, padding: 24 },
 ];
+
+/** Boolean prop row with a Yes/No readout — the shape used throughout the inspector. */
+function BoolPropRow({ label, value, onChange }: { label: string; value: any; onChange: (v: boolean) => void }) {
+  return (
+    <PropRow label={label}>
+      <div className="flex items-center gap-2">
+        <ToggleProp value={!!value} onChange={onChange} />
+        <span className="text-xs text-muted-foreground">{value ? "Yes" : "No"}</span>
+      </div>
+    </PropRow>
+  );
+}
 
 const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);

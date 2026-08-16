@@ -68,6 +68,19 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   "AstryxSegmentedControl",
   "AstryxCheckboxList",
   "AstryxIconButton",
+  // Date & time inputs
+  "AstryxDateInput",
+  "AstryxTimeInput",
+  "AstryxDateTimeInput",
+  "AstryxDateRangeInput",
+  // File input
+  "AstryxFileInput",
+  // Advanced selection & search
+  "AstryxTypeahead",
+  "AstryxMultiSelector",
+  "AstryxComplexSelector",
+  "AstryxPowerSearch",
+  "AstryxTokenizer",
   // Navigation
   "AstryxNavbar",
   "AstryxSidebar",

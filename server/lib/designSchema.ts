@@ -149,6 +149,19 @@ export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   "AstryxSegmentedControl",
   "AstryxCheckboxList",
   "AstryxIconButton",
+  // Date & time inputs
+  "AstryxDateInput",
+  "AstryxTimeInput",
+  "AstryxDateTimeInput",
+  "AstryxDateRangeInput",
+  // File input
+  "AstryxFileInput",
+  // Advanced selection & search
+  "AstryxTypeahead",
+  "AstryxMultiSelector",
+  "AstryxComplexSelector",
+  "AstryxPowerSearch",
+  "AstryxTokenizer",
   // Navigation
   "AstryxNavbar",
   "AstryxSidebar",

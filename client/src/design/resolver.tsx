@@ -52,6 +52,16 @@ import {
   AstryxNumberInput as AstryxNumberInputBase,
   AstryxToggleButton as AstryxToggleButtonBase,
   AstryxSegmentedControl as AstryxSegmentedControlBase,
+  AstryxDateInput as AstryxDateInputBase,
+  AstryxTimeInput as AstryxTimeInputBase,
+  AstryxDateTimeInput as AstryxDateTimeInputBase,
+  AstryxDateRangeInput as AstryxDateRangeInputBase,
+  AstryxFileInput as AstryxFileInputBase,
+  AstryxTypeahead as AstryxTypeaheadBase,
+  AstryxMultiSelector as AstryxMultiSelectorBase,
+  AstryxComplexSelector as AstryxComplexSelectorBase,
+  AstryxPowerSearch as AstryxPowerSearchBase,
+  AstryxTokenizer as AstryxTokenizerBase,
   AstryxCheckboxList as AstryxCheckboxListBase,
   AstryxIconButton as AstryxIconButtonBase,
   // Navigation
@@ -235,6 +245,10 @@ const FULL_WIDTH_LEAF = new Set([
   "AstryxProgressBar", "AstryxTextInput", "AstryxSelect", "AstryxRadioGroup",
   "AstryxHeading", "AstryxBarChart", "AstryxLineChart", "AstryxPieChart",
   "AstryxTextArea", "AstryxNumberInput", "AstryxSegmentedControl", "AstryxCheckboxList",
+  // Date, time and advanced selection inputs — all block-level fields.
+  "AstryxDateInput", "AstryxTimeInput", "AstryxDateTimeInput", "AstryxDateRangeInput",
+  "AstryxFileInput", "AstryxTypeahead", "AstryxMultiSelector", "AstryxComplexSelector",
+  "AstryxPowerSearch", "AstryxTokenizer",
 ]);
 
 function useLeafNode() {
@@ -1197,6 +1211,120 @@ export function AstryxIconButton(props: AstryxProps) {
   );
 }
 (AstryxIconButton as any).craft = { displayName: "AstryxIconButton", rules: { canMoveIn: () => false } };
+
+// ─── Date, time and advanced selection inputs ─────────────────────────────────
+// All leaves: their inline panels are rendered by the base component and are not
+// drop targets, so none of them accept children.
+
+export function AstryxDateInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxDateInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxDateInput as any).craft = { displayName: "AstryxDateInput", rules: { canMoveIn: () => false } };
+
+export function AstryxTimeInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTimeInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTimeInput as any).craft = { displayName: "AstryxTimeInput", rules: { canMoveIn: () => false } };
+
+export function AstryxDateTimeInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxDateTimeInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxDateTimeInput as any).craft = { displayName: "AstryxDateTimeInput", rules: { canMoveIn: () => false } };
+
+export function AstryxDateRangeInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxDateRangeInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxDateRangeInput as any).craft = { displayName: "AstryxDateRangeInput", rules: { canMoveIn: () => false } };
+
+export function AstryxFileInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxFileInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxFileInput as any).craft = { displayName: "AstryxFileInput", rules: { canMoveIn: () => false } };
+
+export function AstryxTypeahead(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTypeaheadBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTypeahead as any).craft = { displayName: "AstryxTypeahead", rules: { canMoveIn: () => false } };
+
+export function AstryxMultiSelector(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxMultiSelectorBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxMultiSelector as any).craft = { displayName: "AstryxMultiSelector", rules: { canMoveIn: () => false } };
+
+export function AstryxComplexSelector(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxComplexSelectorBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxComplexSelector as any).craft = { displayName: "AstryxComplexSelector", rules: { canMoveIn: () => false } };
+
+export function AstryxPowerSearch(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxPowerSearchBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxPowerSearch as any).craft = { displayName: "AstryxPowerSearch", rules: { canMoveIn: () => false } };
+
+export function AstryxTokenizer(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTokenizerBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTokenizer as any).craft = { displayName: "AstryxTokenizer", rules: { canMoveIn: () => false } };
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
@@ -2551,6 +2679,19 @@ export const resolver = {
   AstryxSegmentedControl,
   AstryxCheckboxList,
   AstryxIconButton,
+  // Date & time
+  AstryxDateInput,
+  AstryxTimeInput,
+  AstryxDateTimeInput,
+  AstryxDateRangeInput,
+  // File
+  AstryxFileInput,
+  // Advanced selection & search
+  AstryxTypeahead,
+  AstryxMultiSelector,
+  AstryxComplexSelector,
+  AstryxPowerSearch,
+  AstryxTokenizer,
   // Navigation
   AstryxNavbar,
   AstryxSidebar,
