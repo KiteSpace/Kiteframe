@@ -1,4 +1,4 @@
-import { useState, useEffect, Children, type ReactNode } from "react";
+import { useState, useEffect, Children, type ReactNode, type CSSProperties } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -1585,6 +1585,649 @@ export function AstryxTokenizer({
   );
 }
 
+// ─── Overlays, menus & surfaces ───────────────────────────────────────────────
+//
+// DESIGN-TIME OVERLAY APPROACH — read this before adding another overlay.
+//
+// A real component library portals overlays to document.body, hides them until
+// a trigger fires, and traps focus. A design tool needs the exact opposite: the
+// user is drawing a picture of an interface, so the overlay has to be a visible,
+// selectable, movable object sitting inside its artboard.
+//
+// Two rules make that work, and every component below reuses them rather than
+// inventing its own variation:
+//
+// 1. NEVER portal and NEVER use `position: fixed`. The canvas applies a pan/zoom
+//    transform, and a transformed ancestor becomes the containing block for
+//    fixed descendants — so a "fixed" overlay is positioned against the canvas
+//    layer, not the viewport. It lands outside the artboard it belongs to and
+//    then silently eats clicks meant for whatever it covers.
+//    See .agents/memory/fixed-overlay-inside-transformed-canvas.md.
+//
+// 2. EVERY OVERLAY OWNS ITS OWN BOUNDS. Anchored overlays (popover, tooltip,
+//    menus) lay the anchor and the panel out as flex siblings — `placement` picks
+//    the flex direction and `align` the cross-axis — so the panel is *inside* the
+//    component's own box by construction and cannot escape the artboard. Panels
+//    shrink (`minWidth: 0`, `maxWidth: 100%`) instead of overflowing sideways.
+//    Scrim-based overlays (dialog, toast, lightbox) render on a bounded stage
+//    that is `position: relative` with an explicit height and `overflow: hidden`,
+//    so its absolutely-positioned layers resolve against the stage rather than
+//    some arbitrary ancestor.
+//    See .agents/memory/preview-owns-its-containing-block.md.
+//
+// A consequence worth stating: `open` does not mean "mounted on trigger", it is
+// just another inspector prop. Setting it false is how a user designs the closed
+// state. Nothing here has trigger, dismiss or timer behaviour, and nothing sets
+// `pointer-events: none` — that silently breaks craft.js selection and drag-drop
+// (see .agents/memory/craftjs-pointer-events.md).
+
+export type OverlayPlacement = "top" | "bottom" | "left" | "right";
+export type OverlayAlign = "start" | "center" | "end";
+
+const PLACEMENT_DIRECTION: Record<string, "row" | "row-reverse" | "column" | "column-reverse"> = {
+  bottom: "column", top: "column-reverse", right: "row", left: "row-reverse",
+};
+const ALIGN_ITEMS: Record<string, "flex-start" | "center" | "flex-end"> = {
+  start: "flex-start", center: "center", end: "flex-end",
+};
+
+/** Scrim treatments, shared by the stage helper and the AstryxOverlay container. */
+export const OVERLAY_SCRIMS: Record<string, CSSProperties> = {
+  dark:  { background: "rgba(15, 23, 42, 0.55)" },
+  light: { background: "rgba(255, 255, 255, 0.72)" },
+  blur:  { background: "rgba(15, 23, 42, 0.28)", backdropFilter: "blur(3px)" },
+  none:  { background: "transparent" },
+};
+
+/**
+ * Single source of truth for every non-trivial overlay default, for exactly the
+ * reason INPUT_DEFAULTS exists: the inspector rows are controlled inputs seeded
+ * from a fallback, so a fallback that disagrees with the component's own default
+ * silently overwrites real props the first time the user edits that panel.
+ * See .agents/memory/inspector-default-drift.md.
+ */
+export const OVERLAY_DEFAULTS = {
+  AstryxPopover: {
+    anchorLabel: "Share",
+    title: "Share this project",
+    description: "Anyone with the link can view this design.",
+    confirmLabel: "Copy link",
+    cancelLabel: "",
+    placement: "bottom",
+    align: "start",
+    width: 240,
+    open: true,
+    showArrow: true,
+  },
+  AstryxTooltip: {
+    anchorLabel: "Save draft",
+    text: "Saves without publishing",
+    placement: "top",
+    align: "center",
+    width: 200,
+    open: true,
+    showArrow: true,
+  },
+  AstryxHoverCard: {
+    anchorLabel: "@alicechen",
+    name: "Alice Chen",
+    handle: "@alicechen",
+    bio: "Product designer at Acme. Building the design system.",
+    meta: "Joined March 2024",
+    placement: "bottom",
+    align: "start",
+    width: 260,
+    open: true,
+    showArrow: true,
+  },
+  AstryxDropdownMenu: {
+    label: "Actions",
+    items: "Edit:⌘E,Duplicate:⌘D,---,Move to…,!Delete:⌫",
+    selected: "",
+    placement: "bottom",
+    align: "start",
+    width: 200,
+    open: true,
+  },
+  AstryxContextMenu: {
+    surfaceLabel: "Right-click anywhere in this area",
+    items: "Cut:⌘X,Copy:⌘C,Paste:⌘V,---,!Delete",
+    selected: "",
+    placement: "bottom",
+    align: "start",
+    width: 190,
+    open: true,
+  },
+  AstryxMoreMenu: {
+    glyph: "⋯",
+    items: "Rename,Duplicate,---,!Delete",
+    selected: "",
+    placement: "bottom",
+    align: "end",
+    width: 170,
+    open: true,
+  },
+  AstryxAlertDialog: {
+    title: "Delete this design?",
+    description: "This permanently removes the design and all of its screens. This cannot be undone.",
+    confirmLabel: "Delete",
+    cancelLabel: "Cancel",
+    tone: "danger",
+    scrim: "dark",
+    stageHeight: 200,
+    width: 320,
+    showStage: true,
+  },
+  AstryxToast: {
+    title: "Changes saved",
+    description: "Your design has been updated.",
+    variant: "success",
+    actionLabel: "Undo",
+    position: "bottom-right",
+    stageHeight: 160,
+    width: 280,
+    showClose: true,
+    showStage: true,
+  },
+  AstryxLightbox: {
+    src: "",
+    caption: "Homepage hero — final",
+    counter: "3 of 12",
+    stageHeight: 220,
+    showControls: true,
+    showClose: true,
+  },
+  AstryxOverlay: {
+    scrim: "dark",
+    padding: 24,
+    align: "center",
+    minHeight: 160,
+  },
+} as const;
+
+/** A panel is never wider than the space it has — this is what keeps it in frame. */
+const panelSizeStyle = (width: any, fallback: number): CSSProperties => ({
+  width: Number(width) || fallback,
+  maxWidth: "100%",
+  minWidth: 0,
+  flexShrink: 1,
+  // Every string here is user- or AI-supplied. A long unbroken value (a URL, a
+  // pasted id) would otherwise render past the panel edge and out of the
+  // artboard, which is exactly the escape this section exists to prevent.
+  overflowWrap: "anywhere",
+});
+
+function PanelArrow({ placement = "bottom", align = "start", color = "#ffffff" }: AstryxProps) {
+  const s = 6;
+  const vertical = placement === "top" || placement === "bottom";
+  const offset: CSSProperties =
+    align === "center" ? {}
+    : vertical
+      ? (align === "start" ? { marginLeft: 12 } : { marginRight: 12 })
+      : (align === "start" ? { marginTop: 12 } : { marginBottom: 12 });
+  const shape: CSSProperties =
+    placement === "top"   ? { borderLeft: `${s}px solid transparent`, borderRight: `${s}px solid transparent`, borderTop: `${s}px solid ${color}` }
+    : placement === "left"  ? { borderTop: `${s}px solid transparent`, borderBottom: `${s}px solid transparent`, borderLeft: `${s}px solid ${color}` }
+    : placement === "right" ? { borderTop: `${s}px solid transparent`, borderBottom: `${s}px solid transparent`, borderRight: `${s}px solid ${color}` }
+    :                         { borderLeft: `${s}px solid transparent`, borderRight: `${s}px solid transparent`, borderBottom: `${s}px solid ${color}` };
+  return <div style={{ width: 0, height: 0, flexShrink: 0, ...shape, ...offset }} />;
+}
+
+/**
+ * Lays an anchor and its floating panel out as flex siblings. `placement`
+ * chooses the side by picking the flex direction, so the panel is contained by
+ * this element instead of floating over the page.
+ */
+function AnchoredOverlay({
+  placement = "bottom", align = "start", open = true, showArrow = true,
+  arrowColor = "#ffffff", anchor, children,
+}: AstryxProps) {
+  const direction = PLACEMENT_DIRECTION[placement as string] ?? "column";
+  const alignItems = ALIGN_ITEMS[align as string] ?? "flex-start";
+  return (
+    <div className="w-full flex" style={{ flexDirection: direction, alignItems, flexWrap: "nowrap" }}>
+      {anchor}
+      {open && showArrow ? <PanelArrow placement={placement} align={align} color={arrowColor} /> : null}
+      {open ? children : null}
+    </div>
+  );
+}
+
+/**
+ * A bounded stage for scrim-based overlays. `position: relative` + an explicit
+ * height + `overflow: hidden` means the scrim and the dialog resolve against
+ * this box and physically cannot escape the artboard.
+ */
+function OverlayStage({
+  minHeight = 180, scrim = "dark", align = "center", justify = "center",
+  padding = 16, surface = "#f8fafc", showPageHint = true, children,
+}: AstryxProps) {
+  const h = Math.max(60, Number(minHeight) || 180);
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-lg border border-gray-200"
+      style={{ minHeight: h, background: surface }}
+    >
+      {showPageHint ? (
+        <div className="absolute inset-0 flex flex-col gap-2 p-3">
+          <div className="h-2.5 w-1/3 rounded bg-gray-200" />
+          <div className="h-2 w-2/3 rounded bg-gray-100" />
+          <div className="h-2 w-1/2 rounded bg-gray-100" />
+          <div className="mt-auto h-2 w-1/4 rounded bg-gray-100" />
+        </div>
+      ) : null}
+      <div className="absolute inset-0" style={OVERLAY_SCRIMS[scrim as string] ?? OVERLAY_SCRIMS.dark} />
+      <div
+        className="relative flex"
+        style={{
+          minHeight: h,
+          alignItems: ALIGN_ITEMS[align as string] ?? "center",
+          justifyContent: ALIGN_ITEMS[justify as string] ?? "center",
+          padding: Math.max(0, Number(padding) || 0),
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface ParsedMenuItem { kind: "item" | "separator"; label: string; shortcut?: string; destructive?: boolean; }
+
+/**
+ * Menu items are one comma-separated string, matching how every other list-bearing
+ * component in this palette takes its content. Within it: "---" is a separator,
+ * "Label:Shortcut" adds right-aligned shortcut text, and a leading "!" marks a
+ * destructive item.
+ */
+export function parseMenuItems(raw: any): ParsedMenuItem[] {
+  return String(raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (/^-{2,}$/.test(entry)) return { kind: "separator" as const, label: "" };
+      const destructive = entry.startsWith("!");
+      const body = destructive ? entry.slice(1).trim() : entry;
+      const sep = body.indexOf(":");
+      const label = sep === -1 ? body : body.slice(0, sep).trim();
+      const shortcut = sep === -1 ? undefined : body.slice(sep + 1).trim() || undefined;
+      return { kind: "item" as const, label, shortcut, destructive };
+    })
+    .filter((i) => i.kind === "separator" || i.label.length > 0);
+}
+
+function MenuPanel({ items, selected = "", width = 200, fallbackWidth = 200 }: AstryxProps) {
+  const parsed = parseMenuItems(items);
+  return (
+    <div
+      className="rounded-md border border-gray-200 bg-white py-1 shadow-lg overflow-hidden"
+      style={panelSizeStyle(width, fallbackWidth)}
+    >
+      {parsed.length === 0 ? (
+        <div className="px-3 py-1.5 text-xs text-gray-400">No items</div>
+      ) : parsed.map((item, i) =>
+        item.kind === "separator" ? (
+          <div key={i} className="my-1 h-px bg-gray-100" />
+        ) : (
+          <div
+            key={i}
+            className={`flex items-center justify-between gap-6 px-3 py-1.5 text-sm ${
+              item.label === selected ? "bg-gray-100 text-gray-900 font-medium"
+                : item.destructive ? "text-red-600" : "text-gray-700"
+            }`}
+          >
+            {/* min-w-0 is what makes `truncate` actually truncate: without it the
+                flex item refuses to shrink below its content and a long unbroken
+                label pushes out of the panel instead of ellipsing. */}
+            <span className="min-w-0 truncate">{item.label}</span>
+            {item.shortcut ? <span className="shrink-0 text-xs text-gray-400">{item.shortcut}</span> : null}
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
+const anchorChipClass =
+  "inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm";
+
+/**
+ * The anchor is the other half of an anchored overlay, and it carries a
+ * user-supplied label — so it needs the same bounds discipline as the panel.
+ * It may shrink and must wrap rather than push itself past the artboard edge.
+ */
+const anchorStyle: CSSProperties = { flexShrink: 1, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" };
+
+// ── Anchored overlays ─────────────────────────────────────────────────────────
+
+export function AstryxPopover({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxPopover.anchorLabel,
+  title = OVERLAY_DEFAULTS.AstryxPopover.title,
+  description = OVERLAY_DEFAULTS.AstryxPopover.description,
+  confirmLabel = OVERLAY_DEFAULTS.AstryxPopover.confirmLabel,
+  cancelLabel = OVERLAY_DEFAULTS.AstryxPopover.cancelLabel,
+  placement = OVERLAY_DEFAULTS.AstryxPopover.placement,
+  align = OVERLAY_DEFAULTS.AstryxPopover.align,
+  width = OVERLAY_DEFAULTS.AstryxPopover.width,
+  open = OVERLAY_DEFAULTS.AstryxPopover.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxPopover.showArrow,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#ffffff"
+      anchor={<span className={anchorChipClass} style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg" style={panelSizeStyle(width, 240)}>
+        {title ? <p className="text-sm font-semibold text-gray-900">{title}</p> : null}
+        {description ? <p className="mt-1 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+        {confirmLabel || cancelLabel ? (
+          <div className="mt-3 flex justify-end gap-2">
+            {cancelLabel ? <span className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">{cancelLabel}</span> : null}
+            {confirmLabel ? <span className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">{confirmLabel}</span> : null}
+          </div>
+        ) : null}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxTooltip({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxTooltip.anchorLabel,
+  text = OVERLAY_DEFAULTS.AstryxTooltip.text,
+  placement = OVERLAY_DEFAULTS.AstryxTooltip.placement,
+  align = OVERLAY_DEFAULTS.AstryxTooltip.align,
+  width = OVERLAY_DEFAULTS.AstryxTooltip.width,
+  open = OVERLAY_DEFAULTS.AstryxTooltip.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxTooltip.showArrow,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#111827"
+      anchor={<span className={anchorChipClass} style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div
+        className="rounded-md bg-gray-900 px-2 py-1 text-xs leading-snug text-white shadow-lg"
+        style={panelSizeStyle(width, 200)}
+      >
+        {text}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxHoverCard({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxHoverCard.anchorLabel,
+  name = OVERLAY_DEFAULTS.AstryxHoverCard.name,
+  handle = OVERLAY_DEFAULTS.AstryxHoverCard.handle,
+  bio = OVERLAY_DEFAULTS.AstryxHoverCard.bio,
+  meta = OVERLAY_DEFAULTS.AstryxHoverCard.meta,
+  src,
+  placement = OVERLAY_DEFAULTS.AstryxHoverCard.placement,
+  align = OVERLAY_DEFAULTS.AstryxHoverCard.align,
+  width = OVERLAY_DEFAULTS.AstryxHoverCard.width,
+  open = OVERLAY_DEFAULTS.AstryxHoverCard.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxHoverCard.showArrow,
+}: AstryxProps) {
+  const initials = String(name).split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#ffffff"
+      anchor={<span className="text-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2" style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg" style={panelSizeStyle(width, 260)}>
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-blue-500 text-sm font-medium text-white flex items-center justify-center">
+            {src ? <img src={src} alt={name} className="h-full w-full object-cover" /> : initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
+            {handle ? <p className="truncate text-xs text-gray-500">{handle}</p> : null}
+          </div>
+        </div>
+        {bio ? <p className="mt-2 text-xs leading-relaxed text-gray-600">{bio}</p> : null}
+        {meta ? <p className="mt-2 text-[11px] text-gray-400">{meta}</p> : null}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+// ── Menus ─────────────────────────────────────────────────────────────────────
+
+export function AstryxDropdownMenu({
+  label = OVERLAY_DEFAULTS.AstryxDropdownMenu.label,
+  items = OVERLAY_DEFAULTS.AstryxDropdownMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxDropdownMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxDropdownMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxDropdownMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxDropdownMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxDropdownMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <span className={anchorChipClass} style={anchorStyle}>
+          {label}
+          <span className="text-xs text-gray-400">▾</span>
+        </span>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, marginLeft: placement === "right" ? 4 : 0, marginRight: placement === "left" ? 4 : 0, ...panelSizeStyle(width, 200) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={200} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxContextMenu({
+  surfaceLabel = OVERLAY_DEFAULTS.AstryxContextMenu.surfaceLabel,
+  items = OVERLAY_DEFAULTS.AstryxContextMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxContextMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxContextMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxContextMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxContextMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxContextMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <div className="w-full rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-center text-xs text-gray-400" style={anchorStyle}>
+          {surfaceLabel}
+        </div>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, ...panelSizeStyle(width, 190) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={190} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxMoreMenu({
+  glyph = OVERLAY_DEFAULTS.AstryxMoreMenu.glyph,
+  items = OVERLAY_DEFAULTS.AstryxMoreMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxMoreMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxMoreMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxMoreMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxMoreMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxMoreMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <span className="inline-flex h-8 min-w-8 items-center justify-center overflow-hidden rounded-md border border-gray-300 bg-white px-1 text-base leading-none text-gray-600 shadow-sm" style={anchorStyle}>
+          {glyph}
+        </span>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, ...panelSizeStyle(width, 170) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={170} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+// ── Dialogs & surfaces ────────────────────────────────────────────────────────
+
+const DIALOG_TONES: Record<string, { icon: string; iconClass: string; confirmClass: string }> = {
+  danger:  { icon: "⚠", iconClass: "bg-red-100 text-red-600",     confirmClass: "bg-red-600 text-white" },
+  warning: { icon: "⚠", iconClass: "bg-amber-100 text-amber-600", confirmClass: "bg-amber-500 text-white" },
+  info:    { icon: "ⓘ", iconClass: "bg-blue-100 text-blue-600",   confirmClass: "bg-blue-600 text-white" },
+};
+
+export function AstryxAlertDialog({
+  title = OVERLAY_DEFAULTS.AstryxAlertDialog.title,
+  description = OVERLAY_DEFAULTS.AstryxAlertDialog.description,
+  confirmLabel = OVERLAY_DEFAULTS.AstryxAlertDialog.confirmLabel,
+  cancelLabel = OVERLAY_DEFAULTS.AstryxAlertDialog.cancelLabel,
+  tone = OVERLAY_DEFAULTS.AstryxAlertDialog.tone,
+  scrim = OVERLAY_DEFAULTS.AstryxAlertDialog.scrim,
+  stageHeight = OVERLAY_DEFAULTS.AstryxAlertDialog.stageHeight,
+  showStage = OVERLAY_DEFAULTS.AstryxAlertDialog.showStage,
+  width = OVERLAY_DEFAULTS.AstryxAlertDialog.width,
+}: AstryxProps) {
+  const t = DIALOG_TONES[tone as string] ?? DIALOG_TONES.danger;
+  const dialog = (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-2xl" style={panelSizeStyle(width, 320)}>
+      <div className="flex items-start gap-3">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${t.iconClass}`}>{t.icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900">{title}</p>
+          {description ? <p className="mt-1 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        {cancelLabel ? <span className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">{cancelLabel}</span> : null}
+        {confirmLabel ? <span className={`rounded-md px-3 py-1.5 text-xs font-medium ${t.confirmClass}`}>{confirmLabel}</span> : null}
+      </div>
+    </div>
+  );
+  if (showStage === false) return <div className="w-full">{dialog}</div>;
+  return <OverlayStage minHeight={stageHeight} scrim={scrim} align="center" justify="center">{dialog}</OverlayStage>;
+}
+
+const TOAST_VARIANTS: Record<string, { icon: string; iconClass: string; ring: string }> = {
+  info:    { icon: "ⓘ", iconClass: "bg-blue-100 text-blue-600",   ring: "border-gray-200" },
+  success: { icon: "✓", iconClass: "bg-green-100 text-green-600", ring: "border-gray-200" },
+  warning: { icon: "⚠", iconClass: "bg-amber-100 text-amber-600", ring: "border-amber-200" },
+  error:   { icon: "✕", iconClass: "bg-red-100 text-red-600",     ring: "border-red-200" },
+};
+
+const TOAST_POSITIONS: Record<string, { align: OverlayAlign; justify: OverlayAlign }> = {
+  "top-left":      { align: "start",  justify: "start" },
+  "top-center":    { align: "start",  justify: "center" },
+  "top-right":     { align: "start",  justify: "end" },
+  "bottom-left":   { align: "end",    justify: "start" },
+  "bottom-center": { align: "end",    justify: "center" },
+  "bottom-right":  { align: "end",    justify: "end" },
+};
+
+export function AstryxToast({
+  title = OVERLAY_DEFAULTS.AstryxToast.title,
+  description = OVERLAY_DEFAULTS.AstryxToast.description,
+  variant = OVERLAY_DEFAULTS.AstryxToast.variant,
+  actionLabel = OVERLAY_DEFAULTS.AstryxToast.actionLabel,
+  showClose = OVERLAY_DEFAULTS.AstryxToast.showClose,
+  position = OVERLAY_DEFAULTS.AstryxToast.position,
+  stageHeight = OVERLAY_DEFAULTS.AstryxToast.stageHeight,
+  showStage = OVERLAY_DEFAULTS.AstryxToast.showStage,
+  width = OVERLAY_DEFAULTS.AstryxToast.width,
+}: AstryxProps) {
+  const v = TOAST_VARIANTS[variant as string] ?? TOAST_VARIANTS.info;
+  const pos = TOAST_POSITIONS[position as string] ?? TOAST_POSITIONS["bottom-right"];
+  const toast = (
+    <div className={`flex items-start gap-2.5 rounded-lg border bg-white p-3 shadow-lg ${v.ring}`} style={panelSizeStyle(width, 280)}>
+      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${v.iconClass}`}>{v.icon}</div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-900">{title}</p>
+        {description ? <p className="mt-0.5 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+      </div>
+      {actionLabel ? <span className="shrink-0 text-xs font-medium text-blue-600">{actionLabel}</span> : null}
+      {showClose ? <span className="shrink-0 text-xs text-gray-400">✕</span> : null}
+    </div>
+  );
+  if (showStage === false) return <div className="w-full">{toast}</div>;
+  return (
+    <OverlayStage minHeight={stageHeight} scrim="none" align={pos.align} justify={pos.justify} padding={12}>
+      {toast}
+    </OverlayStage>
+  );
+}
+
+export function AstryxLightbox({
+  src = OVERLAY_DEFAULTS.AstryxLightbox.src,
+  caption = OVERLAY_DEFAULTS.AstryxLightbox.caption,
+  counter = OVERLAY_DEFAULTS.AstryxLightbox.counter,
+  stageHeight = OVERLAY_DEFAULTS.AstryxLightbox.stageHeight,
+  showControls = OVERLAY_DEFAULTS.AstryxLightbox.showControls,
+  showClose = OVERLAY_DEFAULTS.AstryxLightbox.showClose,
+}: AstryxProps) {
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-lg border border-gray-800"
+      style={{ minHeight: Math.max(120, Number(stageHeight) || 220), background: "#0b1120" }}
+    >
+      <div className="relative flex flex-col items-center justify-center gap-2 px-10 py-5" style={{ minHeight: Math.max(120, Number(stageHeight) || 220) }}>
+        <div className="flex w-full max-w-full flex-1 items-center justify-center overflow-hidden rounded-md bg-gray-800/60" style={{ minHeight: 90 }}>
+          {src
+            ? <img src={src} alt={caption} className="max-h-full max-w-full object-contain" />
+            : <span className="text-2xl text-gray-500">▣</span>}
+        </div>
+        {caption ? <p className="max-w-full truncate text-xs text-gray-300">{caption}</p> : null}
+        {counter ? <p className="text-[11px] text-gray-500">{counter}</p> : null}
+      </div>
+      {showControls ? (
+        <>
+          <div className="absolute inset-y-0 left-2 flex items-center">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs text-white">◀</span>
+          </div>
+          <div className="absolute inset-y-0 right-2 flex items-center">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs text-white">▶</span>
+          </div>
+        </>
+      ) : null}
+      {showClose ? (
+        <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs text-white">✕</span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Container. A scrim/backdrop surface that holds other components in normal
+ * flow — flow layout means the box grows with its children, so nothing dropped
+ * inside can escape the artboard.
+ */
+export function AstryxOverlay({
+  children,
+  scrim = OVERLAY_DEFAULTS.AstryxOverlay.scrim,
+  padding = OVERLAY_DEFAULTS.AstryxOverlay.padding,
+  align = OVERLAY_DEFAULTS.AstryxOverlay.align,
+  minHeight = OVERLAY_DEFAULTS.AstryxOverlay.minHeight,
+}: AstryxProps) {
+  return (
+    <div
+      className="w-full rounded-lg"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        alignItems: ALIGN_ITEMS[align as string] ?? "center",
+        justifyContent: "center",
+        minHeight: Math.max(40, Number(minHeight) || 160),
+        padding: Math.max(0, Number(padding) || 0),
+        boxSizing: "border-box",
+        ...(OVERLAY_SCRIMS[scrim as string] ?? OVERLAY_SCRIMS.dark),
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -1625,6 +2268,19 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   Modal:       AstryxModal,
   Drawer:      AstryxDrawer,
   Sheet:       AstryxSheet,
+  // Anchored overlays
+  Popover:      AstryxPopover,
+  Tooltip:      AstryxTooltip,
+  HoverCard:    AstryxHoverCard,
+  // Menus
+  DropdownMenu: AstryxDropdownMenu,
+  ContextMenu:  AstryxContextMenu,
+  MoreMenu:     AstryxMoreMenu,
+  // Dialogs & surfaces
+  AlertDialog:  AstryxAlertDialog,
+  Toast:        AstryxToast,
+  Lightbox:     AstryxLightbox,
+  Overlay:      AstryxOverlay,
   // Charts
   BarChart:    AstryxBarChart,
   LineChart:   AstryxLineChart,

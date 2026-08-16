@@ -72,6 +72,20 @@ import {
   AstryxModal as AstryxModalBase,
   AstryxDrawer as AstryxDrawerBase,
   AstryxSheet as AstryxSheetBase,
+  // Anchored overlays
+  AstryxPopover as AstryxPopoverBase,
+  AstryxTooltip as AstryxTooltipBase,
+  AstryxHoverCard as AstryxHoverCardBase,
+  // Menus
+  AstryxDropdownMenu as AstryxDropdownMenuBase,
+  AstryxContextMenu as AstryxContextMenuBase,
+  AstryxMoreMenu as AstryxMoreMenuBase,
+  // Dialogs & surfaces
+  AstryxAlertDialog as AstryxAlertDialogBase,
+  AstryxToast as AstryxToastBase,
+  AstryxLightbox as AstryxLightboxBase,
+  OVERLAY_SCRIMS,
+  OVERLAY_DEFAULTS,
   // Charts
   AstryxBarChart as AstryxBarChartBase,
   AstryxLineChart as AstryxLineChartBase,
@@ -249,6 +263,11 @@ const FULL_WIDTH_LEAF = new Set([
   "AstryxDateInput", "AstryxTimeInput", "AstryxDateTimeInput", "AstryxDateRangeInput",
   "AstryxFileInput", "AstryxTypeahead", "AstryxMultiSelector", "AstryxComplexSelector",
   "AstryxPowerSearch", "AstryxTokenizer",
+  // Overlays and menus — each owns its own bounds and spans the artboard width
+  // so its panel can never be pushed outside the frame.
+  "AstryxPopover", "AstryxTooltip", "AstryxHoverCard",
+  "AstryxDropdownMenu", "AstryxContextMenu", "AstryxMoreMenu",
+  "AstryxAlertDialog", "AstryxToast", "AstryxLightbox",
 ]);
 
 function useLeafNode() {
@@ -1395,6 +1414,164 @@ export function AstryxSheet(props: AstryxProps) {
   );
 }
 (AstryxSheet as any).craft = { displayName: "AstryxSheet", rules: { canMoveIn: () => false } };
+
+// ─── Anchored overlays, menus & surfaces ──────────────────────────────────────
+//
+// These follow the design-time overlay approach documented at the top of the
+// overlay section in components.tsx: they render inline inside the artboard,
+// never portal, never use `position: fixed`, and each one owns its own bounds.
+// That is exactly why the ordinary leaf wrapper is enough here — clicking one
+// selects the node like any other component instead of "triggering" it, and the
+// panel is laid out inside the connected element so it moves, pans and zooms
+// with the frame.
+
+export function AstryxPopover(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxPopoverBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxPopover as any).craft = { displayName: "AstryxPopover", rules: { canMoveIn: () => false } };
+
+export function AstryxTooltip(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTooltipBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTooltip as any).craft = { displayName: "AstryxTooltip", rules: { canMoveIn: () => false } };
+
+export function AstryxHoverCard(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxHoverCardBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxHoverCard as any).craft = { displayName: "AstryxHoverCard", rules: { canMoveIn: () => false } };
+
+export function AstryxDropdownMenu(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxDropdownMenuBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxDropdownMenu as any).craft = { displayName: "AstryxDropdownMenu", rules: { canMoveIn: () => false } };
+
+export function AstryxContextMenu(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxContextMenuBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxContextMenu as any).craft = { displayName: "AstryxContextMenu", rules: { canMoveIn: () => false } };
+
+export function AstryxMoreMenu(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxMoreMenuBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxMoreMenu as any).craft = { displayName: "AstryxMoreMenu", rules: { canMoveIn: () => false } };
+
+export function AstryxAlertDialog(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxAlertDialogBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxAlertDialog as any).craft = { displayName: "AstryxAlertDialog", rules: { canMoveIn: () => false } };
+
+export function AstryxToast(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxToastBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxToast as any).craft = { displayName: "AstryxToast", rules: { canMoveIn: () => false } };
+
+export function AstryxLightbox(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxLightboxBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxLightbox as any).craft = { displayName: "AstryxLightbox", rules: { canMoveIn: () => false } };
+
+/**
+ * The one container of the overlay family: a scrim surface that holds other
+ * components. Children sit in normal flow so the box grows to fit them and
+ * nothing dropped inside can spill out of the artboard. connectRef goes on the
+ * visual itself so craft.js nests children inside the connected element.
+ */
+export function AstryxOverlay({
+  children,
+  scrim = OVERLAY_DEFAULTS.AstryxOverlay.scrim,
+  padding = OVERLAY_DEFAULTS.AstryxOverlay.padding,
+  align = OVERLAY_DEFAULTS.AstryxOverlay.align,
+  minHeight = OVERLAY_DEFAULTS.AstryxOverlay.minHeight,
+  position = "flow", x = 0, y = 0,
+}: AstryxProps) {
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } =
+    useContainerNode(position, x, y);
+  const alignItems = align === "start" ? "flex-start" : align === "end" ? "flex-end" : "center";
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      className="w-full rounded-lg"
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        alignItems,
+        justifyContent: "center",
+        minHeight: Math.max(40, Number(minHeight) || 160),
+        padding: Math.max(0, Number(padding) || 0),
+        boxSizing: "border-box",
+        ...(OVERLAY_SCRIMS[scrim as string] ?? OVERLAY_SCRIMS.dark),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {isEmpty
+        ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 48, flex: "unset" as any }}>drop overlay content here</div>
+        : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxOverlay as any).craft = { displayName: "AstryxOverlay", isCanvas: true, rules: { canMoveIn: () => true } };
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
 
@@ -2700,6 +2877,16 @@ export const resolver = {
   AstryxModal,
   AstryxDrawer,
   AstryxSheet,
+  AstryxPopover,
+  AstryxTooltip,
+  AstryxHoverCard,
+  AstryxDropdownMenu,
+  AstryxContextMenu,
+  AstryxMoreMenu,
+  AstryxAlertDialog,
+  AstryxToast,
+  AstryxLightbox,
+  AstryxOverlay,
   // Charts
   AstryxBarChart,
   AstryxLineChart,

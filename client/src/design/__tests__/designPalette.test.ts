@@ -75,6 +75,12 @@ const DOCUMENTED_COMPONENTS = [
   'AstryxNavbar', 'AstryxSidebar', 'AstryxBreadcrumb',
   // Overlays
   'AstryxModal', 'AstryxDrawer', 'AstryxSheet',
+  // Anchored overlays
+  'AstryxPopover', 'AstryxTooltip', 'AstryxHoverCard',
+  // Menus
+  'AstryxDropdownMenu', 'AstryxContextMenu', 'AstryxMoreMenu',
+  // Dialogs & surfaces
+  'AstryxAlertDialog', 'AstryxToast', 'AstryxLightbox', 'AstryxOverlay',
   // Charts
   'AstryxBarChart', 'AstryxLineChart', 'AstryxPieChart',
   // Media & code

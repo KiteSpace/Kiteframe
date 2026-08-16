@@ -68,6 +68,19 @@ export const ASTRYX_COMPONENT_LIST = [
   "AstryxModal",
   "AstryxDrawer",
   "AstryxSheet",
+  // Anchored overlays
+  "AstryxPopover",
+  "AstryxTooltip",
+  "AstryxHoverCard",
+  // Menus
+  "AstryxDropdownMenu",
+  "AstryxContextMenu",
+  "AstryxMoreMenu",
+  // Dialogs & surfaces
+  "AstryxAlertDialog",
+  "AstryxToast",
+  "AstryxLightbox",
+  "AstryxOverlay",
   // Charts
   "AstryxBarChart",
   "AstryxLineChart",
@@ -199,6 +212,26 @@ All four share label/open/invalid/disabled/required. The first three take a sing
 • AstryxDrawer side drawer   props: { title:string, side:"left"|"right", description:string }
 • AstryxSheet  bottom sheet  props: { title:string, side:"bottom"|"top", description:string }
 
+— ANCHORED OVERLAYS —
+These render INLINE inside the artboard, always visible — never a portal, never "hidden until hover/click".
+"placement" picks which side of the anchor the panel sits on; "align" is the cross-axis alignment; "open":false draws the closed state.
+• AstryxPopover   anchored popover panel  props: { anchorLabel:string (the trigger's label), title:string, description:string, confirmLabel:string, cancelLabel:string, placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean, showArrow:boolean }
+• AstryxTooltip   small dark tooltip      props: { anchorLabel:string, text:string, placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean, showArrow:boolean }
+• AstryxHoverCard rich profile hover card props: { anchorLabel:string, name:string, handle:string, bio:string, meta:string, src?:string (avatar image), placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean, showArrow:boolean }
+
+— MENUS —
+"items" is ONE comma-separated string. Inside it: "---" draws a separator, "Label:Shortcut" adds right-aligned shortcut text, and a leading "!" marks a destructive (red) item. e.g. "Edit:⌘E,Duplicate,---,!Delete".
+• AstryxDropdownMenu button-triggered menu props: { label:string (trigger label), items:string, selected:string (item to highlight), placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean }
+• AstryxContextMenu  right-click menu      props: { surfaceLabel:string (label of the right-click area), items:string, selected:string, placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean }
+• AstryxMoreMenu     "⋯" overflow menu     props: { glyph:string (default "⋯"), items:string, selected:string, placement:"top"|"bottom"|"left"|"right", align:"start"|"center"|"end", width:number, open:boolean }
+
+— DIALOGS & SURFACES —
+AlertDialog, Toast and Lightbox draw a bounded "stage" — a miniature page with the overlay on top of it — so the overlay reads as an overlay while still living inside the artboard.
+• AstryxAlertDialog confirmation dialog on a scrim props: { title:string, description:string, confirmLabel:string, cancelLabel:string, tone:"danger"|"warning"|"info", scrim:"dark"|"light"|"blur"|"none", stageHeight:number, showStage:boolean (false = just the dialog card, no scrim stage), width:number }
+• AstryxToast       notification, rendered in place props: { title:string, description:string, variant:"info"|"success"|"warning"|"error", actionLabel:string, showClose:boolean, position:"top-left"|"top-center"|"top-right"|"bottom-left"|"bottom-center"|"bottom-right", stageHeight:number, showStage:boolean (false = just the toast card), width:number }
+• AstryxLightbox    full-bleed image viewer        props: { src?:string, caption:string, counter:string (e.g. "3 of 12"), stageHeight:number, showControls:boolean, showClose:boolean }
+• AstryxOverlay     CONTAINER (isCanvas:true) — a scrim/backdrop surface holding other components. Put the overlay's own content in nodes[] (typically a Card or Stack). props: { scrim:"dark"|"light"|"blur"|"none", padding:number, align:"start"|"center"|"end", minHeight:number }
+
 — CHARTS —
 • AstryxBarChart  bar chart   props: { title?:string, data:string (comma-separated "label:value" pairs, e.g. "Jan:120,Feb:95,Mar:140"), color:"blue"|"green"|"red"|"amber" }
 • AstryxLineChart line chart  props: { title?:string, data:string (comma-separated "label:value" pairs, e.g. "Jan:120,Feb:95,Mar:140"), color:"blue"|"green"|"red"|"amber" }
@@ -291,7 +324,7 @@ Every node (whether in craftState or a patch) must follow this shape:
 NESTING RULES:
 • ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
 • AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
-• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus. All others are leaves (isCanvas:false, nodes:[]).
+• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxOverlay. All others are leaves (isCanvas:false, nodes:[]) — including every other overlay and menu, which carry their content in props rather than children.
 • AstryxCard is a container (isCanvas:true) — give it a nodes[] array with its child components (typically a Stack or HStack wrapping its content). Use it to group related content in a styled box.
 • Form composition: AstryxFormLayout holds AstryxField children; each AstryxField holds exactly ONE input node and carries its own label/helpText/error props — do NOT also set the input's own label prop, and do NOT put a separate AstryxText label beside it.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.

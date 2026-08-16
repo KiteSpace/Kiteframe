@@ -89,6 +89,19 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   "AstryxModal",
   "AstryxDrawer",
   "AstryxSheet",
+  // Anchored overlays
+  "AstryxPopover",
+  "AstryxTooltip",
+  "AstryxHoverCard",
+  // Menus
+  "AstryxDropdownMenu",
+  "AstryxContextMenu",
+  "AstryxMoreMenu",
+  // Dialogs & surfaces
+  "AstryxAlertDialog",
+  "AstryxToast",
+  "AstryxLightbox",
+  "AstryxOverlay",
   // Charts
   "AstryxBarChart",
   "AstryxLineChart",
@@ -301,6 +314,7 @@ export const ALWAYS_CANVAS_COMPONENTS: readonly string[] = [
   "AstryxField",
   "AstryxInputGroup",
   "AstryxFieldStatus",
+  "AstryxOverlay",
 ];
 
 /**

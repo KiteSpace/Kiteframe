@@ -116,7 +116,7 @@ RULES:
 - All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
-- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard.
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard, AstryxOverlay.
 - LEAVES (isCanvas=false, nodes=[]): all remaining components (see quick-reference below).
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
@@ -213,6 +213,24 @@ All four share label/open/invalid/disabled/required. The first three take a sing
 - AstryxModal:  dialog/modal overlay, props: { title: string, children: string }
 - AstryxDrawer: slide-in drawer panel, props: { title: string, side: "left"|"right" }
 - AstryxSheet:  bottom/side sheet, props: { title: string }
+
+— ANCHORED OVERLAYS (render inline inside the artboard, always visible — never portalled, never hidden behind a trigger) —
+"placement" picks which side of the anchor the panel sits on; "align" is the cross-axis alignment; "open": false draws the closed state.
+- AstryxPopover:   anchored popover, props: { anchorLabel: string, title: string, description: string, confirmLabel: string, cancelLabel: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+- AstryxTooltip:   small dark tooltip, props: { anchorLabel: string, text: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+- AstryxHoverCard: profile hover card, props: { anchorLabel: string, name: string, handle: string, bio: string, meta: string, src: string (optional avatar), placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+
+— MENUS —
+"items" is ONE comma-separated string: "---" is a separator, "Label:Shortcut" adds shortcut text, a leading "!" marks a destructive item. e.g. "Edit:⌘E,Duplicate,---,!Delete"
+- AstryxDropdownMenu: button-triggered menu, props: { label: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+- AstryxContextMenu:  right-click menu, props: { surfaceLabel: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+- AstryxMoreMenu:     "⋯" overflow menu, props: { glyph: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+
+— DIALOGS & SURFACES —
+- AstryxAlertDialog: confirmation dialog on a scrim stage, props: { title: string, description: string, confirmLabel: string, cancelLabel: string, tone: "danger"|"warning"|"info", scrim: "dark"|"light"|"blur"|"none", stageHeight: number, showStage: boolean, width: number }
+- AstryxToast:       notification rendered in place, props: { title: string, description: string, variant: "info"|"success"|"warning"|"error", actionLabel: string, showClose: boolean, position: "top-left"|"top-center"|"top-right"|"bottom-left"|"bottom-center"|"bottom-right", stageHeight: number, showStage: boolean, width: number }
+- AstryxLightbox:    image viewer on a dark stage, props: { src: string (optional), caption: string, counter: string, stageHeight: number, showControls: boolean, showClose: boolean }
+- AstryxOverlay:     scrim/backdrop CONTAINER (isCanvas=true) holding other components in nodes[], props: { scrim: "dark"|"light"|"blur"|"none", padding: number, align: "start"|"center"|"end", minHeight: number }
 
 — CHARTS —
 - AstryxBarChart:  bar chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }

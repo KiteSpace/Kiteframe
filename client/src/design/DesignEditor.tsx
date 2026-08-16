@@ -56,6 +56,16 @@ import {
   AstryxModal,
   AstryxDrawer,
   AstryxSheet,
+  AstryxPopover,
+  AstryxTooltip,
+  AstryxHoverCard,
+  AstryxDropdownMenu,
+  AstryxContextMenu,
+  AstryxMoreMenu,
+  AstryxAlertDialog,
+  AstryxToast,
+  AstryxLightbox,
+  AstryxOverlay,
   AstryxBarChart,
   AstryxLineChart,
   AstryxPieChart,
@@ -138,6 +148,17 @@ import {
   AstryxModal as AstryxModalBase,
   AstryxDrawer as AstryxDrawerBase,
   AstryxSheet as AstryxSheetBase,
+  AstryxPopover as AstryxPopoverBase,
+  AstryxTooltip as AstryxTooltipBase,
+  AstryxHoverCard as AstryxHoverCardBase,
+  AstryxDropdownMenu as AstryxDropdownMenuBase,
+  AstryxContextMenu as AstryxContextMenuBase,
+  AstryxMoreMenu as AstryxMoreMenuBase,
+  AstryxAlertDialog as AstryxAlertDialogBase,
+  AstryxToast as AstryxToastBase,
+  AstryxLightbox as AstryxLightboxBase,
+  AstryxOverlay as AstryxOverlayBase,
+  OVERLAY_DEFAULTS,
   AstryxBarChart as AstryxBarChartBase,
   AstryxLineChart as AstryxLineChartBase,
   AstryxPieChart as AstryxPieChartBase,
@@ -731,6 +752,62 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Sheet",  description: "Bottom sheet",
         getElement: () => <AstryxSheet title="Sheet" side="bottom" />,
         preview: <AstryxSheetBase title="Sheet" side="bottom" description="Content here." />,
+      },
+      // Anchored overlays, menus and surfaces. Every tile drops the full default
+      // prop set rather than a handful of props, so the serialized node is
+      // self-contained: booleans and enums that were left implicit would
+      // otherwise depend on runtime defaults and silently change meaning if a
+      // default ever moved. OVERLAY_DEFAULTS is the same constant the components
+      // and the inspector read, so the three cannot drift apart.
+      {
+        name: "Popover", description: "Anchored panel",
+        getElement: () => <AstryxPopover {...OVERLAY_DEFAULTS.AstryxPopover} />,
+        preview: <AstryxPopoverBase {...OVERLAY_DEFAULTS.AstryxPopover} title="Share" description="Anyone with the link can view." confirmLabel="Copy" width={180} />,
+      },
+      {
+        name: "Tooltip", description: "Hover hint",
+        getElement: () => <AstryxTooltip {...OVERLAY_DEFAULTS.AstryxTooltip} />,
+        preview: <AstryxTooltipBase {...OVERLAY_DEFAULTS.AstryxTooltip} anchorLabel="Save" width={150} />,
+      },
+      {
+        name: "HoverCard", description: "Profile preview",
+        getElement: () => <AstryxHoverCard {...OVERLAY_DEFAULTS.AstryxHoverCard} />,
+        preview: <AstryxHoverCardBase {...OVERLAY_DEFAULTS.AstryxHoverCard} meta="" width={190} />,
+      },
+      {
+        name: "DropdownMenu", description: "Button menu",
+        getElement: () => <AstryxDropdownMenu {...OVERLAY_DEFAULTS.AstryxDropdownMenu} />,
+        preview: <AstryxDropdownMenuBase {...OVERLAY_DEFAULTS.AstryxDropdownMenu} items="Edit:⌘E,Duplicate,---,!Delete" width={160} />,
+      },
+      {
+        name: "ContextMenu", description: "Right-click menu",
+        getElement: () => <AstryxContextMenu {...OVERLAY_DEFAULTS.AstryxContextMenu} />,
+        preview: <AstryxContextMenuBase {...OVERLAY_DEFAULTS.AstryxContextMenu} items="Cut,Copy,---,!Delete" width={150} />,
+      },
+      {
+        name: "MoreMenu", description: "Overflow menu",
+        getElement: () => <AstryxMoreMenu {...OVERLAY_DEFAULTS.AstryxMoreMenu} />,
+        preview: <AstryxMoreMenuBase {...OVERLAY_DEFAULTS.AstryxMoreMenu} items="Rename,Duplicate,---,!Delete" width={140} />,
+      },
+      {
+        name: "AlertDialog", description: "Confirm dialog",
+        getElement: () => <AstryxAlertDialog {...OVERLAY_DEFAULTS.AstryxAlertDialog} />,
+        preview: <AstryxAlertDialogBase {...OVERLAY_DEFAULTS.AstryxAlertDialog} title="Delete this?" description="This cannot be undone." stageHeight={130} width={190} />,
+      },
+      {
+        name: "Toast", description: "Notification",
+        getElement: () => <AstryxToast {...OVERLAY_DEFAULTS.AstryxToast} />,
+        preview: <AstryxToastBase {...OVERLAY_DEFAULTS.AstryxToast} description="" actionLabel="" stageHeight={110} width={180} />,
+      },
+      {
+        name: "Lightbox", description: "Image viewer",
+        getElement: () => <AstryxLightbox {...OVERLAY_DEFAULTS.AstryxLightbox} />,
+        preview: <AstryxLightboxBase {...OVERLAY_DEFAULTS.AstryxLightbox} stageHeight={130} />,
+      },
+      {
+        name: "Overlay", description: "Scrim container",
+        getElement: () => <Element canvas is={AstryxOverlay} {...OVERLAY_DEFAULTS.AstryxOverlay} />,
+        preview: <AstryxOverlayBase {...OVERLAY_DEFAULTS.AstryxOverlay} minHeight={110}><span className="text-xs text-white">drop content here</span></AstryxOverlayBase>,
       },
     ],
   },
@@ -1695,6 +1772,140 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     </>
   );
 
+  // ── Overlays, menus & surfaces ──────────────────────────────────────────────
+  // Everything about an overlay's design-time appearance is inspector-driven,
+  // because none of it is reachable by interaction: "placement"/"align" move an
+  // anchored panel around its anchor, and "open" draws the closed state. Every
+  // fallback below comes from OVERLAY_DEFAULTS, which the components themselves
+  // also use — see .agents/memory/inspector-default-drift.md for why.
+
+  if (displayName === "AstryxPopover") return (
+    <>
+      <PropRow label="Anchor label"><TextProp value={props.anchorLabel ?? OVERLAY_DEFAULTS.AstryxPopover.anchorLabel} onChange={(v) => setProp("anchorLabel", v)} /></PropRow>
+      <PropRow label="Title"><TextProp value={props.title ?? OVERLAY_DEFAULTS.AstryxPopover.title} onChange={(v) => setProp("title", v)} /></PropRow>
+      <PropRow label="Description"><TextProp value={props.description ?? OVERLAY_DEFAULTS.AstryxPopover.description} onChange={(v) => setProp("description", v)} /></PropRow>
+      <PropRow label="Primary action"><TextProp value={props.confirmLabel ?? OVERLAY_DEFAULTS.AstryxPopover.confirmLabel} onChange={(v) => setProp("confirmLabel", v)} /></PropRow>
+      <PropRow label="Secondary action"><TextProp value={props.cancelLabel ?? OVERLAY_DEFAULTS.AstryxPopover.cancelLabel} onChange={(v) => setProp("cancelLabel", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxPopover.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxPopover.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Panel width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxPopover.width} min={120} max={600} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxPopover.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Show arrow" value={props.showArrow ?? OVERLAY_DEFAULTS.AstryxPopover.showArrow} onChange={(v) => setProp("showArrow", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxTooltip") return (
+    <>
+      <PropRow label="Anchor label"><TextProp value={props.anchorLabel ?? OVERLAY_DEFAULTS.AstryxTooltip.anchorLabel} onChange={(v) => setProp("anchorLabel", v)} /></PropRow>
+      <PropRow label="Tooltip text"><TextProp value={props.text ?? OVERLAY_DEFAULTS.AstryxTooltip.text} onChange={(v) => setProp("text", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxTooltip.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxTooltip.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Max width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxTooltip.width} min={80} max={480} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxTooltip.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Show arrow" value={props.showArrow ?? OVERLAY_DEFAULTS.AstryxTooltip.showArrow} onChange={(v) => setProp("showArrow", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxHoverCard") return (
+    <>
+      <PropRow label="Anchor label"><TextProp value={props.anchorLabel ?? OVERLAY_DEFAULTS.AstryxHoverCard.anchorLabel} onChange={(v) => setProp("anchorLabel", v)} /></PropRow>
+      <PropRow label="Name"><TextProp value={props.name ?? OVERLAY_DEFAULTS.AstryxHoverCard.name} onChange={(v) => setProp("name", v)} /></PropRow>
+      <PropRow label="Handle"><TextProp value={props.handle ?? OVERLAY_DEFAULTS.AstryxHoverCard.handle} onChange={(v) => setProp("handle", v)} /></PropRow>
+      <PropRow label="Bio"><TextProp value={props.bio ?? OVERLAY_DEFAULTS.AstryxHoverCard.bio} onChange={(v) => setProp("bio", v)} /></PropRow>
+      <PropRow label="Meta line"><TextProp value={props.meta ?? OVERLAY_DEFAULTS.AstryxHoverCard.meta} onChange={(v) => setProp("meta", v)} /></PropRow>
+      <PropRow label="Avatar URL"><TextProp value={props.src ?? ""} onChange={(v) => setProp("src", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxHoverCard.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxHoverCard.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Card width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxHoverCard.width} min={160} max={600} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxHoverCard.open} onChange={(v) => setProp("open", v)} />
+      <BoolPropRow label="Show arrow" value={props.showArrow ?? OVERLAY_DEFAULTS.AstryxHoverCard.showArrow} onChange={(v) => setProp("showArrow", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxDropdownMenu") return (
+    <>
+      <PropRow label="Trigger label"><TextProp value={props.label ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.label} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label={MENU_ITEMS_LABEL}><TextProp value={props.items ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.items} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Highlighted item"><TextProp value={props.selected ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.selected} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Menu width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.width} min={120} max={480} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxDropdownMenu.open} onChange={(v) => setProp("open", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxContextMenu") return (
+    <>
+      <PropRow label="Surface label"><TextProp value={props.surfaceLabel ?? OVERLAY_DEFAULTS.AstryxContextMenu.surfaceLabel} onChange={(v) => setProp("surfaceLabel", v)} /></PropRow>
+      <PropRow label={MENU_ITEMS_LABEL}><TextProp value={props.items ?? OVERLAY_DEFAULTS.AstryxContextMenu.items} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Highlighted item"><TextProp value={props.selected ?? OVERLAY_DEFAULTS.AstryxContextMenu.selected} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxContextMenu.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxContextMenu.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Menu width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxContextMenu.width} min={120} max={480} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxContextMenu.open} onChange={(v) => setProp("open", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxMoreMenu") return (
+    <>
+      <PropRow label="Trigger glyph"><TextProp value={props.glyph ?? OVERLAY_DEFAULTS.AstryxMoreMenu.glyph} onChange={(v) => setProp("glyph", v)} /></PropRow>
+      <PropRow label={MENU_ITEMS_LABEL}><TextProp value={props.items ?? OVERLAY_DEFAULTS.AstryxMoreMenu.items} onChange={(v) => setProp("items", v)} /></PropRow>
+      <PropRow label="Highlighted item"><TextProp value={props.selected ?? OVERLAY_DEFAULTS.AstryxMoreMenu.selected} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <PropRow label="Opens toward"><SelectProp value={props.placement ?? OVERLAY_DEFAULTS.AstryxMoreMenu.placement} options={["top","bottom","left","right"]} onChange={(v) => setProp("placement", v)} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxMoreMenu.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Menu width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxMoreMenu.width} min={120} max={480} onChange={(v) => setProp("width", v)} /></PropRow>
+      <BoolPropRow label="Open" value={props.open ?? OVERLAY_DEFAULTS.AstryxMoreMenu.open} onChange={(v) => setProp("open", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxAlertDialog") return (
+    <>
+      <PropRow label="Title"><TextProp value={props.title ?? OVERLAY_DEFAULTS.AstryxAlertDialog.title} onChange={(v) => setProp("title", v)} /></PropRow>
+      <PropRow label="Description"><TextProp value={props.description ?? OVERLAY_DEFAULTS.AstryxAlertDialog.description} onChange={(v) => setProp("description", v)} /></PropRow>
+      <PropRow label="Confirm label"><TextProp value={props.confirmLabel ?? OVERLAY_DEFAULTS.AstryxAlertDialog.confirmLabel} onChange={(v) => setProp("confirmLabel", v)} /></PropRow>
+      <PropRow label="Cancel label"><TextProp value={props.cancelLabel ?? OVERLAY_DEFAULTS.AstryxAlertDialog.cancelLabel} onChange={(v) => setProp("cancelLabel", v)} /></PropRow>
+      <PropRow label="Tone"><SelectProp value={props.tone ?? OVERLAY_DEFAULTS.AstryxAlertDialog.tone} options={["danger","warning","info"]} onChange={(v) => setProp("tone", v)} /></PropRow>
+      <PropRow label="Scrim"><SelectProp value={props.scrim ?? OVERLAY_DEFAULTS.AstryxAlertDialog.scrim} options={["dark","light","blur","none"]} onChange={(v) => setProp("scrim", v)} /></PropRow>
+      <PropRow label="Dialog width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxAlertDialog.width} min={200} max={640} onChange={(v) => setProp("width", v)} /></PropRow>
+      <PropRow label="Stage height"><NumberProp value={props.stageHeight ?? OVERLAY_DEFAULTS.AstryxAlertDialog.stageHeight} min={80} max={640} onChange={(v) => setProp("stageHeight", v)} /></PropRow>
+      <BoolPropRow label="Show scrim stage" value={props.showStage ?? OVERLAY_DEFAULTS.AstryxAlertDialog.showStage} onChange={(v) => setProp("showStage", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxToast") return (
+    <>
+      <PropRow label="Title"><TextProp value={props.title ?? OVERLAY_DEFAULTS.AstryxToast.title} onChange={(v) => setProp("title", v)} /></PropRow>
+      <PropRow label="Description"><TextProp value={props.description ?? OVERLAY_DEFAULTS.AstryxToast.description} onChange={(v) => setProp("description", v)} /></PropRow>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? OVERLAY_DEFAULTS.AstryxToast.variant} options={["info","success","warning","error"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Action label"><TextProp value={props.actionLabel ?? OVERLAY_DEFAULTS.AstryxToast.actionLabel} onChange={(v) => setProp("actionLabel", v)} /></PropRow>
+      <PropRow label="Position"><SelectProp value={props.position ?? OVERLAY_DEFAULTS.AstryxToast.position} options={["top-left","top-center","top-right","bottom-left","bottom-center","bottom-right"]} onChange={(v) => setProp("position", v)} /></PropRow>
+      <PropRow label="Toast width"><NumberProp value={props.width ?? OVERLAY_DEFAULTS.AstryxToast.width} min={180} max={560} onChange={(v) => setProp("width", v)} /></PropRow>
+      <PropRow label="Stage height"><NumberProp value={props.stageHeight ?? OVERLAY_DEFAULTS.AstryxToast.stageHeight} min={80} max={640} onChange={(v) => setProp("stageHeight", v)} /></PropRow>
+      <BoolPropRow label="Show close" value={props.showClose ?? OVERLAY_DEFAULTS.AstryxToast.showClose} onChange={(v) => setProp("showClose", v)} />
+      <BoolPropRow label="Show stage" value={props.showStage ?? OVERLAY_DEFAULTS.AstryxToast.showStage} onChange={(v) => setProp("showStage", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxLightbox") return (
+    <>
+      <PropRow label="Image URL"><TextProp value={props.src ?? OVERLAY_DEFAULTS.AstryxLightbox.src} onChange={(v) => setProp("src", v)} /></PropRow>
+      <PropRow label="Caption"><TextProp value={props.caption ?? OVERLAY_DEFAULTS.AstryxLightbox.caption} onChange={(v) => setProp("caption", v)} /></PropRow>
+      <PropRow label="Counter"><TextProp value={props.counter ?? OVERLAY_DEFAULTS.AstryxLightbox.counter} onChange={(v) => setProp("counter", v)} /></PropRow>
+      <PropRow label="Stage height"><NumberProp value={props.stageHeight ?? OVERLAY_DEFAULTS.AstryxLightbox.stageHeight} min={120} max={720} onChange={(v) => setProp("stageHeight", v)} /></PropRow>
+      <BoolPropRow label="Show arrows" value={props.showControls ?? OVERLAY_DEFAULTS.AstryxLightbox.showControls} onChange={(v) => setProp("showControls", v)} />
+      <BoolPropRow label="Show close" value={props.showClose ?? OVERLAY_DEFAULTS.AstryxLightbox.showClose} onChange={(v) => setProp("showClose", v)} />
+    </>
+  );
+
+  if (displayName === "AstryxOverlay") return (
+    <>
+      <PropRow label="Scrim"><SelectProp value={props.scrim ?? OVERLAY_DEFAULTS.AstryxOverlay.scrim} options={["dark","light","blur","none"]} onChange={(v) => setProp("scrim", v)} /></PropRow>
+      <PropRow label="Align content"><SelectProp value={props.align ?? OVERLAY_DEFAULTS.AstryxOverlay.align} options={["start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+      <PropRow label="Padding"><NumberProp value={props.padding ?? OVERLAY_DEFAULTS.AstryxOverlay.padding} min={0} max={96} onChange={(v) => setProp("padding", v)} /></PropRow>
+      <PropRow label="Min height"><NumberProp value={props.minHeight ?? OVERLAY_DEFAULTS.AstryxOverlay.minHeight} min={40} max={720} onChange={(v) => setProp("minHeight", v)} /></PropRow>
+    </>
+  );
+
   if (displayName === "AstryxArtboard") return (
     <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
   );
@@ -1734,6 +1945,11 @@ function BoolPropRow({ label, value, onChange }: { label: string; value: any; on
     </PropRow>
   );
 }
+
+// Menu content is one comma-separated string, the same convention every other
+// list-bearing component in the palette uses. The label spells out the extras so
+// the syntax is discoverable without leaving the inspector.
+const MENU_ITEMS_LABEL = 'Items ("---" = divider, "Label:⌘K", "!" = destructive)';
 
 const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);

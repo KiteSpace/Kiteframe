@@ -90,6 +90,7 @@ export const ALWAYS_CANVAS_COMPONENTS: readonly string[] = [
   "AstryxField",
   "AstryxInputGroup",
   "AstryxFieldStatus",
+  "AstryxOverlay",
 ];
 
 export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
@@ -170,6 +171,19 @@ export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   "AstryxModal",
   "AstryxDrawer",
   "AstryxSheet",
+  // Anchored overlays
+  "AstryxPopover",
+  "AstryxTooltip",
+  "AstryxHoverCard",
+  // Menus
+  "AstryxDropdownMenu",
+  "AstryxContextMenu",
+  "AstryxMoreMenu",
+  // Dialogs & surfaces
+  "AstryxAlertDialog",
+  "AstryxToast",
+  "AstryxLightbox",
+  "AstryxOverlay",
   // Charts
   "AstryxBarChart",
   "AstryxLineChart",
