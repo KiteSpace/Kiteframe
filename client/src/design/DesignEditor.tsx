@@ -63,6 +63,18 @@ import {
   AstryxCodeBlock,
   AstryxList,
   AstryxListItem,
+  AstryxField,
+  AstryxFieldStatus,
+  AstryxFormLayout,
+  AstryxInputGroup,
+  AstryxGrid,
+  AstryxTextArea,
+  AstryxSwitch,
+  AstryxNumberInput,
+  AstryxToggleButton,
+  AstryxSegmentedControl,
+  AstryxCheckboxList,
+  AstryxIconButton,
   createEmptyCraftState,
   sanitizeCraftState,
   validateCraftState,
@@ -118,6 +130,14 @@ import {
   AstryxCodeBlock as AstryxCodeBlockBase,
   AstryxList as AstryxListBase,
   AstryxListItem as AstryxListItemBase,
+  AstryxFieldStatus as AstryxFieldStatusBase,
+  AstryxTextArea as AstryxTextAreaBase,
+  AstryxSwitch as AstryxSwitchBase,
+  AstryxNumberInput as AstryxNumberInputBase,
+  AstryxToggleButton as AstryxToggleButtonBase,
+  AstryxSegmentedControl as AstryxSegmentedControlBase,
+  AstryxCheckboxList as AstryxCheckboxListBase,
+  AstryxIconButton as AstryxIconButtonBase,
   ICON_GLYPHS,
 } from "@/components/astryx";
 
@@ -287,9 +307,77 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         ),
       },
       {
+        name: "Grid",     description: "Equal-column grid",
+        getElement: () => <Element canvas is={AstryxGrid} columns={2} gap={12} />,
+        preview: (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, width: 80 }}>
+            <div style={{ height: 14, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 14, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 14, background: "hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 14, background: "hsl(var(--border))", borderRadius: 3 }} />
+          </div>
+        ),
+      },
+      {
         name: "Resizable", description: "Split panels",
         getElement: () => <AstryxResizable direction="horizontal" />,
         preview: <AstryxResizableBase direction="horizontal" />,
+      },
+    ],
+  },
+  {
+    name: "Forms",
+    items: [
+      {
+        name: "FormLayout", description: "Form field grid",
+        getElement: () => <Element canvas is={AstryxFormLayout} columns={1} gap={16} />,
+        preview: (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, width: 96 }}>
+            <div style={{ height: 5, width: 34, background: "hsl(var(--border))", borderRadius: 2 }} />
+            <div style={{ height: 11, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 5, width: 28, background: "hsl(var(--border))", borderRadius: 2 }} />
+            <div style={{ height: 11, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 3 }} />
+          </div>
+        ),
+      },
+      {
+        name: "Field",      description: "Labelled field wrapper",
+        getElement: () => (
+          <Element canvas is={AstryxField} label="Email address" helpText="We'll never share it.">
+            <AstryxTextInput placeholder="you@company.com" />
+          </Element>
+        ),
+        preview: (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, width: 96 }}>
+            <div style={{ height: 5, width: 40, background: "hsl(var(--border))", borderRadius: 2 }} />
+            <div style={{ height: 13, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: 3 }} />
+            <div style={{ height: 4, width: 60, background: "hsl(var(--border))", borderRadius: 2, opacity: 0.6 }} />
+          </div>
+        ),
+      },
+      {
+        name: "InputGroup", description: "Joined input row",
+        getElement: () => (
+          <Element canvas is={AstryxInputGroup} gap={0}>
+            <AstryxTextInput placeholder="Search…" />
+            <AstryxButton variant="primary" size="md">Go</AstryxButton>
+          </Element>
+        ),
+        preview: (
+          <div style={{ display: "flex", flexDirection: "row", width: 96 }}>
+            <div style={{ flex: 1, height: 14, background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", borderRadius: "3px 0 0 3px" }} />
+            <div style={{ width: 26, height: 14, background: "hsl(var(--border))", borderRadius: "0 3px 3px 0" }} />
+          </div>
+        ),
+      },
+      {
+        name: "FieldStatus", description: "Validation message",
+        getElement: () => (
+          <Element canvas is={AstryxFieldStatus} status="error">
+            <AstryxText size="xs">Enter a valid email address</AstryxText>
+          </Element>
+        ),
+        preview: <AstryxFieldStatusBase status="error">Enter a valid email address</AstryxFieldStatusBase>,
       },
     ],
   },
@@ -340,6 +428,41 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
         name: "Slider",     description: "Range slider",
         getElement: () => <AstryxSlider value={50} />,
         preview: <AstryxSliderBase value={50} />,
+      },
+      {
+        name: "TextArea",   description: "Multi-line text",
+        getElement: () => <AstryxTextArea placeholder="Write a message…" rows={4} />,
+        preview: <AstryxTextAreaBase placeholder="Write a message…" rows={2} />,
+      },
+      {
+        name: "NumberInput", description: "Stepper field",
+        getElement: () => <AstryxNumberInput value={1} min={0} />,
+        preview: <AstryxNumberInputBase value={1} min={0} />,
+      },
+      {
+        name: "Switch",     description: "On/off toggle",
+        getElement: () => <AstryxSwitch label="Enable notifications" checked />,
+        preview: <AstryxSwitchBase label="Enabled" checked />,
+      },
+      {
+        name: "ToggleButton", description: "Toggleable button",
+        getElement: () => <AstryxToggleButton pressed size="md">Bold</AstryxToggleButton>,
+        preview: <AstryxToggleButtonBase pressed size="sm">Bold</AstryxToggleButtonBase>,
+      },
+      {
+        name: "SegmentedControl", description: "Segmented picker",
+        getElement: () => <AstryxSegmentedControl options="Day,Week,Month" selected="Week" />,
+        preview: <AstryxSegmentedControlBase options="Day,Week" selected="Day" size="sm" />,
+      },
+      {
+        name: "CheckboxList", description: "Multi-select list",
+        getElement: () => <AstryxCheckboxList options="Email,SMS,Push" selected="Email" />,
+        preview: <AstryxCheckboxListBase options="Email,SMS" selected="Email" />,
+      },
+      {
+        name: "IconButton", description: "Icon-only button",
+        getElement: () => <AstryxIconButton name="search" variant="outline" size="md" />,
+        preview: <AstryxIconButtonBase name="search" variant="outline" size="md" />,
       },
     ],
   },
@@ -1208,6 +1331,137 @@ function ComponentProps({ displayName, props, setProp }: { displayName: string; 
     <PropRow label="Direction"><SelectProp value={props.direction ?? "horizontal"} options={["horizontal","vertical"]} onChange={(v) => setProp("direction", v)} /></PropRow>
   );
 
+  if (displayName === "AstryxField") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? "Field label"} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Help text"><TextProp value={props.helpText ?? ""} onChange={(v) => setProp("helpText", v)} /></PropRow>
+      <PropRow label="Error"><TextProp value={props.error ?? ""} onChange={(v) => setProp("error", v)} placeholder="Shown instead of help text" /></PropRow>
+      <PropRow label="Required">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.required} onChange={(v) => setProp("required", v)} />
+          <span className="text-xs text-muted-foreground">{props.required ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 4} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxFieldStatus") return (
+    <PropRow label="Status"><SelectProp value={props.status ?? "error"} options={["error","success","warning","info"]} onChange={(v) => setProp("status", v)} /></PropRow>
+  );
+
+  if (displayName === "AstryxFormLayout") return (
+    <>
+      <PropRow label="Columns"><NumberProp value={props.columns ?? 1} onChange={(v) => setProp("columns", Math.min(4, Math.max(1, v)))} min={1} max={4} /></PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 16} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxInputGroup") return (
+    <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 0} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+  );
+
+  if (displayName === "AstryxGrid") return (
+    <>
+      <PropRow label="Columns"><NumberProp value={props.columns ?? 2} onChange={(v) => setProp("columns", Math.min(6, Math.max(1, v)))} min={1} max={6} /></PropRow>
+      <PropRow label="Gap (px)"><NumberProp value={props.gap ?? 12} onChange={(v) => setProp("gap", Math.max(0, v))} min={0} /></PropRow>
+      <PropRow label="Align"><SelectProp value={props.align ?? "stretch"} options={["stretch","start","center","end"]} onChange={(v) => setProp("align", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxTextArea") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Placeholder"><TextProp value={props.placeholder ?? "Enter text…"} onChange={(v) => setProp("placeholder", v)} /></PropRow>
+      <PropRow label="Rows"><NumberProp value={props.rows ?? 4} onChange={(v) => setProp("rows", Math.min(20, Math.max(1, v)))} min={1} max={20} /></PropRow>
+      <PropRow label="Disabled">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.disabled} onChange={(v) => setProp("disabled", v)} />
+          <span className="text-xs text-muted-foreground">{props.disabled ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxSwitch") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? "Enable option"} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Checked">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.checked} onChange={(v) => setProp("checked", v)} />
+          <span className="text-xs text-muted-foreground">{props.checked ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+      <PropRow label="Disabled">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.disabled} onChange={(v) => setProp("disabled", v)} />
+          <span className="text-xs text-muted-foreground">{props.disabled ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxNumberInput") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Value"><NumberProp value={props.value ?? 0} onChange={(v) => setProp("value", v)} /></PropRow>
+      <PropRow label="Min"><NumberProp value={props.min ?? 0} onChange={(v) => setProp("min", v)} /></PropRow>
+      <PropRow label="Max"><NumberProp value={props.max ?? 100} onChange={(v) => setProp("max", v)} /></PropRow>
+      <PropRow label="Step"><NumberProp value={props.step ?? 1} onChange={(v) => setProp("step", v)} min={1} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxToggleButton") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.children ?? "Toggle"} onChange={(v) => setProp("children", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? "md"} options={["sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
+      <PropRow label="Pressed">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.pressed} onChange={(v) => setProp("pressed", v)} />
+          <span className="text-xs text-muted-foreground">{props.pressed ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+      <PropRow label="Disabled">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.disabled} onChange={(v) => setProp("disabled", v)} />
+          <span className="text-xs text-muted-foreground">{props.disabled ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxSegmentedControl") return (
+    <>
+      <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? "Option A,Option B,Option C"} onChange={(v) => setProp("options", v)} /></PropRow>
+      <PropRow label="Selected"><TextProp value={props.selected ?? "Option A"} onChange={(v) => setProp("selected", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? "md"} options={["sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxCheckboxList") return (
+    <>
+      <PropRow label="Label"><TextProp value={props.label ?? ""} onChange={(v) => setProp("label", v)} /></PropRow>
+      <PropRow label="Options (comma-sep)"><TextProp value={props.options ?? "Option A,Option B,Option C"} onChange={(v) => setProp("options", v)} /></PropRow>
+      <PropRow label="Selected (comma-sep)"><TextProp value={props.selected ?? ""} onChange={(v) => setProp("selected", v)} /></PropRow>
+    </>
+  );
+
+  if (displayName === "AstryxIconButton") return (
+    <>
+      <PropRow label="Icon">
+        <IconPickerProp value={String(props.name ?? "star")} onChange={(v) => setProp("name", v)} />
+      </PropRow>
+      <PropRow label="Variant"><SelectProp value={props.variant ?? "outline"} options={["primary","secondary","outline","ghost"]} onChange={(v) => setProp("variant", v)} /></PropRow>
+      <PropRow label="Size"><SelectProp value={props.size ?? "md"} options={["sm","md","lg"]} onChange={(v) => setProp("size", v)} /></PropRow>
+      <PropRow label="Disabled">
+        <div className="flex items-center gap-2">
+          <ToggleProp value={!!props.disabled} onChange={(v) => setProp("disabled", v)} />
+          <span className="text-xs text-muted-foreground">{props.disabled ? "Yes" : "No"}</span>
+        </div>
+      </PropRow>
+    </>
+  );
+
   if (displayName === "AstryxArtboard") return (
     <PropRow label="Label"><TextProp value={props.label ?? "Artboard"} onChange={(v) => setProp("label", v)} /></PropRow>
   );
@@ -1240,7 +1494,17 @@ const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);
 const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","AstryxText","AstryxHeading","AstryxSpinner","AstryxStatusDot","AstryxIcon","AstryxToken","AstryxSelect"]);
 const IS_CONTAINER = new Set(["AstryxSection","AstryxStack","AstryxHStack","AstryxArtboard"]);
-const NO_RADIUS = new Set(["AstryxBadge","AstryxAvatar","AstryxSkeleton","AstryxSpinner"]);
+// Containers that accept backgroundColor/textColor — and so must trigger the
+// auto-contrast pass — but are not flex containers with align/justify controls.
+const NON_FLEX_CONTAINERS = new Set([
+  "AstryxCard","AstryxField","AstryxFieldStatus","AstryxFormLayout","AstryxInputGroup","AstryxGrid",
+]);
+const NO_RADIUS = new Set([
+  "AstryxBadge","AstryxAvatar","AstryxSkeleton","AstryxSpinner",
+  // Fixed-shape or layout-only components that ignore borderRadius entirely.
+  "AstryxSwitch","AstryxCheckboxList",
+  "AstryxField","AstryxFieldStatus","AstryxFormLayout","AstryxInputGroup","AstryxGrid",
+]);
 const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
 
 const ALIGN_OPTIONS = {
@@ -1381,7 +1645,7 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
       // Auto-apply contrast whenever backgroundColor changes on a container.
       // Uses history.ignore() so auto-contrast changes don't pollute the undo stack.
       if (key === "backgroundColor" && typeof value === "string" && value !== "transparent") {
-        const isContainerNode = IS_CONTAINER.has(selected.displayName) || selected.displayName === "AstryxCard";
+        const isContainerNode = IS_CONTAINER.has(selected.displayName) || NON_FLEX_CONTAINERS.has(selected.displayName);
         if (isContainerNode) {
           try {
             // Build a patched snapshot of the canvas with the new backgroundColor applied,

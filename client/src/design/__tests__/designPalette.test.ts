@@ -26,9 +26,11 @@ import path from 'path';
 import { describe, it, expect } from 'vitest';
 import {
   ALLOWED_CRAFT_COMPONENTS,
+  ALWAYS_CANVAS_COMPONENTS,
   validateCraftState,
   sanitizeCraftState,
   pruneUnreachableCraftNodes,
+  repairCraftState,
 } from '../craftValidator';
 import { DESIGN_SYSTEM_PROMPT_CLIENT, isCraftJsDesignState } from '../../lib/designGeneration';
 
@@ -53,6 +55,12 @@ const DOCUMENTED_COMPONENTS = [
   'AstryxCommand', 'AstryxCarousel',
   // Layout
   'AstryxResizable',
+  // Form structure (containers)
+  'AstryxField', 'AstryxFieldStatus', 'AstryxFormLayout', 'AstryxInputGroup',
+  'AstryxGrid',
+  // Form inputs
+  'AstryxTextArea', 'AstryxSwitch', 'AstryxNumberInput', 'AstryxToggleButton',
+  'AstryxSegmentedControl', 'AstryxCheckboxList', 'AstryxIconButton',
   // Content
   'AstryxCard', 'AstryxChatMessage', 'AstryxEmptyState', 'AstryxToken',
   'AstryxDivider',
@@ -676,4 +684,89 @@ describe('Stored AI fixtures — real model outputs (requires: npx tsx scripts/v
       ).toBeGreaterThanOrEqual(Math.ceil(fixtures.length / 2));
     });
   }
+});
+
+// ─── isCanvas enforcement for container components ───────────────────────────
+// craft.js reads `isCanvas` from the STORED node state, not from the component's
+// static .craft config. A container persisted with isCanvas false/absent renders
+// none of its children: the nodes survive in the map and in the layers panel, but
+// the canvas shows an empty box. Must mirror the server-side enforcement in
+// server/lib/designSchema.ts.
+describe('repairCraftState — isCanvas enforcement for containers', () => {
+  const stateWith = (name: string, isCanvas: unknown) => {
+    const node: Record<string, unknown> = {
+      type: { resolvedName: name },
+      displayName: name,
+      props: {},
+      parent: 'artboard-1',
+      nodes: ['child'],
+      linkedNodes: {},
+    };
+    if (isCanvas !== undefined) node['isCanvas'] = isCanvas;
+    return {
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' }, displayName: 'AstryxSection', isCanvas: true,
+        props: {}, parent: null, nodes: ['artboard-1'], linkedNodes: {},
+      },
+      'artboard-1': {
+        type: { resolvedName: 'AstryxArtboard' }, displayName: 'AstryxArtboard', isCanvas: true,
+        props: { label: 'Screen 1' }, parent: 'ROOT', nodes: ['container'], linkedNodes: {},
+      },
+      container: node,
+      child: {
+        type: { resolvedName: 'AstryxText' }, displayName: 'AstryxText', isCanvas: false,
+        props: { children: 'Inner content' }, parent: 'container', nodes: [], linkedNodes: {},
+      },
+    };
+  };
+
+  const canvasOf = (state: unknown) =>
+    ((state as Record<string, Record<string, unknown>>)['container'])['isCanvas'];
+
+  for (const name of ALWAYS_CANVAS_COMPONENTS) {
+    it(`coerces isCanvas:false to true on ${name}`, () => {
+      expect(canvasOf(repairCraftState(stateWith(name, false)))).toBe(true);
+    });
+
+    it(`adds a missing isCanvas on ${name}`, () => {
+      expect(canvasOf(repairCraftState(stateWith(name, undefined)))).toBe(true);
+    });
+  }
+
+  it('keeps the repaired container reachable with its children intact', () => {
+    const repaired = repairCraftState(stateWith('AstryxFormLayout', false)) as Record<string, Record<string, unknown>>;
+    expect(repaired['container']['nodes']).toEqual(['child']);
+    expect(repaired['child']).toBeDefined();
+    // A repaired container must survive the reachability prune that follows it.
+    const pruned = pruneUnreachableCraftNodes(repaired) as Record<string, unknown>;
+    expect(pruned['container']).toBeDefined();
+    expect(pruned['child']).toBeDefined();
+  });
+
+  it('leaves genuine leaf components as non-canvas', () => {
+    const repaired = repairCraftState({
+      ROOT: {
+        type: { resolvedName: 'AstryxSection' }, displayName: 'AstryxSection', isCanvas: true,
+        props: {}, parent: null, nodes: ['artboard-1'], linkedNodes: {},
+      },
+      'artboard-1': {
+        type: { resolvedName: 'AstryxArtboard' }, displayName: 'AstryxArtboard', isCanvas: true,
+        props: { label: 'Screen 1' }, parent: 'ROOT', nodes: ['leaf'], linkedNodes: {},
+      },
+      leaf: {
+        type: { resolvedName: 'AstryxCheckboxList' }, displayName: 'AstryxCheckboxList', isCanvas: false,
+        props: { options: 'A,B' }, parent: 'artboard-1', nodes: [], linkedNodes: {},
+      },
+    }) as Record<string, Record<string, unknown>>;
+    expect(repaired['leaf']['isCanvas']).toBe(false);
+  });
+
+  it('enforces every new form-structure container, and every name is a real component', () => {
+    for (const name of ['AstryxField', 'AstryxFieldStatus', 'AstryxFormLayout', 'AstryxInputGroup', 'AstryxGrid']) {
+      expect(ALWAYS_CANVAS_COMPONENTS, `${name} must be enforced as a canvas`).toContain(name);
+    }
+    for (const name of ALWAYS_CANVAS_COMPONENTS) {
+      expect(ALLOWED_CRAFT_COMPONENTS, `${name} must be a known component`).toContain(name);
+    }
+  });
 });

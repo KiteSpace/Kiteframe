@@ -116,7 +116,7 @@ RULES:
 - All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
 - "parent" is null only for ROOT. Every other node must reference an existing parent.
 - "nodes" lists child IDs in order. Leaf components always have nodes=[].
-- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack.
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard.
 - LEAVES (isCanvas=false, nodes=[]): all remaining components (see quick-reference below).
 - Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
 - Keep node count under 40.
@@ -142,6 +142,13 @@ COMPONENT QUICK-REFERENCE:
 - AstryxCheckbox:   checkbox with label, props: { label: string, checked: boolean }
 - AstryxRadioGroup: radio button group, props: { options: string (comma-separated), selected: string }
 - AstryxSlider:     range slider, props: { value: number, min: number, max: number }
+- AstryxTextArea:   multi-line text field, props: { label: string, placeholder: string, rows: number (1-20), disabled: boolean }
+- AstryxSwitch:     on/off toggle, props: { label: string, checked: boolean, disabled: boolean }
+- AstryxNumberInput: numeric stepper field, props: { label: string, value: number, min?: number, max?: number, step?: number, disabled: boolean }
+- AstryxToggleButton: toggleable button, props: { children: string, pressed: boolean, size: "sm"|"md"|"lg", disabled: boolean }
+- AstryxSegmentedControl: segmented picker, props: { options: string (comma-separated), selected: string (must match one option), size: "sm"|"md"|"lg" }
+- AstryxCheckboxList: multi-select checkbox list, props: { label?: string, options: string (comma-separated), selected: string (comma-separated subset) }
+- AstryxIconButton: icon-only button, props: { name: string (icon name, e.g. "search"), variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
 
 — STATUS & FEEDBACK —
 - AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
@@ -165,6 +172,13 @@ COMPONENT QUICK-REFERENCE:
 
 — LAYOUT —
 - AstryxResizable: split panel layout, props: { direction: "horizontal"|"vertical" }
+- AstryxGrid:      equal-column grid (isCanvas=true), props: { columns: number (1-6), gap: number, align?: "start"|"center"|"end"|"stretch" }
+
+— FORM STRUCTURE (all isCanvas=true) —
+- AstryxFormLayout:  form field grid, holds AstryxField children, props: { columns: number (1-4), gap: number }
+- AstryxField:       labelled wrapper around exactly ONE input node; carries the label itself so the inner input needs no label prop, props: { label: string, helpText?: string, error?: string, required?: boolean, gap?: number }
+- AstryxInputGroup:  joined horizontal input row (e.g. text field + button), props: { gap: number (0 = visually attached) }
+- AstryxFieldStatus: validation message wrapper, holds an AstryxText child, props: { status: "error"|"success"|"warning"|"info" }
 
 — CONTENT —
 - AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost", gap: number (default 12) }

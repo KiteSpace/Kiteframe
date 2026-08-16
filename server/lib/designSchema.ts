@@ -71,6 +71,27 @@ export const ROOT_CONTAINER_COMPONENTS: readonly string[] = [
   "AstryxHStack",
 ];
 
+// Components whose ONLY valid semantic is "container". craft.js reads `isCanvas`
+// from the stored node state, not from the component's static .craft config, so a
+// generator that omits or falsifies the field produces a node that renders none of
+// its children — the content is still in the node map and the layers panel, but the
+// canvas shows an empty box. Enforce the field for every one of these on repair.
+// Must stay in sync with ALWAYS_CANVAS_COMPONENTS in client/src/design/craftValidator.ts
+// and with the "Containers (isCanvas:true)" line in server/lib/designPrompt.ts.
+export const ALWAYS_CANVAS_COMPONENTS: readonly string[] = [
+  "AstryxArtboard",
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+  "AstryxCard",
+  "AstryxList",
+  "AstryxGrid",
+  "AstryxFormLayout",
+  "AstryxField",
+  "AstryxInputGroup",
+  "AstryxFieldStatus",
+];
+
 export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   // Containers
   "AstryxSection",
@@ -114,6 +135,20 @@ export const SERVER_ALLOWED_CRAFT_COMPONENTS = [
   "AstryxCarousel",
   // Layout
   "AstryxResizable",
+  // Form structure (containers)
+  "AstryxField",
+  "AstryxFieldStatus",
+  "AstryxFormLayout",
+  "AstryxInputGroup",
+  "AstryxGrid",
+  // Form inputs
+  "AstryxTextArea",
+  "AstryxSwitch",
+  "AstryxNumberInput",
+  "AstryxToggleButton",
+  "AstryxSegmentedControl",
+  "AstryxCheckboxList",
+  "AstryxIconButton",
   // Navigation
   "AstryxNavbar",
   "AstryxSidebar",
@@ -403,18 +438,19 @@ export function repairCraftState(state: unknown): unknown {
     }
   }
 
-  // ── isCanvas enforcement for AstryxArtboard ──────────────────────────────
+  // ── isCanvas enforcement for container components ────────────────────────
   // Craft.js reads `isCanvas` from the stored node state to decide whether a
-  // node renders its children. If absent or false on an AstryxArtboard, the
-  // canvas shows a blank "Container" box even though children exist and the
-  // layers panel shows them correctly. Enforce the field here so designs saved
-  // via the workflow-bridge or any external path always have a valid value.
+  // node renders its children. If absent or false on a container, the canvas
+  // shows a blank "Container" box even though children exist and the layers
+  // panel shows them correctly. Enforce the field here so designs saved via the
+  // workflow-bridge or any external path always have a valid value.
+  // See ALWAYS_CANVAS_COMPONENTS for why these names are always containers.
   for (const [nodeId, node] of Object.entries(map)) {
     if (!node || typeof node !== "object") continue;
     const n = node as Record<string, unknown>;
     const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
-    if (resolvedName === "AstryxArtboard" && n["isCanvas"] !== true) {
-      console.warn(`[repairCraftState] Enforcing isCanvas:true on AstryxArtboard node "${nodeId}"`);
+    if (typeof resolvedName === "string" && ALWAYS_CANVAS_COMPONENTS.includes(resolvedName) && n["isCanvas"] !== true) {
+      console.warn(`[repairCraftState] Enforcing isCanvas:true on ${resolvedName} node "${nodeId}"`);
       map[nodeId] = { ...n, isCanvas: true };
     }
   }

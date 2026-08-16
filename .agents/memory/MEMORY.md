@@ -6,6 +6,7 @@
 - [Browser e2e behind sign-in](browser-e2e-auth-bypass.md) — forge a connect.sid session cookie + nix chromium + playwright-core to drive the auth-gated editor; scripts/e2e-*.mjs are reusable.
 - [Repair before pruning craft states](craft-repair-before-prune.md) — always repairCraftState before reachability pruning, or orphaned-but-valid artboards get deleted (blank canvas); empty ghosts still prune.
 - [AstryxCard is a full container](astryx-card-container.md) — craft.js isCanvas must be set in the component's static craft config AND the AI prompt must agree; if only one side is set, AI-generated nodes silently become non-droppable.
+- [Astryx palette registries](astryx-palette-registries.md) — a new palette component must be added to ~8 registries incl. THREE copies of the AI prompt; misses degrade silently to AstryxUnknown.
 - [ROOT must be a container](craft-root-must-be-container.md) — blank canvas + "success" + healthy node counts ⇒ ROOT's type got demoted to a leaf placeholder; ROOT is exempt from unknown-name substitution.
 - [Cross-tab localStorage merge](cross-tab-localstorage-merge.md) — union-by-id with storage as the merge base converges without CAS; an id tie-break in the sort reorders same-ms history and is wrong.
 - [State keyed by an id prop](persisting-state-keyed-by-id-prop.md) — the "which id does this data belong to" marker must be state, not a ref, or an id change persists the previous entity's data under the new key.

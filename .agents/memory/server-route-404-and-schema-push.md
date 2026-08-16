@@ -19,6 +19,21 @@ watcher can miss them.
 the database is unchanged, do not debug the client — restart the app workflow and
 retry. Confirm the fix by looking for the `::` body preview in the log.
 
+## The dev server does not hot-reload server code AT ALL
+
+The app's dev command runs the server entrypoint with `tsx` **without** a watch
+flag, so nothing under `server/` is picked up until the workflow is restarted. This
+is broader than the stale-route case above: validation allow-lists, schemas, and
+repair logic all keep running their old version.
+
+**Why:** it cost a full debugging cycle — an end-to-end browser test "proved" that
+newly added components were being rejected by server validation, but the running
+process simply predated the edit that added them to the allow-list.
+
+**How to apply:** restart the app workflow after ANY `server/` edit, before running
+an end-to-end or curl-based check. If an e2e result contradicts code you just read,
+suspect a stale process before suspecting the code.
+
 ## drizzle-kit push cannot be answered by piping
 
 `npm run db:push` prompts interactively when adding a unique constraint to a

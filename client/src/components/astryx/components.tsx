@@ -721,6 +721,242 @@ export function AstryxListItem({ label = "List item", description, icon, active 
   );
 }
 
+// ─── Form structure ───────────────────────────────────────────────────────────
+
+export function AstryxField({ children, label = "Field label", helpText, error, required = false }: AstryxProps) {
+  return (
+    <div className="w-full flex flex-col gap-1">
+      {label && (
+        <label className="text-xs font-medium text-gray-700">
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
+      {children}
+      {error
+        ? <p className="text-xs text-red-600">{error}</p>
+        : helpText ? <p className="text-xs text-gray-500">{helpText}</p> : null}
+    </div>
+  );
+}
+
+export function AstryxFieldStatus({ children = "This field is required", status = "error" }: AstryxProps) {
+  const toneClass = pick({
+    error:   "text-red-600",
+    success: "text-green-600",
+    warning: "text-amber-600",
+    info:    "text-gray-500",
+  }, status, "text-red-600");
+  const glyph = pick({ error: "⚠", success: "✓", warning: "⚠", info: "ⓘ" }, status, "⚠");
+  return (
+    <div className={`w-full flex items-start gap-1.5 text-xs ${toneClass}`}>
+      <span className="shrink-0 leading-4 select-none">{glyph}</span>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+export function AstryxFormLayout({ children, columns = 1, gap = 16 }: AstryxProps) {
+  const columnCount = Math.min(Math.max(1, Number(columns) || 1), 4);
+  return (
+    <div
+      className="w-full"
+      style={{ display: "grid", gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, gap: Math.max(0, Number(gap) || 0) }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AstryxInputGroup({ children, gap = 0 }: AstryxProps) {
+  const resolvedGap = Math.max(0, Number(gap) || 0);
+  return (
+    <div className="w-full flex flex-row items-stretch" style={{ gap: resolvedGap }}>
+      {children}
+    </div>
+  );
+}
+
+export function AstryxGrid({ children, columns = 2, gap = 12, align = "stretch" }: AstryxProps) {
+  const columnCount = Math.min(Math.max(1, Number(columns) || 2), 6);
+  const alignItems = pick({ start: "start", center: "center", end: "end", stretch: "stretch" }, align, "stretch");
+  return (
+    <div
+      className="w-full"
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gap: Math.max(0, Number(gap) || 0),
+        alignItems,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Form inputs ──────────────────────────────────────────────────────────────
+
+export function AstryxTextArea({ placeholder = "Enter text…", label, value, rows = 4, disabled, borderRadius }: AstryxProps) {
+  const rowCount = Math.min(Math.max(1, Number(rows) || 4), 20);
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      <textarea
+        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 w-full"
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+        placeholder={placeholder}
+        defaultValue={value}
+        rows={rowCount}
+        disabled={disabled}
+        readOnly
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
+      />
+    </div>
+  );
+}
+
+export function AstryxSwitch({ label = "Enable option", checked = false, disabled }: AstryxProps) {
+  return (
+    <div className={`w-full flex items-center gap-2 ${disabled ? "opacity-50" : ""}`}>
+      <div className={`w-8 h-[18px] rounded-full shrink-0 relative transition-colors ${checked ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span
+          className="absolute top-[2px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform"
+          style={{ transform: `translateX(${checked ? 16 : 2}px)` }}
+        />
+      </div>
+      {label && <span className="text-sm text-gray-700">{label}</span>}
+    </div>
+  );
+}
+
+export function AstryxNumberInput({ label, value = 0, min, max, step = 1, disabled, borderRadius }: AstryxProps) {
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      <div
+        className={`flex items-stretch w-full rounded-md border border-gray-300 bg-white overflow-hidden ${disabled ? "opacity-50" : ""}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <input
+          className="flex-1 min-w-0 px-3 py-1.5 text-sm text-gray-900 bg-transparent focus:outline-none"
+          type="number"
+          value={Number(value) || 0}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          readOnly
+          tabIndex={-1}
+          onChange={() => {}}
+          onMouseDown={(e) => e.preventDefault()}
+        />
+        <div className="flex flex-col border-l border-gray-300 select-none">
+          <span className="flex-1 px-2 flex items-center text-[9px] text-gray-500 leading-none hover:bg-gray-50">▲</span>
+          <span className="flex-1 px-2 flex items-center text-[9px] text-gray-500 leading-none border-t border-gray-200 hover:bg-gray-50">▼</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxToggleButton({ children = "Toggle", pressed = false, size = "md", disabled, borderRadius }: AstryxProps) {
+  const sizeClass = pick({ sm: "px-2 py-1 text-xs", md: "px-3 py-1.5 text-sm", lg: "px-4 py-2 text-base" }, size, "px-3 py-1.5 text-sm");
+  const stateClass = pressed
+    ? "bg-blue-600 border-blue-600 text-white"
+    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50";
+  return (
+    <button
+      className={`w-full inline-flex items-center justify-center rounded-md border font-medium transition-colors ${sizeClass} ${stateClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+      disabled={disabled}
+      aria-pressed={!!pressed}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function AstryxSegmentedControl({ options = "Option A,Option B,Option C", selected = "Option A", size = "md", borderRadius }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const sizeClass = pick({ sm: "text-xs py-0.5", md: "text-sm py-1", lg: "text-base py-1.5" }, size, "text-sm py-1");
+  return (
+    <div
+      className="w-full inline-flex items-stretch gap-0.5 rounded-md bg-gray-100 p-0.5"
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+    >
+      {optionList.map((opt) => (
+        <span
+          key={opt}
+          className={`flex-1 text-center px-3 rounded font-medium truncate ${sizeClass} ${
+            opt === selected ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+          }`}
+        >
+          {opt}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxCheckboxList({ options = "Option A,Option B,Option C", selected = "Option A", label }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const selectedSet = new Set(
+    (Array.isArray(selected) ? selected.map(String) : String(selected).split(","))
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+  return (
+    <div className="w-full flex flex-col gap-2">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      {optionList.map((opt) => {
+        const isChecked = selectedSet.has(opt);
+        return (
+          <div key={opt} className="flex items-center gap-2">
+            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+              {isChecked && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="text-sm text-gray-700">{opt}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function AstryxIconButton({ name = "star", variant = "outline", size = "md", disabled, borderRadius }: AstryxProps) {
+  const sizeClass = pick({ sm: "w-7 h-7 text-sm", md: "w-9 h-9 text-base", lg: "w-11 h-11 text-lg" }, size, "w-9 h-9 text-base");
+  const variantClass = pick({
+    primary:   "bg-blue-600 text-white hover:bg-blue-700 border border-blue-600",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-100",
+    outline:   "border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white",
+    ghost:     "text-gray-700 hover:bg-gray-100 border border-transparent",
+  }, variant, "border border-gray-300 text-gray-700 bg-white");
+  const key = String(name).toLowerCase().trim();
+  const glyph = ICON_GLYPHS[key] ?? (String(name).charAt(0).toUpperCase() || "⬡");
+  return (
+    <div className="w-full flex">
+      <button
+        className={`inline-flex items-center justify-center rounded-md transition-colors shrink-0 ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+        disabled={disabled}
+        title={name}
+      >
+        <span className="select-none leading-none">{glyph}</span>
+      </button>
+    </div>
+  );
+}
+
 export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
   Button:      AstryxButton,
   Card:        AstryxCard,
@@ -771,4 +1007,18 @@ export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Elem
   // List
   List:        AstryxList,
   ListItem:    AstryxListItem,
+  // Form structure
+  Field:            AstryxField,
+  FieldStatus:      AstryxFieldStatus,
+  FormLayout:       AstryxFormLayout,
+  InputGroup:       AstryxInputGroup,
+  Grid:             AstryxGrid,
+  // Form inputs
+  TextArea:         AstryxTextArea,
+  Switch:           AstryxSwitch,
+  NumberInput:      AstryxNumberInput,
+  ToggleButton:     AstryxToggleButton,
+  SegmentedControl: AstryxSegmentedControl,
+  CheckboxList:     AstryxCheckboxList,
+  IconButton:       AstryxIconButton,
 };

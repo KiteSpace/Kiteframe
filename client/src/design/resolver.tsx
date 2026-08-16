@@ -46,6 +46,14 @@ import {
   AstryxCommand as AstryxCommandBase,
   AstryxCarousel as AstryxCarouselBase,
   AstryxResizable as AstryxResizableBase,
+  // Form inputs
+  AstryxTextArea as AstryxTextAreaBase,
+  AstryxSwitch as AstryxSwitchBase,
+  AstryxNumberInput as AstryxNumberInputBase,
+  AstryxToggleButton as AstryxToggleButtonBase,
+  AstryxSegmentedControl as AstryxSegmentedControlBase,
+  AstryxCheckboxList as AstryxCheckboxListBase,
+  AstryxIconButton as AstryxIconButtonBase,
   // Navigation
   AstryxNavbar as AstryxNavbarBase,
   AstryxSidebar as AstryxSidebarBase,
@@ -226,6 +234,7 @@ const FULL_WIDTH_LEAF = new Set([
   "AstryxBanner", "AstryxEmptyState", "AstryxChatMessage", "AstryxDivider",
   "AstryxProgressBar", "AstryxTextInput", "AstryxSelect", "AstryxRadioGroup",
   "AstryxHeading", "AstryxBarChart", "AstryxLineChart", "AstryxPieChart",
+  "AstryxTextArea", "AstryxNumberInput", "AstryxSegmentedControl", "AstryxCheckboxList",
 ]);
 
 function useLeafNode() {
@@ -1102,6 +1111,89 @@ export function AstryxUnknown(props: AstryxProps) {
 }
 (AstryxUnknown as any).craft = { displayName: "AstryxUnknown", rules: { canMoveIn: () => false } };
 
+// ─── Form inputs ──────────────────────────────────────────────────────────────
+
+export function AstryxTextArea(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxTextAreaBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxTextArea as any).craft = { displayName: "AstryxTextArea", rules: { canMoveIn: () => false } };
+
+export function AstryxSwitch(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("label", props.label ?? "Enable option");
+  return (
+    <div ref={connectRef} style={{ position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxSwitchBase {...props} /></div>
+      {editOverlay}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxSwitch as any).craft = { displayName: "AstryxSwitch", rules: { canMoveIn: () => false } };
+
+export function AstryxNumberInput(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxNumberInputBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxNumberInput as any).craft = { displayName: "AstryxNumberInput", rules: { canMoveIn: () => false } };
+
+export function AstryxToggleButton(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  const { editing, onDoubleClick, editOverlay } = useInlineEdit("children", props.children ?? "Toggle");
+  return (
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }} onDoubleClick={onDoubleClick}>
+      <div style={editing ? { visibility: "hidden" } : undefined}><AstryxToggleButtonBase {...props} borderRadius={resolvedRadius} /></div>
+      {editOverlay}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxToggleButton as any).craft = { displayName: "AstryxToggleButton", rules: { canMoveIn: () => false } };
+
+export function AstryxSegmentedControl(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxSegmentedControlBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxSegmentedControl as any).craft = { displayName: "AstryxSegmentedControl", rules: { canMoveIn: () => false } };
+
+export function AstryxCheckboxList(props: AstryxProps) {
+  const { connectRef, extraStyle, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={extraStyle}>
+      <AstryxCheckboxListBase {...props} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxCheckboxList as any).craft = { displayName: "AstryxCheckboxList", rules: { canMoveIn: () => false } };
+
+export function AstryxIconButton(props: AstryxProps) {
+  const { connectRef, extraStyle, resolvedRadius, resizeHandles } = useLeafNode();
+  return (
+    <div ref={connectRef} style={{ display: "inline-block", position: "relative", ...extraStyle }}>
+      <AstryxIconButtonBase {...props} borderRadius={resolvedRadius} />
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxIconButton as any).craft = { displayName: "AstryxIconButton", rules: { canMoveIn: () => false } };
+
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 export function AstryxNavbar(props: AstryxProps) {
@@ -1813,6 +1905,184 @@ export function AstryxCard({ children, variant = "elevated", gap = 12, wrap = "n
 }
 (AstryxCard as any).craft = { displayName: "AstryxCard", isCanvas: true, rules: { canMoveIn: () => true } };
 
+// ─── Form structure containers ────────────────────────────────────────────────
+// Same container contract as Stack/HStack/Card: isCanvas is declared in the
+// static craft config so the AI prompt and the editor agree that children can
+// be dropped in. Declaring it on only one side yields a node the AI happily
+// generates but nothing can be dropped into.
+
+export function AstryxField({ children, label = "Field label", helpText, error, required = false, gap = 4, position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: Math.max(0, Number(gap) || 0),
+        width: "100%",
+        position: "relative",
+        boxSizing: "border-box",
+        ...(backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {label ? (
+        <label style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>
+          {label}
+          {required ? <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span> : null}
+        </label>
+      ) : null}
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 32 }}>drop input here</div> : children}
+      {error
+        ? <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>{error}</p>
+        : helpText ? <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{helpText}</p> : null}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxField as any).craft = { displayName: "AstryxField", isCanvas: true, rules: { canMoveIn: () => true } };
+
+const FIELD_STATUS_TONE: Record<string, { color: string; glyph: string }> = {
+  error:   { color: "#dc2626", glyph: "⚠" },
+  success: { color: "#16a34a", glyph: "✓" },
+  warning: { color: "#d97706", glyph: "⚠" },
+  info:    { color: "#6b7280", glyph: "ⓘ" },
+};
+
+export function AstryxFieldStatus({ children, status = "error", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isDragOver, isAbsolute, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  const tone = FIELD_STATUS_TONE[status as string] ?? FIELD_STATUS_TONE.error;
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 6,
+        width: "100%",
+        fontSize: 12,
+        color: (textColor as string) ?? tone.color,
+        position: "relative",
+        boxSizing: "border-box",
+        ...(backgroundColor ? { background: backgroundColor as string } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...(selected ? { outline: "2px solid #3b82f6", outlineOffset: 2 } : {}),
+        ...(isDragOver && !selected ? { outline: "1.5px dashed #3b82f6", outlineOffset: 2 } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      <span style={{ flexShrink: 0, lineHeight: "16px", userSelect: "none" }}>{tone.glyph}</span>
+      {isEmpty
+        ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 20 }}>drop message here</div>
+        : <div style={{ flex: 1, minWidth: 0 }}>{children}</div>}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxFieldStatus as any).craft = { displayName: "AstryxFieldStatus", isCanvas: true, rules: { canMoveIn: () => true } };
+
+export function AstryxFormLayout({ children, columns = 1, gap = 16, position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  const columnCount = Math.min(Math.max(1, Number(columns) || 1), 4);
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        alignItems: "start",
+        gap: Math.max(0, Number(gap) || 0),
+        minHeight: 32,
+        width: "100%",
+        position: "relative",
+        boxSizing: "border-box",
+        ...containerVisual,
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, gridColumn: "1 / -1" }}>drop here</div> : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxFormLayout as any).craft = { displayName: "AstryxFormLayout", isCanvas: true, rules: { canMoveIn: () => true } };
+
+export function AstryxInputGroup({ children, gap = 0, position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: Math.max(0, Number(gap) || 0),
+        minHeight: 32,
+        width: "100%",
+        position: "relative",
+        boxSizing: "border-box",
+        ...containerVisual,
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, minHeight: 32 }}>drop here</div> : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxInputGroup as any).craft = { displayName: "AstryxInputGroup", isCanvas: true, rules: { canMoveIn: () => true } };
+
+export function AstryxGrid({ children, columns = 2, gap = 12, align = "stretch", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
+  const { connectRef, isEmpty, selected, isAbsolute, containerVisual, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  const columnCount = Math.min(Math.max(1, Number(columns) || 2), 6);
+  return (
+    <div
+      ref={connectRef}
+      onMouseDown={onMouseDown}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        alignItems: ALIGN_MAP[align] === "flex-start" ? "start" : ALIGN_MAP[align] === "flex-end" ? "end" : (ALIGN_MAP[align] ?? "stretch"),
+        gap: Math.max(0, Number(gap) || 0),
+        minHeight: 32,
+        width: "100%",
+        position: "relative",
+        boxSizing: "border-box",
+        ...containerVisual,
+        ...(!selected && backgroundColor ? { background: backgroundColor as string } : {}),
+        ...(textColor ? { color: textColor as string } : {}),
+        ...absPositionStyle(position, x, y),
+        ...(isAbsolute ? { cursor: "grab" } : {}),
+        ...containerSizeStyle,
+      }}
+    >
+      {isEmpty ? <div style={{ ...EMPTY_DROP_STYLE, gridColumn: "1 / -1" }}>drop here</div> : children}
+      {resizeHandles}
+    </div>
+  );
+}
+(AstryxGrid as any).craft = { displayName: "AstryxGrid", isCanvas: true, rules: { canMoveIn: () => true } };
+
 // ─── Artboard ─────────────────────────────────────────────────────────────────
 // Named canvas frame — the top-level screen container in the design editor.
 // Multiple artboards sit side-by-side inside the ROOT section.
@@ -2263,6 +2533,20 @@ export const resolver = {
   AstryxCommand,
   AstryxCarousel,
   AstryxResizable,
+  // Form structure
+  AstryxField,
+  AstryxFieldStatus,
+  AstryxFormLayout,
+  AstryxInputGroup,
+  AstryxGrid,
+  // Form inputs
+  AstryxTextArea,
+  AstryxSwitch,
+  AstryxNumberInput,
+  AstryxToggleButton,
+  AstryxSegmentedControl,
+  AstryxCheckboxList,
+  AstryxIconButton,
   // Navigation
   AstryxNavbar,
   AstryxSidebar,

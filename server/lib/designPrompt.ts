@@ -28,6 +28,20 @@ export const ASTRYX_COMPONENT_LIST = [
   "AstryxCommand",
   "AstryxCarousel",
   "AstryxResizable",
+  // Form structure (containers)
+  "AstryxField",
+  "AstryxFieldStatus",
+  "AstryxFormLayout",
+  "AstryxInputGroup",
+  "AstryxGrid",
+  // Form inputs
+  "AstryxTextArea",
+  "AstryxSwitch",
+  "AstryxNumberInput",
+  "AstryxToggleButton",
+  "AstryxSegmentedControl",
+  "AstryxCheckboxList",
+  "AstryxIconButton",
   "AstryxCard",
   "AstryxChatMessage",
   "AstryxEmptyState",
@@ -97,6 +111,11 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxStack    vertical stack           props: { gap:number, wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
 • AstryxHStack   horizontal row           props: { gap:number, align:"start"|"center"|"end", wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
 • AstryxCard     content card (container) props: { variant:"elevated"|"outlined"|"ghost", wrap?:"nowrap"|"wrap"|"wrap-reverse", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxGrid     equal-column grid        props: { columns:number (1-6), gap:number, align?:"start"|"center"|"end"|"stretch", backgroundColor?:string (hex), textColor?:string (hex) }
+• AstryxFormLayout form field grid        props: { columns:number (1-4), gap:number, backgroundColor?:string (hex), textColor?:string (hex) }   ← put AstryxField children inside
+• AstryxField    labelled field wrapper   props: { label:string, helpText?:string, error?:string, required?:boolean, gap?:number }   ← put ONE input (AstryxTextInput/AstryxSelect/AstryxTextArea/…) inside
+• AstryxInputGroup joined input row       props: { gap:number (0 = visually attached) }   ← e.g. AstryxTextInput + AstryxButton side by side
+• AstryxFieldStatus validation message    props: { status:"error"|"success"|"warning"|"info" }   ← put an AstryxText inside for the message
 
 — TYPOGRAPHY —
 • AstryxHeading  headline  props: { children:string, size:"sm"|"md"|"lg"|"xl"|"2xl", textColor?:string (hex) }
@@ -109,6 +128,13 @@ These are the ONLY valid resolvedName values. If the user asks for anything else
 • AstryxCheckbox  checkbox     props: { label:string, checked:boolean }
 • AstryxRadioGroup radio group props: { options:string (comma-separated), selected:string }
 • AstryxSlider    range slider props: { value:number, min:number, max:number }
+• AstryxTextArea  multi-line text  props: { label:string, placeholder:string, rows:number (1-20), disabled:boolean }
+• AstryxSwitch    on/off toggle    props: { label:string, checked:boolean, disabled:boolean }
+• AstryxNumberInput stepper field  props: { label:string, value:number, min?:number, max?:number, step?:number, disabled:boolean }
+• AstryxToggleButton toggleable button props: { children:string, pressed:boolean, size:"sm"|"md"|"lg", disabled:boolean }
+• AstryxSegmentedControl segmented picker props: { options:string (comma-separated), selected:string (must match one option), size:"sm"|"md"|"lg" }
+• AstryxCheckboxList multi-select list props: { label?:string, options:string (comma-separated), selected:string (comma-separated subset of options) }
+• AstryxIconButton icon-only button props: { name:string (icon name, e.g. "search"), variant:"primary"|"secondary"|"outline"|"ghost", size:"sm"|"md"|"lg", disabled:boolean }
 
 — STATUS & FEEDBACK —
 • AstryxBadge       chip/tag       props: { children:string, color:"blue"|"green"|"amber"|"red"|"gray" }
@@ -235,8 +261,9 @@ Every node (whether in craftState or a patch) must follow this shape:
 NESTING RULES:
 • ROOT must always be AstryxSection (parent: null). It holds AstryxArtboard children (the screens/frames).
 • AstryxArtboard is the named screen frame — "Screen 1", "Screen 2", etc. It is a container (isCanvas:true) that holds a screen's content. Its parent is ROOT.
-• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard. All others are leaves (isCanvas:false, nodes:[]).
+• Containers (isCanvas:true): AstryxArtboard, AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus. All others are leaves (isCanvas:false, nodes:[]).
 • AstryxCard is a container (isCanvas:true) — give it a nodes[] array with its child components (typically a Stack or HStack wrapping its content). Use it to group related content in a styled box.
+• Form composition: AstryxFormLayout holds AstryxField children; each AstryxField holds exactly ONE input node and carries its own label/helpText/error props — do NOT also set the input's own label prop, and do NOT put a separate AstryxText label beside it.
 • "parent" is null only for ROOT. Every other node must reference a valid parent ID.
 • For patch:
   - When adding content to a named screen (e.g. "Screen 1"), target ONLY that AstryxArtboard node — include it in the patch with its updated "nodes" array.
