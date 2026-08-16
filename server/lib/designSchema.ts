@@ -277,8 +277,32 @@ export function validateCraftState(data: unknown): DesignValidationResult {
  * Call this before validateCraftState so transient AI omissions and node-ID
  * mismatches don't hard-fail saves.
  */
+/** What repairCraftState had to change, for reporting back to the caller. */
+export interface CraftRepairReport {
+  /** Original names of components replaced by the placeholder, de-duplicated. */
+  substitutedComponents: string[];
+  /** Nodes that arrived with no usable type at all and were given the placeholder. */
+  typelessNodeIds: string[];
+}
+
+export interface CraftRepairResult {
+  state: unknown;
+  report: CraftRepairReport;
+}
+
 export function repairCraftState(state: unknown): unknown {
-  if (!state || typeof state !== "object") return state;
+  return repairCraftStateWithReport(state).state;
+}
+
+export function repairCraftStateWithReport(state: unknown): CraftRepairResult {
+  const substitutedComponents: string[] = [];
+  const typelessNodeIds: string[] = [];
+  const report = (): CraftRepairReport => ({
+    substitutedComponents: Array.from(new Set(substitutedComponents)),
+    typelessNodeIds,
+  });
+
+  if (!state || typeof state !== "object") return { state, report: report() };
   const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
   const nodeIds = new Set(Object.keys(map));
   const allowedSet = new Set<string>(SERVER_ALLOWED_CRAFT_COMPONENTS);
@@ -292,13 +316,18 @@ export function repairCraftState(state: unknown): unknown {
     if (!Array.isArray(n["nodes"])) n["nodes"] = [];
     if (!n["linkedNodes"] || typeof n["linkedNodes"] !== "object") n["linkedNodes"] = {};
     if (!("parent" in n)) n["parent"] = nodeId === "ROOT" ? null : null;
-    if (!n["type"] || typeof n["type"] !== "object") {
+    if (!n["type"] || typeof n["type"] !== "object" || Array.isArray(n["type"])) {
       // Can't recover a node with no type — mark as unknown so it renders as a placeholder
       n["type"] = { resolvedName: "AstryxUnknown" };
+      typelessNodeIds.push(nodeId);
+    } else {
+      // Clone: `n` is a shallow copy, so its `type` still aliases the input.
+      n["type"] = { ...(n["type"] as Record<string, unknown>) };
     }
     const typeObj = n["type"] as Record<string, unknown>;
     if (typeof typeObj["resolvedName"] !== "string" || !typeObj["resolvedName"]) {
       typeObj["resolvedName"] = "AstryxUnknown";
+      if (!typelessNodeIds.includes(nodeId)) typelessNodeIds.push(nodeId);
     }
 
     // ── Sanitize unknown component types ────────────────────────────────────
@@ -317,6 +346,27 @@ export function repairCraftState(state: unknown): unknown {
         `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with AstryxUnknown`,
       );
       typeObj["resolvedName"] = "AstryxUnknown";
+      const existingProps =
+        n["props"] && typeof n["props"] === "object" && !Array.isArray(n["props"])
+          ? (n["props"] as Record<string, unknown>)
+          : {};
+      // The placeholder renders this name, so the user can see what was swapped.
+      n["props"] = { ...existingProps, astryxComponent: resolvedName };
+      n["displayName"] = "AstryxUnknown";
+      substitutedComponents.push(resolvedName);
+    }
+
+    // ── A placeholder keeps the container-ness of what it replaced ──────────
+    // If the missing component was a container, forcing a leaf here hides its
+    // entire subtree — the same whole-design loss this fallback exists to
+    // prevent, one level down. The placeholder renders its children, so the
+    // content survives inside a clearly marked gap.
+    //
+    // Applied to every placeholder node, not just freshly substituted ones, so
+    // designs saved while the placeholder was leaf-only get their hidden
+    // subtrees back the next time they are opened.
+    if (typeObj["resolvedName"] === "AstryxUnknown") {
+      n["isCanvas"] = Array.isArray(n["nodes"]) && (n["nodes"] as unknown[]).length > 0;
     }
 
     // `hidden`      — normalize any non-boolean (absent, null, "false", 1…)
@@ -524,7 +574,7 @@ export function repairCraftState(state: unknown): unknown {
     }
   }
 
-  return map;
+  return { state: map, report: report() };
 }
 
 // ─── Unreachable-node pruner ──────────────────────────────────────────────────

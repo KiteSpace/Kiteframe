@@ -497,13 +497,17 @@ describe("hidden / custom / displayName field enforcement", () => {
     expect(repaired.txt1.displayName).toBe("AstryxText");
   });
 
-  it("defaults displayName to 'Unknown' when resolvedName is also absent/non-string", () => {
+  it("backfills a malformed resolvedName with the placeholder component", () => {
     const state = bareState() as any;
     // Give the node a numeric resolvedName (truthy, non-string) — simulates
     // a malformed AI output that would also cause the schema to reject it.
     state.txt1.type = { resolvedName: 99 };
     const repaired = repairCraftState(state) as any;
-    expect(repaired.txt1.displayName).toBe("Unknown");
+    // Repair now gives the node a real, resolvable type instead of leaving it
+    // unresolvable with a bare "Unknown" label: craft.js can render the
+    // placeholder, so the rest of the design still lands on the canvas.
+    expect(repaired.txt1.type.resolvedName).toBe("AstryxUnknown");
+    expect(repaired.txt1.displayName).toBe("AstryxUnknown");
   });
 
   it("works end-to-end via the JSON wrapper", () => {

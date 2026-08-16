@@ -1104,7 +1104,11 @@ export function AstryxUnknown(props: AstryxProps) {
   const { connectRef, extraStyle, resizeHandles } = useLeafNode();
   return (
     <div ref={connectRef} style={extraStyle}>
-      <AstryxUnknownBase astryxComponent={props.astryxComponent ?? "Unknown"} />
+      {/* children are passed through: when the unresolved component was a
+          container, its subtree must still render inside the placeholder. */}
+      <AstryxUnknownBase astryxComponent={props.astryxComponent ?? "Unknown"}>
+        {props.children}
+      </AstryxUnknownBase>
       {resizeHandles}
     </div>
   );

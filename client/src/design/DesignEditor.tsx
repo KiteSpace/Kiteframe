@@ -81,7 +81,12 @@ import {
   CanvasZoomContext,
   SnapGuideContext,
 } from "./resolver";
-import { repairCraftState } from "./craftValidator";
+import {
+  repairCraftState,
+  repairCraftStateWithReport,
+  suggestAlternativeComponent,
+  type CraftRepairReport,
+} from "./craftValidator";
 import { detectNewScreenIntent } from "./newScreenIntent";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
@@ -3177,7 +3182,10 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
     try {
       // Repair before validation and pass the repaired result downstream so the
       // canvas never receives a state with dangling refs or a missing ROOT.
-      const parsed = repairCraftState(applyContrastColors(JSON.parse(craftStateStr))) as Record<string, unknown>;
+      const { state: repairedImport, report } = repairCraftStateWithReport(
+        applyContrastColors(JSON.parse(craftStateStr)),
+      );
+      const parsed = repairedImport as Record<string, unknown>;
       const validation = validateCraftState(parsed);
       if (!validation.valid) {
         const hint = describeValidationError(validation.errors);
@@ -3191,6 +3199,10 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
       const merged = mergeIntoCanvas(fullExisting, parsed);
       const spread = spreadArtboardsInState(merged, fullExisting);
       actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+      const substitutions = describeSubstitutions(report).trim();
+      if (substitutions) {
+        toast({ title: "Imported with placeholders", description: substitutions });
+      }
     } catch (err) {
       console.error("[ImportDesign] Failed to apply:", err);
     }
@@ -5070,8 +5082,81 @@ function describeValidationError(errors: string[]): string {
   if (first.includes("non-existent parent")) return "it referenced a node that doesn't exist on your canvas.";
   if (first.includes("non-existent child")) return "it produced an inconsistent node tree.";
   if (first.includes("ROOT")) return "the generated design was missing its root structure.";
-  if (first.includes("resolvedName")) return "it used an unrecognised component type.";
+  // NOT "an unrecognised component type": the validator does not reject unknown
+  // component *names* at all — repairCraftState swaps those for a labelled
+  // placeholder before we get here. The only type error it can raise is a node
+  // that carries no type whatsoever.
+  if (first.includes("resolvedName")) return "one of its elements arrived with no component type at all.";
   return first.slice(0, 120) + ".";
+}
+
+/**
+ * Full user-facing explanation for a generation that genuinely could not be
+ * applied.
+ *
+ * By the time validation runs, repair has already backfilled missing types,
+ * degraded unknown components to placeholders, stripped dangling references and
+ * synthesised a missing ROOT. Anything still failing is a structural fault in
+ * the model's output, so "try rephrasing" is bad advice — the user's wording was
+ * never the problem. Re-running the generation is what actually helps.
+ */
+function describeValidationFailure(errors: string[]): string {
+  return `${describeValidationError(errors)} That's a fault in the generated structure rather than your wording — asking again usually clears it.`;
+}
+
+function friendlyComponentName(name: string): string {
+  return name.replace(/^Astryx/, "");
+}
+
+/**
+ * Names the components the repair pass had to replace with placeholders, and
+ * points at the closest thing the user could ask for instead.
+ *
+ * Returns "" when nothing was substituted, so callers can append it
+ * unconditionally to a success message.
+ */
+function describeSubstitutions(report: CraftRepairReport | undefined): string {
+  if (!report) return "";
+  const names = report.substitutedComponents;
+  const typeless = report.typelessNodeIds.length;
+  const sentences: string[] = [];
+
+  if (names.length > 0) {
+    const shown = names.slice(0, 3);
+    const extra = names.length - shown.length;
+    const list =
+      shown.map(friendlyComponentName).join(", ") + (extra > 0 ? ` and ${extra} more` : "");
+    const plural = names.length > 1;
+    sentences.push(
+      `${list} ${plural ? "aren't" : "isn't"} in the Astryx library, so I left ${
+        plural ? "labelled placeholders" : "a labelled placeholder"
+      } on the canvas.`,
+    );
+
+    const suggestions = shown
+      .map((n) => {
+        const alt = suggestAlternativeComponent(n);
+        return alt ? `${friendlyComponentName(n)} → ${friendlyComponentName(alt)}` : null;
+      })
+      .filter((s): s is string => s !== null);
+    if (suggestions.length > 0) {
+      sentences.push(
+        `Closest available: ${suggestions.join(", ")} — ask me to swap ${
+          suggestions.length > 1 ? "them" : "it"
+        } in.`,
+      );
+    }
+  }
+
+  if (typeless > 0) {
+    sentences.push(
+      `${typeless} element${typeless === 1 ? "" : "s"} came back malformed and ${
+        typeless === 1 ? "is" : "are"
+      } shown as ${typeless === 1 ? "a placeholder" : "placeholders"} too.`,
+    );
+  }
+
+  return sentences.length > 0 ? " " + sentences.join(" ") : "";
 }
 
 const INITIAL_MESSAGES: AIMessage[] = [
@@ -5366,15 +5451,17 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           } else {
             // Repair before validation so minor AI ref issues (dangling children,
             // missing parent, absent ROOT) don't hard-fail the import.
-            const parsedRaw = (() => { try {
+            const repairedImport = (() => { try {
               const raw = applyContrastColors(JSON.parse(data.craftState));
-              return raw ? repairCraftState(raw) as Record<string, unknown> : null;
+              return raw ? repairCraftStateWithReport(raw) : null;
             } catch { return null; } })();
+            const parsedRaw = repairedImport ? repairedImport.state as Record<string, unknown> : null;
+            const importReport = repairedImport?.report;
             if (parsedRaw) {
               const validation = validateCraftState(parsedRaw);
               if (!validation.valid) {
                 const hint = describeValidationError(validation.errors);
-                setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
+                setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try again or use a clearer image.` }]);
               } else {
                 let fullExisting: Record<string, unknown> = {};
                 try { fullExisting = JSON.parse(query.serialize()); } catch {}
@@ -5392,14 +5479,18 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
                 // data into the canvas.
                 // Repair the merged state and use the repaired version for both
                 // validation and deserialise — so the canvas never loads dangling refs.
-                const repairedSpread = repairCraftState(spread) as Record<string, unknown>;
+                const { state: repairedSpreadState, report: mergeReport } = repairCraftStateWithReport(spread);
+                const repairedSpread = repairedSpreadState as Record<string, unknown>;
                 const postMergeValidation = validateCraftState(repairedSpread);
                 if (!postMergeValidation.valid) {
-                  const hint = describeValidationError(postMergeValidation.errors);
-                  setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint} Try rephrasing your request or using a clearer image.` }]);
+                  const hint = describeValidationFailure(postMergeValidation.errors);
+                  setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint}` }]);
                 } else {
                   actions.deserialize(sanitizeCraftState(JSON.stringify(repairedSpread)));
-                  setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" }]);
+                  // The incoming state is repaired before the merge, so report
+                  // that pass's substitutions plus anything the merge surfaced.
+                  const note = describeSubstitutions(importReport) + describeSubstitutions(mergeReport);
+                  setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design imported from image.") + " ✓" + note }]);
                 }
               }
             } else {
@@ -5478,15 +5569,16 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           try { existingState = JSON.parse(query.serialize()); } catch {}
           const mergedRaw = mergeGraphAware(existingState, patchNodes);
           // Repair and persist the repaired result — not just for validation.
-          const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId))) as Record<string, unknown>;
+          const { state: mergedState, report } = repairCraftStateWithReport(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId)));
+          const merged = mergedState as Record<string, unknown>;
           const validation = validateCraftState(merged);
           if (!validation.valid) {
-            const hint = describeValidationError(validation.errors);
-            setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
+            const hint = describeValidationFailure(validation.errors);
+            setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint}` }]);
           } else {
             const spread = spreadArtboardsInState(merged, existingState);
             actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
+            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" + describeSubstitutions(report) }]);
           }
         } else {
           const craftStateStr = data.craftState ?? data;
@@ -5495,16 +5587,17 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           let fullExisting: Record<string, unknown> = {};
           try { fullExisting = JSON.parse(query.serialize()); } catch {}
           const parsedForValidationRaw = parsedRaw ? preserveTableCellData(fullExisting, parsedRaw, pinned?.nodeId) : null;
-          const parsedForValidation = parsedForValidationRaw ? repairCraftState(parsedForValidationRaw) as Record<string, unknown> : null;
+          const repaired = parsedForValidationRaw ? repairCraftStateWithReport(parsedForValidationRaw) : null;
+          const parsedForValidation = repaired ? repaired.state as Record<string, unknown> : null;
           const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
           if (!validation.valid) {
-            const hint = describeValidationError(validation.errors);
-            setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that change — ${hint} Try rephrasing or using a different reference.` }]);
+            const hint = describeValidationFailure(validation.errors);
+            setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that change — ${hint}` }]);
           } else {
             const mergedForApply = mergeIntoCanvas(fullExisting, parsedForValidation!);
             const spread = spreadArtboardsInState(mergedForApply, fullExisting);
             actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
-            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas to match the reference.") + " ✓" }]);
+            setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas to match the reference.") + " ✓" + describeSubstitutions(repaired?.report) }]);
           }
         }
         setAiStatus("idle");
@@ -5609,18 +5702,19 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
             ? reuseUntouchedDefaultArtboard(existingState, patchNodes)
             : mergeGraphAware(existingState, patchNodes);
         // Repair and use the repaired result downstream.
-        const merged = repairCraftState(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId))) as Record<string, unknown>;
+        const { state: mergedState, report } = repairCraftStateWithReport(applyContrastColors(preserveTableCellData(existingState as Record<string, any>, mergedRaw as Record<string, any>, pinned?.nodeId)));
+        const merged = mergedState as Record<string, unknown>;
         const validation = validateCraftState(merged);
         if (!validation.valid) {
-          const hint = describeValidationError(validation.errors);
-          setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint} Try rephrasing your request.` }]);
+          const hint = describeValidationFailure(validation.errors);
+          setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint}` }]);
         } else {
           const spread = spreadArtboardsInState(merged, existingState);
           actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(existingState as Record<string, any>, merged as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
-          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" }]);
+          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" + describeSubstitutions(report) }]);
         }
       } else {
         const craftStateStr = data.craftState ?? data;
@@ -5629,11 +5723,12 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
         let fullExistingForReplace: Record<string, unknown> = {};
         try { fullExistingForReplace = JSON.parse(query.serialize()); } catch {}
         const parsedForValidationRaw = parsedRaw ? preserveTableCellData(fullExistingForReplace, parsedRaw, pinned?.nodeId) : null;
-        const parsedForValidation = parsedForValidationRaw ? repairCraftState(parsedForValidationRaw) as Record<string, unknown> : null;
+        const repaired = parsedForValidationRaw ? repairCraftStateWithReport(parsedForValidationRaw) : null;
+        const parsedForValidation = repaired ? repaired.state as Record<string, unknown> : null;
         const validation = parsedForValidation ? validateCraftState(parsedForValidation) : { valid: false, errors: ["Failed to parse"] };
         if (!validation.valid) {
-          const hint = describeValidationError(validation.errors);
-          setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint} Try rephrasing or ask me to simplify.` }]);
+          const hint = describeValidationFailure(validation.errors);
+          setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that design — ${hint}` }]);
         } else {
           const mergedForApply = reuseDefaultArtboard
             ? reuseUntouchedDefaultArtboard(fullExistingForReplace, parsedForValidation!)
@@ -5643,7 +5738,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           const diff = diffCraftStates(fullExistingForReplace as Record<string, any>, parsedForValidation! as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
-          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" }]);
+          setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Design created! I've built the layout on your canvas.") + " ✓" + describeSubstitutions(repaired?.report) }]);
         }
       }
       setAiStatus("idle");

@@ -92,6 +92,107 @@ export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
   "AstryxUnknown",
 ];
 
+/**
+ * The leaf placeholder every unresolvable node degrades to. It renders a dashed
+ * box labelled with the original component name (carried in
+ * `props.astryxComponent`), so a design containing something the library does not
+ * have still lands on the canvas with the gap clearly marked.
+ */
+export const PLACEHOLDER_COMPONENT = "AstryxUnknown";
+
+// ─── "Did you mean" suggestions ───────────────────────────────────────────────
+// When a generation asks for a component the library does not have, the reply
+// should point at the closest thing the user *could* ask for. This only ever
+// feeds message text — the node itself always becomes the placeholder, never an
+// automatically chosen substitute (guessing a real component silently changes
+// the design into something the user did not ask for).
+
+// Checked in order, so put the more specific families first: "DatePicker"
+// matches both /date/ and /picker/ and should resolve to the calendar.
+const ALTERNATIVE_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/date|time|schedule|day|month|year|calendar/, "AstryxCalendar"],
+  [/dropdown|combobox|listbox|autocomplete|typeahead|picker|select/, "AstryxSelect"],
+  [/toggle|switch/, "AstryxSwitch"],
+  [/dialog|modal|popup|lightbox|overlay/, "AstryxModal"],
+  [/drawer|offcanvas|flyout/, "AstryxDrawer"],
+  [/tooltip|popover|hovercard/, "AstryxBadge"],
+  [/breadcrumb|navigation|navbar|menubar|topbar/, "AstryxNavbar"],
+  [/sidebar|railnav/, "AstryxSidebar"],
+  [/stepper|wizard|timeline|progress/, "AstryxProgressBar"],
+  [/rating|stars|slider|range/, "AstryxSlider"],
+  [/upload|dropzone|filepicker/, "AstryxEmptyState"],
+  [/chart|graph|plot|sparkline/, "AstryxBarChart"],
+  [/map|iframe|embed|video|player/, "AstryxVideoPlayer"],
+  [/pagination|paginator/, "AstryxHStack"],
+  [/toast|snackbar|notification|alert/, "AstryxBanner"],
+  [/chip|tag|pill|label/, "AstryxToken"],
+  [/image|photo|thumbnail|logo|avatar/, "AstryxAvatar"],
+  [/grid|masonry|columns/, "AstryxGrid"],
+];
+
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Best-effort "closest available component" for a name the library doesn't have.
+ * Returns null rather than guessing wildly — no suggestion reads better than a
+ * confidently wrong one.
+ */
+export function suggestAlternativeComponent(unknownName: string): string | null {
+  const base = String(unknownName ?? "")
+    .replace(/^Astryx/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  if (!base) return null;
+
+  for (const [pattern, suggestion] of ALTERNATIVE_HINTS) {
+    if (pattern.test(base)) return suggestion;
+  }
+
+  // Prefer a containment match on the longest candidate name, so
+  // "PrimaryActionButton" resolves to Button rather than to a shorter accident.
+  const candidates = ALLOWED_CRAFT_COMPONENTS.filter(
+    (c) => c !== PLACEHOLDER_COMPONENT && c !== "AstryxArtboard",
+  );
+  let contained: string | null = null;
+  for (const candidate of candidates) {
+    const cb = candidate.replace(/^Astryx/, "").toLowerCase();
+    if (cb.length < 4) continue;
+    if (base.includes(cb) || cb.includes(base)) {
+      if (!contained || cb.length > contained.replace(/^Astryx/, "").length) contained = candidate;
+    }
+  }
+  if (contained) return contained;
+
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const candidate of candidates) {
+    const score = editDistance(base, candidate.replace(/^Astryx/, "").toLowerCase());
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  // Only offer a near miss; beyond roughly a third of the name being wrong the
+  // "suggestion" is noise.
+  return best !== null && bestScore <= Math.max(2, Math.floor(base.length / 3)) ? best : null;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CraftStateValidationResult {
@@ -243,13 +344,44 @@ export function normalizeRootNode(map: Record<string, unknown>, logPrefix: strin
 }
 
 // ─── Reference repairer ──────────────────────────────────────────────────────
-// Removes dangling parent/child cross-references from AI-generated craft state.
-// Call this before validateCraftState so broken references don't hard-fail saves.
+// Removes dangling parent/child cross-references from AI-generated craft state,
+// backfills unusable node types, and degrades unknown component names to the
+// placeholder. Call this before validateCraftState: everything here exists so a
+// salvageable design lands on the canvas instead of being discarded whole.
+//
+// Must stay behaviourally in sync with repairCraftState in
+// server/lib/designSchema.ts — see the parity test in
+// client/src/design/__tests__/repairParity.test.ts.
+
+/** What repairCraftState had to change, for reporting back to the user. */
+export interface CraftRepairReport {
+  /** Original names of components replaced by the placeholder, de-duplicated. */
+  substitutedComponents: string[];
+  /** Nodes that arrived with no usable type at all and were given the placeholder. */
+  typelessNodeIds: string[];
+}
+
+export interface CraftRepairResult {
+  state: unknown;
+  report: CraftRepairReport;
+}
 
 export function repairCraftState(state: unknown): unknown {
-  if (!state || typeof state !== "object") return state;
+  return repairCraftStateWithReport(state).state;
+}
+
+export function repairCraftStateWithReport(state: unknown): CraftRepairResult {
+  const substituted: string[] = [];
+  const typelessNodeIds: string[] = [];
+  const report = (): CraftRepairReport => ({
+    substitutedComponents: Array.from(new Set(substituted)),
+    typelessNodeIds,
+  });
+
+  if (!state || typeof state !== "object") return { state, report: report() };
   const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
   const nodeIds = new Set(Object.keys(map));
+  const allowedSet = new Set<string>(ALLOWED_CRAFT_COMPONENTS);
 
   for (const [nodeId, node] of Object.entries(map)) {
     if (!node || typeof node !== "object") continue;
@@ -294,10 +426,62 @@ export function repairCraftState(state: unknown): unknown {
     if (!n["custom"] || typeof n["custom"] !== "object" || Array.isArray(n["custom"])) {
       n["custom"] = {};
     }
+    // ── Backfill a node type that craft.js could never resolve ──────────────
+    // A node with no `type` (or no `resolvedName` inside it) is the ONLY
+    // component-type problem validateCraftState actually rejects. Giving it the
+    // placeholder here means a design carrying one malformed node still lands,
+    // with that node visible as a labelled gap, instead of being thrown away.
+    if (!n["type"] || typeof n["type"] !== "object" || Array.isArray(n["type"])) {
+      n["type"] = { resolvedName: PLACEHOLDER_COMPONENT };
+      typelessNodeIds.push(nodeId);
+    } else {
+      // Clone: `n` is a shallow copy, so its `type` still aliases the input.
+      n["type"] = { ...(n["type"] as Record<string, unknown>) };
+    }
+    const typeObj = n["type"] as Record<string, unknown>;
+    if (typeof typeObj["resolvedName"] !== "string" || !typeObj["resolvedName"]) {
+      typeObj["resolvedName"] = PLACEHOLDER_COMPONENT;
+      if (!typelessNodeIds.includes(nodeId)) typelessNodeIds.push(nodeId);
+    }
+
+    // ── Degrade unknown component names to the placeholder ──────────────────
+    // ROOT is deliberately exempt: the placeholder is a leaf that renders no
+    // children, so demoting ROOT blanks the entire canvas while every node
+    // survives in the state map. normalizeRootNode (below) coerces ROOT to a
+    // real container instead.
+    const resolvedName = typeObj["resolvedName"] as string;
+    if (nodeId !== "ROOT" && resolvedName !== PLACEHOLDER_COMPONENT && !allowedSet.has(resolvedName)) {
+      console.warn(
+        `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with ${PLACEHOLDER_COMPONENT}`,
+      );
+      typeObj["resolvedName"] = PLACEHOLDER_COMPONENT;
+      const existingProps =
+        n["props"] && typeof n["props"] === "object" && !Array.isArray(n["props"])
+          ? (n["props"] as Record<string, unknown>)
+          : {};
+      // The placeholder renders this name, so the user can see what was swapped.
+      n["props"] = { ...existingProps, astryxComponent: resolvedName };
+      n["displayName"] = PLACEHOLDER_COMPONENT;
+      substituted.push(resolvedName);
+    }
+
+    // ── A placeholder keeps the container-ness of what it replaced ──────────
+    // If the missing component was a container, forcing a leaf here hides its
+    // entire subtree — the same whole-design loss this fallback exists to
+    // prevent, one level down. The placeholder renders its children, so the
+    // content survives inside a clearly marked gap.
+    //
+    // Applied to every placeholder node, not just freshly substituted ones, so
+    // designs saved while the placeholder was leaf-only get their hidden
+    // subtrees back the next time they are opened.
+    if (typeObj["resolvedName"] === PLACEHOLDER_COMPONENT) {
+      n["isCanvas"] = Array.isArray(n["nodes"]) && (n["nodes"] as unknown[]).length > 0;
+    }
+
+    // Derived AFTER substitution so the layers panel never disagrees with the
+    // component actually rendered on the canvas.
     if (typeof n["displayName"] !== "string") {
-      const resolvedName =
-        (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
-      n["displayName"] = typeof resolvedName === "string" ? resolvedName : "Unknown";
+      n["displayName"] = typeObj["resolvedName"] as string;
     }
 
     map[nodeId] = n;
@@ -490,7 +674,7 @@ export function repairCraftState(state: unknown): unknown {
     }
   }
 
-  return map;
+  return { state: map, report: report() };
 }
 
 /**
@@ -540,6 +724,10 @@ export function sanitizeCraftState(craftStateJson: string): string {
     const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] as
       | string
       | undefined;
+    // Keep container-ness: the placeholder renders its children, so an
+    // unresolved container does not take its whole subtree down with it.
+    const hasChildren = Array.isArray(n["nodes"]) && (n["nodes"] as unknown[]).length > 0;
+
     if (resolvedName && resolvedName !== "AstryxUnknown" && !ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
       console.warn(
         `[sanitizeCraftState] Replacing unknown component "${resolvedName}" on node "${nodeId}" with AstryxUnknown`,
@@ -549,8 +737,15 @@ export function sanitizeCraftState(craftStateJson: string): string {
         type: { resolvedName: "AstryxUnknown" },
         displayName: "AstryxUnknown",
         props: { ...(n["props"] as object | undefined), astryxComponent: resolvedName },
-        isCanvas: false,
+        isCanvas: hasChildren,
       };
+      changed = true;
+    } else if (resolvedName === "AstryxUnknown" && n["isCanvas"] !== hasChildren) {
+      // Already a placeholder — heal states persisted while the placeholder was
+      // leaf-only, whose children are currently hidden. Repair normally does
+      // this first, but sanitizeCraftState also runs directly ahead of
+      // <Frame data={...}> on paths that skip repair, and must not undo it.
+      map[nodeId] = { ...n, isCanvas: hasChildren };
       changed = true;
     }
   }

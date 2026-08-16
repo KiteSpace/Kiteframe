@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Children, type ReactNode } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -206,10 +206,28 @@ export function AstryxSection({ children, direction = "column", gap = 16, paddin
   );
 }
 
-export function AstryxUnknown({ astryxComponent }: { astryxComponent: string }) {
+/**
+ * Stand-in for a component the library doesn't have.
+ *
+ * It renders its children. When the missing component was a CONTAINER, dropping
+ * them would lose its entire subtree — the same "design got discarded" failure
+ * this placeholder exists to prevent, just one level down. So the gap is marked
+ * by the dashed box and its label, while the content inside still draws.
+ */
+export function AstryxUnknown({
+  astryxComponent,
+  children,
+}: {
+  astryxComponent: string;
+  children?: ReactNode;
+}) {
+  const hasChildren = Children.count(children) > 0;
   return (
     <div className="w-full border border-dashed border-gray-300 rounded-md px-3 py-2 text-xs text-gray-400 bg-gray-50">
       [{astryxComponent}]
+      {hasChildren ? (
+        <div className="mt-2 flex flex-col gap-2 text-gray-900">{children}</div>
+      ) : null}
     </div>
   );
 }
