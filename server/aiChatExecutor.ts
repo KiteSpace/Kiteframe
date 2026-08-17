@@ -1,4 +1,4 @@
-import { sanitizeAiPrompt } from "./utils/sanitize";
+import { sanitizeAiPrompt, MAX_AI_PROMPT_CHARS } from "./utils/sanitize";
 
 export interface AiChatExecResult {
   ok: boolean;
@@ -32,6 +32,66 @@ function isSimpleWorkflowPrompt(msgs: any[]): boolean {
     : '';
   const wordCount = text.trim().split(/\s+/).length;
   return wordCount <= 20 && !COMPLEXITY_KEYWORDS.test(text);
+}
+
+/**
+ * Deepest content nesting that will be walked. Real payloads are at most a
+ * couple of levels (a tool_result block holding text blocks); anything past
+ * this is an abusive payload, so its content is dropped rather than recursed
+ * into.
+ */
+const MAX_CONTENT_DEPTH = 6;
+
+/** Shared per-message allowance, so many small blocks cannot outflank a per-block cap. */
+interface TextBudget { left: number }
+
+function takeFromBudget(text: string, budget: TextBudget): string {
+  if (budget.left <= 0) return '';
+  const cleaned = sanitizeAiPrompt(text);
+  const out = cleaned.length > budget.left ? cleaned.slice(0, budget.left) : cleaned;
+  budget.left -= out.length;
+  return out;
+}
+
+function sanitizeContentNode(node: unknown, budget: TextBudget, depth: number): unknown {
+  if (typeof node === 'string') return takeFromBudget(node, budget);
+  if (Array.isArray(node)) {
+    if (depth >= MAX_CONTENT_DEPTH) return [];
+    return node.map((child) => sanitizeContentNode(child, budget, depth + 1));
+  }
+  if (node && typeof node === 'object') {
+    const block = node as Record<string, any>;
+    // Image blocks pass through byte-for-byte: sanitizing base64 would corrupt
+    // it, and the routes already cap image size on the way in.
+    if (block.type === 'image') return block;
+    if (depth >= MAX_CONTENT_DEPTH) return {};
+    const out: Record<string, any> = { ...block };
+    // `text` covers text blocks; `content` covers containers such as
+    // tool_result, whose nested payload is text the client chose.
+    if (typeof block.text === 'string') out.text = takeFromBudget(block.text, budget);
+    if (block.content !== undefined) out.content = sanitizeContentNode(block.content, budget, depth + 1);
+    return out;
+  }
+  return node;
+}
+
+/**
+ * Applies the user-input filter to every part of a message that carries text,
+ * whatever shape the content arrives in.
+ *
+ * The vision routes (design-from-image, design-from-url, Figma frame import)
+ * send `content` as an array of blocks - an `{type:'image'}` alongside a
+ * `{type:'text'}` - and those text blocks carry user-influenced values such as
+ * a Figma frame label. `/api/ai/chat` additionally accepts whatever a client
+ * sends, including provider-valid containers like `tool_result` that nest text
+ * one level deeper. Every text-bearing field is filtered and counted against a
+ * single per-message budget, so splitting hostile text across many blocks does
+ * not buy a larger allowance than one long string would get.
+ *
+ * Image blocks are the sole exception and are passed through untouched.
+ */
+function sanitizeMessageContent(content: unknown): unknown {
+  return sanitizeContentNode(content, { left: MAX_AI_PROMPT_CHARS }, 0);
 }
 
 /**
@@ -84,11 +144,12 @@ export async function executeAiChat(
     // Client messages can never occupy the provider's system channel. Any role
     // other than 'assistant' is demoted to 'user' before provider translation,
     // so a `role: 'system'` in the request body carries no privilege, and every
-    // string payload is sanitized and length-bounded.
+    // text payload - a plain string, or a text block inside an array-form
+    // vision message - is sanitized and length-bounded.
     const sanitizedMessages = (body.messages || []).map((msg: any) => ({
       ...msg,
       role: msg?.role === 'assistant' ? 'assistant' : 'user',
-      content: typeof msg.content === 'string' ? sanitizeAiPrompt(msg.content) : msg.content,
+      content: sanitizeMessageContent(msg?.content),
     }));
 
     const messages = trustedSystemPrompt
