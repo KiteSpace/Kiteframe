@@ -168,6 +168,7 @@
   --kf-canvas:         hsl(240, 8%, 92%);   /* #E9E9EC design canvas bg */
   --kf-canvas-dot:     hsl(240, 8%, 87%);   /* dot grid */
   --kf-canvas-preview: hsl(60, 8%, 93%);    /* #EFEFEC preview backdrop */
+  --kf-panel-frosted:  rgba(255, 255, 255, 0.94);  /* sticky palette header backdrop */
   --kf-artboard:       hsl(0, 0%, 100%);    /* CONTENT — never themed */
   --kf-artboard-line:  hsl(240, 9%, 87%);
   --kf-tile:           hsl(240, 9%, 96%);   /* glyph tile bg */
@@ -192,6 +193,7 @@
   --kf-canvas:         hsl(60, 6%, 91%);
   --kf-canvas-dot:     hsl(60, 6%, 84%);
   --kf-canvas-preview: hsl(60, 6%, 89%);
+  --kf-panel-frosted:  rgba(38, 38, 42, 0.94);   /* #26262A at 94% — dark card colour */
   --kf-artboard:       hsl(0, 0%, 100%);    /* unchanged, deliberately */
   --kf-artboard-line:  hsl(240, 9%, 87%);
   --kf-tile:           hsl(240, 6%, 18%);
