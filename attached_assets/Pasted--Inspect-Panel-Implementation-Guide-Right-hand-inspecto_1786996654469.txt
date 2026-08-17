@@ -1,0 +1,251 @@
+# Inspect Panel — Implementation Guide
+
+Right-hand inspector for the current selection. Two states to build:
+**component selected** (option `3a`) and **artboard selected** (option `3b`).
+Reference design: turn 3 of `Builder Panel Redesign.dc.html`.
+
+Uses the same tokens as `README.md` (Design/Preview shell) — import them, don't
+redefine. Panel width **340px**, matching the shell's right column.
+
+---
+
+## 1. Why it's structured this way
+
+The old panel put every property in one vertical scroll with uppercase gray
+headers, so finding "gap" meant scrolling past 20 color swatches. Three fixes:
+
+1. **Tabs, not scroll.** `Style · Layout · Content` — each tab fits in the panel
+   height without scrolling for a typical selection.
+2. **Label-left rows** on a fixed 56px gutter, so every control's left edge lines
+   up in one column and the eye scans values, not labels.
+3. **Progressive disclosure.** Properties that can't do anything are not rendered
+   (X/Y in flow layout, gradient stops when fill is a solid color).
+
+---
+
+## 2. Tab model
+
+```ts
+type InspectTab = 'style' | 'layout' | 'content';
+
+// Which tabs a selection gets, and what lands in each:
+const TABS: Record<NodeKind, InspectTab[]> = {
+  artboard:  ['style', 'layout'],              // no content — an artboard has no copy
+  container: ['style', 'layout'],
+  component: ['style', 'layout', 'content'],   // content = the component's own props
+  text:      ['style', 'layout', 'content'],
+};
+```
+
+- **Style** — fill, text color, border, radius, shadow, opacity.
+- **Layout** — size, position, stack (direction/align/justify/wrap), spacing.
+- **Content** — the selected component's declared props (`ComponentDef.props`),
+  rendered from schema. This is the only tab that varies by component.
+
+Rules:
+- Remember the tab **per node kind**, not globally: selecting another ChatMessage
+  keeps you on Content; clicking the artboard lands you on Layout.
+- If the remembered tab doesn't exist for the new selection, fall back to the first
+  available one.
+- Tabs are a `role="tablist"`, arrow-key navigable, with `aria-selected`.
+
+```jsx
+const [tabByKind, setTabByKind] = useState({ artboard: 'layout', component: 'style' });
+const tabs = TABS[node.kind];
+const tab  = tabs.includes(tabByKind[node.kind]) ? tabByKind[node.kind] : tabs[0];
+```
+
+---
+
+## 3. Header
+
+```
+Editor View / Chat / ChatMessage          ← 11px breadcrumb, ancestors clickable
+ChatMessage   [element]                ×  ← 16px/600 name, kind chip, close
+[ Style | Layout | Content ]              ← segmented tabs, 12px
+```
+
+- The breadcrumb replaces the old "← Back" button: it shows *where* you are and
+  each ancestor is a click target, which "Back" could not do.
+- Kind chip colors reuse the panel's category palette:
+  `element → #6d5aa8 on #f2effa`, `frame → #2b7a6b on #e9f5f2`,
+  `text → #a06520 on #fdf2e6`.
+- Truncate long breadcrumbs from the **left** (`direction: rtl` trick or ellipsis on
+  the middle segments) — the last segment must always be readable.
+- `×` deselects (Escape does the same). Header is `position: sticky; top: 0`.
+- **Multi-select:** header reads `3 selected` with a `mixed` chip; only properties
+  shared by every node render, and a differing value shows `Mixed` as the field's
+  placeholder. Editing it writes to all.
+
+---
+
+## 4. Row anatomy
+
+Every property is one of five row types. Build them once, reuse everywhere.
+
+```jsx
+<Row label="Radius">…</Row>   // 56px label gutter, 12px/500 --fg-muted, 10px gap
+```
+
+| Row type | Shape | Use for |
+|---|---|---|
+| **ColorRow** | 32px field: 16px swatch · hex mono · opacity % | fill, text, border color, background |
+| **SwatchRow** | 8 × 22px swatches + dashed `+` | the curated palette under a ColorRow |
+| **PillRow** | equal-width 30px pills, active = `#1c1c1e` fill | radius, direction, align, wrap, density |
+| **SelectRow** | 32px field with `▾` | position, justify, shadow, sender |
+| **NumberRow** | 32px field, mono value, prefix label (`W`, `H`, `X`, `Y`, `Gap`) | all numerics |
+| **SwitchRow** | title + 11px helper text left, 38×22 switch right | booleans |
+
+Fixed metrics: control height **32px** (30px for pills), border `--line-strong`,
+radius 8px, field padding `0 9px`, row gap 10–12px, group gap 18px separated by a
+1px `--line-soft` rule. Numbers and hex are **always mono** so values don't jitter
+as they change.
+
+### Color field behavior
+
+```
+[■] #2563EB            100%      ← click anywhere opens the picker popover
+```
+
+- The 8 swatches are the **project palette**, not a rainbow: transparent, white,
+  two neutrals, and the four brand/semantic colors. `+` opens the full picker.
+- Selected swatch gets a ring (`0 0 0 2px #fff, 0 0 0 3.5px #1c1c1e`), not a
+  checkmark — a check hides the color it's confirming.
+- Hex input accepts `#fff`, `fff`, `rgb()`; normalize on blur to 6-digit uppercase.
+- Opacity is a separate scrubbable number, 0–100, no slider.
+- Transparent renders as a 4px checkerboard, never as an empty box.
+
+---
+
+## 5. Layout tab
+
+```jsx
+<>
+  <NumberPair a={{prefix:'W', value:w, auto:autoW}} b={{prefix:'H', …}} />
+  {node.position === 'absolute' && <NumberPair a={{prefix:'X'}} b={{prefix:'Y'}} />}
+  <SelectRow label="Position" value={position} options={['In flow','Absolute','Sticky']} />
+  <Divider/>
+  <Group eyebrow="STACK">
+    <PillRow  label="Direction" options={['Column','Row']} />
+    <PillRow  label="Align"     options={['Start','Center','End','Stretch']} />
+    <SelectRow label="Justify"  options={['Start','Center','End','Space between','Space around']} />
+    <PillRow  label="Wrap"      options={['No wrap','Wrap','Reverse']} />
+  </Group>
+  <Divider/>
+  <Group eyebrow="SPACING" note="presets set gap + padding">
+    <PillRow options={['Compact','Default','Comfortable','Spacious']} />
+    <NumberPair a={{label:'Gap'}} b={{label:'Pad'}} />
+  </Group>
+</>
+```
+
+- **X/Y only when `position === 'absolute'`.** In flow they're dead controls; in the
+  old panel they sat there grayed and confused people. When the user switches to
+  Absolute, seed X/Y from the node's current measured offset so nothing jumps.
+- **`Auto` affordance** lives inside the W/H field as a small chip. Active = accent
+  chip on `#eaf1fe`; inactive = gray outline. Clicking `AUTO` clears the numeric
+  value; typing a number clears `AUTO`.
+- **Align uses words, not glyphs.** The old `|0o` / `0|0` icons weren't decodable;
+  4 words fit the 340px panel fine. Justify has 5 options so it degrades to a
+  select rather than 5 unreadable pills.
+- **Density presets write the two fields below them** and stay highlighted only
+  while gap+pad still match the preset:
+
+```js
+const DENSITY = { Compact:[4,8], Default:[8,12], Comfortable:[12,16], Spacious:[20,24] };
+const activePreset = Object.keys(DENSITY).find(k => DENSITY[k][0] === gap && DENSITY[k][1] === pad);
+// editing gap or pad by hand simply deselects all presets — no confirmation
+```
+
+### Number input behavior (all NumberRows)
+
+| Interaction | Behavior |
+|---|---|
+| Type + `Enter` / blur | Commit. Invalid input reverts, no error state. |
+| `↑` / `↓` | ±1. With `⇧` ±10. With `⌥` ±0.1. |
+| Drag the prefix label | Scrub the value; `cursor: ew-resize` on hover. |
+| Empty + `Enter` | Reset to the inherited/default value. |
+| Math | Accept `12*2`, `100/3`, `8+4` and evaluate on commit. |
+| Undo | One history entry per commit, not per keystroke. Coalesce scrubs into one entry on pointerup. |
+
+---
+
+## 6. Content tab (component props)
+
+Rendered from the component's own schema — no hand-written panel per component.
+
+```ts
+type PropSchema =
+  | { kind:'text';    label:string; multiline?:boolean; placeholder?:string }
+  | { kind:'select';  label:string; options:string[] }
+  | { kind:'boolean'; label:string; help?:string }
+  | { kind:'number';  label:string; min?:number; max?:number; step?:number }
+  | { kind:'color';   label:string };
+
+// ChatMessage
+props: {
+  message:   { kind:'text',    label:'Message', multiline:true },
+  sender:    { kind:'select',  label:'Sender', options:['User','Assistant','System'] },
+  ownMessage:{ kind:'boolean', label:'Own message', help:'Aligns right, accent fill' },
+  timestamp: { kind:'text',    label:'Timestamp', optional:true, placeholder:'10:42 AM' },
+}
+```
+
+- Optional props get a small `optional` tag next to the label, in `#c2c2b8`.
+- Booleans use the SwitchRow with helper text — a bare `Yes` next to a switch
+  (as in the old panel) says nothing about what it does.
+- Text edits are **live-bound with 200ms debounce** to the canvas node, so typing
+  updates the artboard as you go. Undo coalesces a typing burst into one entry.
+- Order props as declared in the registry; never alphabetize.
+
+---
+
+## 7. Style tab notes
+
+- Order: Fill → Text → Border → (rule) → Radius → Shadow → Opacity.
+- **Background type** (`Color / Gradient / Image`) is a segmented control on the
+  artboard only, and it swaps the field beneath it — solid color, gradient stops, or
+  image slot. Never render all three stacked.
+- Radius pills `None / S / M / L / Full` map to your token scale
+  (`0 / 4 / 8 / 16 / 999`), with a "Custom" state shown as a mono number if the node
+  carries a value off the scale.
+- Shadow is a named select (`None / Soft / Raised / Overlay`) that writes a token —
+  do not expose x/y/blur/spread; nobody hand-tunes four numbers in a 340px panel.
+
+---
+
+## 8. Empty & error states
+
+- **Nothing selected:** one centered line in `--fg-subtle`: `Select a layer to
+  inspect it`, plus one hint line: `Click an artboard on the canvas`. No graphic.
+- **Locked/hidden node:** header shows a `locked` chip and the body renders
+  read-only (fields at 60% opacity, no focus ring), with a `Unlock to edit` text
+  button in the header.
+- **Mixed selection with no shared props:** `Nothing in common — narrow the
+  selection`.
+
+---
+
+## 9. Build order
+
+1. `Row` primitives + tokens (ColorRow, PillRow, NumberRow, SelectRow, SwitchRow).
+2. Header (breadcrumb, chip, close) + tab bar with per-kind memory.
+3. Layout tab — the tab people use most.
+4. Style tab, with the palette from the project theme.
+5. Content tab driven by `PropSchema`.
+6. Number scrubbing, math input, undo coalescing.
+7. Multi-select and locked states.
+
+## 10. Accessibility
+
+- Tabs: `role="tablist"` / `role="tab"` / `aria-selected`, panels `role="tabpanel"`
+  labelled by their tab.
+- Every row's label is a real `<label htmlFor>`; the 56px gutter is not a `<div>`.
+- Pill groups are `role="radiogroup"`, arrow-key navigable, `aria-checked`.
+- Swatches need `aria-label` with the color name **and** hex — color alone is not
+  an accessible label.
+- Switch: `role="switch"` + `aria-checked`; the helper text is wired via
+  `aria-describedby`.
+- Focus ring everywhere: `outline: 2px solid var(--accent); outline-offset: 2px`.
+- The panel is keyboard-reachable from the canvas via `⇧Tab`; `Escape` inside a
+  field reverts that field, a second `Escape` returns focus to the canvas.
