@@ -4,100 +4,205 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Graphite light theme ─────────────────────────────────────────────────── */
 :root {
-  --background: hsl(210, 40%, 98%);
-  --foreground: hsl(222.2, 84%, 4.9%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(222.2, 84%, 4.9%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(222.2, 84%, 4.9%);
-  --primary: hsl(221.2, 83.2%, 53.3%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(210, 40%, 96%);
-  --secondary-foreground: hsl(222.2, 84%, 4.9%);
-  --muted: hsl(210, 40%, 96%);
-  --muted-foreground: hsl(215.4, 16.3%, 46.9%);
-  --accent: hsl(210, 40%, 96%);
-  --accent-foreground: hsl(222.2, 84%, 4.9%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(210, 40%, 98%);
-  --border: hsl(214.3, 31.8%, 91.4%);
-  --input: hsl(214.3, 31.8%, 91.4%);
-  --ring: hsl(221.2, 83.2%, 53.3%);
-  --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
-  --chart-2: hsl(159.7826, 100%, 36.0784%);
-  --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
-  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
-  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
-  --sidebar: hsl(180, 6.6667%, 97.0588%);
-  --sidebar-foreground: hsl(210, 25%, 7.8431%);
-  --sidebar-primary: hsl(203.8863, 88.2845%, 53.1373%);
+  /* surfaces */
+  --background:            hsl(240, 20%, 99%);   /* #FBFBFC */
+  --foreground:            hsl(240, 5%, 12%);    /* #1E1E21 */
+  --card:                  hsl(0, 0%, 100%);
+  --card-foreground:       hsl(240, 5%, 12%);
+  --popover:               hsl(0, 0%, 100%);
+  --popover-foreground:    hsl(240, 5%, 12%);
+
+  /* action — ink, not blue */
+  --primary:               hsl(240, 8%, 8%);     /* #131316 */
+  --primary-foreground:    hsl(0, 0%, 100%);
+  --primary-hover:         hsl(240, 8%, 15%);    /* #24242A */
+
+  /* quiet surfaces */
+  --secondary:             hsl(240, 9%, 96%);    /* #F3F3F5 */
+  --secondary-foreground:  hsl(240, 5%, 12%);
+  --muted:                 hsl(240, 9%, 96%);    /* #F3F3F5 */
+  --muted-foreground:      hsl(240, 5%, 41%);    /* #54545C */
+  --accent:                hsl(240, 9%, 96%);    /* hover surface — NOT brand */
+  --accent-foreground:     hsl(240, 5%, 12%);
+
+  /* brand (Violet Flash) + information (Kite blue) */
+  --brand:                 hsl(262, 100%, 71%);  /* #9B6BFF */
+  --brand-foreground:      hsl(258, 55%, 12%);   /* #1A1030 */
+  --brand-soft:            hsl(255, 50%, 96%);   /* #F2EFFA */
+  --brand-strong:          hsl(259, 66%, 55%);   /* #6D3FD6 */
+  --info:                  hsl(197, 80%, 47%);   /* #189FDB */
+  --info-soft:             hsl(197, 88%, 95%);   /* #E6F6FD */
+
+  /* status */
+  --destructive:           hsl(358, 75%, 59%);   /* #E5484D */
+  --destructive-foreground:hsl(0, 0%, 100%);
+  --destructive-soft:      hsl(0, 86%, 96%);
+  --success:               hsl(159, 82%, 34%);   /* #0F9D6B */
+  --success-soft:          hsl(152, 68%, 92%);   /* #DEF7EC */
+  --success-foreground:    hsl(159, 71%, 21%);   /* #0F5C42 */
+  --warning:               hsl(40, 100%, 65%);   /* #FFC24B */
+  --warning-soft:          hsl(42, 100%, 91%);   /* #FFF1D0 */
+  --warning-foreground:    hsl(39, 100%, 27%);   /* #8A5A00 */
+
+  /* lines + focus */
+  --border:                hsl(240, 9%, 90%);    /* #E4E4E8 */
+  --border-soft:           hsl(240, 12%, 94%);   /* #EEEEF1 */
+  --input:                 hsl(240, 10%, 85%);   /* #D6D6DC */
+  --ring:                  hsl(262, 100%, 71%);  /* violet, NOT --primary */
+
+  /* charts */
+  --chart-1:               hsl(197, 80%, 47%);
+  --chart-2:               hsl(262, 100%, 71%);
+  --chart-3:               hsl(159, 82%, 34%);
+  --chart-4:               hsl(40, 100%, 65%);
+  --chart-5:               hsl(358, 75%, 59%);
+
+  /* sidebar — both var names so bg-sidebar works */
+  --sidebar:               hsl(240, 20%, 99%);
+  --sidebar-background:    hsl(240, 20%, 99%);   /* alias — fixes dead bg-sidebar */
+  --sidebar-foreground:    hsl(240, 5%, 12%);
+  --sidebar-primary:       hsl(240, 8%, 8%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(211.5789, 51.3514%, 92.7451%);
-  --sidebar-accent-foreground: hsl(203.8863, 88.2845%, 53.1373%);
-  --sidebar-border: hsl(205.0000, 25.0000%, 90.5882%);
-  --sidebar-ring: hsl(202.8169, 89.1213%, 53.1373%);
+  --sidebar-accent:        hsl(255, 50%, 96%);   /* brand-soft on selected row */
+  --sidebar-accent-foreground: hsl(259, 66%, 55%);
+  --sidebar-border:        hsl(240, 9%, 90%);
+  --sidebar-ring:          hsl(262, 100%, 71%);
+
+  /* type */
   --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;  /* ui-monospace first */
+
+  /* shadows — real values, not alpha 0 */
+  --shadow-2xs: 0 1px 1px rgba(20,20,18,.04);
+  --shadow-xs:  0 1px 2px rgba(20,20,18,.05);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.07);
+  --shadow:     0 2px 6px rgba(20,20,18,.07);
+  --shadow-md:  0 4px 12px rgba(20,20,18,.09);
+  --shadow-lg:  0 8px 24px rgba(20,20,18,.12);
+  --shadow-xl:  0 12px 30px rgba(20,20,18,.16);
+  --shadow-2xl: 0 20px 48px rgba(20,20,18,.20);
+
   --radius: 8px;
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 1px 2px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 1px 2px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 2px 4px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 4px 6px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 8px 10px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
 
+/* ─── Graphite dark theme ──────────────────────────────────────────────────── */
 .dark {
-  --background: hsl(0, 0%, 0%);
-  --foreground: hsl(200, 6.6667%, 91.1765%);
-  --card: hsl(228, 9.8039%, 10%);
-  --card-foreground: hsl(0, 0%, 85.0980%);
-  --popover: hsl(0, 0%, 0%);
-  --popover-foreground: hsl(200, 6.6667%, 91.1765%);
-  --primary: hsl(203.7736, 87.6033%, 52.5490%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(195.0000, 15.3846%, 94.9020%);
-  --secondary-foreground: hsl(210, 25%, 7.8431%);
-  --muted: hsl(0, 0%, 9.4118%);
-  --muted-foreground: hsl(210, 3.3898%, 46.2745%);
-  --accent: hsl(205.7143, 70%, 7.8431%);
-  --accent-foreground: hsl(203.7736, 87.6033%, 52.5490%);
-  --destructive: hsl(356.3033, 90.5579%, 54.3137%);
-  --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsl(210, 5.2632%, 14.9020%);
-  --input: hsl(207.6923, 27.6596%, 18.4314%);
-  --ring: hsl(202.8169, 89.1213%, 53.1373%);
-  --chart-1: hsl(203.8863, 88.2845%, 53.1373%);
-  --chart-2: hsl(159.7826, 100%, 36.0784%);
-  --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
-  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
-  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
-  --sidebar: hsl(228, 9.8039%, 10%);
-  --sidebar-foreground: hsl(0, 0%, 85.0980%);
-  --sidebar-primary: hsl(202.8169, 89.1213%, 53.1373%);
-  --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(205.7143, 70%, 7.8431%);
-  --sidebar-accent-foreground: hsl(203.7736, 87.6033%, 52.5490%);
-  --sidebar-border: hsl(205.7143, 15.7895%, 26.0784%);
-  --sidebar-ring: hsl(202.8169, 89.1213%, 53.1373%);
+  --background:            hsl(240, 5%, 12%);    /* #1E1E21 — not black */
+  --foreground:            hsl(60, 12%, 94%);    /* #F2F2EF */
+  --card:                  hsl(240, 6%, 16%);    /* #26262A */
+  --card-foreground:       hsl(60, 12%, 94%);
+  --popover:               hsl(240, 6%, 16%);
+  --popover-foreground:    hsl(60, 12%, 94%);
+
+  --primary:               hsl(60, 12%, 94%);    /* ink FLIPS in dark */
+  --primary-foreground:    hsl(240, 8%, 8%);
+  --primary-hover:         hsl(0, 0%, 100%);
+
+  --secondary:             hsl(240, 6%, 16%);    /* was near-white — fixed */
+  --secondary-foreground:  hsl(60, 12%, 94%);
+  --muted:                 hsl(240, 6%, 18%);    /* #2C2C31 */
+  --muted-foreground:      hsl(60, 5%, 70%);     /* #B6B6AE */
+  --accent:                hsl(240, 6%, 18%);    /* hover surface */
+  --accent-foreground:     hsl(60, 12%, 94%);
+
+  --brand:                 hsl(262, 100%, 71%);  /* identity does NOT shift */
+  --brand-foreground:      hsl(255, 20%, 9%);
+  --brand-soft:            hsl(252, 28%, 20%);   /* #2B2542 */
+  --brand-strong:          hsl(258, 100%, 79%);  /* #B392FF */
+  --info:                  hsl(197, 100%, 65%);  /* #4CC9FF */
+  --info-soft:             hsl(197, 46%, 16%);
+
+  --destructive:           hsl(358, 100%, 71%);  /* #FF6B6F */
+  --destructive-foreground:hsl(240, 8%, 8%);
+  --destructive-soft:      hsl(356, 33%, 17%);
+  --success:               hsl(159, 74%, 59%);   /* #4BE3A4 */
+  --success-soft:          hsl(159, 51%, 14%);
+  --success-foreground:    hsl(159, 74%, 71%);
+  --warning:               hsl(40, 100%, 65%);
+  --warning-soft:          hsl(40, 53%, 15%);
+  --warning-foreground:    hsl(40, 100%, 77%);
+
+  --border:                hsl(240, 6%, 20%);    /* #303035 */
+  --border-soft:           hsl(240, 6%, 18%);
+  --input:                 hsl(240, 8%, 24%);    /* #3A3A40 */
+  --ring:                  hsl(262, 100%, 71%);
+
+  --chart-1: hsl(197,100%,65%); --chart-2: hsl(262,100%,71%);
+  --chart-3: hsl(159,74%,59%);  --chart-4: hsl(40,100%,65%);
+  --chart-5: hsl(358,100%,71%);
+
+  --sidebar:               hsl(240, 5%, 12%);
+  --sidebar-background:    hsl(240, 5%, 12%);
+  --sidebar-foreground:    hsl(60, 12%, 94%);
+  --sidebar-primary:       hsl(60, 12%, 94%);
+  --sidebar-primary-foreground: hsl(240, 8%, 8%);
+  --sidebar-accent:        hsl(252, 28%, 20%);
+  --sidebar-accent-foreground: hsl(258, 100%, 79%);
+  --sidebar-border:        hsl(240, 6%, 20%);
+  --sidebar-ring:          hsl(262, 100%, 71%);
+
   --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
   --radius: 8px;
-  --shadow-2xs: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 1px 2px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 1px 2px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 2px 4px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 4px 6px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00), 0px 8px 10px -1px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(202.8169, 89.1213%, 53.1373%, 0.00);
+
+  /* shadows unchanged in dark — real values */
+  --shadow-2xs: 0 1px 1px rgba(20,20,18,.12);
+  --shadow-xs:  0 1px 2px rgba(20,20,18,.14);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.18);
+  --shadow:     0 2px 6px rgba(20,20,18,.18);
+  --shadow-md:  0 4px 12px rgba(20,20,18,.22);
+  --shadow-lg:  0 8px 24px rgba(20,20,18,.28);
+  --shadow-xl:  0 12px 30px rgba(20,20,18,.34);
+  --shadow-2xl: 0 20px 48px rgba(20,20,18,.40);
+}
+
+/* ─── Scoped editor layer — the four things shadcn can't name ──────────────── */
+/* Canvas and artboards never invert with the app theme. */
+:root {
+  --kf-canvas:         hsl(240, 8%, 92%);   /* #E9E9EC design canvas bg */
+  --kf-canvas-dot:     hsl(240, 8%, 87%);   /* dot grid */
+  --kf-canvas-preview: hsl(60, 8%, 93%);    /* #EFEFEC preview backdrop */
+  --kf-artboard:       hsl(0, 0%, 100%);    /* CONTENT — never themed */
+  --kf-artboard-line:  hsl(240, 9%, 87%);
+  --kf-tile:           hsl(240, 9%, 96%);   /* glyph tile bg */
+  --kf-tile-fill:      hsl(45, 8%, 84%);    /* #D8D8D0 mini-preview fills */
+  --kf-tile-stroke:    hsl(45, 9%, 80%);    /* #D2D2CA mini-preview strokes */
+
+  /* category / node-type markers — shared by palette + layer tree */
+  --kf-cat-layout:     #5B6B8C;
+  --kf-cat-typography: #6D5AA8;
+  --kf-cat-controls:   var(--info);
+  --kf-cat-data:       #2B7A6B;
+  --kf-cat-media:      #A06520;
+  --kf-cat-feedback:   #A33B52;
+  --kf-node-process:   var(--muted-foreground);
+  --kf-node-decision:  var(--warning);
+  --kf-node-mockup:    var(--brand);
+  --kf-node-exit:      var(--destructive);
+}
+
+/* The canvas STAYS LIGHT in dark mode — artboards are user content */
+.dark {
+  --kf-canvas:         hsl(60, 6%, 91%);
+  --kf-canvas-dot:     hsl(60, 6%, 84%);
+  --kf-canvas-preview: hsl(60, 6%, 89%);
+  --kf-artboard:       hsl(0, 0%, 100%);    /* unchanged, deliberately */
+  --kf-artboard-line:  hsl(240, 9%, 87%);
+  --kf-tile:           hsl(240, 6%, 18%);
+  --kf-tile-fill:      hsl(240, 6%, 26%);
+  --kf-tile-stroke:    hsl(240, 6%, 30%);
+
+  --kf-cat-layout:     #8DA0C4;
+  --kf-cat-typography: #A492D8;
+  --kf-cat-data:       #5FBFA8;
+  --kf-cat-media:      #D69A4E;
+  --kf-cat-feedback:   #D97A8E;
 }
 
 @layer base {
@@ -108,6 +213,9 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  /* [hidden] beats any display: flex declarations in panel rows */
+  [hidden] { display: none !important; }
 }
 
 /* Full-interface generation preview. Keep the motion subtle so the layout
@@ -245,59 +353,39 @@
   background-color: rgba(107, 114, 128, 0.9);
 }
 
-/* Kiteframe Ambient Gradient Animation */
+/* ─── Marketing gradient — marketing surfaces ONLY, never product chrome ───── */
 @keyframes gradientShift {
-  0% {
-    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
-  }
-
-  25% {
-    background-position: 100% 0%, 0% 100%, 100% 50%, 50% 0%;
-  }
-
-  50% {
-    background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%;
-  }
-
-  75% {
-    background-position: 0% 100%, 100% 0%, 0% 50%, 50% 100%;
-  }
-
-  100% {
-    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%;
-  }
+  0%   { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%; }
+  25%  { background-position: 100% 0%, 0% 100%, 100% 50%, 50% 0%; }
+  50%  { background-position: 100% 100%, 0% 0%, 50% 100%, 100% 50%; }
+  75%  { background-position: 0% 100%, 100% 0%, 0% 50%, 50% 100%; }
+  100% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 100%; }
 }
 
 .kiteframe-ambient-gradient {
   background-image:
-    radial-gradient(at top left,
-      rgb(26, 228, 255, 0.8),
-      transparent 90%),
-    radial-gradient(at top right,
-      rgb(253, 134, 227, 0.8),
-      transparent 90%),
-    radial-gradient(at bottom left,
-      rgb(90, 31, 255, 0.7),
-      transparent 90%),
-    radial-gradient(at bottom right,
-      rgb(244, 37, 99, 0.75),
-      transparent 90%);
+    radial-gradient(at top left,    rgb(26, 228, 255, 0.8),  transparent 90%),
+    radial-gradient(at top right,   rgb(253, 134, 227, 0.8), transparent 90%),
+    radial-gradient(at bottom left, rgb(90, 31, 255, 0.7),   transparent 90%),
+    radial-gradient(at bottom right,rgb(244, 37, 99, 0.75),  transparent 90%);
   background-size: 200% 200%;
   animation: gradientShift 8s ease-in-out infinite;
 }
 
 .dark .kiteframe-ambient-gradient {
   background-image:
-    radial-gradient(at top left,
-      rgb(26, 228, 255, 0.8),
-      transparent 90%),
-    radial-gradient(at top right,
-      rgb(253, 134, 227, 0.8),
-      transparent 90%),
-    radial-gradient(at bottom left,
-      rgb(90, 31, 255, 0.7),
-      transparent 90%),
-    radial-gradient(at bottom right,
-      rgb(244, 37, 99, 0.75),
-      transparent 90%);
+    radial-gradient(at top left,    rgb(26, 228, 255, 0.8),  transparent 90%),
+    radial-gradient(at top right,   rgb(253, 134, 227, 0.8), transparent 90%),
+    radial-gradient(at bottom left, rgb(90, 31, 255, 0.7),   transparent 90%),
+    radial-gradient(at bottom right,rgb(244, 37, 99, 0.75),  transparent 90%);
+}
+
+/* ─── Editor palette scrollbar ─────────────────────────────────────────────── */
+.kf-palette-scroller::-webkit-scrollbar { width: 8px; }
+.kf-palette-scroller::-webkit-scrollbar-thumb {
+  background: var(--input);
+  border-radius: 8px;
+}
+.dark .kf-palette-scroller::-webkit-scrollbar-thumb {
+  background: var(--border);
 }

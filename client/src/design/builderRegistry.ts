@@ -66,13 +66,14 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
 };
 
 // Dot colours that appear next to category headers.
+// Values match the --kf-cat-* tokens in index.css (Graphite palette).
 export const CATEGORY_COLORS: Record<ComponentCategory, string> = {
-  layout:     "hsl(217 91% 60%)",   // blue
-  typography: "hsl(280 65% 60%)",   // purple
-  controls:   "hsl(142 71% 45%)",   // green
-  data:       "hsl(32 95% 55%)",    // orange
-  media:      "hsl(340 82% 55%)",   // pink
-  feedback:   "hsl(0 72% 55%)",     // red
+  layout:     "var(--kf-cat-layout)",
+  typography: "var(--kf-cat-typography)",
+  controls:   "var(--kf-cat-controls)",
+  data:       "var(--kf-cat-data)",
+  media:      "var(--kf-cat-media)",
+  feedback:   "var(--kf-cat-feedback)",
 };
 
 /**

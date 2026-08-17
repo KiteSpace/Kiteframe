@@ -3305,7 +3305,12 @@ function LayersView() {
     });
   };
 
-  const selectNode = (id: string) => { actions.selectNode(id); };
+  // A layers-panel selection must NOT swap the palette for the inspector.
+  // Mark the source before selectNode so LeftRail can read it.
+  const selectNode = (id: string) => {
+    markSelectionFromLayers();
+    actions.selectNode(id);
+  };
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -3605,6 +3610,18 @@ interface VisibleEntry {
   section: string;
 }
 
+// ─── Canvas-vs-layers selection source store ─────────────────────────────────
+// The inspector replaces the palette ONLY when a node is selected FROM the
+// canvas — a Layers-panel click is a navigator action that must not steal the
+// palette.  The source is tracked as a module-level ref so it can be written
+// from inside Craft event handlers without triggering extra renders.
+const _selectionSource = { current: "canvas" as "canvas" | "layers" };
+
+/** Call this from any layers-panel action before selectNode so the rail knows. */
+export function markSelectionFromLayers() {
+  _selectionSource.current = "layers";
+}
+
 function LeftRail() {
   const multiSelectionIds = useMultiSelectionIds();
   const { connectors, actions, selected, craftSelectedIds, nodes } = useEditor((state) => {
@@ -3639,8 +3656,10 @@ function LeftRail() {
   const [activeIdx, setActiveIdx] = useState(-1);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  // When user explicitly hits "← Back", force components view even if selection is active
+  // `forceComponents`: user explicitly returned to the palette via Back/Escape
   const [forceComponents, setForceComponents] = useState(false);
+  // `selectionSourceCanvas`: true when the most-recent selection came from canvas
+  const [selectionSourceCanvas, setSelectionSourceCanvas] = useState(false);
 
   // Debounce the ranked search (120ms feels immediate but skips per-keystroke work)
   useEffect(() => {
@@ -3648,12 +3667,22 @@ function LeftRail() {
     return () => clearTimeout(t);
   }, [query]);
 
-  // Auto-show inspect panel whenever a new element is selected
+  // When the Craft selection changes, check the source.  Canvas clicks show the
+  // inspector; layers-panel clicks do not.  forceComponents overrides both.
   useEffect(() => {
-    if (selected) setForceComponents(false);
+    if (!selected) {
+      setSelectionSourceCanvas(false);
+      return;
+    }
+    const isCanvas = _selectionSource.current === "canvas";
+    setSelectionSourceCanvas(isCanvas);
+    // Reset source to "canvas" so the NEXT event is assumed canvas unless a
+    // layers click re-sets it first via markSelectionFromLayers().
+    _selectionSource.current = "canvas";
+    if (isCanvas) setForceComponents(false);
   }, [selected?.id]);
 
-  const showInspect = !!selected && !forceComponents;
+  const showInspect = !!selected && selectionSourceCanvas && !forceComponents;
 
   const setViewMode = (v: PanelView) => {
     setViewModeState(v);
@@ -3767,101 +3796,172 @@ function LeftRail() {
   return (
     <div
       className="w-[320px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
-      style={{ boxShadow: "1px 0 0 hsl(var(--border))" }}
       aria-label={showInspect ? "Inspect panel" : "Component palette"}
     >
-      {/* Fixed header: title + view toggle + search */}
-      <div className="px-3 py-2.5 border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-semibold text-foreground">{panelTitle}</span>
-          {showInspect ? (
+      {/* Fixed header — does not scroll */}
+      <div className="shrink-0 border-b border-border">
+        {showInspect ? (
+          /* Inspect header: Back chip only — InspectPanel renders its own name/chip/tabs */
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="text-[12px] font-semibold text-foreground">Properties</span>
             <button
               onClick={() => setForceComponents(true)}
-              className="flex items-center gap-1 text-[9.5px] text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded-lg px-2 py-1 transition-colors"
+              className="flex items-center gap-1 text-[11px] font-medium text-info hover:text-info/80 transition-colors"
             >
-              ← Back
+              ‹ Components
             </button>
-          ) : (
-            <div className="flex items-center gap-0.5" role="group" aria-label="Palette view mode">
-              <button
-                onClick={() => setViewMode("grid")}
-                aria-pressed={viewMode === "grid"}
-                className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${
-                  viewMode === "grid" ? "bg-accent text-foreground" : "hover:bg-accent text-muted-foreground"
-                }`}
-                title="Grid view"
+          </div>
+        ) : (
+          /* Palette header: 38px search + ⌘K badge, 30px icon view toggle, chips row */
+          <div className="flex flex-col gap-3 px-4 py-3.5">
+            {/* Search row + view toggle */}
+            <div className="flex items-center gap-2">
+              {/* 38px search field per handoff */}
+              <label
+                className="flex-1 min-w-0 flex items-center gap-2 rounded-[9px] border border-input bg-card"
+                style={{
+                  height: 38,
+                  paddingLeft: 11,
+                  paddingRight: 10,
+                  boxShadow: "0 1px 2px rgba(20,20,24,.04)",
+                }}
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                aria-pressed={viewMode === "list"}
-                className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${
-                  viewMode === "list" ? "bg-accent text-foreground" : "hover:bg-accent text-muted-foreground"
-                }`}
-                title="List view"
+                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setActiveIdx(-1); }}
+                  onKeyDown={handleNavKeyDown}
+                  placeholder={`Search ${COMPONENT_REGISTRY.length} components`}
+                  aria-label="Search components"
+                  className="flex-1 min-w-0 bg-transparent border-none outline-none text-[14px] text-foreground placeholder:text-muted-foreground/60"
+                />
+                {query ? (
+                  <button
+                    type="button"
+                    onClick={() => { setQuery(""); setActiveIdx(-1); searchInputRef.current?.focus(); }}
+                    aria-label="Clear search"
+                    className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                ) : (
+                  <kbd
+                    className="shrink-0 text-muted-foreground border border-input rounded px-1"
+                    style={{ fontSize: 10, fontFamily: "var(--font-mono)", fontWeight: 600, paddingBottom: 2 }}
+                    aria-label="keyboard shortcut Command K"
+                  >
+                    ⌘K
+                  </kbd>
+                )}
+              </label>
+
+              {/* Icon-only view toggle — 30×30 buttons in accent pill */}
+              <div
+                className="flex gap-0.5 shrink-0 rounded-lg"
+                style={{ padding: 2, background: "var(--accent)" }}
+                role="group"
+                aria-label="View"
               >
-                <LayoutList className="w-3.5 h-3.5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("list")}
+                  aria-pressed={viewMode === "list"}
+                  aria-label="List view"
+                  className={`flex items-center justify-center rounded-md transition-colors ${
+                    viewMode === "list" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  style={{ width: 30, height: 30 }}
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("grid")}
+                  aria-pressed={viewMode === "grid"}
+                  aria-label="Grid view"
+                  className={`flex items-center justify-center rounded-md transition-colors ${
+                    viewMode === "grid" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  style={{ width: 30, height: 30 }}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-        {!showInspect && (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setActiveIdx(-1); }}
-              onKeyDown={handleNavKeyDown}
-              placeholder="Search components…"
-              role="searchbox"
-              aria-label="Search components"
-              className="w-full pl-7 pr-6 py-1.5 text-[10px] rounded-xl border border-border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
-            />
-            {query && (
-              <button
-                onClick={() => { setQuery(""); setActiveIdx(-1); searchInputRef.current?.focus(); }}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+
+            {/* Category filter chips — single-select pill group */}
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter by category">
+              {(["all", ...CATEGORY_ORDER] as const).map((cat) => {
+                const isActive = cat === "all" ? !collapsed.size && !isSearching : false;
+                // chips just collapse/expand categories, not a filter; "All" means expand all
+                const label = cat === "all" ? "All" : CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS];
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    role="radio"
+                    aria-checked={cat === "all" && collapsed.size === 0}
+                    onClick={() => {
+                      if (cat === "all") setCollapsed(new Set());
+                    }}
+                    className={`px-2.5 py-1 rounded-full border text-[12px] font-medium transition-colors ${
+                      cat === "all" && collapsed.size === 0
+                        ? "bg-primary border-primary text-primary-foreground font-semibold"
+                        : "border-border bg-muted text-muted-foreground hover:text-foreground hover:border-muted-foreground"
+                    }`}
+                    style={{ lineHeight: 1 }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Body */}
+      {/* Body — scrollable */}
       <div
         ref={bodyRef}
-        className="flex-1 overflow-y-auto flex flex-col"
+        className="flex-1 overflow-y-auto flex flex-col kf-palette-scroller"
         onKeyDown={showInspect ? undefined : handleNavKeyDown}
+        tabIndex={showInspect ? undefined : -1}
       >
         {showInspect ? (
           <InspectPanel selected={selected!} selectedIds={selectedIds} actions={actions} />
         ) : isSearching ? (
           // Ranked search results — flat grid or list
           searchResults.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground text-center py-8">
-              No components match “{trimmed}”
-            </p>
+            <div className="flex flex-col items-center gap-1.5 py-12 px-6 text-center">
+              <p className="text-[13px] text-muted-foreground">No components match "{trimmed}"</p>
+              <button
+                type="button"
+                onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}
+                className="text-[12.5px] font-medium text-info hover:text-info/80 transition-colors"
+              >
+                Clear search
+              </button>
+            </div>
           ) : (
-            <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 p-2.5 pt-2" : "flex flex-col gap-0.5 p-2"}>
+            <div className={viewMode === "grid" ? "grid grid-cols-2 gap-[14px] p-[14px]" : "flex flex-col gap-px p-[10px]"}>
               {searchResults.map((def) => renderDef(def, "search"))}
             </div>
           )
         ) : (
           <div className="pb-3">
-            {/* Recent components */}
+            {/* Recent components strip */}
             {recentDefs.length > 0 && (
-              <div className="pt-2">
-                <div className="sticky top-0 z-10 flex items-center gap-1.5 bg-background/95 backdrop-blur-sm px-3 py-1.5">
-                  <Clock className="w-2.5 h-2.5 text-muted-foreground/70" />
-                  <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Recent</span>
-                  <div className="flex-1 h-px bg-border" />
+              <div>
+                <div
+                  className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2.5"
+                  style={{ background: "rgba(255,255,255,.94)", backdropFilter: "blur(6px)", borderBottom: "1px solid var(--border-soft)" }}
+                >
+                  <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[.09em]">Recent</span>
                 </div>
-                <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 px-2.5 pt-1" : "flex flex-col gap-0.5 px-2 pt-1"}>
+                <div className={viewMode === "grid" ? "grid grid-cols-2 gap-[14px] px-[14px] py-2.5" : "flex flex-col gap-px px-[10px] py-2"}>
                   {recentDefs.map((def) => renderDef(def, "recent"))}
                 </div>
               </div>
@@ -3870,30 +3970,31 @@ function LeftRail() {
             {/* Grouped categories with sticky headers */}
             {groups.map((g) => {
               const isOpen = !collapsed.has(g.category);
-              // Keep flat indexing correct: collapsed groups render no tiles.
               return (
-                <div key={g.category} className="pt-2">
+                <div key={g.category}>
                   <button
+                    type="button"
                     onClick={() => toggleCategory(g.category)}
                     aria-expanded={isOpen}
-                    className="sticky top-0 z-10 w-full flex items-center gap-1.5 bg-background/95 backdrop-blur-sm px-3 py-1.5 hover:opacity-70 transition-opacity"
+                    className="sticky top-0 z-10 w-full flex items-center gap-2 px-4 py-2.5 hover:opacity-70 transition-opacity"
+                    style={{ background: "rgba(255,255,255,.94)", backdropFilter: "blur(6px)", borderBottom: "1px solid var(--border-soft)" }}
                   >
                     <span
                       aria-hidden="true"
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: CATEGORY_COLORS[g.category] }}
+                      className="shrink-0 rounded-full"
+                      style={{ width: 7, height: 7, background: CATEGORY_COLORS[g.category] }}
                     />
-                    <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[.09em]">
                       {CATEGORY_LABELS[g.category]}
                     </span>
-                    <span className="text-[8.5px] text-muted-foreground/50">{g.items.length}</span>
-                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[11px] font-medium text-muted-foreground/50 font-mono">{g.items.length}</span>
+                    <div className="flex-1" />
                     {isOpen
                       ? <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
                       : <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />}
                   </button>
                   {isOpen && (
-                    <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 px-2.5 pt-1" : "flex flex-col gap-0.5 px-2 pt-1"}>
+                    <div className={viewMode === "grid" ? "grid grid-cols-2 gap-[14px] px-[14px] pt-2.5 pb-1" : "flex flex-col gap-px px-[10px] pt-1.5 pb-1"}>
                       {g.items.map((def) => renderDef(def, g.category))}
                     </div>
                   )}
@@ -4290,164 +4391,221 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onZoomTo, onFitView }: { zoo
   const isPreview = mode === "preview";
 
   return (
+    /* ── Bottom dock — pointer-events:none so the canvas stays draggable beneath ── */
     <div
-      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 rounded-2xl border border-border bg-background/95 backdrop-blur-sm shadow-lg px-2 py-1.5"
-      role="toolbar"
-      aria-label="Canvas toolbar"
-      data-testid="canvas-toolbar"
+      className="absolute left-0 right-0 z-40 flex justify-center"
+      style={{ bottom: 20, pointerEvents: "none" }}
+      aria-hidden="true"
     >
-      {/* Design-only editing actions */}
-      {!isPreview && (
-        <>
-          <button
-            onClick={addArtboard}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-            title="Add artboard"
-          >
-            + Artboard
-          </button>
-          {selectedArtboardId && (
-            <>
-              <button
-                onClick={duplicateArtboard}
-                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-                title="Duplicate artboard (Ctrl+D)"
-              >
-                ⧉ Duplicate
-              </button>
-              <button
-                onClick={deleteArtboard}
-                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-destructive/30"
-                title="Delete artboard"
-              >
-                <Trash2 size={10} />
-                Delete
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => setImportOpen(true)}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-            title="Import design from screenshot or Figma"
-          >
-            <Upload size={10} />
-            Import
-          </button>
-          <ImportDesignModal
-            open={importOpen}
-            onClose={() => setImportOpen(false)}
-            onImport={handleImportResult}
-            currentCraftState={(() => { try { return skeletonizeCraftState(query.serialize() ?? '') ?? undefined; } catch { return undefined; } })()}
-          />
-          <div className="w-px h-4 bg-border mx-0.5" />
-          <div className="flex items-center gap-0.5">
+      {/* ── Toolbar pill — re-enable pointer events only here ── */}
+      <div
+        className="flex items-center gap-1 rounded-xl border border-input bg-card"
+        style={{
+          height: 44,
+          paddingLeft: 8,
+          paddingRight: 8,
+          boxShadow: "0 -6px 20px rgba(20,20,24,.12), 0 1px 2px rgba(0,0,0,.07)",
+          pointerEvents: "auto",
+          whiteSpace: "nowrap",
+          maxWidth: "calc(100vw - 32px)",
+        }}
+        role="toolbar"
+        aria-label="Canvas toolbar"
+        data-testid="canvas-toolbar"
+      >
+        {/* Design-only editing actions — every direct child needs flex:none to prevent wrapping */}
+        {!isPreview && (
+          <>
+            {/* + Artboard — primary action pill */}
+            <button
+              onClick={addArtboard}
+              className="flex items-center gap-1.5 text-[12px] font-semibold text-primary-foreground bg-primary hover:bg-primary-hover rounded-lg transition-colors"
+              style={{ height: 30, paddingLeft: 11, paddingRight: 11, flex: "none" }}
+              title="Add artboard"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 1.5v9M1.5 6h9"/>
+              </svg>
+              Artboard
+            </button>
+            {selectedArtboardId && (
+              <>
+                <button
+                  onClick={duplicateArtboard}
+                  className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                  style={{ height: 30, paddingLeft: 10, paddingRight: 10, flex: "none" }}
+                  title="Duplicate artboard (Ctrl+D)"
+                >
+                  ⧉ Duplicate
+                </button>
+                <button
+                  onClick={deleteArtboard}
+                  className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                  style={{ height: 30, paddingLeft: 10, paddingRight: 10, flex: "none" }}
+                  title="Delete artboard"
+                >
+                  <Trash2 size={11} />
+                  Delete
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              style={{ height: 30, paddingLeft: 10, paddingRight: 10, flex: "none" }}
+              title="Import design from screenshot or Figma"
+            >
+              <Upload size={11} />
+              Import
+            </button>
+            <ImportDesignModal
+              open={importOpen}
+              onClose={() => setImportOpen(false)}
+              onImport={handleImportResult}
+              currentCraftState={(() => { try { return skeletonizeCraftState(query.serialize() ?? '') ?? undefined; } catch { return undefined; } })()}
+            />
+            {/* divider */}
+            <div style={{ width: 1, height: 18, background: "var(--border)", margin: "0 4px", flex: "none" }} />
+            {/* Undo / Redo */}
             <button
               onClick={doUndo}
               disabled={!canUndo}
-              className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ width: 28, height: 28, flex: "none" }}
               title="Undo (Ctrl+Z)"
+              aria-label="Undo"
             >
-              ↩
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2.5 5.5h6a3 3 0 0 1 0 6H5"/><path d="M4.5 3 2.5 5.5 4.5 8"/>
+              </svg>
             </button>
             <button
               onClick={doRedo}
               disabled={!canRedo}
-              className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ width: 28, height: 28, flex: "none" }}
               title="Redo (Ctrl+Shift+Z)"
+              aria-label="Redo"
             >
-              ↪
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M11.5 5.5h-6a3 3 0 0 0 0 6H9"/><path d="M9.5 3l2 2.5L9.5 8"/>
+              </svg>
             </button>
-          </div>
-          <div className="w-px h-4 bg-border mx-0.5" />
-          {/* Zoom cluster (Design mode only — Preview is always 100%) */}
-          <div ref={zoomMenuRef} className="relative flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
-            <button
-              onClick={onZoomOut}
-              className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
-              title="Zoom out"
-            >
-              −
-            </button>
-            <button
-              onClick={() => setZoomMenuOpen((o) => !o)}
-              className="w-10 text-center font-medium tabular-nums hover:text-foreground transition-colors"
-              title="Zoom presets"
-              aria-haspopup="menu"
-              aria-expanded={zoomMenuOpen}
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              onClick={onZoomIn}
-              className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
-              title="Zoom in"
-            >
-              +
-            </button>
-            {zoomMenuOpen && (
-              <div
-                role="menu"
-                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col rounded-xl border border-border bg-background shadow-lg py-1 min-w-[72px]"
+            {/* divider */}
+            <div style={{ width: 1, height: 18, background: "var(--border)", margin: "0 4px", flex: "none" }} />
+            {/* Zoom cluster — upward-opening menu, mono readout so the bar doesn't reflow */}
+            <div ref={zoomMenuRef} className="relative flex items-center" style={{ flex: "none" }}>
+              <button
+                onClick={onZoomOut}
+                className="flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                style={{ width: 24, height: 28, fontSize: 14 }}
+                title="Zoom out"
+                aria-label="Zoom out"
               >
-                {ZOOM_STOPS.map((stop) => (
-                  <button
-                    key={stop}
-                    role="menuitem"
-                    onClick={() => { onZoomTo(stop); setZoomMenuOpen(false); }}
-                    className={`px-3 py-1 text-[10px] text-left hover:bg-accent transition-colors tabular-nums ${
-                      Math.abs(zoom - stop) < 0.01 ? "text-primary font-semibold" : "text-muted-foreground"
-                    }`}
-                  >
-                    {Math.round(stop * 100)}%
-                  </button>
-                ))}
-                <button
-                  role="menuitem"
-                  onClick={() => { onFitView(); setZoomMenuOpen(false); }}
-                  className="px-3 py-1 text-[10px] text-left hover:bg-accent transition-colors text-muted-foreground border-t border-border mt-1 pt-1.5"
+                −
+              </button>
+              <button
+                onClick={() => setZoomMenuOpen((o) => !o)}
+                className="text-center font-semibold text-foreground hover:bg-accent rounded transition-colors"
+                style={{ width: 46, fontSize: 12, fontFamily: "var(--font-mono)" }}
+                title="Zoom presets"
+                aria-haspopup="menu"
+                aria-expanded={zoomMenuOpen}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={onZoomIn}
+                className="flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                style={{ width: 24, height: 28, fontSize: 14 }}
+                title="Zoom in"
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+              {zoomMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute flex flex-col rounded-xl border border-input bg-card py-1"
+                  style={{
+                    bottom: "calc(100% + 8px)",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    minWidth: 80,
+                    boxShadow: "0 -10px 28px rgba(20,20,24,.16)",
+                  }}
                 >
-                  Fit
-                </button>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onFitView}
-            className="w-6 h-6 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="Fit view"
-          >
-            <Maximize2 className="w-3 h-3" />
-          </button>
-          <div className="w-px h-4 bg-border mx-0.5" />
-        </>
-      )}
+                  {ZOOM_STOPS.map((stop) => (
+                    <button
+                      key={stop}
+                      role="menuitem"
+                      onClick={() => { onZoomTo(stop); setZoomMenuOpen(false); }}
+                      className={`px-3 py-1.5 text-[11px] text-left hover:bg-accent transition-colors tabular-nums font-medium ${
+                        Math.abs(zoom - stop) < 0.01 ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                      style={{ fontFamily: "var(--font-mono)" }}
+                    >
+                      {Math.round(stop * 100)}%
+                    </button>
+                  ))}
+                  <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                  <button
+                    role="menuitem"
+                    onClick={() => { onFitView(); setZoomMenuOpen(false); }}
+                    className="px-3 py-1.5 text-[11px] text-left hover:bg-accent transition-colors text-muted-foreground font-medium"
+                  >
+                    Fit
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onFitView}
+              className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+              style={{ height: 30, paddingLeft: 10, paddingRight: 10, flex: "none" }}
+              title="Fit view (Shift+1)"
+            >
+              Fit
+            </button>
+            {/* divider */}
+            <div style={{ width: 1, height: 18, background: "var(--border)", margin: "0 4px", flex: "none" }} />
+          </>
+        )}
 
-      {/* Design / Preview mode switch — always visible */}
-      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Editor mode">
-        <button
-          onClick={() => setMode("design")}
-          aria-pressed={!isPreview}
-          data-testid="mode-design"
-          className={`flex items-center gap-1 text-[10px] rounded-md px-2 py-1 transition-colors ${
-            !isPreview ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Design mode"
+        {/* Design / Preview mode switch — always visible */}
+        <div
+          className="flex items-center gap-0.5 rounded-lg"
+          style={{ padding: 2, background: "var(--accent)", flex: "none" }}
+          role="group"
+          aria-label="Editor mode"
         >
-          <PenTool className="w-3 h-3" />
-          Design
-        </button>
-        <button
-          onClick={() => setMode("preview")}
-          aria-pressed={isPreview}
-          data-testid="mode-preview"
-          className={`flex items-center gap-1 text-[10px] rounded-md px-2 py-1 transition-colors ${
-            isPreview ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
-          }`}
-          title="Preview mode"
-        >
-          <Play className="w-3 h-3" />
-          Preview
-        </button>
+          <button
+            onClick={() => setMode("design")}
+            aria-pressed={!isPreview}
+            data-testid="mode-design"
+            className={`flex items-center gap-1 rounded-md transition-colors text-[11px] font-semibold ${
+              !isPreview ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+            style={{ height: 28, paddingLeft: 10, paddingRight: 10 }}
+            title="Design mode"
+          >
+            <PenTool className="w-3 h-3" />
+            Design
+          </button>
+          <button
+            onClick={() => setMode("preview")}
+            aria-pressed={isPreview}
+            data-testid="mode-preview"
+            className={`flex items-center gap-1 rounded-md transition-colors text-[11px] font-semibold ${
+              isPreview ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+            style={{ height: 28, paddingLeft: 10, paddingRight: 10 }}
+            title="Preview mode"
+          >
+            <Play className="w-3 h-3" />
+            Preview
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -4559,14 +4717,14 @@ function PreviewSurface() {
 
   if (!activeId || !previewState) {
     return (
-      <div className="absolute inset-0 z-30 flex items-center justify-center bg-muted" data-testid="preview-surface">
+      <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ backgroundColor: "var(--kf-canvas-preview)" }} data-testid="preview-surface">
         <p className="text-[12px] text-muted-foreground">No screens to preview yet — add an artboard in Design mode.</p>
       </div>
     );
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex flex-col bg-muted overflow-hidden" data-testid="preview-surface">
+    <div className="absolute inset-0 z-30 flex flex-col overflow-hidden" style={{ backgroundColor: "var(--kf-canvas-preview)" }} data-testid="preview-surface">
       {/* Screen strip: picker + prev/next */}
       <div className="shrink-0 flex items-center justify-center gap-2 py-2">
         <button
@@ -5816,9 +5974,9 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
       ref={containerRef}
       className="h-full w-full relative overflow-hidden"
       style={{
-        backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 1.5px, transparent 1.5px)",
+        backgroundImage: "radial-gradient(circle, var(--kf-canvas-dot) 1.5px, transparent 1.5px)",
         backgroundSize: "20px 20px",
-        backgroundColor: "var(--muted)",
+        backgroundColor: "var(--kf-canvas)",
         // Disable native browser pan/zoom on touch so our pointer handlers take full control.
         touchAction: "none",
       }}
