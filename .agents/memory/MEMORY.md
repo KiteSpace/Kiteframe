@@ -28,3 +28,4 @@
 - [Design-time overlays](design-time-overlay-approach.md) — palette overlays render inline as flex siblings / on a bounded stage, never portalled; anchor *and* panel must shrink and wrap or long text escapes the artboard.
 - [User-owned borders vs selection cues](user-owned-border-selection-cue.md) — once a border is user-configurable, selection/editing must be signalled by an outside-the-box ring, and the border space reserved transparently.
 - [Never sanitize system prompts](ai-prompt-sanitizer-truncation.md) — the user-input sanitizer capped the 28k design catalog at 10k and ate `<CURRENT_CANVAS>` tags; AI silently ignored every late-listed component.
+- [Preview mode must override ROOT](preview-mode-root-override.md) — clean-render branches must cover ROOT/section too (its 3000×2000 canvas style leaks in and shoves content off-screen); verify with rects, not textContent.

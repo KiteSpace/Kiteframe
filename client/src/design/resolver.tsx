@@ -118,6 +118,11 @@ export const CanvasZoomContext = createContext(1);
 export type SnapGuideSetter = (h: number | null, v: number | null) => void;
 export const SnapGuideContext = createContext<SnapGuideSetter>(() => {});
 
+// Preview mode context — when true, artboards render without any editing
+// chrome (label, resize handles, absolute canvas positioning, selection
+// shadows) so a single screen can be shown as a clean, interactive surface.
+export const PreviewModeContext = createContext(false);
+
 type AstryxProps = Record<string, any>;
 
 // ─── Node element registry ────────────────────────────────────────────────────
@@ -2312,8 +2317,20 @@ const WRAP_VALUES = new Set(["nowrap", "wrap", "wrap-reverse"]);
 
 export function AstryxSection({ children, direction = "column", gap = 16, padding = 16, align = "stretch", justify = "start", wrap = "nowrap", position = "flow", x = 0, y = 0, backgroundColor, textColor }: AstryxProps) {
   const { connectRef, id, isEmpty, isAbsolute, containerVisual, selected, onMouseDown, containerSizeStyle, resizeHandles } = useContainerNode(position, x, y);
+  const isPreview = useContext(PreviewModeContext);
   const isRoot = id === "ROOT";
   const bgOverride = !isRoot && !selected && backgroundColor ? { background: backgroundColor as string } : {};
+
+  // Preview mode ROOT: no 3000×2000 design canvas — just a plain wrapper that
+  // sizes to the single artboard it holds so the preview centers correctly.
+  if (isRoot && isPreview) {
+    return (
+      <div ref={connectRef} style={{ position: "relative", boxSizing: "border-box" }}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={connectRef}
@@ -2655,6 +2672,7 @@ const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.1
 
 export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", wrap = "nowrap", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
+  const isPreview = useContext(PreviewModeContext);
   const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
@@ -2922,6 +2940,49 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
 
   const resolvedHeight = height != null ? Number(height) : undefined;
   const handleColor = selected ? "#3b82f6" : undefined;
+
+  // Preview mode — clean interactive surface: no canvas positioning, no label,
+  // no resize handles, no selection shadow.  Still connected to craft so the
+  // (disabled) editor keeps rendering children normally.
+  if (isPreview) {
+    return (
+      <div
+        ref={artboardConnectRef}
+        data-preview-artboard="true"
+        style={{
+          display: "flex",
+          flexDirection: direction as "row" | "column",
+          flexWrap: WRAP_VALUES.has(wrap as string) ? (wrap as "nowrap" | "wrap" | "wrap-reverse") : "nowrap",
+          alignItems: ALIGN_MAP[align] ?? "stretch",
+          justifyContent: JUSTIFY_MAP[justify] ?? "flex-start",
+          gap,
+          padding,
+          width,
+          height: resolvedHeight,
+          minHeight: resolvedHeight != null ? resolvedHeight : 0,
+          ...(backgroundType === "gradient" && backgroundGradient
+            ? { background: backgroundGradient as string }
+            : backgroundType === "image" && backgroundImageUrl
+            ? {
+                backgroundImage: `url(${backgroundImageUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                backgroundColor: (backgroundColor as string) || "var(--card)",
+              }
+            : { background: (backgroundColor as string) || "var(--card)" }),
+          color: (textColor as string) || undefined,
+          borderRadius: 12,
+          boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+          position: "relative",
+          boxSizing: "border-box",
+          overflow: "visible",
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "absolute", left: Number(x) || 0, top: Number(y) || 0 }}>

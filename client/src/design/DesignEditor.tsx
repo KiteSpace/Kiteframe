@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, typ
 import { partitionSelection, alignArtboardsInState, distributeArtboardsInState, pasteArtboardsInState, type AlignEdge, type DistributeAxis } from "./artboardAlignment";
 import { _multiSelRef, publishMultiSelection, useMultiSelectionIds } from "./multiSelectStore";
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
-import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
+import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, Clock, Play, PenTool, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -119,6 +119,22 @@ import {
   type CraftRepairReport,
 } from "./craftValidator";
 import { detectNewScreenIntent } from "./newScreenIntent";
+import { PreviewModeContext } from "./resolver";
+import {
+  COMPONENT_REGISTRY,
+  CATEGORY_ORDER,
+  CATEGORY_LABELS,
+  CATEGORY_COLORS,
+  searchRegistry,
+  groupByCategory,
+  readRecentIds,
+  pushRecentId,
+  readPanelView,
+  writePanelView,
+  type ComponentDef,
+  type ComponentCategory,
+  type PanelView,
+} from "./builderRegistry";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
@@ -944,46 +960,184 @@ const TOOLBOX_CATEGORIES: ToolboxCategory[] = [
   },
 ];
 
-// ─── Draggable tile ───────────────────────────────────────────────────────────
+// ─── Toolbox lookup by registry id ────────────────────────────────────────────
+// TOOLBOX_CATEGORIES items are keyed by `name`, which matches the registry `id`,
+// so the flat registry can resolve the craft element/preview for any component.
+const TOOLBOX_BY_ID: Record<string, ToolboxItem> = (() => {
+  const map: Record<string, ToolboxItem> = {};
+  for (const cat of TOOLBOX_CATEGORIES) {
+    for (const item of cat.items) map[item.name] = item;
+  }
+  return map;
+})();
 
-function DraggableItem({ item, connectors }: { item: ToolboxItem; connectors: any }) {
+/**
+ * Returns a callback that inserts a registry component at the centre of the
+ * "active" artboard.  The active artboard is the selected one, else the first
+ * artboard in ROOT's node order.  The node is appended as the last child.
+ *
+ * Used by click-to-insert and keyboard (Enter) insertion in the Builder Shell.
+ * Dragging goes through craft.js's own connector and does not use this path.
+ */
+function useInsertComponent() {
+  const { actions, query } = useEditor(() => ({}));
+  return useCallback(
+    (def: ComponentDef) => {
+      const item = TOOLBOX_BY_ID[def.id];
+      if (!item) return;
+      let targetArtboard: string | null = null;
+      try {
+        const selected = query.getEvent("selected").all();
+        for (const id of selected) {
+          const n = query.node(id).get();
+          if (n?.data?.displayName === "AstryxArtboard") { targetArtboard = id; break; }
+          // If a component is selected, insert into its owning artboard.
+          let cursor: string | null = id;
+          while (cursor && cursor !== "ROOT") {
+            const cn: any = query.node(cursor).get();
+            if (cn?.data?.displayName === "AstryxArtboard") { targetArtboard = cursor; break; }
+            cursor = cn?.data?.parent ?? null;
+          }
+          if (targetArtboard) break;
+        }
+        if (!targetArtboard) {
+          const rootNodes = query.node("ROOT").get()?.data?.nodes ?? [];
+          for (const id of rootNodes) {
+            const n: any = query.node(id).get();
+            if (n?.data?.displayName === "AstryxArtboard") { targetArtboard = id; break; }
+          }
+        }
+      } catch (err) {
+        console.error("[insert] failed to resolve target artboard:", err);
+      }
+      if (!targetArtboard) {
+        console.warn("[insert] no artboard to insert into");
+        return;
+      }
+      try {
+        const tree = (query as any).parseReactElement(item.getElement()).toNodeTree();
+        (actions as any).addNodeTree(tree, targetArtboard);
+        pushRecentId(def.id);
+      } catch (err) {
+        console.error("[insert] addNodeTree failed:", err);
+      }
+    },
+    [actions, query],
+  );
+}
+
+// ─── Component glyph tile ──────────────────────────────────────────────────────
+// The Builder Shell uses a compact monospace glyph rather than a rendered
+// preview thumbnail (previews live behind the "larger preview" affordance).
+
+function GlyphTile({ def, size = 32 }: { def: ComponentDef; size?: number }) {
   return (
     <div
-      ref={(ref) => { if (ref) connectors.create(ref, item.getElement()); }}
-      title={item.description}
-      className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-background hover:bg-primary/5 border border-border hover:border-primary/30 cursor-grab active:cursor-grabbing transition-all group shadow-sm hover:shadow-md select-none"
+      aria-hidden="true"
+      className="flex items-center justify-center rounded-md border border-border/70 bg-muted/40 font-mono text-[9px] font-semibold tracking-tight text-muted-foreground"
+      style={{ width: size, height: 24, flexShrink: 0 }}
     >
-      <div className="w-full rounded-lg border border-border group-hover:border-primary/20 overflow-hidden bg-muted/20">
-        <PreviewThumbnail name={item.name}>
-          {item.preview}
-        </PreviewThumbnail>
-      </div>
-      <span className="text-[9.5px] text-muted-foreground group-hover:text-primary font-medium leading-none">{item.name}</span>
+      {def.glyph}
+    </div>
+  );
+}
+
+/**
+ * Attach craft.js drag-create wiring plus the `application/x-component`
+ * dataTransfer payload to a palette tile.  The craft connector owns the actual
+ * drop behaviour; the extra dataTransfer key lets non-craft drop targets (and
+ * tests) identify the dragged component by its stable id.
+ */
+function useComponentDragRef(def: ComponentDef, connectors: any) {
+  return useCallback(
+    (ref: HTMLElement | null) => {
+      if (!ref) return;
+      const item = TOOLBOX_BY_ID[def.id];
+      if (item) connectors.create(ref, item.getElement());
+      ref.setAttribute("draggable", "true");
+      ref.dataset.componentId = def.id;
+    },
+    [def, connectors],
+  );
+}
+
+// ─── Draggable grid tile ───────────────────────────────────────────────────────
+
+function DraggableItem({
+  def,
+  connectors,
+  active,
+  onInsert,
+}: {
+  def: ComponentDef;
+  connectors: any;
+  active?: boolean;
+  onInsert: (def: ComponentDef) => void;
+}) {
+  const dragRef = useComponentDragRef(def, connectors);
+  return (
+    <div
+      ref={dragRef}
+      role="button"
+      tabIndex={0}
+      title={def.description}
+      aria-label={`${def.name} — ${def.description}`}
+      onClick={() => onInsert(def)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onInsert(def); }
+      }}
+      onDragStart={(e) => { try { e.dataTransfer.setData("application/x-component", def.id); } catch {} }}
+      data-component-id={def.id}
+      className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 cursor-grab active:cursor-grabbing transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        active
+          ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
+          : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
+      }`}
+      style={{ height: 78, justifyContent: "center" }}
+    >
+      <GlyphTile def={def} size={34} />
+      <span className="text-[9.5px] font-medium leading-tight text-foreground text-center truncate max-w-full">{def.name}</span>
+      <span className="text-[8px] leading-tight text-muted-foreground/70 text-center truncate max-w-full">{def.description}</span>
     </div>
   );
 }
 
 // ─── Draggable list-row (used in list view) ────────────────────────────────────
 
-function DraggableListItem({ item, connectors }: { item: ToolboxItem; connectors: any }) {
+function DraggableListItem({
+  def,
+  connectors,
+  active,
+  onInsert,
+}: {
+  def: ComponentDef;
+  connectors: any;
+  active?: boolean;
+  onInsert: (def: ComponentDef) => void;
+}) {
+  const dragRef = useComponentDragRef(def, connectors);
   return (
     <div
-      ref={(ref) => { if (ref) connectors.create(ref, item.getElement()); }}
-      title={item.description}
-      className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 cursor-grab active:cursor-grabbing transition-all group select-none"
+      ref={dragRef}
+      role="button"
+      tabIndex={0}
+      title={def.description}
+      aria-label={`${def.name} — ${def.description}`}
+      onClick={() => onInsert(def)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onInsert(def); }
+      }}
+      onDragStart={(e) => { try { e.dataTransfer.setData("application/x-component", def.id); } catch {} }}
+      data-component-id={def.id}
+      className={`flex items-center gap-2.5 rounded-lg border px-2 py-1.5 cursor-grab active:cursor-grabbing transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        active
+          ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
+          : "border-transparent hover:border-primary/20 hover:bg-primary/5"
+      }`}
     >
-      {/* Miniature preview thumbnail */}
-      <div className="w-10 h-7 shrink-0 rounded border border-border/60 bg-muted/30 overflow-hidden flex items-center justify-center" style={{ pointerEvents: "none" }}>
-        <PreviewErrorBoundary name={item.name}>
-          <div style={{ transform: "scale(0.38)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", userSelect: "none" }}>
-            {item.preview}
-          </div>
-        </PreviewErrorBoundary>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[10.5px] font-medium text-foreground group-hover:text-primary leading-tight truncate">{item.name}</div>
-        <div className="text-[9px] text-muted-foreground/70 leading-tight truncate">{item.description}</div>
-      </div>
+      <GlyphTile def={def} size={32} />
+      <span className="flex-1 min-w-0 text-[10.5px] font-medium text-foreground leading-tight truncate">{def.name}</span>
+      <span className="text-[9px] text-muted-foreground/70 leading-tight truncate text-right max-w-[45%]">{def.description}</span>
     </div>
   );
 }
@@ -3367,7 +3521,14 @@ function LayersView() {
   );
 }
 
-// ─── Left rail: Components + Inspect swap ─────────────────────────────────────
+// ─── Left rail: Builder Shell component panel + Inspect swap ──────────────────
+
+/** Flat, ordered list of visible defs used for keyboard navigation. */
+interface VisibleEntry {
+  def: ComponentDef;
+  /** Section key the entry belongs to ("recent" or the category). */
+  section: string;
+}
 
 function LeftRail() {
   const multiSelectionIds = useMultiSelectionIds();
@@ -3392,11 +3553,25 @@ function LeftRail() {
     ? multiSelectionIds.filter((id) => !!nodes[id])
     : craftSelectedIds;
 
+  const insertComponent = useInsertComponent();
+
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewModeState] = useState<PanelView>(() => readPanelView());
+  const [recentIds, setRecentIds] = useState<string[]>(() => readRecentIds());
+  // Index into the flat visible list for keyboard navigation; -1 = none.
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   // When user explicitly hits "← Back", force components view even if selection is active
   const [forceComponents, setForceComponents] = useState(false);
+
+  // Debounce the ranked search (120ms feels immediate but skips per-keystroke work)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 120);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // Auto-show inspect panel whenever a new element is selected
   useEffect(() => {
@@ -3404,6 +3579,11 @@ function LeftRail() {
   }, [selected?.id]);
 
   const showInspect = !!selected && !forceComponents;
+
+  const setViewMode = (v: PanelView) => {
+    setViewModeState(v);
+    writePanelView(v);
+  };
 
   const toggleCategory = (name: string) => {
     setCollapsed((prev) => {
@@ -3413,25 +3593,106 @@ function LeftRail() {
     });
   };
 
-  const trimmed = query.trim().toLowerCase();
-  const searchResults = trimmed
-    ? TOOLBOX_CATEGORIES.flatMap((cat) =>
-        cat.items.filter(
-          (item) =>
-            item.name.toLowerCase().includes(trimmed) ||
-            item.description.toLowerCase().includes(trimmed),
-        ),
-      )
-    : [];
+  const trimmed = debouncedQuery.trim();
+  const isSearching = trimmed.length > 0;
+
+  // Ranked search results (flat) or grouped categories
+  const searchResults = useMemo(
+    () => (isSearching ? searchRegistry(trimmed) : []),
+    [isSearching, trimmed],
+  );
+  const groups = useMemo(() => groupByCategory(COMPONENT_REGISTRY), []);
+  const recentDefs = useMemo(
+    () =>
+      recentIds
+        .map((id) => COMPONENT_REGISTRY.find((d) => d.id === id))
+        .filter((d): d is ComponentDef => !!d)
+        .slice(0, 6),
+    [recentIds],
+  );
+
+  // Flat visible list mirroring on-screen order — drives ArrowUp/ArrowDown.
+  const visible = useMemo<VisibleEntry[]>(() => {
+    if (isSearching) return searchResults.map((def) => ({ def, section: "search" }));
+    const out: VisibleEntry[] = [];
+    for (const def of recentDefs) out.push({ def, section: "recent" });
+    for (const g of groups) {
+      if (collapsed.has(g.category)) continue;
+      for (const def of g.items) out.push({ def, section: g.category });
+    }
+    return out;
+  }, [isSearching, searchResults, recentDefs, groups, collapsed]);
+
+  // Clamp the active index whenever the visible list changes.
+  useEffect(() => {
+    setActiveIdx((i) => (i >= visible.length ? visible.length - 1 : i));
+  }, [visible.length]);
+
+  const handleInsert = useCallback(
+    (def: ComponentDef) => {
+      insertComponent(def);
+      setRecentIds(readRecentIds());
+    },
+    [insertComponent],
+  );
+
+  // Scroll the active tile into view when keyboard navigation moves it.
+  useEffect(() => {
+    if (activeIdx < 0 || !bodyRef.current) return;
+    const def = visible[activeIdx]?.def;
+    if (!def) return;
+    const el = bodyRef.current.querySelector<HTMLElement>(
+      `[data-nav-idx="${activeIdx}"]`,
+    );
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx, visible]);
+
+  /** Keyboard handling shared by the search input and the results body. */
+  const handleNavKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(visible.length - 1, i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(-1, i - 1));
+      // Returning past the top puts focus back into the search box
+      if (activeIdx <= 0) searchInputRef.current?.focus();
+    } else if (e.key === "Enter" && activeIdx >= 0 && visible[activeIdx]) {
+      e.preventDefault();
+      handleInsert(visible[activeIdx].def);
+    } else if (e.key === "Escape") {
+      setQuery("");
+      setActiveIdx(-1);
+      searchInputRef.current?.focus();
+    }
+  };
 
   const panelTitle = showInspect ? "Inspect" : "Components";
 
+  // Renders one def, tracking its flat index for keyboard highlight.
+  let flatIdx = -1;
+  const renderDef = (def: ComponentDef, keyPrefix: string) => {
+    flatIdx += 1;
+    const idx = flatIdx;
+    const tile = viewMode === "grid" ? (
+      <DraggableItem def={def} connectors={connectors} active={idx === activeIdx} onInsert={handleInsert} />
+    ) : (
+      <DraggableListItem def={def} connectors={connectors} active={idx === activeIdx} onInsert={handleInsert} />
+    );
+    return (
+      <div key={`${keyPrefix}-${def.id}`} data-nav-idx={idx}>
+        {tile}
+      </div>
+    );
+  };
+
   return (
     <div
-      className="w-[296px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
+      className="w-[320px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
       style={{ boxShadow: "1px 0 0 hsl(var(--border))" }}
+      aria-label={showInspect ? "Inspect panel" : "Component palette"}
     >
-      {/* Header */}
+      {/* Fixed header: title + view toggle + search */}
       <div className="px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[12px] font-semibold text-foreground">{panelTitle}</span>
@@ -3443,29 +3704,47 @@ function LeftRail() {
               ← Back
             </button>
           ) : (
-            <button
-              onClick={() => setViewMode((v) => v === "grid" ? "list" : "grid")}
-              className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground transition-colors"
-              title={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
-            >
-              {viewMode === "grid"
-                ? <LayoutList className="w-3.5 h-3.5" />
-                : <LayoutGrid className="w-3.5 h-3.5" />}
-            </button>
+            <div className="flex items-center gap-0.5" role="group" aria-label="Palette view mode">
+              <button
+                onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
+                className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${
+                  viewMode === "grid" ? "bg-accent text-foreground" : "hover:bg-accent text-muted-foreground"
+                }`}
+                title="Grid view"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                aria-pressed={viewMode === "list"}
+                className={`w-6 h-6 flex items-center justify-center rounded-lg transition-colors ${
+                  viewMode === "list" ? "bg-accent text-foreground" : "hover:bg-accent text-muted-foreground"
+                }`}
+                title="List view"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
         </div>
         {!showInspect && (
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
             <input
+              ref={searchInputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search…"
+              onChange={(e) => { setQuery(e.target.value); setActiveIdx(-1); }}
+              onKeyDown={handleNavKeyDown}
+              placeholder="Search components…"
+              role="searchbox"
+              aria-label="Search components"
               className="w-full pl-7 pr-6 py-1.5 text-[10px] rounded-xl border border-border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
             />
             {query && (
               <button
-                onClick={() => setQuery("")}
+                onClick={() => { setQuery(""); setActiveIdx(-1); searchInputRef.current?.focus(); }}
+                aria-label="Clear search"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3 h-3" />
@@ -3476,74 +3755,68 @@ function LeftRail() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto flex flex-col">
+      <div
+        ref={bodyRef}
+        className="flex-1 overflow-y-auto flex flex-col"
+        onKeyDown={showInspect ? undefined : handleNavKeyDown}
+      >
         {showInspect ? (
           <InspectPanel selected={selected!} selectedIds={selectedIds} actions={actions} />
-        ) : trimmed ? (
-          // Search results — grid or list
+        ) : isSearching ? (
+          // Ranked search results — flat grid or list
           searchResults.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground text-center py-8">No matches</p>
-          ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-2 gap-1.5 p-2.5 pt-2">
-              {searchResults.map((item) => (
-                <DraggableItem key={item.name} item={item} connectors={connectors} />
-              ))}
-            </div>
+            <p className="text-[11px] text-muted-foreground text-center py-8">
+              No components match “{trimmed}”
+            </p>
           ) : (
-            <div className="flex flex-col gap-0.5 p-2">
-              {searchResults.map((item) => (
-                <DraggableListItem key={item.name} item={item} connectors={connectors} />
-              ))}
+            <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 p-2.5 pt-2" : "flex flex-col gap-0.5 p-2"}>
+              {searchResults.map((def) => renderDef(def, "search"))}
             </div>
           )
-        ) : viewMode === "grid" ? (
-          // Grid view — 2-col tiles grouped by category
-          <div className="p-2.5 space-y-3.5">
-            {TOOLBOX_CATEGORIES.map((cat) => {
-              const isOpen = !collapsed.has(cat.name);
-              return (
-                <div key={cat.name}>
-                  <button
-                    onClick={() => toggleCategory(cat.name)}
-                    className="w-full flex items-center gap-2 mb-1.5 px-0.5 hover:opacity-70 transition-opacity"
-                  >
-                    <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{cat.name}</span>
-                    <div className="flex-1 h-px bg-border" />
-                    <span className="text-[8px] text-muted-foreground/50">{isOpen ? "▴" : "▾"}</span>
-                  </button>
-                  {isOpen && (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {cat.items.map((item) => (
-                        <DraggableItem key={item.name} item={item} connectors={connectors} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         ) : (
-          // List view — accordions by category, each item as a compact draggable row
-          <div className="p-2 space-y-1">
-            {TOOLBOX_CATEGORIES.map((cat) => {
-              const isOpen = !collapsed.has(cat.name);
+          <div className="pb-3">
+            {/* Recent components */}
+            {recentDefs.length > 0 && (
+              <div className="pt-2">
+                <div className="sticky top-0 z-10 flex items-center gap-1.5 bg-background/95 backdrop-blur-sm px-3 py-1.5">
+                  <Clock className="w-2.5 h-2.5 text-muted-foreground/70" />
+                  <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Recent</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 px-2.5 pt-1" : "flex flex-col gap-0.5 px-2 pt-1"}>
+                  {recentDefs.map((def) => renderDef(def, "recent"))}
+                </div>
+              </div>
+            )}
+
+            {/* Grouped categories with sticky headers */}
+            {groups.map((g) => {
+              const isOpen = !collapsed.has(g.category);
+              // Keep flat indexing correct: collapsed groups render no tiles.
               return (
-                <div key={cat.name} className="rounded-xl border border-border/60 overflow-hidden">
+                <div key={g.category} className="pt-2">
                   <button
-                    onClick={() => toggleCategory(cat.name)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/60 transition-colors"
+                    onClick={() => toggleCategory(g.category)}
+                    aria-expanded={isOpen}
+                    className="sticky top-0 z-10 w-full flex items-center gap-1.5 bg-background/95 backdrop-blur-sm px-3 py-1.5 hover:opacity-70 transition-opacity"
                   >
-                    <span className="text-[10px] font-semibold text-foreground flex-1 text-left">{cat.name}</span>
-                    <span className="text-[9px] text-muted-foreground/50">{cat.items.length}</span>
+                    <span
+                      aria-hidden="true"
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: CATEGORY_COLORS[g.category] }}
+                    />
+                    <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">
+                      {CATEGORY_LABELS[g.category]}
+                    </span>
+                    <span className="text-[8.5px] text-muted-foreground/50">{g.items.length}</span>
+                    <div className="flex-1 h-px bg-border" />
                     {isOpen
                       ? <ChevronDown className="w-3 h-3 text-muted-foreground/60 shrink-0" />
                       : <ChevronRight className="w-3 h-3 text-muted-foreground/60 shrink-0" />}
                   </button>
                   {isOpen && (
-                    <div className="flex flex-col gap-0 divide-y divide-border/40">
-                      {cat.items.map((item) => (
-                        <DraggableListItem key={item.name} item={item} connectors={connectors} />
-                      ))}
+                    <div className={viewMode === "grid" ? "grid grid-cols-2 gap-1.5 px-2.5 pt-1" : "flex flex-col gap-0.5 px-2 pt-1"}>
+                      {g.items.map((def) => renderDef(def, g.category))}
                     </div>
                   )}
                 </div>
@@ -3563,6 +3836,55 @@ interface NotesContextValue {
   setNotesOpen: (open: boolean) => void;
 }
 const NotesContext = createContext<NotesContextValue>({ notesOpen: false, setNotesOpen: () => {} });
+
+// ─── Builder mode context ─────────────────────────────────────────────────────
+// Design vs Preview mode for the editable builder shell.  Independent of the
+// `editable` prop: the public shared-link read-only path never uses this.
+
+export type BuilderMode = "design" | "preview";
+
+interface BuilderModeContextValue {
+  mode: BuilderMode;
+  setMode: (mode: BuilderMode) => void;
+  /** Artboard id currently shown in Preview (null = first artboard). */
+  previewArtboardId: string | null;
+  setPreviewArtboardId: (id: string | null) => void;
+}
+const BuilderModeContext = createContext<BuilderModeContextValue>({
+  mode: "design",
+  setMode: () => {},
+  previewArtboardId: null,
+  setPreviewArtboardId: () => {},
+});
+
+/** Read `mode` / `screen` from the URL query string (used at mount). */
+function readModeFromUrl(): { mode: BuilderMode; screen: string | null } {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      mode: params.get("mode") === "preview" ? "preview" : "design",
+      screen: params.get("screen"),
+    };
+  } catch {
+    return { mode: "design", screen: null };
+  }
+}
+
+/** Write `mode` / `screen` to the URL without adding history entries. */
+function writeModeToUrl(mode: BuilderMode, screen: string | null) {
+  try {
+    const url = new URL(window.location.href);
+    if (mode === "preview") {
+      url.searchParams.set("mode", "preview");
+      if (screen) url.searchParams.set("screen", screen);
+      else url.searchParams.delete("screen");
+    } else {
+      url.searchParams.delete("mode");
+      url.searchParams.delete("screen");
+    }
+    window.history.replaceState(null, "", url.toString());
+  } catch { /* ignore */ }
+}
 
 // ─── Pinned element context ────────────────────────────────────────────────────
 // Shared between SelectionPinButton (canvas) and DesignPanel (chat) so the
@@ -3740,11 +4062,28 @@ function NotesPanel({ notes, editable, onNotesChange }: NotesPanelProps) {
 }
 
 // ─── Canvas toolbar ───────────────────────────────────────────────────────────
+// Floating, bottom-centered (matches the workflow canvas toolbar pattern).
+// Shown in both Design and Preview modes; Preview hides the editing actions.
 
-function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onFitView: () => void }) {
+const ZOOM_STOPS = [0.25, 0.5, 0.75, 1, 1.5, 2];
+
+function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onZoomTo, onFitView }: { zoom: number; onZoomIn: () => void; onZoomOut: () => void; onZoomTo: (z: number) => void; onFitView: () => void }) {
   const { actions, query } = useEditor(() => ({}));
   const { canUndo, canRedo, doUndo, doRedo } = useContext(HistoryCtx);
+  const { mode, setMode } = useContext(BuilderModeContext);
+  const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
+  const zoomMenuRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
+
+  // Close the zoom stop menu on outside click
+  useEffect(() => {
+    if (!zoomMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!zoomMenuRef.current?.contains(e.target as Node)) setZoomMenuOpen(false);
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [zoomMenuOpen]);
 
   const { selectedArtboardId } = useEditor((state) => {
     const sel = state.events.selected;
@@ -3870,86 +4209,365 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onFitView }: { zoom: number;
     setTimeout(onFitView, 80);
   }, [actions, query, onFitView]);
 
+  const isPreview = mode === "preview";
+
   return (
-    <div className="h-9 shrink-0 border-b border-border bg-background flex items-center px-3 gap-1.5 z-10">
-      <button
-        onClick={addArtboard}
-        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-        title="Add artboard"
-      >
-        + Artboard
-      </button>
-      {selectedArtboardId && (
+    <div
+      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 rounded-2xl border border-border bg-background/95 backdrop-blur-sm shadow-lg px-2 py-1.5"
+      role="toolbar"
+      aria-label="Canvas toolbar"
+      data-testid="canvas-toolbar"
+    >
+      {/* Design-only editing actions */}
+      {!isPreview && (
         <>
           <button
-            onClick={duplicateArtboard}
+            onClick={addArtboard}
             className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-            title="Duplicate artboard (Ctrl+D)"
+            title="Add artboard"
           >
-            ⧉ Duplicate
+            + Artboard
           </button>
+          {selectedArtboardId && (
+            <>
+              <button
+                onClick={duplicateArtboard}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
+                title="Duplicate artboard (Ctrl+D)"
+              >
+                ⧉ Duplicate
+              </button>
+              <button
+                onClick={deleteArtboard}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-destructive/30"
+                title="Delete artboard"
+              >
+                <Trash2 size={10} />
+                Delete
+              </button>
+            </>
+          )}
           <button
-            onClick={deleteArtboard}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-destructive/30"
-            title="Delete artboard"
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
+            title="Import design from screenshot or Figma"
           >
-            <Trash2 size={10} />
-            Delete
+            <Upload size={10} />
+            Import
           </button>
+          <ImportDesignModal
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            onImport={handleImportResult}
+            currentCraftState={(() => { try { return skeletonizeCraftState(query.serialize() ?? '') ?? undefined; } catch { return undefined; } })()}
+          />
+          <div className="w-px h-4 bg-border mx-0.5" />
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={doUndo}
+              disabled={!canUndo}
+              className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              ↩
+            </button>
+            <button
+              onClick={doRedo}
+              disabled={!canRedo}
+              className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              ↪
+            </button>
+          </div>
+          <div className="w-px h-4 bg-border mx-0.5" />
+          {/* Zoom cluster (Design mode only — Preview is always 100%) */}
+          <div ref={zoomMenuRef} className="relative flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
+            <button
+              onClick={onZoomOut}
+              className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
+              title="Zoom out"
+            >
+              −
+            </button>
+            <button
+              onClick={() => setZoomMenuOpen((o) => !o)}
+              className="w-10 text-center font-medium tabular-nums hover:text-foreground transition-colors"
+              title="Zoom presets"
+              aria-haspopup="menu"
+              aria-expanded={zoomMenuOpen}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={onZoomIn}
+              className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
+              title="Zoom in"
+            >
+              +
+            </button>
+            {zoomMenuOpen && (
+              <div
+                role="menu"
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col rounded-xl border border-border bg-background shadow-lg py-1 min-w-[72px]"
+              >
+                {ZOOM_STOPS.map((stop) => (
+                  <button
+                    key={stop}
+                    role="menuitem"
+                    onClick={() => { onZoomTo(stop); setZoomMenuOpen(false); }}
+                    className={`px-3 py-1 text-[10px] text-left hover:bg-accent transition-colors tabular-nums ${
+                      Math.abs(zoom - stop) < 0.01 ? "text-primary font-semibold" : "text-muted-foreground"
+                    }`}
+                  >
+                    {Math.round(stop * 100)}%
+                  </button>
+                ))}
+                <button
+                  role="menuitem"
+                  onClick={() => { onFitView(); setZoomMenuOpen(false); }}
+                  className="px-3 py-1 text-[10px] text-left hover:bg-accent transition-colors text-muted-foreground border-t border-border mt-1 pt-1.5"
+                >
+                  Fit
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onFitView}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Fit view"
+          >
+            <Maximize2 className="w-3 h-3" />
+          </button>
+          <div className="w-px h-4 bg-border mx-0.5" />
         </>
       )}
-      <button
-        onClick={() => setImportOpen(true)}
-        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-border"
-        title="Import design from screenshot or Figma"
-      >
-        <Upload size={10} />
-        Import
-      </button>
-      <ImportDesignModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onImport={handleImportResult}
-        currentCraftState={(() => { try { return skeletonizeCraftState(query.serialize() ?? '') ?? undefined; } catch { return undefined; } })()}
-      />
-      <div className="flex-1" />
-      <div className="flex items-center gap-0.5 mr-1.5">
+
+      {/* Design / Preview mode switch — always visible */}
+      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5" role="group" aria-label="Editor mode">
         <button
-          onClick={doUndo}
-          disabled={!canUndo}
-          className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Undo (Ctrl+Z)"
+          onClick={() => setMode("design")}
+          aria-pressed={!isPreview}
+          data-testid="mode-design"
+          className={`flex items-center gap-1 text-[10px] rounded-md px-2 py-1 transition-colors ${
+            !isPreview ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Design mode"
         >
-          ↩
+          <PenTool className="w-3 h-3" />
+          Design
         </button>
         <button
-          onClick={doRedo}
-          disabled={!canRedo}
-          className="w-6 h-6 flex items-center justify-center text-[11px] rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Redo (Ctrl+Shift+Z)"
+          onClick={() => setMode("preview")}
+          aria-pressed={isPreview}
+          data-testid="mode-preview"
+          className={`flex items-center gap-1 text-[10px] rounded-md px-2 py-1 transition-colors ${
+            isPreview ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Preview mode"
         >
-          ↪
-        </button>
-      </div>
-      <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded-lg px-1 bg-background">
-        <button
-          onClick={onZoomOut}
-          className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
-          title="Zoom out"
-        >
-          −
-        </button>
-        <span className="w-10 text-center font-medium tabular-nums">{Math.round(zoom * 100)}%</span>
-        <button
-          onClick={onZoomIn}
-          className="w-5 h-6 flex items-center justify-center hover:text-foreground transition-colors"
-          title="Zoom in"
-        >
-          +
+          <Play className="w-3 h-3" />
+          Preview
         </button>
       </div>
     </div>
   );
+}
+
+// ─── Preview mode ─────────────────────────────────────────────────────────────
+
+/** Ordered {id, label} for every artboard in a serialized craft state. */
+export function listArtboards(serialized: string | null): Array<{ id: string; label: string }> {
+  if (!serialized) return [];
+  try {
+    const state = JSON.parse(serialized) as Record<string, any>;
+    const rootNodes: string[] = Array.isArray(state?.ROOT?.nodes) ? state.ROOT.nodes : [];
+    const out: Array<{ id: string; label: string }> = [];
+    for (const id of rootNodes) {
+      const n = state[id];
+      if (n?.type?.resolvedName === "AstryxArtboard") {
+        out.push({ id, label: String(n.props?.label ?? "Untitled") });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build a craft state containing only the given artboard's subtree, with ROOT
+ * rewritten to a plain centered column so the single screen renders cleanly.
+ */
+export function buildPreviewState(serialized: string, artboardId: string): string | null {
+  try {
+    const state = JSON.parse(serialized) as Record<string, any>;
+    if (!state[artboardId] || !state.ROOT) return null;
+    const keep = new Set<string>(["ROOT"]);
+    const queue = [artboardId];
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (keep.has(id)) continue;
+      keep.add(id);
+      const n = state[id];
+      if (!n) continue;
+      for (const c of n.nodes ?? []) queue.push(c as string);
+      for (const v of Object.values(n.linkedNodes ?? {})) queue.push(v as string);
+    }
+    const next: Record<string, any> = {};
+    for (const id of Array.from(keep)) {
+      if (state[id]) next[id] = JSON.parse(JSON.stringify(state[id]));
+    }
+    next.ROOT = {
+      ...next.ROOT,
+      props: { ...next.ROOT.props, direction: "column", gap: 0, padding: 0, align: "start", justify: "start" },
+      nodes: [artboardId],
+    };
+    return JSON.stringify(next);
+  } catch (err) {
+    console.error("[preview] failed to build preview state:", err);
+    return null;
+  }
+}
+
+/**
+ * Preview surface — an isolated, disabled craft Editor rendering ONE artboard
+ * from a snapshot of the live editing state.  Rendered inside the main Editor
+ * (for query access) but mounts its own <Editor> so the main editing session,
+ * selection, and history are untouched.  Components receive real pointer
+ * events because no drag/selection handlers attach when the editor is
+ * disabled and the artboard renders without chrome (PreviewModeContext).
+ */
+function PreviewSurface() {
+  const { query } = useEditor(() => ({}));
+  const { previewArtboardId, setPreviewArtboardId, setMode } = useContext(BuilderModeContext);
+
+  // Snapshot the live state once per Preview entry / artboard switch.
+  const serialized = useMemo(() => {
+    try { return query.serialize(); } catch { return null; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, previewArtboardId]);
+
+  const artboards = useMemo(() => listArtboards(serialized), [serialized]);
+  const activeId = previewArtboardId && artboards.some((a) => a.id === previewArtboardId)
+    ? previewArtboardId
+    : artboards[0]?.id ?? null;
+  const activeIdx = artboards.findIndex((a) => a.id === activeId);
+
+  const previewState = useMemo(
+    () => (serialized && activeId ? buildPreviewState(serialized, activeId) : null),
+    [serialized, activeId],
+  );
+
+  const goTo = useCallback((offset: number) => {
+    if (artboards.length === 0) return;
+    const next = (activeIdx + offset + artboards.length) % artboards.length;
+    setPreviewArtboardId(artboards[next].id);
+  }, [artboards, activeIdx, setPreviewArtboardId]);
+
+  // Keyboard: ←/→ navigate screens (wrapping), Escape exits Preview.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft") { e.preventDefault(); goTo(-1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); goTo(1); }
+      else if (e.key === "Escape") { e.preventDefault(); setMode("design"); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goTo, setMode]);
+
+  if (!activeId || !previewState) {
+    return (
+      <div className="absolute inset-0 z-30 flex items-center justify-center bg-muted" data-testid="preview-surface">
+        <p className="text-[12px] text-muted-foreground">No screens to preview yet — add an artboard in Design mode.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col bg-muted overflow-hidden" data-testid="preview-surface">
+      {/* Screen strip: picker + prev/next */}
+      <div className="shrink-0 flex items-center justify-center gap-2 py-2">
+        <button
+          onClick={() => goTo(-1)}
+          disabled={artboards.length < 2}
+          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+          title="Previous screen (←)"
+          aria-label="Previous screen"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
+        <select
+          value={activeId}
+          onChange={(e) => setPreviewArtboardId(e.target.value)}
+          aria-label="Choose screen to preview"
+          data-testid="preview-artboard-picker"
+          className="text-[11px] font-medium rounded-lg border border-border bg-background px-2 py-1 outline-none focus:ring-1 focus:ring-primary"
+        >
+          {artboards.map((a, i) => (
+            <option key={a.id} value={a.id}>{a.label || `Screen ${i + 1}`}</option>
+          ))}
+        </select>
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          {activeIdx + 1} / {artboards.length}
+        </span>
+        <button
+          onClick={() => goTo(1)}
+          disabled={artboards.length < 2}
+          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+          title="Next screen (→)"
+          aria-label="Next screen"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* The rendered screen at 100% — scrollable if larger than the viewport */}
+      <div className="flex-1 min-h-0 overflow-auto">
+        <div className="min-h-full flex items-start justify-center py-6 px-6 pb-20">
+          <PreviewModeContext.Provider value={true}>
+            <Editor key={activeId} resolver={resolver} enabled={false}>
+              <Frame data={previewState} />
+            </Editor>
+          </PreviewModeContext.Provider>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inside the MAIN editor: while Preview is active, clicking an artboard (or a
+ * node inside one) in the Layers panel jumps Preview to that artboard.
+ */
+function PreviewLayersBridge() {
+  const { query } = useEditor(() => ({}));
+  const { selectedFirst } = useEditor((state) => ({
+    selectedFirst: state.events.selected && state.events.selected.size > 0
+      ? Array.from(state.events.selected)[0]
+      : null,
+  }));
+  const { mode, setPreviewArtboardId } = useContext(BuilderModeContext);
+
+  useEffect(() => {
+    if (mode !== "preview" || !selectedFirst) return;
+    try {
+      let cursor: string | null = selectedFirst;
+      while (cursor && cursor !== "ROOT") {
+        const n: any = query.node(cursor).get();
+        if (n?.data?.displayName === "AstryxArtboard") {
+          setPreviewArtboardId(cursor);
+          return;
+        }
+        cursor = n?.data?.parent ?? null;
+      }
+    } catch { /* ignore */ }
+  }, [mode, selectedFirst, query, setPreviewArtboardId]);
+
+  return null;
 }
 
 // ─── Clipboard & node operation utilities ────────────────────────────────────
@@ -6816,11 +7434,39 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
   const [notesOpenInternal, setNotesOpenInternal] = useState(false);
   const [pinned, setPinned] = useState<PinnedElement | null>(null);
 
+  // Builder mode (Design/Preview) — editable sessions only.  Initialized from
+  // the URL so a reload or shared editor link restores the same view.
+  const initialUrlMode = useMemo(() => readModeFromUrl(), []);
+  const [builderMode, setBuilderModeState] = useState<BuilderMode>(
+    editable ? initialUrlMode.mode : "design",
+  );
+  const [previewArtboardId, setPreviewArtboardId] = useState<string | null>(
+    editable ? initialUrlMode.screen : null,
+  );
+  const setBuilderMode = useCallback((m: BuilderMode) => {
+    setBuilderModeState(m);
+  }, []);
+  // Keep the URL in sync (replaceState — no history spam).
+  useEffect(() => {
+    if (!editable) return;
+    writeModeToUrl(builderMode, builderMode === "preview" ? previewArtboardId : null);
+  }, [editable, builderMode, previewArtboardId]);
+
+  const builderModeValue = useMemo<BuilderModeContextValue>(() => ({
+    mode: builderMode,
+    setMode: setBuilderMode,
+    previewArtboardId,
+    setPreviewArtboardId,
+  }), [builderMode, setBuilderMode, previewArtboardId]);
+
+  const isPreviewMode = editable && builderMode === "preview";
+
   const notesOpen = notesOpenProp !== undefined ? notesOpenProp : notesOpenInternal;
   const setNotesOpen = onSetNotesOpen ?? setNotesOpenInternal;
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(2, z * 1.15)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(0.15, z / 1.15)), []);
+  const zoomTo = useCallback((z: number) => setZoom(Math.min(2, Math.max(0.15, z))), []);
   const fitView = useCallback(() => setFitTrigger((t) => t + 1), []);
 
   const stableSave = useCallback(
@@ -6851,17 +7497,20 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
         }
       >
         <SnapGuideContext.Provider value={_setSnapGuides}>
+        <BuilderModeContext.Provider value={builderModeValue}>
         <HistoryProvider>
         <div className="flex h-full w-full" style={{ overflow: "clip" }}>
-          {editable && <LeftRail />}
+          {editable && !isPreviewMode && <LeftRail />}
           <div className="flex flex-col flex-1 min-w-0">
-            {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onFitView={fitView} />}
             {/* data-canvas-area marks this region for the right-click context menu */}
             <div className="relative flex-1 min-h-0" data-canvas-area="true">
               <InfiniteCanvas zoom={zoom} onZoom={setZoom} fitTrigger={fitTrigger}>
                 <CanvasArea craftState={craftState} />
                 {!editable && <CraftStateSync craftState={craftState} />}
               </InfiniteCanvas>
+              {/* Preview overlay — sits above the canvas, below the toolbar */}
+              {isPreviewMode && <PreviewSurface />}
+              {editable && <CanvasToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onZoomTo={zoomTo} onFitView={fitView} />}
               {/* View-only notes overlay (editable users have Notes tab in DesignPanel) */}
               {!editable && (
                 <NotesPanel
@@ -6888,11 +7537,13 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
             onBeforeUnloadSave={onBeforeUnloadSave ? stableBeforeUnloadSave : undefined}
           />
         )}
-        {editable && <KeyboardHandler />}
+        {editable && !isPreviewMode && <KeyboardHandler />}
         {editable && <MultiSelectHandler />}
-        {editable && <CanvasContextMenu />}
-        {editable && <SelectionPinButton />}
+        {editable && !isPreviewMode && <CanvasContextMenu />}
+        {editable && !isPreviewMode && <SelectionPinButton />}
+        {editable && <PreviewLayersBridge />}
         </HistoryProvider>
+        </BuilderModeContext.Provider>
         </SnapGuideContext.Provider>
       </Editor>
     </NotesContext.Provider>
