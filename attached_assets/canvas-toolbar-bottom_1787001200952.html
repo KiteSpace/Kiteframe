@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<!--
+  Kiteframe — floating canvas toolbar (option 1b), docked BOTTOM
+  Handoff code. Open this file directly to see it render standalone.
+
+  Contents
+    1. Tokens          :root custom properties — same set as builder-panel-1b.html
+    2. Dock            .kf-toolbar-dock — the positioning layer (bottom center)
+    3. Toolbar         .kf-toolbar — the pill itself
+    4. Controls        button / divider / stepper / segmented
+    5. Preview mode    data-mode="preview" swaps the control set, no re-mount
+    6. Behavior        zoom stops, keyboard shortcuts, mode switch
+
+  Bottom-dock specifics (the reason this file exists)
+    - Dock is a pointer-events:none overlay so the canvas stays draggable
+      underneath; only .kf-toolbar re-enables pointer events. Without this the
+      full-width dock eats every click in the bottom band of the canvas.
+    - Shadow is inverted for a bottom dock: light comes from above, so the shadow
+      lifts UPWARD (0 -6px 20px) instead of dropping down.
+    - Menus open UPWARD. .kf-menu is bottom:calc(100% + 8px), and any dropdown you
+      add must do the same or it renders off-canvas.
+    - Bottom inset is 20px, not 16px: a bottom-docked bar sits closer to the
+      window edge, and 16px reads as cramped against the viewport bottom.
+    - Reserve the band. The canvas needs 76px of bottom padding when it fits
+      content (Fit / ⇧1), or artboards land under the bar.
+
+  Non-negotiable
+    Every direct child of .kf-toolbar needs flex:none and white-space:nowrap.
+    Without it the labels wrap inside their own pills on a narrow canvas — the
+    single most common way this component breaks.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canvas toolbar — bottom dock</title>
+<style>
+/* ─── 1. Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --kf-chrome:      #ffffff;
+  --kf-track:       #f2f2ef;
+  --kf-hover:       #f4f4f1;
+
+  --kf-line:        #eaeae5;
+  --kf-line-strong: #e2e2dd;
+
+  --kf-fg:          #1c1c1e;
+  --kf-fg-muted:    #4a4a44;
+  --kf-fg-subtle:   #6b6b63;
+  --kf-fg-faint:    #9a9a90;
+  --kf-fg-disabled: #c2c2b8;
+
+  --kf-ink:         #131316;   /* primary action fill */
+  --kf-ink-fg:      #ffffff;
+  --kf-accent:      #9B6BFF;   /* focus rings only — never a button fill here */
+
+  --kf-r-sm: 7px;
+  --kf-r:    8px;
+  --kf-r-lg: 12px;
+  /* bottom dock: shadow lifts upward */
+  --kf-shadow: 0 -6px 20px rgba(20,20,18,.12);
+  --kf-shadow-raise: 0 1px 2px rgba(0,0,0,.07);
+
+  --kf-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --kf-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* ─── 2. Dock ───────────────────────────────────────────────────────────── */
+.kf-toolbar-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;          /* required: canvas stays draggable underneath */
+}
+.kf-toolbar-dock > * { pointer-events: auto; }
+
+/* ─── 3. Toolbar ────────────────────────────────────────────────────────── */
+.kf-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 8px;
+  background: var(--kf-chrome);
+  border: 1px solid var(--kf-line-strong);
+  border-radius: var(--kf-r-lg);
+  box-shadow: var(--kf-shadow);
+  font-family: var(--kf-sans);
+  white-space: nowrap;
+  max-width: calc(100% - 32px);
+}
+.kf-toolbar *, .kf-toolbar *::before, .kf-toolbar *::after { box-sizing: border-box; }
+/* the rule that keeps it from breaking */
+.kf-toolbar > * { flex: none; white-space: nowrap; }
+
+/* ─── 4. Controls ───────────────────────────────────────────────────────── */
+.kf-btn {
+  height: 30px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: var(--kf-r);
+  background: none;
+  font: 500 12px/1 var(--kf-sans);
+  color: var(--kf-fg-muted);
+  cursor: pointer;
+}
+.kf-btn:hover { background: var(--kf-hover); }
+.kf-btn svg { color: var(--kf-fg-faint); }
+
+.kf-btn--primary {
+  padding: 0 11px;
+  background: var(--kf-ink);
+  color: var(--kf-ink-fg);
+  font-weight: 600;
+}
+.kf-btn--primary:hover { background: #24242a; }
+.kf-btn--primary svg { color: currentColor; }
+
+.kf-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--kf-r-sm);
+  background: none;
+  color: var(--kf-fg-subtle);
+  cursor: pointer;
+}
+.kf-icon:hover { background: var(--kf-hover); }
+.kf-icon:disabled { color: var(--kf-fg-disabled); cursor: default; background: none; }
+
+.kf-btn:focus-visible,
+.kf-icon:focus-visible,
+.kf-seg button:focus-visible,
+.kf-stepper button:focus-visible {
+  outline: 2px solid var(--kf-accent);
+  outline-offset: 2px;
+}
+
+.kf-divider { width: 1px; height: 18px; background: var(--kf-line); margin: 0 4px; }
+
+/* zoom stepper — mono readout so the bar can't reflow between 30% and 100% */
+.kf-stepper { display: flex; align-items: center; gap: 2px; }
+.kf-stepper button {
+  width: 24px; height: 28px;
+  border: 0; border-radius: var(--kf-r-sm); background: none;
+  color: var(--kf-fg-subtle); font: 400 14px/1 var(--kf-sans); cursor: pointer;
+}
+.kf-stepper button:hover { background: var(--kf-hover); }
+.kf-zoom {
+  width: 46px;
+  text-align: center;
+  font: 600 12px/1 var(--kf-mono);
+  color: var(--kf-fg);
+  background: none; border: 0; padding: 0;
+  cursor: text;
+}
+
+/* segmented control */
+.kf-seg { display: flex; gap: 2px; padding: 2px; background: var(--kf-track); border-radius: var(--kf-r); }
+.kf-seg button {
+  padding: 5px 10px;
+  border: 0; border-radius: 6px; background: none;
+  font: 500 11px/1.2 var(--kf-sans); color: var(--kf-fg-subtle); cursor: pointer;
+}
+.kf-seg button[aria-pressed="true"] {
+  background: var(--kf-chrome);
+  color: var(--kf-fg);
+  font-weight: 600;
+  box-shadow: var(--kf-shadow-raise);
+}
+
+/* screen picker (preview mode) */
+.kf-picker { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px;
+  border: 0; border-radius: var(--kf-r); background: none; cursor: pointer;
+  font: 600 12px/1 var(--kf-sans); color: var(--kf-fg); }
+.kf-picker:hover { background: var(--kf-hover); }
+.kf-picker .kf-caret { color: var(--kf-fg-faint); font-size: 10px; font-weight: 400; }
+.kf-counter { width: 36px; text-align: center; font: 500 11px/1 var(--kf-mono); color: #8a8a80; }
+
+/* menus open UPWARD from a bottom dock */
+.kf-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  min-width: 220px;
+  background: var(--kf-chrome);
+  border: 1px solid var(--kf-line-strong);
+  border-radius: 11px;
+  box-shadow: 0 -10px 28px rgba(20,20,18,.16);
+  padding: 5px;
+  display: none;
+}
+.kf-menu[data-open="true"] { display: block; }
+.kf-menu button {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 8px 9px; border: 0; border-radius: 7px; background: none;
+  font: 500 12.5px/1 var(--kf-sans); color: var(--kf-fg); text-align: left; cursor: pointer;
+}
+.kf-menu button:hover { background: var(--kf-hover); }
+.kf-menu kbd { margin-left: auto; font: 500 10px/1 var(--kf-mono); color: var(--kf-fg-faint); }
+
+/* ─── 5. Preview mode ───────────────────────────────────────────────────── */
+/* Design mode hides preview-only controls and vice versa. One attribute on the
+   toolbar, so switching modes never re-mounts it. */
+.kf-toolbar[data-mode="design"]  [data-only="preview"] { display: none; }
+.kf-toolbar[data-mode="preview"] [data-only="design"]  { display: none; }
+
+/* demo chrome only — delete when porting */
+body { margin: 0; height: 100vh; background: #ececeb; font-family: var(--kf-sans); }
+.demo-canvas {
+  position: relative; height: 100%; overflow: hidden;
+  background: #f4f4f2;
+  background-image: radial-gradient(#dedeD8 1px, transparent 1px);
+  background-size: 16px 16px;
+  padding-bottom: 76px;                 /* reserve the toolbar band for Fit */
+  display: flex; align-items: center; justify-content: center;
+}
+.demo-artboard { width: 420px; height: 280px; background: #fff;
+  border: 1px solid #dededa; border-radius: 6px; box-shadow: 0 6px 20px rgba(20,20,18,.07); }
+.demo-hint { position: absolute; left: 16px; bottom: 26px;
+  font: 400 11px/1 var(--kf-sans); color: #9a9a90; }
+</style>
+</head>
+<body>
+
+<div class="demo-canvas">
+  <div class="demo-artboard"></div>
+  <div class="demo-hint">Scroll to zoom · Space+drag to pan</div>
+
+  <!-- 2. Dock -->
+  <div class="kf-toolbar-dock">
+    <div class="kf-toolbar" id="kf-toolbar" data-mode="design" role="toolbar" aria-label="Canvas">
+
+      <!-- design-only: add -->
+      <button type="button" class="kf-btn kf-btn--primary" data-only="design" id="kf-add">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 1.5v9M1.5 6h9"/>
+        </svg>
+        Artboard
+      </button>
+      <button type="button" class="kf-btn" data-only="design" id="kf-import">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9V1.5M3 4.5 6 1.5l3 3M1.5 10.5h9"/>
+        </svg>
+        Import
+      </button>
+
+      <div class="kf-divider" data-only="design"></div>
+
+      <!-- design-only: history -->
+      <button type="button" class="kf-icon" data-only="design" aria-label="Undo" title="Undo ⌘Z">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.5 5.5h6a3 3 0 0 1 0 6H5"/><path d="M4.5 3 2.5 5.5 4.5 8"/>
+        </svg>
+      </button>
+      <button type="button" class="kf-icon" data-only="design" aria-label="Redo" title="Redo ⇧⌘Z" disabled>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M11.5 5.5h-6a3 3 0 0 0 0 6H9"/><path d="M9.5 3l2 2.5L9.5 8"/>
+        </svg>
+      </button>
+
+      <!-- preview-only: screen picker + stepper -->
+      <button type="button" class="kf-picker" data-only="preview" id="kf-picker" aria-haspopup="menu" aria-expanded="false">
+        <span id="kf-screen-name">Editor View - Configuration</span>
+        <span class="kf-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="kf-divider" data-only="preview"></div>
+      <button type="button" class="kf-icon" data-only="preview" id="kf-prev" aria-label="Previous screen">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5 4 6.5l4 4"/></svg>
+      </button>
+      <span class="kf-counter" id="kf-counter">4/7</span>
+      <button type="button" class="kf-icon" data-only="preview" id="kf-next" aria-label="Next screen">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2.5l4 4-4 4"/></svg>
+      </button>
+
+      <div class="kf-divider"></div>
+
+      <!-- zoom -->
+      <div class="kf-stepper">
+        <button type="button" id="kf-zoom-out" aria-label="Zoom out">−</button>
+        <input class="kf-zoom" id="kf-zoom" value="30%" size="4" aria-label="Zoom level">
+        <button type="button" id="kf-zoom-in" aria-label="Zoom in">+</button>
+      </div>
+      <button type="button" class="kf-btn" id="kf-fit" title="Fit to screen ⇧1">Fit</button>
+
+      <div class="kf-divider"></div>
+
+      <!-- mode -->
+      <div class="kf-seg" role="group" aria-label="Mode">
+        <button type="button" id="kf-mode-design"  aria-pressed="true">Design</button>
+        <button type="button" id="kf-mode-preview" aria-pressed="false">Preview</button>
+      </div>
+
+      <!-- example upward-opening menu; wire to the picker or an overflow ⋯ -->
+      <div class="kf-menu" id="kf-menu" role="menu" aria-labelledby="kf-picker">
+        <button type="button" role="menuitem">User enters scenario builder</button>
+        <button type="button" role="menuitem">Create New Scenario - Chat</button>
+        <button type="button" role="menuitem">Editor View - Configuration <kbd>current</kbd></button>
+        <button type="button" role="menuitem">Edit Existing Scenario - Chat View</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── 6. Behavior ───────────────────────────────────────────────────────── */
+(function () {
+  const bar     = document.getElementById('kf-toolbar');
+  const zoomEl  = document.getElementById('kf-zoom');
+  const menu    = document.getElementById('kf-menu');
+  const picker  = document.getElementById('kf-picker');
+  const counter = document.getElementById('kf-counter');
+
+  /* zoom: fixed stops, so − / + always land somewhere sane */
+  const STOPS = [10, 25, 30, 50, 75, 100, 150, 200, 400];
+  let zoom = 30, screen = 4, total = 7;
+
+  const paint = () => { zoomEl.value = zoom + '%'; counter.textContent = screen + '/' + total; };
+  const step = dir => {
+    const i = STOPS.findIndex(s => (dir > 0 ? s > zoom : s >= zoom));
+    zoom = dir > 0
+      ? STOPS[i === -1 ? STOPS.length - 1 : i]
+      : STOPS[Math.max(0, (i === -1 ? STOPS.length : i) - 1)];
+    paint();
+  };
+  document.getElementById('kf-zoom-in').addEventListener('click', () => step(1));
+  document.getElementById('kf-zoom-out').addEventListener('click', () => step(-1));
+  zoomEl.addEventListener('change', () => {
+    const n = parseInt(zoomEl.value, 10);
+    zoom = isNaN(n) ? zoom : Math.min(400, Math.max(10, n));
+    paint();
+  });
+
+  /* Fit: bounding box of all artboards + 64px, and remember the 76px toolbar band */
+  document.getElementById('kf-fit').addEventListener('click', () => { zoom = 30; paint(); });
+
+  /* mode — one attribute, no re-mount */
+  const setMode = mode => {
+    bar.dataset.mode = mode;
+    document.getElementById('kf-mode-design').setAttribute('aria-pressed', String(mode === 'design'));
+    document.getElementById('kf-mode-preview').setAttribute('aria-pressed', String(mode === 'preview'));
+    if (mode === 'preview') { zoom = 100; paint(); }   /* preview means real size */
+  };
+  document.getElementById('kf-mode-design').addEventListener('click', () => setMode('design'));
+  document.getElementById('kf-mode-preview').addEventListener('click', () => setMode('preview'));
+
+  /* screen stepping (preview) — wraps */
+  const stepScreen = d => { screen = ((screen - 1 + d + total) % total) + 1; paint(); };
+  document.getElementById('kf-prev').addEventListener('click', () => stepScreen(-1));
+  document.getElementById('kf-next').addEventListener('click', () => stepScreen(1));
+
+  /* upward menu */
+  picker.addEventListener('click', () => {
+    const open = menu.dataset.open === 'true';
+    menu.dataset.open = String(!open);
+    picker.setAttribute('aria-expanded', String(!open));
+  });
+  document.addEventListener('click', e => {
+    if (!menu.contains(e.target) && e.target !== picker) {
+      menu.dataset.open = 'false'; picker.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  /* shortcuts */
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input, textarea')) return;
+    if ((e.metaKey || e.ctrlKey) && e.key === '0') { e.preventDefault(); zoom = 100; paint(); }
+    if (e.shiftKey && e.key === '!')  { e.preventDefault(); zoom = 30; paint(); }   /* ⇧1 = Fit */
+    if (e.shiftKey && e.key === 'E')  { e.preventDefault(); setMode(bar.dataset.mode === 'design' ? 'preview' : 'design'); }
+    if (bar.dataset.mode === 'preview') {
+      if (e.key === 'ArrowLeft')  stepScreen(-1);
+      if (e.key === 'ArrowRight') stepScreen(1);
+    }
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>
