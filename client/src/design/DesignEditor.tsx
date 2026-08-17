@@ -3804,7 +3804,7 @@ function LeftRail() {
 
   return (
     <div
-      className="w-[320px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
+      className="w-[370px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
       aria-label={showInspect ? "Inspect panel" : "Component palette"}
     >
       {/* Fixed header — does not scroll */}
