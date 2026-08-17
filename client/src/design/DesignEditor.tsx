@@ -3650,6 +3650,8 @@ function LeftRail() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Active category filter chip — "all" shows every group; a category key shows only that one.
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [viewMode, setViewModeState] = useState<PanelView>(() => readPanelView());
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecentIds());
   // Index into the flat visible list for keyboard navigation; -1 = none.
@@ -3705,7 +3707,11 @@ function LeftRail() {
     () => (isSearching ? searchRegistry(trimmed) : []),
     [isSearching, trimmed],
   );
-  const groups = useMemo(() => groupByCategory(COMPONENT_REGISTRY), []);
+  const allGroups = useMemo(() => groupByCategory(COMPONENT_REGISTRY), []);
+  const groups = useMemo(
+    () => filterCategory === "all" ? allGroups : allGroups.filter((g) => g.category === filterCategory),
+    [allGroups, filterCategory],
+  );
   const recentDefs = useMemo(
     () =>
       recentIds
@@ -3719,13 +3725,16 @@ function LeftRail() {
   const visible = useMemo<VisibleEntry[]>(() => {
     if (isSearching) return searchResults.map((def) => ({ def, section: "search" }));
     const out: VisibleEntry[] = [];
-    for (const def of recentDefs) out.push({ def, section: "recent" });
+    // Recent strip is hidden when a category chip is active (it would mix categories confusingly)
+    if (filterCategory === "all") {
+      for (const def of recentDefs) out.push({ def, section: "recent" });
+    }
     for (const g of groups) {
       if (collapsed.has(g.category)) continue;
       for (const def of g.items) out.push({ def, section: g.category });
     }
     return out;
-  }, [isSearching, searchResults, recentDefs, groups, collapsed]);
+  }, [isSearching, searchResults, recentDefs, groups, collapsed, filterCategory]);
 
   // Clamp the active index whenever the visible list changes.
   useEffect(() => {
@@ -3894,21 +3903,21 @@ function LeftRail() {
             {/* Category filter chips — single-select pill group */}
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Filter by category">
               {(["all", ...CATEGORY_ORDER] as const).map((cat) => {
-                const isActive = cat === "all" ? !collapsed.size && !isSearching : false;
-                // chips just collapse/expand categories, not a filter; "All" means expand all
+                const isActive = filterCategory === cat;
                 const label = cat === "all" ? "All" : CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS];
                 return (
                   <button
                     key={cat}
                     type="button"
                     role="radio"
-                    aria-checked={cat === "all" && collapsed.size === 0}
+                    aria-checked={isActive}
                     onClick={() => {
-                      if (cat === "all") setCollapsed(new Set());
+                      // Clicking the active chip returns to All; clicking a new chip selects it.
+                      setFilterCategory(isActive && cat !== "all" ? "all" : cat);
                     }}
                     className={`px-2.5 py-1 rounded-full border text-[12px] font-medium transition-colors ${
-                      cat === "all" && collapsed.size === 0
-                        ? "bg-primary border-primary text-primary-foreground font-semibold"
+                      isActive
+                        ? "bg-primary border-primary text-primary-foreground"
                         : "border-border bg-muted text-muted-foreground hover:text-foreground hover:border-muted-foreground"
                     }`}
                     style={{ lineHeight: 1 }}
@@ -3951,8 +3960,8 @@ function LeftRail() {
           )
         ) : (
           <div className="pb-3">
-            {/* Recent components strip */}
-            {recentDefs.length > 0 && (
+            {/* Recent components strip — hidden when a category chip is active */}
+            {recentDefs.length > 0 && filterCategory === "all" && (
               <div>
                 <div
                   className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2.5"
