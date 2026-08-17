@@ -7,6 +7,8 @@
  * only the metadata that drives search, grouping, and keyboard insertion.
  */
 
+import type { ReactNode } from "react";
+
 export type ComponentCategory =
   | "layout"
   | "typography"
@@ -28,6 +30,20 @@ export interface ComponentDef {
   category: ComponentCategory;
   /** Extra search terms (lowercase). */
   keywords?: string[];
+  /**
+   * Grid-tile thumbnail contract.
+   * - A ReactNode: registry-authored mini preview, rendered as-is (highest priority).
+   * - `'auto'` (or omitted): resolve the editor's authored/live preview for this id.
+   * The editor always falls back to the 3-char glyph when nothing resolves,
+   * so no tile can ever be blank.
+   */
+  preview?: "auto" | ReactNode;
+  /**
+   * Optional deterministic props merged onto the resolved preview element.
+   * Keep values short and static — previews must never fetch, animate, or
+   * enter loading/error states.
+   */
+  previewProps?: Record<string, unknown>;
 }
 
 // Fixed rendering order — empty groups are hidden.

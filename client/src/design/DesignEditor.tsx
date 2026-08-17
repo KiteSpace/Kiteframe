@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext, isValidElement, cloneElement } from "react";
 import { partitionSelection, alignArtboardsInState, distributeArtboardsInState, pasteArtboardsInState, type AlignEdge, type DistributeAxis } from "./artboardAlignment";
 import { _multiSelRef, publishMultiSelection, useMultiSelectionIds } from "./multiSelectStore";
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
@@ -1026,9 +1026,20 @@ function useInsertComponent() {
   );
 }
 
+// ─── Toolbox preview map ────────────────────────────────────────────────────────
+// Named export so unit tests can assert every registry entry has a preview.
+
+/** Map from registry id → authored preview JSX from TOOLBOX_CATEGORIES. */
+export const TOOLBOX_PREVIEW_MAP: Record<string, JSX.Element> = (() => {
+  const map: Record<string, JSX.Element> = {};
+  for (const cat of TOOLBOX_CATEGORIES) {
+    for (const item of cat.items) map[item.name] = item.preview;
+  }
+  return map;
+})();
+
 // ─── Component glyph tile ──────────────────────────────────────────────────────
-// The Builder Shell uses a compact monospace glyph rather than a rendered
-// preview thumbnail (previews live behind the "larger preview" affordance).
+// Used as the fallback in list-view tiles and when no authored preview exists.
 
 function GlyphTile({ def, size = 32 }: { def: ComponentDef; size?: number }) {
   return (
@@ -1038,6 +1049,62 @@ function GlyphTile({ def, size = 32 }: { def: ComponentDef; size?: number }) {
       style={{ width: size, height: 24, flexShrink: 0 }}
     >
       {def.glyph}
+    </div>
+  );
+}
+
+// ─── Component preview thumbnail ───────────────────────────────────────────────
+// Grid-tile thumbnail, resolved in priority order:
+//   1. registry-authored mini (`def.preview` is a ReactNode)
+//   2. editor-authored/live preview (`def.preview` is 'auto' or omitted)
+//   3. glyph fallback — guarantees no tile is ever blank.
+// `def.previewProps` is merged onto element previews for deterministic content.
+// Wrapped in an error boundary so a broken preview never breaks the palette.
+
+/** Resolve the preview node for a registry def, or null for glyph fallback. */
+export function resolvePreviewNode(def: ComponentDef): ReactNode | null {
+  let node: ReactNode | null = null;
+  if (def.preview !== undefined && def.preview !== "auto") {
+    node = def.preview;
+  } else {
+    node = TOOLBOX_PREVIEW_MAP[def.id] ?? null;
+  }
+  if (node && def.previewProps && isValidElement(node)) {
+    node = cloneElement(node, def.previewProps);
+  }
+  return node ?? null;
+}
+
+// ─── Grid virtualization threshold ─────────────────────────────────────────────
+// Beyond this many visible cells the grid enables `content-visibility: auto`
+// on each tile so offscreen thumbnails skip render work entirely (native
+// browser virtualization). Unlike windowing libraries this keeps every tile
+// in the DOM, so sticky headers, keyboard focus order, drag payloads, and
+// test selectors are unaffected.
+export const PREVIEW_VIRTUALIZE_THRESHOLD = 60;
+
+/** True when the visible cell count warrants virtualized tile rendering. */
+export function shouldVirtualizePreviews(visibleCount: number): boolean {
+  return visibleCount > PREVIEW_VIRTUALIZE_THRESHOLD;
+}
+
+function ComponentPreviewThumbnail({ def }: { def: ComponentDef }) {
+  const resolved = resolvePreviewNode(def);
+  if (resolved) {
+    return (
+      <PreviewThumbnail name={def.name}>
+        {resolved}
+      </PreviewThumbnail>
+    );
+  }
+  // Glyph fallback: centred in the same 52px stage for visual consistency.
+  return (
+    <div
+      aria-hidden="true"
+      className="w-full h-[52px] overflow-hidden flex items-center justify-center"
+      style={{ pointerEvents: "none" }}
+    >
+      <GlyphTile def={def} size={38} />
     </div>
   );
 }
@@ -1068,11 +1135,14 @@ function DraggableItem({
   connectors,
   active,
   onInsert,
+  virtualize,
 }: {
   def: ComponentDef;
   connectors: any;
   active?: boolean;
   onInsert: (def: ComponentDef) => void;
+  /** Enable content-visibility rendering skip for offscreen tiles. */
+  virtualize?: boolean;
 }) {
   const dragRef = useComponentDragRef(def, connectors);
   return (
@@ -1093,11 +1163,16 @@ function DraggableItem({
           ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
           : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
       }`}
-      style={{ height: 78, justifyContent: "center" }}
+      style={{
+        height: 78,
+        justifyContent: "center",
+        ...(virtualize
+          ? { contentVisibility: "auto", containIntrinsicSize: "auto 78px" } as React.CSSProperties
+          : {}),
+      }}
     >
-      <GlyphTile def={def} size={34} />
+      <ComponentPreviewThumbnail def={def} />
       <span className="text-[9.5px] font-medium leading-tight text-foreground text-center truncate max-w-full">{def.name}</span>
-      <span className="text-[8px] leading-tight text-muted-foreground/70 text-center truncate max-w-full">{def.description}</span>
     </div>
   );
 }
@@ -3669,13 +3744,16 @@ function LeftRail() {
 
   const panelTitle = showInspect ? "Inspect" : "Components";
 
+  // Enable native tile virtualization once the visible grid gets large.
+  const virtualize = viewMode === "grid" && shouldVirtualizePreviews(visible.length);
+
   // Renders one def, tracking its flat index for keyboard highlight.
   let flatIdx = -1;
   const renderDef = (def: ComponentDef, keyPrefix: string) => {
     flatIdx += 1;
     const idx = flatIdx;
     const tile = viewMode === "grid" ? (
-      <DraggableItem def={def} connectors={connectors} active={idx === activeIdx} onInsert={handleInsert} />
+      <DraggableItem def={def} connectors={connectors} active={idx === activeIdx} onInsert={handleInsert} virtualize={virtualize} />
     ) : (
       <DraggableListItem def={def} connectors={connectors} active={idx === activeIdx} onInsert={handleInsert} />
     );

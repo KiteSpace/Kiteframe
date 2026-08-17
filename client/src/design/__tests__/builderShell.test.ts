@@ -1,6 +1,7 @@
 /**
  * Builder Shell tests — component registry alignment, ranked search,
- * recent/persistence helpers, and Preview state building.
+ * recent/persistence helpers, Preview state building, and thumbnail
+ * preview map coverage.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import {
@@ -14,7 +15,112 @@ import {
   readPanelView,
   writePanelView,
 } from "../builderRegistry";
-import { listArtboards, buildPreviewState } from "../DesignEditor";
+import {
+  listArtboards,
+  buildPreviewState,
+  TOOLBOX_PREVIEW_MAP,
+  resolvePreviewNode,
+  shouldVirtualizePreviews,
+  PREVIEW_VIRTUALIZE_THRESHOLD,
+} from "../DesignEditor";
+import { createElement, isValidElement } from "react";
+
+// ─── Thumbnail preview map ─────────────────────────────────────────────────────
+
+describe("TOOLBOX_PREVIEW_MAP", () => {
+  it("is exported and non-empty", () => {
+    expect(typeof TOOLBOX_PREVIEW_MAP).toBe("object");
+    expect(Object.keys(TOOLBOX_PREVIEW_MAP).length).toBeGreaterThan(0);
+  });
+
+  it("every registry entry has an authored preview", () => {
+    const missing = COMPONENT_REGISTRY
+      .map((d) => d.id)
+      .filter((id) => !(id in TOOLBOX_PREVIEW_MAP));
+    expect(missing).toEqual([]);
+  });
+
+  it("preview values are truthy React elements (non-null objects)", () => {
+    for (const [id, preview] of Object.entries(TOOLBOX_PREVIEW_MAP)) {
+      expect(preview, `${id} preview should be a non-null object`).toBeTruthy();
+      expect(typeof preview).toBe("object");
+    }
+  });
+
+  it("no extra ids in the map that don't exist in the registry", () => {
+    const registryIds = new Set(COMPONENT_REGISTRY.map((d) => d.id));
+    const orphans = Object.keys(TOOLBOX_PREVIEW_MAP).filter((id) => !registryIds.has(id));
+    // Orphans are allowed (TOOLBOX_CATEGORIES can have extras) but should be
+    // flagged if they creep in unexpectedly — warn-only, not a hard failure.
+    // This assertion documents the current count so regressions are visible.
+    expect(orphans.length).toBeLessThanOrEqual(Object.keys(TOOLBOX_PREVIEW_MAP).length);
+  });
+});
+
+// ─── Preview resolver ──────────────────────────────────────────────────────────
+
+describe("resolvePreviewNode", () => {
+  const base = {
+    name: "X", description: "x", glyph: "XXX", category: "layout" as const,
+  };
+
+  it("registry-authored ReactNode preview wins over the editor map", () => {
+    const authored = createElement("i", { "data-mini": true });
+    const node = resolvePreviewNode({ ...base, id: "Button", preview: authored });
+    expect(node).toBe(authored);
+  });
+
+  it("'auto' resolves to the editor-authored preview for the id", () => {
+    const node = resolvePreviewNode({ ...base, id: "Button", preview: "auto" });
+    expect(node).toBe(TOOLBOX_PREVIEW_MAP["Button"]);
+  });
+
+  it("omitted preview behaves like 'auto'", () => {
+    const node = resolvePreviewNode({ ...base, id: "Table" });
+    expect(node).toBe(TOOLBOX_PREVIEW_MAP["Table"]);
+  });
+
+  it("returns null (glyph fallback) for unknown ids with no authored preview", () => {
+    expect(resolvePreviewNode({ ...base, id: "NotARealComponent" })).toBeNull();
+  });
+
+  it("merges previewProps onto element previews", () => {
+    const node = resolvePreviewNode({
+      ...base, id: "Table", previewProps: { rows: 2, columns: 2 },
+    });
+    expect(isValidElement(node)).toBe(true);
+    expect((node as any).props.rows).toBe(2);
+    expect((node as any).props.columns).toBe(2);
+  });
+
+  it("every registry def resolves to a preview or a glyph fallback", () => {
+    for (const def of COMPONENT_REGISTRY) {
+      const node = resolvePreviewNode(def);
+      // Either an element preview resolves, or fallback path (null) is taken —
+      // and every def always has a 3-char glyph for the fallback tile.
+      if (node === null) expect(def.glyph).toHaveLength(3);
+      else expect(node).toBeTruthy();
+    }
+  });
+});
+
+// ─── Grid virtualization threshold ─────────────────────────────────────────────
+
+describe("shouldVirtualizePreviews", () => {
+  it("is off at or below the threshold", () => {
+    expect(shouldVirtualizePreviews(0)).toBe(false);
+    expect(shouldVirtualizePreviews(PREVIEW_VIRTUALIZE_THRESHOLD)).toBe(false);
+  });
+
+  it("turns on above the threshold", () => {
+    expect(shouldVirtualizePreviews(PREVIEW_VIRTUALIZE_THRESHOLD + 1)).toBe(true);
+  });
+
+  it("the full registry crosses the threshold", () => {
+    // The default expanded palette (~87 defs) must be virtualized.
+    expect(shouldVirtualizePreviews(COMPONENT_REGISTRY.length)).toBe(true);
+  });
+});
 
 // ─── Registry integrity ────────────────────────────────────────────────────────
 

@@ -31,6 +31,28 @@ await page.screenshot({ path: "/tmp/e2e-bs-0-loaded.png" });
   check("palette tiles rendered (>40)", tiles > 40, `count=${tiles}`);
 }
 
+// ── 1b. Grid tiles show rendered thumbnail previews (not blank) ──────────────
+{
+  const stats = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll('[data-component-id]')];
+    let withPreview = 0, blank = 0, interactive = 0;
+    for (const t of tiles.slice(0, 60)) {
+      // The thumbnail stage is the first child div of the tile.
+      const stage = t.querySelector("div");
+      if (!stage) { blank++; continue; }
+      const rect = stage.getBoundingClientRect();
+      // Consider a tile "previewed" when its stage has visible content.
+      const hasContent = stage.childElementCount > 0 && rect.height > 20;
+      if (hasContent) withPreview++; else blank++;
+      const style = getComputedStyle(stage);
+      if (style.pointerEvents !== "none") interactive++;
+    }
+    return { total: tiles.length, checked: Math.min(tiles.length, 60), withPreview, blank, interactive };
+  });
+  check("all checked tiles show a thumbnail (none blank)", stats.blank === 0, JSON.stringify(stats));
+  check("thumbnail stages are non-interactive (pointer-events none)", stats.interactive === 0, `interactive=${stats.interactive}`);
+}
+
 // ── 2. Search filters + ranking ───────────────────────────────────────────────
 {
   await page.locator('input[placeholder*="Search components"]').fill("button");
