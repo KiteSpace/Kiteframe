@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { executeAiChat } from './aiChatExecutor';
 import { DESIGN_SYSTEM_PROMPT } from './lib/designPrompt';
 import { mergeDesignPatch } from './lib/designPatchMerge';
+import { sanitizeAiResponse } from './utils/sanitize';
 
 const MODEL = 'claude-sonnet-4-5-20250929';
 
@@ -166,8 +167,9 @@ export async function designGenerationHandler(req: Request, res: Response) {
     const responseType = parsedResponse?.type;
 
     if (responseType === 'message') {
-      const text =
-        typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.';
+      const text = sanitizeAiResponse(
+        typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.',
+      );
       logSuccess({ prompt: promptSnippet, selectedElementDisplayName, targetArtboardLabel, responseType: 'message', durationMs: Date.now() - startMs, model: MODEL });
       return res.json({ type: 'message', text });
     }
@@ -183,7 +185,9 @@ export async function designGenerationHandler(req: Request, res: Response) {
 
       const patchNodeCount = Object.keys(patchNodes).length;
       const message =
-        typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+        typeof parsedResponse.message === 'string'
+          ? sanitizeAiResponse(parsedResponse.message)
+          : undefined;
 
       if (currentCraftState && currentCraftState.trim().length > 2) {
         try {
@@ -219,7 +223,9 @@ export async function designGenerationHandler(req: Request, res: Response) {
 
     const nodeCount = Object.keys(craftStateObj).length;
     const stateMessage =
-      typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+      typeof parsedResponse.message === 'string'
+        ? sanitizeAiResponse(parsedResponse.message)
+        : undefined;
     logSuccess({ prompt: promptSnippet, selectedElementDisplayName, targetArtboardLabel, responseType: 'state', nodeCount, durationMs: Date.now() - startMs, model: MODEL });
     return res.json({
       type: 'state',

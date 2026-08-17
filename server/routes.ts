@@ -1982,6 +1982,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         json: result.json,
         creditCost: creditInfo?.creditCost,
       });
+      // NOTE: result.text is NOT sanitized here. This general AI proxy is used
+      // for both chat (plain text) and workflow/design generation (JSON strings).
+      // Applying sanitizeAiResponse to a JSON payload would corrupt it.
+      // Safety at this endpoint is provided by the frontend's ReactMarkdown
+      // renderer, which does not execute raw HTML by default (no rehype-raw
+      // plugin). Human-readable text returned by the dedicated design routes
+      // (/api/ai/design, design-from-image, design-from-url, design-edit-from-image)
+      // is explicitly sanitized via sanitizeAiResponse before being sent.
       res.json({
         text: result.text,
         credits: creditInfo ? {
@@ -2412,9 +2420,10 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
           const svgMatch = svgRaw.match(/<svg[\s\S]*?<\/svg>/i);
           const svgWireframe = svgMatch ? svgMatch[0] : fallbackSvg(screen.name);
 
-          const description: string =
+          const description: string = sanitizeAiResponse(
             descJson?.content?.[0]?.text?.trim() ||
-            `Users interact with ${screen.name} during the workflow.`;
+            `Users interact with ${screen.name} during the workflow.`,
+          );
 
           return { id: screen.id, name: screen.name, description, svgWireframe };
         }),
@@ -2518,7 +2527,9 @@ Only include screens that need changes. "modify" requires both description and d
       }
 
       const changes: any[] = Array.isArray(changesData.changes) ? changesData.changes : [];
-      const aiMessage: string = typeof changesData.message === 'string' ? changesData.message : 'Changes applied.';
+      const aiMessage: string = sanitizeAiResponse(
+        typeof changesData.message === 'string' ? changesData.message : 'Changes applied.',
+      );
 
       // Step 2: Apply changes to the screens array
       let updatedScreens = [...screens] as Array<typeof screens[0] & { designNotes?: string }>;
@@ -2526,7 +2537,9 @@ Only include screens that need changes. "modify" requires both description and d
       for (const change of changes) {
         if (change.action === 'rename' && change.id && change.newName) {
           updatedScreens = updatedScreens.map((s) =>
-            s.id === change.id ? { ...s, name: String(change.newName).slice(0, 200) } : s,
+            s.id === change.id
+              ? { ...s, name: sanitizeAiResponse(String(change.newName)).slice(0, 200) }
+              : s,
           );
         } else if (change.action === 'remove' && change.id) {
           updatedScreens = updatedScreens.filter((s) => s.id !== change.id);
@@ -2535,9 +2548,15 @@ Only include screens that need changes. "modify" requires both description and d
             s.id === change.id
               ? {
                   ...s,
-                  name: change.name ? String(change.name).slice(0, 200) : s.name,
-                  description: change.description ? String(change.description).slice(0, 400) : s.description,
-                  designNotes: change.designNotes ? String(change.designNotes).slice(0, 500) : undefined,
+                  name: change.name
+                    ? sanitizeAiResponse(String(change.name)).slice(0, 200)
+                    : s.name,
+                  description: change.description
+                    ? sanitizeAiResponse(String(change.description)).slice(0, 400)
+                    : s.description,
+                  designNotes: change.designNotes
+                    ? sanitizeAiResponse(String(change.designNotes)).slice(0, 500)
+                    : undefined,
                 }
               : s,
           );
@@ -2545,11 +2564,15 @@ Only include screens that need changes. "modify" requires both description and d
           const newId = `screen-added-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
           updatedScreens.push({
             id: newId,
-            name: String(change.name).slice(0, 200),
-            description: change.description ? String(change.description).slice(0, 400) : '',
+            name: sanitizeAiResponse(String(change.name)).slice(0, 200),
+            description: change.description
+              ? sanitizeAiResponse(String(change.description)).slice(0, 400)
+              : '',
             svgWireframe: '',
             selected: true,
-            designNotes: change.designNotes ? String(change.designNotes).slice(0, 500) : undefined,
+            designNotes: change.designNotes
+              ? sanitizeAiResponse(String(change.designNotes)).slice(0, 500)
+              : undefined,
           });
         }
       }
@@ -2729,8 +2752,10 @@ Only include screens that need changes. "modify" requires both description and d
       const responseType = parsedResponse?.type;
 
       if (responseType === 'message') {
-        // Plain text reply — no canvas change
-        const text = typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.';
+        // Plain text reply — no canvas change. Sanitize before sending to client.
+        const text = sanitizeAiResponse(
+          typeof parsedResponse.text === 'string' ? parsedResponse.text : 'I can help with that.',
+        );
         return res.json({ type: 'message', text });
       }
 
@@ -2739,7 +2764,9 @@ Only include screens that need changes. "modify" requires both description and d
         if (!patchNodes || typeof patchNodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
         }
-        const message = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
+        const message = typeof parsedResponse.message === 'string'
+          ? sanitizeAiResponse(parsedResponse.message)
+          : undefined;
         // When the client requested a new screen, enforce that the patch adds a new
         // AstryxArtboard rather than editing an existing one. If the AI ignored the
         // prompt override, enforceNewScreenPatch synthesises the artboard wrapper
@@ -2760,8 +2787,12 @@ Only include screens that need changes. "modify" requires both description and d
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design — try rephrasing your prompt' });
       }
-      const stateMessage = typeof parsedResponse.message === 'string' ? parsedResponse.message : undefined;
-      const stateTitle = typeof parsedResponse.title === 'string' ? parsedResponse.title.trim().slice(0, 80) || undefined : undefined;
+      const stateMessage = typeof parsedResponse.message === 'string'
+        ? sanitizeAiResponse(parsedResponse.message)
+        : undefined;
+      const stateTitle = typeof parsedResponse.title === 'string'
+        ? sanitizeAiResponse(parsedResponse.title.trim()).slice(0, 80) || undefined
+        : undefined;
       // [artboard-trace] Interface-generation lifecycle logging — stage 0: what
       // the AI actually produced, and what we return after layout + wrapping.
       console.log('[artboard-trace] ai/design: raw AI state (source=%s)', source ?? 'chat', JSON.stringify(summarizeArtboards(craftStateObj)));
@@ -2843,26 +2874,32 @@ Only include screens that need changes. "modify" requires both description and d
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
-        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+        return res.json({ type: 'message', text: sanitizeAiResponse(parsedResponse.text ?? 'Done.') });
       }
       if (responseType === 'patch') {
         if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch' });
         }
+        const patchMsg = typeof parsedResponse.message === 'string'
+          ? sanitizeAiResponse(parsedResponse.message)
+          : undefined;
         if (currentCraftState && currentCraftState.trim().length > 2) {
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: patchMsg });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: patchMsg });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
+      const imgStateMsg = typeof parsedResponse.message === 'string'
+        ? sanitizeAiResponse(parsedResponse.message)
+        : undefined;
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: imgStateMsg });
     } catch (err: any) {
       console.error('[design-from-image] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -2947,26 +2984,32 @@ Only include screens that need changes. "modify" requires both description and d
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
-        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+        return res.json({ type: 'message', text: sanitizeAiResponse(parsedResponse.text ?? 'Done.') });
       }
       if (responseType === 'patch') {
         if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch' });
         }
+        const refEditMsg = typeof parsedResponse.message === 'string'
+          ? sanitizeAiResponse(parsedResponse.message)
+          : undefined;
         if (currentCraftState && currentCraftState.trim().length > 2) {
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: refEditMsg });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: refEditMsg });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
+      const refEditStateMsg = typeof parsedResponse.message === 'string'
+        ? sanitizeAiResponse(parsedResponse.message)
+        : undefined;
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: refEditStateMsg });
     } catch (err: any) {
       console.error('[design-edit-from-image] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -3064,26 +3107,32 @@ Only include screens that need changes. "modify" requires both description and d
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
-        return res.json({ type: 'message', text: parsedResponse.text ?? 'Done.' });
+        return res.json({ type: 'message', text: sanitizeAiResponse(parsedResponse.text ?? 'Done.') });
       }
       if (responseType === 'patch') {
         if (!parsedResponse.nodes || typeof parsedResponse.nodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch' });
         }
+        const fromUrlMsg = typeof parsedResponse.message === 'string'
+          ? sanitizeAiResponse(parsedResponse.message)
+          : undefined;
         if (currentCraftState && currentCraftState.trim().length > 2) {
           try {
             const existing: Record<string, unknown> = JSON.parse(currentCraftState);
             const { merged } = mergeDesignPatch(existing, parsedResponse.nodes as Record<string, unknown>);
-            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: parsedResponse.message });
+            return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(merged as CraftState)), message: fromUrlMsg });
           } catch { /* fall through to raw patch */ }
         }
-        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: parsedResponse.message });
+        return res.json({ type: 'patch', nodes: JSON.stringify(sanitizeRootType(parsedResponse.nodes as CraftState)), message: fromUrlMsg });
       }
       const craftStateObj = responseType === 'state' ? parsedResponse.craftState : parsedResponse;
       if (!craftStateObj || typeof craftStateObj !== 'object') {
         return res.status(500).json({ error: 'AI returned an invalid design state' });
       }
-      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: parsedResponse.message });
+      const fromUrlStateMsg = typeof parsedResponse.message === 'string'
+        ? sanitizeAiResponse(parsedResponse.message)
+        : undefined;
+      return res.json({ type: 'state', craftState: JSON.stringify(sanitizeRootType(craftStateObj as CraftState)), message: fromUrlStateMsg });
     } catch (err: any) {
       console.error('[design-from-url] error:', err);
       return res.status(500).json({ error: 'Internal server error' });
