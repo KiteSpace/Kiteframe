@@ -120,6 +120,12 @@ await wideBtn.click({ modifiers: ["Shift"] });
 await page.waitForTimeout(600);
 await page.screenshot({ path: "/tmp/e2e-529-1-multiselected.png" });
 
+// The redesigned inspector is tabbed; equal-width actions live in Layout.
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
+
 // ── 2. Equal widths button present and ENABLED ──────────────────────────────
 const eq = page.locator('button[aria-label="Make selected elements equal widths"]');
 const eqCount = await eq.count();

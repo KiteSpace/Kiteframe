@@ -118,6 +118,20 @@ import {
   suggestAlternativeComponent,
   type CraftRepairReport,
 } from "./craftValidator";
+import {
+  MIXED,
+  IpGroup,
+  IpRow,
+  IpField,
+  ColorRow,
+  SwatchRow,
+  PillRow,
+  NumberRow,
+  NumberPairRow,
+  SelectRow,
+  SwitchRow,
+  type SwatchSpec,
+} from "./InspectRows";
 import { detectNewScreenIntent } from "./newScreenIntent";
 import { PreviewModeContext } from "./resolver";
 import {
@@ -138,7 +152,7 @@ import {
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
-import { applyEqualWidthProps, applyEqualHeightProps, clearFlexSizingProps, getEqualWidthSelectionResult, getEqualHeightSelectionResult } from "./layoutSizing";
+import { applyEqualWidthProps, applyEqualHeightProps, clearFlexSizingProps, getEqualWidthSelectionResult, getEqualHeightSelectionResult, type EqualWidthSelectionResult, type EqualHeightSelectionResult } from "./layoutSizing";
 import { useToast } from "@/hooks/use-toast";
 import {
   AstryxButton as AstryxButtonBase,
@@ -1425,7 +1439,7 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
   );
 
   return (
-    <PropRow label="Background">
+    <div className="flex flex-col gap-1">
       <div className="flex gap-0.5 rounded-md border border-border p-0.5 mb-2">
         {pill("color", "Color")}
         {pill("gradient", "Gradient")}
@@ -1543,7 +1557,7 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
           )}
         </div>
       )}
-    </PropRow>
+    </div>
   );
 }
 
@@ -2510,6 +2524,103 @@ export function getSharedDimensionValue(
   return normalized.every((value) => value === normalized[0]) ? values[0] : "mixed";
 }
 
+// ─── Inspect panel: node-kind → tabs, and named token scales ──────────────────
+
+type InspectTab = "style" | "layout" | "content";
+type NodeKind = "artboard" | "container" | "text" | "component";
+
+/** Which tabs a node kind gets. Artboards have no copy → no Content tab. */
+const TABS_BY_KIND: Record<NodeKind, InspectTab[]> = {
+  artboard: ["style", "layout"],
+  container: ["style", "layout", "content"],
+  text: ["style", "layout", "content"],
+  component: ["style", "layout", "content"],
+};
+
+const TAB_LABEL: Record<InspectTab, string> = {
+  style: "Style",
+  layout: "Layout",
+  content: "Content",
+};
+
+/** Radius token → px. Mirrors RADIUS_TOKEN in resolver.tsx. */
+const RADIUS_PILLS: Array<{ token: string; label: string; px: number }> = [
+  { token: "None", label: "None", px: 0 },
+  { token: "S", label: "S", px: 4 },
+  { token: "M", label: "M", px: 8 },
+  { token: "L", label: "L", px: 16 },
+  { token: "Full", label: "Full", px: 9999 },
+];
+
+/** Named shadow tokens → tailwind classes the renderer already understands. */
+const SHADOW_OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "soft", label: "Soft" },
+  { value: "raised", label: "Raised" },
+  { value: "overlay", label: "Overlay" },
+];
+
+/** Curated project palette for the Style tab swatch grids. */
+const PALETTE_BG_SWATCHES: SwatchSpec[] = [
+  { color: "transparent", label: "Transparent" },
+  { color: "#ffffff", label: "White" },
+  { color: "#f8fafc", label: "Off-white" },
+  { color: "#1e293b", label: "Slate" },
+  { color: "#000000", label: "Black" },
+  { color: "#3b82f6", label: "Blue" },
+  { color: "#10b981", label: "Green" },
+  { color: "#8b5cf6", label: "Violet" },
+];
+
+const PALETTE_TEXT_SWATCHES: SwatchSpec[] = [
+  { color: "#000000", label: "Black" },
+  { color: "#1e293b", label: "Slate" },
+  { color: "#64748b", label: "Gray" },
+  { color: "#ffffff", label: "White" },
+  { color: "#3b82f6", label: "Blue" },
+  { color: "#10b981", label: "Green" },
+  { color: "#f59e0b", label: "Amber" },
+  { color: "#ef4444", label: "Red" },
+];
+
+const DENSITY_PRESETS: Array<{ label: string; gap: number; padding: number }> = [
+  { label: "Compact", gap: 4, padding: 8 },
+  { label: "Default", gap: 8, padding: 12 },
+  { label: "Comfortable", gap: 12, padding: 16 },
+  { label: "Spacious", gap: 20, padding: 24 },
+];
+
+/** Map a Craft displayName to a coarse node kind for tab selection + chip. */
+function nodeKindOf(dn: string, isRoot: boolean): NodeKind {
+  if (dn === "AstryxArtboard" || isRoot) return "artboard";
+  if (dn === "AstryxText" || dn === "AstryxHeading") return "text";
+  if (IS_CONTAINER.has(dn) || NON_FLEX_CONTAINERS.has(dn)) return "container";
+  return "component";
+}
+
+const KIND_CHIP: Record<NodeKind, { label: string; bg: string; fg: string }> = {
+  artboard: { label: "frame", bg: "var(--brand-soft)", fg: "var(--brand-strong)" },
+  container: { label: "frame", bg: "var(--brand-soft)", fg: "var(--brand-strong)" },
+  text: { label: "text", bg: "var(--warning-soft)", fg: "var(--warning-foreground)" },
+  component: { label: "element", bg: "var(--brand-soft)", fg: "var(--brand-strong)" },
+};
+
+/** Build the ancestor breadcrumb (root-first) for a node from the craft tree. */
+function buildBreadcrumb(nodes: Record<string, any>, id: string): Array<{ id: string; name: string }> {
+  const chain: Array<{ id: string; name: string }> = [];
+  let cur: string | undefined = id;
+  const seen = new Set<string>();
+  while (cur && !seen.has(cur)) {
+    seen.add(cur);
+    const node: any = nodes[cur];
+    if (!node) break;
+    const dn = node.data?.displayName ?? "Node";
+    chain.unshift({ id: cur, name: cur === "ROOT" ? "Canvas" : dn.replace("Astryx", "") });
+    cur = node.data?.parent;
+  }
+  return chain;
+}
+
 function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNode; selectedIds: string[]; actions: any }) {
   const { query, nodes } = useEditor((state) => ({ nodes: state.nodes }));
   const isMultiSelect = selectedIds.length > 1;
@@ -2687,534 +2798,661 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
   const widthDefault = isArtboard ? 390 : dn === "AstryxSkeleton" ? 120 : 320;
   const heightDefault = isArtboard ? 480 : dn === "AstryxSkeleton" ? 16 : 120;
 
+  // ── Tab model with per-node-kind memory (README §2) ───────────────────────
+  const kind = nodeKindOf(dn, isRoot);
+  const availableTabs = isMultiSelect
+    ? (artboardSelection.allArtboards ? TABS_BY_KIND.artboard : (["style", "layout"] as InspectTab[]))
+    : TABS_BY_KIND[kind];
+  const [tabByKind, setTabByKind] = useState<Record<string, InspectTab>>({});
+  const remembered = tabByKind[kind];
+  const activeTab: InspectTab = availableTabs.includes(remembered)
+    ? remembered
+    : availableTabs[0];
+  const setActiveTab = useCallback(
+    (t: InspectTab) => setTabByKind((prev) => ({ ...prev, [kind]: t })),
+    [kind],
+  );
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const onTabKeyDown = useCallback(
+    (e: React.KeyboardEvent, idx: number) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      const next = (idx + dir + availableTabs.length) % availableTabs.length;
+      setActiveTab(availableTabs[next]);
+      tabRefs.current[next]?.focus();
+    },
+    [availableTabs, setActiveTab],
+  );
+
+  // Breadcrumb of ancestors (single-select only; root-first).
+  const breadcrumb = useMemo(
+    () => (isMultiSelect ? [] : buildBreadcrumb(nodes, selected.id).slice(0, -1)),
+    [nodes, selected.id, isMultiSelect],
+  );
+  const chip = KIND_CHIP[kind];
+
+  const returnToPalette = useCallback(() => {
+    actions.selectNode(undefined as any);
+  }, [actions]);
+
   // Determine active spacing preset for containers
-  const activeSpacing = SPACING_PRESETS.find(
+  const activeSpacing = DENSITY_PRESETS.find(
     (p) => p.gap === (selected.props.gap ?? 8) && p.padding === (selected.props.padding ?? 12),
   );
 
-  return (
-    <div className="flex flex-col overflow-y-auto h-full">
+  // Escape returns to the palette when focus is not inside a text field.
+  const onPanelKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      const editable = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (editable) return;
+      e.preventDefault();
+      returnToPalette();
+    },
+    [returnToPalette],
+  );
 
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="sticky top-0 bg-background z-10 flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-          <span className="text-[11.5px] font-semibold text-foreground truncate">{isMultiSelect ? `${selectedIds.length} selected` : shortName}</span>
-          <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
-            {selected.isRoot ? "root" : "element"}
-          </span>
+  // ── Shared prop helpers for the new rows ──────────────────────────────────
+  // Returns the common value across the selection, or the MIXED sentinel.
+  const sharedProp = useCallback(
+    (key: string): any => {
+      const list = isMultiSelect
+        ? selectedNodes.map((n: any) => n.data.props ?? {})
+        : [selected.props];
+      if (list.length === 0) return undefined;
+      const first = list[0][key];
+      return list.every((p: any) => p[key] === first) ? first : MIXED;
+    },
+    [isMultiSelect, selectedNodes, selected.props],
+  );
+
+  return (
+    <div className="flex flex-col h-full" onKeyDown={onPanelKeyDown}>
+
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="sticky top-0 bg-background z-10 border-b border-border">
+        {/* Breadcrumb (single-select only) */}
+        {!isMultiSelect && breadcrumb.length > 0 && (
+          <div
+            className="px-[14px] pt-[10px] flex items-center gap-[3px] text-[11px] text-muted-foreground min-w-0"
+            aria-label="Ancestors"
+          >
+            <span
+              className="min-w-0 flex-1 truncate"
+              style={{ direction: "rtl", textAlign: "left", unicodeBidi: "plaintext" }}
+            >
+              {breadcrumb.map((a, i) => (
+                <span key={a.id}>
+                  <button
+                    type="button"
+                    onClick={() => actions.selectNode(a.id)}
+                    className="hover:text-info transition-colors"
+                  >
+                    {a.name}
+                  </button>
+                  {i < breadcrumb.length - 1 && <span className="mx-[3px] opacity-40">/</span>}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+
+        {/* Name + kind chip + close */}
+        <div className="px-[14px] py-[8px] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[15px] font-semibold text-foreground truncate leading-tight">
+              {isMultiSelect ? `${selectedIds.length} selected` : shortName}
+            </span>
+            <span
+              className="flex-none text-[9.5px] font-semibold px-[6px] py-[2px] rounded-md leading-none"
+              style={
+                isMultiSelect
+                  ? { background: "var(--muted)", color: "var(--muted-foreground)" }
+                  : { background: chip.bg, color: chip.fg }
+              }
+            >
+              {isMultiSelect ? "mixed" : chip.label}
+            </span>
+          </div>
+          <button
+            title="Close inspect panel"
+            onClick={returnToPalette}
+            className="w-6 h-6 flex-none flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none"
+          >
+            ×
+          </button>
         </div>
-        <button
-          title="Close inspect panel"
-          onClick={() => actions.selectNode(undefined as any)}
-          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 ml-1 text-base leading-none"
-        >
-          ×
-        </button>
+
+        {/* Tab bar */}
+        <div className="px-[14px] pb-[10px]">
+          <div
+            role="tablist"
+            aria-label="Inspector sections"
+            className="flex gap-[3px] p-[3px] rounded-[9px]"
+            style={{ background: "var(--accent)" }}
+          >
+            {availableTabs.map((t, i) => {
+              const isActive = t === activeTab;
+              return (
+                <button
+                  key={t}
+                  ref={(el) => (tabRefs.current[i] = el)}
+                  role="tab"
+                  aria-selected={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => setActiveTab(t)}
+                  onKeyDown={(e) => onTabKeyDown(e, i)}
+                  className="flex-1 text-[12px] font-medium rounded-[6px] transition-colors"
+                  style={{
+                    height: 28,
+                    background: isActive ? "var(--card)" : "transparent",
+                    color: isActive ? "var(--foreground)" : "var(--muted-foreground)",
+                    boxShadow: isActive ? "0 1px 2px rgba(20,20,24,.06)" : undefined,
+                    fontWeight: isActive ? 600 : 500,
+                  }}
+                >
+                  {TAB_LABEL[t]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* ── Color ────────────────────────────────────────────────── */}
-       {(isMultiSelect || dn !== "AstryxArtboard") && <section className="px-3 py-3 border-b border-border">
-        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Color</div>
-
-        {/* Background swatches — universal */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">BG</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {/* Transparent tile */}
-            <button
-              key="transparent"
-              onClick={() => setProp("backgroundColor", "transparent")}
-              title="Transparent"
-              style={{
-                backgroundImage: "linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%)",
-                backgroundSize: "6px 6px",
-                backgroundPosition: "0 0,0 3px,3px -3px,-3px 0px",
-                backgroundColor: "#fff",
-                boxShadow: (sharedValue("backgroundColor") == null || sharedValue("backgroundColor") === "transparent" || sharedValue("backgroundColor") === "mixed")
-                  ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
-                  : undefined,
-              }}
-              className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-            />
-            {["#ffffff","#f8fafc","#1e293b","#000000","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
-              <button
-                key={hex}
-                onClick={() => setProp("backgroundColor", hex)}
-                title={hex}
-                style={{
-                  background: hex,
-                   boxShadow: sharedValue("backgroundColor") === hex
-                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                    : undefined,
-                }}
-                className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-              />
-            ))}
-          </div>
+      {/* Multi-select shared-note bar */}
+      {isMultiSelect && (
+        <div className="px-[14px] py-[8px] text-[11px] leading-snug text-muted-foreground border-b border-border-soft bg-muted/30">
+          Showing the properties these {selectedIds.length} nodes share. Editing writes to all.
         </div>
+      )}
 
-        {/* Text swatches — universal */}
-        {(() => {
-          const isTextNode = dn === "AstryxText" || dn === "AstryxHeading";
-          const activeTextColor = isMultiSelect
-            ? "mixed"
-            : isTextNode
-            ? (selected.props.color ?? selected.props.textColor)
-            : selected.props.textColor;
-          const clearTextColor = () => {
-            setTextColor(undefined);
-          };
-          return (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-medium">Text</span>
-              <div className="flex gap-1.5 flex-wrap">
-                {/* Clear/reset tile */}
-                <button
-                  key="clear"
-                  onClick={clearTextColor}
-                  title="Default (clear)"
-                  style={{
-                    backgroundImage: "linear-gradient(to top right, transparent calc(50% - 0.5px), #ef4444 calc(50% - 0.5px), #ef4444 calc(50% + 0.5px), transparent calc(50% + 0.5px))",
-                    backgroundColor: "#fff",
-                    boxShadow: !activeTextColor || activeTextColor === "mixed"
-                      ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6`
-                      : undefined,
-                  }}
-                  className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-                />
-                {["#000000","#1e293b","#64748b","#ffffff","#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"].map((hex) => (
-                  <button
-                    key={hex}
-                    onClick={() => setTextColor(hex)}
-                    title={hex}
-                    style={{
-                      background: hex,
-                      boxShadow: activeTextColor === hex
-                        ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                        : undefined,
-                    }}
-                    className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+      {/* ── Tab bodies ─────────────────────────────────────────────── */}
+      <div
+        className="flex-1 overflow-y-auto"
+        role="tabpanel"
+        aria-label={TAB_LABEL[activeTab]}
+      >
+        {activeTab === "style" && (
+          <StyleTab
+            dn={dn}
+            isArtboard={isArtboard}
+            isMultiSelect={isMultiSelect}
+            selected={selected}
+            sharedProp={sharedProp}
+            setProp={setProp}
+            setTextColor={setTextColor}
+          />
+        )}
 
-        {/* Component-specific: `color` token (Badge, ProgressBar) */}
-        {!isMultiSelect && HAS_COLOR_PROP.has(dn) && (
-          <div className="flex gap-1.5 flex-wrap mt-2.5 pt-2.5 border-t border-border">
-            {Object.entries(COLOR_SWATCHES_MAP).map(([name, hex]) => (
-              <button
-                key={name}
-                onClick={() => setProp("color", name)}
-                title={name}
-                style={{
-                  background: hex,
-                  boxShadow: selected.props.color === name
-                    ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                    : undefined,
+        {activeTab === "layout" && (
+          <LayoutTab
+            dn={dn}
+            isArtboard={isArtboard}
+            isRoot={isRoot}
+            isFlexContainer={isFlexContainer}
+            supportsDirection={supportsDirection}
+            supportsPadding={supportsPadding}
+            isMultiSelect={isMultiSelect}
+            selected={selected}
+            direction={direction}
+            alignOptions={alignOptions}
+            justifyOptions={justifyOptions}
+            widthDefault={widthDefault}
+            heightDefault={heightDefault}
+            activeSpacing={activeSpacing}
+            sharedValue={sharedValue}
+            sharedProp={sharedProp}
+            setProp={setProp}
+            artboardSelection={artboardSelection}
+            applyArtboardAlign={applyArtboardAlign}
+            applyArtboardDistribute={applyArtboardDistribute}
+            equalWidthResult={equalWidthResult}
+            equalHeightResult={equalHeightResult}
+            makeEqualWidths={makeEqualWidths}
+            makeEqualHeights={makeEqualHeights}
+          />
+        )}
+
+        {activeTab === "content" && !isMultiSelect && (
+          <div className="px-[14px] py-[14px] flex flex-col gap-3">
+            <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── StyleTab ─────────────────────────────────────────────────────────────────
+function StyleTab({
+  dn,
+  isArtboard,
+  isMultiSelect,
+  selected,
+  sharedProp,
+  setProp,
+  setTextColor,
+}: {
+  dn: string;
+  isArtboard: boolean;
+  isMultiSelect: boolean;
+  selected: SelectedNode;
+  sharedProp: (key: string) => any;
+  setProp: (key: string, value: any) => void;
+  setTextColor: (value: string | undefined) => void;
+}) {
+  const isTextNode = dn === "AstryxText" || dn === "AstryxHeading";
+  const bgValue = sharedProp("backgroundColor");
+  const bgColor = bgValue === MIXED ? MIXED : (bgValue == null ? "transparent" : bgValue);
+  const textColorRaw = isTextNode ? sharedProp("color") : sharedProp("textColor");
+  const radiusValue = sharedProp("borderRadius");
+  const activeRadius = radiusValue === MIXED ? undefined : (radiusValue ?? "M");
+  const shadowValue = sharedProp("shadow");
+
+  return (
+    <div>
+      {/* Artboard name — the artboard has no Content tab, so renaming lives here */}
+      {!isMultiSelect && isArtboard && (
+        <IpGroup eyebrow="NAME">
+          <IpRow label="Name" htmlFor="ip-artboard-name">
+            <IpField>
+              <input
+                id="ip-artboard-name"
+                type="text"
+                aria-label="Artboard name"
+                value={selected.props.label ?? ""}
+                placeholder="Artboard"
+                onChange={(e) => setProp("label", e.target.value)}
+                onBlur={(e) => {
+                  // Never persist an empty name — fall back to the default.
+                  if (!e.target.value.trim()) setProp("label", "Artboard");
                 }}
-                className="w-6 h-6 rounded-lg border border-black/10 transition-all hover:scale-110"
+                className="flex-1 min-w-0 bg-transparent border-none outline-none text-[12.5px] text-foreground placeholder:text-muted-foreground/40"
               />
-            ))}
-          </div>
-        )}
+            </IpField>
+          </IpRow>
+        </IpGroup>
+      )}
 
-        {/* Component-specific: `variant` color (Button, Banner) */}
-        {!isMultiSelect && HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxButton" && (
-          <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
-            {["primary","secondary","outline","ghost"].map((v) => (
-              <button
-                key={v}
-                onClick={() => setProp("variant", v)}
-                className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
-                  selected.props.variant === v
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        )}
-        {!isMultiSelect && HAS_VARIANT_DISPLAY.has(dn) && dn === "AstryxBanner" && (
-          <div className="grid grid-cols-2 gap-1.5 mt-2.5 pt-2.5 border-t border-border">
-            {["info","success","warning","error"].map((v) => (
-              <button
-                key={v}
-                onClick={() => setProp("variant", v)}
-                className={`py-1.5 px-2 rounded-lg border text-[10px] font-medium text-left capitalize transition-all ${
-                  selected.props.variant === v
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground bg-background"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>}
+      {/* Fill */}
+      {(isMultiSelect || dn !== "AstryxArtboard") && (
+        <IpGroup eyebrow="FILL">
+          <ColorRow label="Fill" value={bgColor} opacity={100} />
+          {!isMultiSelect && (
+            <SwatchRow
+              swatches={PALETTE_BG_SWATCHES}
+              active={typeof bgColor === "string" ? bgColor : undefined}
+              onSelect={(c) => setProp("backgroundColor", c)}
+              onMore={() => {}}
+            />
+          )}
 
-      {/* ── Background (artboard only) ───────────────────────────── */}
-      {!isMultiSelect && dn === "AstryxArtboard" && (
-        <section className="px-3 py-3 border-b border-border">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Background</div>
+          {/* Text color — hidden for artboards */}
+          {!isArtboard && (
+            <>
+              <ColorRow label="Text" value={textColorRaw == null ? "transparent" : textColorRaw} />
+              {!isMultiSelect && (
+                <SwatchRow
+                  swatches={PALETTE_TEXT_SWATCHES}
+                  active={typeof textColorRaw === "string" ? textColorRaw : undefined}
+                  onSelect={(c) => setTextColor(c)}
+                  onMore={() => setTextColor(undefined)}
+                />
+              )}
+            </>
+          )}
+        </IpGroup>
+      )}
+
+      {/* Artboard background (Color/Gradient/Image) */}
+      {!isMultiSelect && isArtboard && (
+        <IpGroup eyebrow="BACKGROUND">
           <ArtboardBackgroundPicker props={selected.props} setProp={setProp} />
-        </section>
+        </IpGroup>
       )}
 
-      {/* ── Size & Shape ─────────────────────────────────────────── */}
-      <section className="px-3 py-3 border-b border-border">
-        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Size & Shape</div>
+      {/* Radius + Shadow + Opacity */}
+      {!NO_RADIUS.has(dn) && (
+        <IpGroup eyebrow="SHAPE">
+          <PillRow
+            label="Radius"
+            options={RADIUS_PILLS.map((r) => ({ value: r.token, label: r.label }))}
+            value={activeRadius ?? MIXED}
+            onChange={(v) => setProp("borderRadius", v)}
+          />
+          <SelectRow
+            label="Shadow"
+            options={SHADOW_OPTIONS}
+            value={shadowValue === MIXED ? MIXED : (shadowValue ?? "none")}
+            onChange={(v) => setProp("shadow", v)}
+          />
+          <NumberRow
+            label="Opacity"
+            prefix="%"
+            value={(() => {
+              const o = sharedProp("opacity");
+              return o === MIXED ? MIXED : (o == null ? 100 : o);
+            })()}
+            min={0}
+            onChange={(v) => setProp("opacity", v)}
+          />
+        </IpGroup>
+      )}
+    </div>
+  );
+}
 
-        {/* Size token row — for components that have a `size` prop */}
-        {hasSizeProp && (
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Size</span>
-            <div className="flex gap-1 flex-wrap">
-              {(dn === "AstryxText" ? ["xs","sm","md","lg"] :
-                dn === "AstryxHeading" ? ["sm","md","lg","xl","2xl"] :
-                ["xs","sm","md","lg","xl"]
-              ).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setProp("size", s)}
-                  className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
-                    selected.props.size === s
-                      ? "bg-foreground border-foreground text-background shadow-sm"
-                      : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+// ─── LayoutTab ────────────────────────────────────────────────────────────────
+function LayoutTab({
+  dn,
+  isArtboard,
+  isRoot,
+  isFlexContainer,
+  supportsDirection,
+  supportsPadding,
+  isMultiSelect,
+  selected,
+  direction,
+  alignOptions,
+  justifyOptions,
+  widthDefault,
+  heightDefault,
+  activeSpacing,
+  sharedValue,
+  sharedProp,
+  setProp,
+  artboardSelection,
+  applyArtboardAlign,
+  applyArtboardDistribute,
+  equalWidthResult,
+  equalHeightResult,
+  makeEqualWidths,
+  makeEqualHeights,
+}: {
+  dn: string;
+  isArtboard: boolean;
+  isRoot: boolean;
+  isFlexContainer: boolean;
+  supportsDirection: boolean;
+  supportsPadding: boolean;
+  isMultiSelect: boolean;
+  selected: SelectedNode;
+  direction: string;
+  alignOptions: LayoutOption[];
+  justifyOptions: LayoutOption[];
+  widthDefault: number | "auto";
+  heightDefault: number | "auto";
+  activeSpacing: { label: string; gap: number; padding: number } | undefined;
+  sharedValue: (key: string) => any;
+  sharedProp: (key: string) => any;
+  setProp: (key: string, value: any) => void;
+  artboardSelection: { artboardCount: number; componentCount: number; allArtboards: boolean };
+  applyArtboardAlign: (edge: AlignEdge) => void;
+  applyArtboardDistribute: (axis: DistributeAxis) => void;
+  equalWidthResult: EqualWidthSelectionResult;
+  equalHeightResult: EqualHeightSelectionResult;
+  makeEqualWidths: () => void;
+  makeEqualHeights: () => void;
+}) {
+  const position = sharedProp("position");
+  const isAbsolute = position === "absolute";
+  const toNum = (v: any): number | typeof MIXED | undefined =>
+    v === "mixed" || v === MIXED ? MIXED : (v == null || v === "auto" ? undefined : Number(v));
+
+  return (
+    <div>
+      {/* SIZE */}
+      <IpGroup eyebrow="SIZE">
+        {/* W/H pair via DimensionControl-equivalent NumberPairRow */}
+        <NumberPairRow
+          label="Size"
+          a={{
+            prefix: "W",
+            value: toNum(sharedValue("width")),
+            onChange: (v) => setProp("width", v),
+            min: isArtboard ? 100 : dn === "AstryxSkeleton" ? 8 : 1,
+            showAuto: true,
+          }}
+          b={{
+            prefix: "H",
+            value: toNum(sharedValue("height")),
+            onChange: (v) => setProp("height", v),
+            min: isArtboard ? 100 : dn === "AstryxSkeleton" ? 4 : 1,
+            showAuto: true,
+          }}
+        />
+
+        {/* Position + conditional X/Y — single-select non-root only */}
+        {!isMultiSelect && !isRoot && !isArtboard && (
+          <>
+            <SelectRow
+              label="Position"
+              options={[
+                { value: "flow", label: "In flow" },
+                { value: "absolute", label: "Absolute" },
+              ]}
+              value={selected.props.position ?? "flow"}
+              onChange={(v) => setProp("position", v)}
+            />
+            {isAbsolute && (
+              <NumberPairRow
+                label="Offset"
+                a={{ prefix: "X", value: selected.props.x ?? 0, onChange: (v) => setProp("x", v ?? 0) }}
+                b={{ prefix: "Y", value: selected.props.y ?? 0, onChange: (v) => setProp("y", v ?? 0) }}
+              />
+            )}
+          </>
         )}
 
-        {/* Border radius token row — hidden for fixed-shape components */}
-        {!isMultiSelect && !NO_RADIUS.has(dn) && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Radius</span>
-          <div className="flex gap-1 flex-wrap">
-            {(["None","S","M","L","Full"] as const).map((r) => (
+        {/* Artboard X/Y — always shown */}
+        {!isMultiSelect && isArtboard && (
+          <NumberPairRow
+            label="Position"
+            a={{ prefix: "X", value: selected.props.x ?? 64, onChange: (v) => setProp("x", v ?? 0) }}
+            b={{ prefix: "Y", value: selected.props.y ?? 64, onChange: (v) => setProp("y", v ?? 0) }}
+          />
+        )}
+      </IpGroup>
+
+      {/* STACK (flex containers) */}
+      {!isMultiSelect && isFlexContainer && (
+        <IpGroup eyebrow="STACK">
+          {supportsDirection && (
+            <PillRow
+              label="Direction"
+              options={[
+                { value: "column", label: "Column" },
+                { value: "row", label: "Row" },
+              ]}
+              value={direction}
+              onChange={(v) => setProp("direction", v)}
+            />
+          )}
+          <PillRow
+            label="Align"
+            options={alignOptions.map((o) => ({
+              value: o.value,
+              label: o.value.charAt(0).toUpperCase() + o.value.slice(1),
+            }))}
+            value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
+            onChange={(v) => setProp("align", v)}
+          />
+          <SelectRow
+            label="Justify"
+            options={justifyOptions.map((o) => ({
+              value: o.value,
+              label:
+                o.value === "between"
+                  ? "Space between"
+                  : o.value === "around"
+                  ? "Space around"
+                  : o.value.charAt(0).toUpperCase() + o.value.slice(1),
+            }))}
+            value={selected.props.justify ?? "start"}
+            onChange={(v) => setProp("justify", v)}
+          />
+          {!isRoot && (
+            <PillRow
+              label="Wrap"
+              options={[
+                { value: "nowrap", label: "No wrap" },
+                { value: "wrap", label: "Wrap" },
+                { value: "wrap-reverse", label: "Reverse" },
+              ]}
+              value={selected.props.wrap ?? "nowrap"}
+              onChange={(v) => setProp("wrap", v)}
+            />
+          )}
+        </IpGroup>
+      )}
+
+      {/* SPACING */}
+      {!isMultiSelect && isFlexContainer && supportsPadding && (
+        <IpGroup eyebrow="SPACING" note="presets set gap + padding">
+          <PillRow
+            options={DENSITY_PRESETS.map((p) => ({ value: p.label, label: p.label }))}
+            value={activeSpacing?.label ?? MIXED}
+            onChange={(label) => {
+              const preset = DENSITY_PRESETS.find((p) => p.label === label);
+              if (preset) {
+                setProp("gap", preset.gap);
+                setProp("padding", preset.padding);
+              }
+            }}
+          />
+          <NumberPairRow
+            label="Gap/Pad"
+            a={{
+              prefix: "GAP",
+              value: selected.props.gap ?? (isArtboard ? 16 : 8),
+              onChange: (v) => setProp("gap", v ?? 0),
+              min: 0,
+            }}
+            b={{
+              prefix: "PAD",
+              value: selected.props.padding ?? (isArtboard ? 24 : 16),
+              onChange: (v) => setProp("padding", v ?? 0),
+              min: 0,
+            }}
+          />
+        </IpGroup>
+      )}
+
+      {/* Stack containers without padding (Stack/HStack) still expose gap */}
+      {!isMultiSelect && isFlexContainer && !supportsPadding && (
+        <IpGroup eyebrow="SPACING">
+          <NumberRow
+            label="Gap"
+            prefix="GAP"
+            value={selected.props.gap ?? 8}
+            min={0}
+            onChange={(v) => setProp("gap", v ?? 0)}
+          />
+        </IpGroup>
+      )}
+
+      {/* SCREENS — all-artboard multi-select align/distribute */}
+      {isMultiSelect && artboardSelection.allArtboards && (
+        <IpGroup eyebrow="SCREENS" note={`${artboardSelection.artboardCount} selected`}>
+          <div className="grid grid-cols-3 gap-1.5" data-testid="artboard-align-panel">
+            {([
+              ["left", "Align left edges", <AlignHorizontalJustifyStart className="w-3.5 h-3.5" key="l" />],
+              ["center-h", "Align horizontal centers", <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" key="ch" />],
+              ["right", "Align right edges", <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" key="r" />],
+              ["top", "Align top edges", <AlignVerticalJustifyStart className="w-3.5 h-3.5" key="t" />],
+              ["center-v", "Align vertical centers", <AlignVerticalJustifyCenter className="w-3.5 h-3.5" key="cv" />],
+              ["bottom", "Align bottom edges", <AlignVerticalJustifyEnd className="w-3.5 h-3.5" key="b" />],
+            ] as [AlignEdge, string, ReactNode][]).map(([edge, label, icon]) => (
               <button
-                key={r}
-                onClick={() => setProp("borderRadius", r)}
-                className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
-                  (selected.props.borderRadius ?? "M") === r
-                    ? "bg-foreground border-foreground text-background shadow-sm"
-                    : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
-                }`}
+                key={edge}
+                type="button"
+                onClick={() => applyArtboardAlign(edge)}
+                title={label}
+                aria-label={label}
+                data-testid={`artboard-align-${edge}`}
+                className="flex items-center justify-center rounded-md border border-border bg-card py-1.5 text-foreground transition-colors hover:border-foreground hover:bg-accent"
               >
-                {r}
+                {icon}
               </button>
             ))}
           </div>
-        </div>
-        )}
-      </section>
-
-      {/* ── Typography ───────────────────────────────────────────── */}
-      {!isMultiSelect && hasTypography && (
-        <section className="px-3 py-3 border-b border-border">
-          <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Typography</div>
-
-          {/* Content editable */}
-          {(dn === "AstryxText" || dn === "AstryxHeading" || dn === "AstryxButton") && (
-            <div className="mb-2.5">
-              <PropRow label="Content">
-                <TextProp value={selected.props.children ?? ""} onChange={(v) => setProp("children", v)} />
-              </PropRow>
+          {artboardSelection.artboardCount >= 3 && (
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => applyArtboardDistribute("horizontal")}
+                title="Equal horizontal gaps"
+                aria-label="Distribute artboards with equal horizontal gaps"
+                data-testid="artboard-distribute-horizontal"
+                className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
+              >
+                <AlignHorizontalSpaceBetween className="w-3.5 h-3.5" />
+                Equal H gaps
+              </button>
+              <button
+                type="button"
+                onClick={() => applyArtboardDistribute("vertical")}
+                title="Equal vertical gaps"
+                aria-label="Distribute artboards with equal vertical gaps"
+                data-testid="artboard-distribute-vertical"
+                className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
+              >
+                <AlignVerticalSpaceBetween className="w-3.5 h-3.5" />
+                Equal V gaps
+              </button>
             </div>
           )}
-
-          {/* Size token row for text/heading */}
-          {(dn === "AstryxText" || dn === "AstryxHeading") && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0">Size</span>
-              <div className="flex gap-1">
-                {(dn === "AstryxText" ? ["xs","sm","md","lg"] : ["sm","md","lg","xl","2xl"]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setProp("size", s)}
-                    className={`min-w-[28px] h-6 px-1.5 text-[9.5px] rounded-md border font-medium transition-all ${
-                      selected.props.size === s
-                        ? "bg-foreground border-foreground text-background shadow-sm"
-                        : "border-border text-muted-foreground hover:border-muted-foreground bg-background"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Font + B/I/U */}
-          <div className="flex items-center gap-1.5">
-            <div className="flex-1 flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-              <span className="text-[10px] text-muted-foreground">Inter</span>
-              <span className="text-muted-foreground/40 text-[10px]">▾</span>
-            </div>
-            <div className="flex gap-0.5">
-              {[["B","font-bold"],["I","italic"],["U","underline"]].map(([l, c]) => (
-                <button
-                  key={l}
-                  className={`w-6 h-7 text-[10px] ${c} border border-border rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+        </IpGroup>
       )}
 
-      {/* ── Properties (component-specific catch-all) ─────────────── */}
-      <section className="px-3 py-3">
-        <div className="text-[9.5px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">Properties</div>
-        <div className="flex flex-col gap-3">
-          {/* Shared sizing and positioning controls live here for every node. */}
-          <div className="grid grid-cols-2 gap-1.5">
-            <DimensionControl
-              label="W"
-              value={sharedValue("width")}
-              autoDefault={widthDefault}
-              onChange={(v) => setProp("width", v)}
-              min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 8 : 1}
-            />
-            <DimensionControl
-              label="H"
-              value={sharedValue("height")}
-              autoDefault={heightDefault}
-              onChange={(v) => setProp("height", v)}
-              min={isArtboard ? 100 : dn === "AstryxSkeleton" ? 4 : 1}
-            />
-          </div>
+      {/* Mixed screens + elements guidance */}
+      {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount > 0 && artboardSelection.componentCount > 0 && (
+        <IpGroup>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Selection mixes screens and elements. Select only screens to align them, or only elements for layout actions.
+          </p>
+        </IpGroup>
+      )}
 
-          {isMultiSelect && artboardSelection.allArtboards && (
-            <div className="rounded-lg border border-border bg-muted/30 p-2.5" data-testid="artboard-align-panel">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-[10px] font-semibold text-foreground">Align artboards</span>
-                <span className="text-[9px] text-muted-foreground">{artboardSelection.artboardCount} screens</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {([
-                  ["left",     "Align left edges",   <AlignHorizontalJustifyStart className="w-3.5 h-3.5" key="l" />],
-                  ["center-h", "Align horizontal centers", <AlignHorizontalJustifyCenter className="w-3.5 h-3.5" key="ch" />],
-                  ["right",    "Align right edges",  <AlignHorizontalJustifyEnd className="w-3.5 h-3.5" key="r" />],
-                  ["top",      "Align top edges",    <AlignVerticalJustifyStart className="w-3.5 h-3.5" key="t" />],
-                  ["center-v", "Align vertical centers", <AlignVerticalJustifyCenter className="w-3.5 h-3.5" key="cv" />],
-                  ["bottom",   "Align bottom edges", <AlignVerticalJustifyEnd className="w-3.5 h-3.5" key="b" />],
-                ] as [AlignEdge, string, ReactNode][]).map(([edge, label, icon]) => (
-                  <button
-                    key={edge}
-                    type="button"
-                    onClick={() => applyArtboardAlign(edge)}
-                    title={label}
-                    aria-label={label}
-                    data-testid={`artboard-align-${edge}`}
-                    className="flex items-center justify-center rounded-md border border-border bg-background py-1.5 text-foreground transition-colors hover:border-foreground hover:bg-accent"
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-              {artboardSelection.artboardCount >= 3 && (
-                <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => applyArtboardDistribute("horizontal")}
-                    title="Equal horizontal gaps"
-                    aria-label="Distribute artboards with equal horizontal gaps"
-                    data-testid="artboard-distribute-horizontal"
-                    className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
-                  >
-                    <AlignHorizontalSpaceBetween className="w-3.5 h-3.5" />
-                    Equal H gaps
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyArtboardDistribute("vertical")}
-                    title="Equal vertical gaps"
-                    aria-label="Distribute artboards with equal vertical gaps"
-                    data-testid="artboard-distribute-vertical"
-                    className="flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent"
-                  >
-                    <AlignVerticalSpaceBetween className="w-3.5 h-3.5" />
-                    Equal V gaps
-                  </button>
-                </div>
-              )}
-            </div>
+      {/* Equal width/height for element multi-select */}
+      {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount === 0 && (
+        <IpGroup eyebrow="ELEMENTS">
+          <button
+            type="button"
+            onClick={makeEqualWidths}
+            disabled={!equalWidthResult.eligible}
+            title={equalWidthResult.eligible ? "Make selected elements equal widths" : equalWidthResult.reason}
+            aria-label="Make selected elements equal widths"
+            className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <StretchHorizontal className="w-3.5 h-3.5" />
+              Equal widths
+            </span>
+          </button>
+          {!equalWidthResult.eligible && (
+            <p className="text-[11px] leading-snug text-muted-foreground">{equalWidthResult.reason}</p>
           )}
-
-          {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount > 0 && artboardSelection.componentCount > 0 && (
-            <p className="text-[9px] leading-snug text-muted-foreground rounded-lg border border-border bg-muted/30 p-2.5">
-              Selection mixes screens and elements. Select only screens to align them, or only elements for layout actions.
-            </p>
+          <button
+            type="button"
+            onClick={makeEqualHeights}
+            disabled={!equalHeightResult.eligible}
+            title={equalHeightResult.eligible ? "Make selected elements equal heights" : equalHeightResult.reason}
+            aria-label="Make selected elements equal heights"
+            className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span className="inline-flex items-center justify-center gap-1.5">
+              <StretchVertical className="w-3.5 h-3.5" />
+              Equal heights
+            </span>
+          </button>
+          {!equalHeightResult.eligible && (
+            <p className="text-[11px] leading-snug text-muted-foreground">{equalHeightResult.reason}</p>
           )}
-
-          {isMultiSelect && !artboardSelection.allArtboards && artboardSelection.artboardCount === 0 && (
-            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-[10px] font-semibold text-foreground">Layout</span>
-                <span className="text-[9px] text-muted-foreground">Selected elements</span>
-              </div>
-              <button
-                type="button"
-                onClick={makeEqualWidths}
-                disabled={!equalWidthResult.eligible}
-                title={equalWidthResult.eligible ? "Make selected elements equal widths" : equalWidthResult.reason}
-                aria-label="Make selected elements equal widths"
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  <StretchHorizontal className="w-3.5 h-3.5" />
-                  Equal widths
-                </span>
-              </button>
-              {!equalWidthResult.eligible && (
-                <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground">{equalWidthResult.reason}</p>
-              )}
-              <button
-                type="button"
-                onClick={makeEqualHeights}
-                disabled={!equalHeightResult.eligible}
-                title={equalHeightResult.eligible ? "Make selected elements equal heights" : equalHeightResult.reason}
-                aria-label="Make selected elements equal heights"
-                className="mt-1.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:border-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <span className="inline-flex items-center justify-center gap-1.5">
-                  <StretchVertical className="w-3.5 h-3.5" />
-                  Equal heights
-                </span>
-              </button>
-              {!equalHeightResult.eligible && (
-                <p className="mt-1.5 text-[9px] leading-snug text-muted-foreground">{equalHeightResult.reason}</p>
-              )}
-            </div>
-          )}
-
-          {!isMultiSelect && !isRoot && !isArtboard && (
-            <>
-              <PropRow label="Position">
-                <SelectProp
-                  value={selected.props.position ?? "flow"}
-                  options={["flow", "absolute"]}
-                  onChange={(v) => setProp("position", v)}
-                />
-              </PropRow>
-              <div className="grid grid-cols-2 gap-1.5">
-                {([["X", "x"], ["Y", "y"]] as const).map(([label, key]) => (
-                  <div
-                    key={key}
-                    className={`flex items-center gap-1.5 bg-muted/50 border rounded-lg px-2 py-1.5 transition-opacity ${
-                      selected.props.position !== "absolute" ? "opacity-40 border-border" : "border-border"
-                    }`}
-                  >
-                    <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-                    <input
-                      type="number"
-                      value={selected.props[key] ?? 0}
-                      onChange={(e) => setProp(key, Number(e.target.value))}
-                      disabled={selected.props.position !== "absolute"}
-                      aria-label={`${label} position`}
-                      className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground disabled:opacity-50"
-                    />
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {!isMultiSelect && isArtboard && (
-            <div className="grid grid-cols-2 gap-1.5">
-              {([["X", "x", 64], ["Y", "y", 64]] as const).map(([label, key, fallback]) => (
-                <div key={key} className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-                  <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-                  <input
-                    type="number"
-                    value={selected.props[key] ?? fallback}
-                    onChange={(e) => setProp(key, Number(e.target.value))}
-                    aria-label={`${label} position`}
-                    className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isMultiSelect && isFlexContainer && (
-            <>
-              {supportsDirection && (
-                <PropRow label="Direction">
-                  <SelectProp value={direction} options={["column", "row"]} onChange={(v) => setProp("direction", v)} />
-                </PropRow>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <PropRow label="Gap (px)">
-                  <NumberProp value={selected.props.gap ?? (isArtboard ? 16 : 8)} onChange={(v) => setProp("gap", v)} min={0} />
-                </PropRow>
-                {supportsPadding && (
-                  <PropRow label="Padding (px)">
-                    <NumberProp value={selected.props.padding ?? (isArtboard ? 24 : 16)} onChange={(v) => setProp("padding", v)} min={0} />
-                  </PropRow>
-                )}
-              </div>
-              <PropRow label="Align items">
-                <LayoutIconGroup
-                  value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
-                  options={alignOptions}
-                  onChange={(v) => setProp("align", v)}
-                />
-              </PropRow>
-              <PropRow label="Justify">
-                <LayoutIconGroup
-                  value={selected.props.justify ?? "start"}
-                  options={justifyOptions}
-                  onChange={(v) => setProp("justify", v)}
-                />
-              </PropRow>
-              {!isRoot && (
-                <PropRow label="Wrap">
-                  <LayoutIconGroup
-                    value={selected.props.wrap ?? "nowrap"}
-                    options={WRAP_OPTIONS}
-                    onChange={(v) => setProp("wrap", v)}
-                  />
-                </PropRow>
-              )}
-              {supportsPadding && <div className="grid grid-cols-2 gap-1.5">
-                {SPACING_PRESETS.map((p) => {
-                  const isActive = activeSpacing?.label === p.label;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      title={`${p.label}: ${p.sub}`}
-                      onClick={() => { setProp("gap", p.gap); setProp("padding", p.padding); }}
-                      className={`py-1.5 px-2 rounded-lg border text-left transition-all ${
-                        isActive ? "bg-foreground border-foreground shadow-sm" : "border-border hover:border-muted-foreground hover:bg-accent bg-background"
-                      }`}
-                    >
-                      <div className={`text-[10px] font-semibold ${isActive ? "text-background" : "text-foreground"}`}>{p.label}</div>
-                      <div className={`text-[9px] ${isActive ? "text-background/60" : "text-muted-foreground"}`}>{p.sub}</div>
-                    </button>
-                  );
-                })}
-              </div>}
-            </>
-          )}
-
-          {!isMultiSelect && <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />}
-        </div>
-      </section>
+        </IpGroup>
+      )}
     </div>
   );
 }

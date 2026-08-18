@@ -113,6 +113,12 @@ await page.waitForTimeout(500);
 const twoSel = await page.locator('text="2 selected"').count();
 check("Shift+click selects two artboards ('2 selected')", twoSel >= 1, `count=${twoSel}`);
 
+// The redesigned inspector is tabbed; align/distribute live in the Layout tab.
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
+
 // ── 2. Align-artboards panel appears ─────────────────────────────────────────
 const alignPanel = await page.locator('[data-testid="artboard-align-panel"]').count();
 check("Align artboards panel visible", alignPanel === 1, `count=${alignPanel}`);

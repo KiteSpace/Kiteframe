@@ -84,6 +84,12 @@ try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 3
 await page.locator('button:text-is("Target")').click();
 await page.waitForTimeout(500);
 
+// The redesigned inspector is tabbed; W/H live in the Layout tab.
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
+
 const wInput = page.locator('input[aria-label="W size"]');
 check("W input rendered", (await wInput.count()) === 1);
 

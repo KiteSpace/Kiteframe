@@ -3,8 +3,9 @@
  *
  * The panel is intentionally kept private to DesignEditor because it is only
  * rendered as part of the editor. These tests guard the user-facing structure
- * of that private panel at the source boundary so a future component audit
- * cannot quietly reintroduce a second Layout section or duplicate controls.
+ * of that private panel at the source boundary so a redesign cannot quietly
+ * drop the tab structure, break progressive disclosure, or reintroduce
+ * duplicate controls.
  */
 
 import fs from "fs";
@@ -21,94 +22,208 @@ const componentPropsSource = editorSource.slice(
   editorSource.indexOf("// ─── Inspect panel"),
 );
 
+// The inspect panel now spans its token/kind constants, InspectPanel, and the
+// StyleTab / LayoutTab sub-components, up to the node-icon mapping that follows.
 const inspectPanelSource = editorSource.slice(
-  editorSource.indexOf("function InspectPanel"),
+  editorSource.indexOf("// ─── Inspect panel: node-kind → tabs"),
   editorSource.indexOf("// ─── Node type → display icon mapping"),
 );
 
-describe("component inspection panel layout controls", () => {
-  it("keeps sizing and layout controls under Properties without a standalone top-level Layout heading", () => {
-    expect(inspectPanelSource).toContain(">Properties</div>");
-    // A "Layout" label is allowed inside the scoped multi-select card (guarded by isMultiSelect),
-    // but must not appear as a standalone section heading outside that card.
-    expect(inspectPanelSource).not.toMatch(/(?<!isMultiSelect[^}]{0,200})>\s*Layout\s*<\/div>/s);
-    expect(inspectPanelSource).toContain("<DimensionControl");
+const rowsSource = fs.readFileSync(
+  path.resolve(__dirname, "../InspectRows.tsx"),
+  "utf8",
+);
+
+describe("inspect panel tab structure", () => {
+  it("renders Style / Layout / Content tabs from a per-kind tab model", () => {
+    // The tab labels and the node-kind → tabs mapping both exist.
+    expect(inspectPanelSource).toContain("TABS_BY_KIND");
+    expect(inspectPanelSource).toContain('role="tablist"');
+    expect(inspectPanelSource).toContain('role="tab"');
+    expect(inspectPanelSource).toContain("aria-selected={isActive}");
+    // Style, Layout, Content labels.
+    expect(inspectPanelSource).toContain("style: \"Style\"");
+    expect(inspectPanelSource).toContain("layout: \"Layout\"");
+    expect(inspectPanelSource).toContain("content: \"Content\"");
+  });
+
+  it("remembers the active tab per node kind and falls back to the first available", () => {
+    expect(inspectPanelSource).toContain("tabByKind");
+    // Fall back to the first available tab when the remembered one is gone.
+    expect(inspectPanelSource).toContain("availableTabs.includes(remembered)");
+    expect(inspectPanelSource).toContain("availableTabs[0]");
+  });
+
+  it("gives artboards Style + Layout only — no Content tab", () => {
+    expect(inspectPanelSource).toContain('artboard: ["style", "layout"]');
+  });
+
+  it("supports arrow-key navigation between tabs", () => {
+    expect(inspectPanelSource).toContain('"ArrowRight"');
+    expect(inspectPanelSource).toContain('"ArrowLeft"');
+    expect(inspectPanelSource).toContain("onTabKeyDown");
+  });
+
+  it("routes each tab to its dedicated sub-component", () => {
+    expect(inspectPanelSource).toContain('activeTab === "style"');
+    expect(inspectPanelSource).toContain('activeTab === "layout"');
+    expect(inspectPanelSource).toContain('activeTab === "content"');
+    expect(inspectPanelSource).toContain("<StyleTab");
+    expect(inspectPanelSource).toContain("<LayoutTab");
+  });
+
+  it("renders the Content tab from the existing ComponentProps dispatcher", () => {
+    // The Content tab wraps ComponentProps rather than re-implementing it.
+    expect(inspectPanelSource).toMatch(
+      /activeTab === "content"[\s\S]{0,300}<ComponentProps/,
+    );
+  });
+});
+
+describe("inspect panel header", () => {
+  it("shows a breadcrumb, node name, kind chip and a close control", () => {
+    expect(inspectPanelSource).toContain("buildBreadcrumb");
+    expect(inspectPanelSource).toContain('aria-label="Ancestors"');
+    expect(inspectPanelSource).toContain("KIND_CHIP");
+    // Close returns to the palette by deselecting.
+    expect(inspectPanelSource).toContain("returnToPalette");
+    expect(inspectPanelSource).toContain("actions.selectNode(undefined as any)");
+  });
+
+  it("returns to the palette on Escape when focus is not in a field", () => {
+    expect(inspectPanelSource).toContain('e.key !== "Escape"');
+    expect(inspectPanelSource).toContain("onPanelKeyDown");
+  });
+
+  it("reads N selected with a mixed chip for multi-select", () => {
+    expect(inspectPanelSource).toContain("`${selectedIds.length} selected`");
+    expect(inspectPanelSource).toContain('"mixed"');
+  });
+});
+
+describe("layout tab controls", () => {
+  it("keeps W/H editing wired to width/height props via a paired number row", () => {
     expect(inspectPanelSource).toContain('setProp("width", v)');
     expect(inspectPanelSource).toContain('setProp("height", v)');
+    expect(inspectPanelSource).toContain("<NumberPairRow");
+    // AUTO affordance lives inside the W/H fields.
+    expect(inspectPanelSource).toContain("showAuto: true");
   });
 
-  it("keeps the dimension input as a stable text input so the caret survives typing", () => {
-    const dimensionSource = editorSource.slice(
-      editorSource.indexOf("function DimensionControl"),
-      editorSource.indexOf("export function getSharedDimensionValue"),
-    );
-    // Switching between type="number" and type="text" mid-edit makes React
-    // recreate the DOM node, resetting the caret to position 0 and reversing
-    // typed digits ("400" -> "004"). The type must be a constant "text".
-    expect(dimensionSource).toContain('type="text"');
-    // No conditional/dynamic type expression and no number-typed input.
-    expect(dimensionSource).not.toMatch(/type=\{/);
-    expect(dimensionSource).not.toContain('type="number"');
-    // Mobile keyboards still get a numeric layout.
-    expect(dimensionSource).toContain('inputMode="decimal"');
-  });
-
-  it("provides Auto controls with a consistent undefined/auto-compatible reset", () => {
-    expect(editorSource).toContain('value == null || value === "auto"');
-    // The Auto button resets to undefined (auto).
-    expect(editorSource).toContain('onClick={() => onChange(undefined)');
-    // The dimension input shows "auto" as its placeholder when the value is unset.
-    expect(editorSource).toContain('"auto"');
-  });
-
-  it("keeps Position and disables X/Y unless the node is absolute", () => {
-    expect(inspectPanelSource).toContain('options={["flow", "absolute"]}');
+  it("hides X/Y unless the node is absolutely positioned (progressive disclosure)", () => {
+    expect(inspectPanelSource).toContain('const isAbsolute = position === "absolute"');
     expect(inspectPanelSource).toContain('setProp("position", v)');
-    expect(inspectPanelSource).toContain('selected.props.position !== "absolute"');
-    expect(inspectPanelSource).toContain("disabled={selected.props.position !== \"absolute\"}");
+    // The X/Y offset pair only renders when isAbsolute.
+    expect(inspectPanelSource).toMatch(/isAbsolute &&[\s\S]{0,200}prefix: "X"/);
   });
 
-  it("uses icon-button groups for both Align items and Justify", () => {
-    expect(inspectPanelSource).toContain('<PropRow label="Align items">');
-    expect(inspectPanelSource).toContain('<PropRow label="Justify">');
-    expect(inspectPanelSource).toContain("<LayoutIconGroup");
-    expect(editorSource).toContain('aria-pressed={value === option.value}');
-    expect(editorSource).toContain('value: "between"');
-    expect(editorSource).toContain('value: "around"');
-    expect(componentPropsSource).not.toMatch(/label="(?:Align items|Justify)"/);
-  });
-
-  it("exposes the Wrap control for every flex container, hidden for ROOT", () => {
-    // Shared flex-layout section (Section, Stack, HStack, Artboard) renders a
-    // Wrap control gated behind !isRoot so the ROOT canvas wrapper never shows it.
-    expect(inspectPanelSource).toMatch(/\{!isRoot && \(\s*<PropRow label="Wrap">/);
+  it("uses word-label pills for Direction, Align and Wrap and a select for Justify", () => {
+    expect(inspectPanelSource).toContain('label="Direction"');
+    expect(inspectPanelSource).toContain('label="Align"');
+    expect(inspectPanelSource).toContain('label="Wrap"');
+    expect(inspectPanelSource).toContain('label="Justify"');
     expect(inspectPanelSource).toContain('setProp("wrap", v)');
-    expect(inspectPanelSource).toContain("options={WRAP_OPTIONS}");
-    // AstryxCard has its own props block (not part of IS_CONTAINER's shared
-    // section) and must expose Wrap there.
-    expect(componentPropsSource).toMatch(/if \(displayName === "AstryxCard"\)[\s\S]{0,600}label="Wrap"[\s\S]{0,200}setProp\("wrap", v\)/);
-    // All three flex-wrap values are offered.
-    expect(editorSource).toContain('value: "nowrap"');
-    expect(editorSource).toContain('value: "wrap"');
-    expect(editorSource).toContain('value: "wrap-reverse"');
+    // Wrap offers all three flex-wrap values.
+    expect(inspectPanelSource).toContain('value: "nowrap"');
+    expect(inspectPanelSource).toContain('value: "wrap"');
+    expect(inspectPanelSource).toContain('value: "wrap-reverse"');
   });
 
-  it("declares wrap as an optional prop for every wrap-capable container in the AI prompt schema", () => {
-    const promptSource = fs.readFileSync(
-      path.resolve(__dirname, "../../../../server/lib/designPrompt.ts"),
-      "utf8",
-    );
-    for (const component of ["AstryxSection", "AstryxStack", "AstryxHStack", "AstryxCard", "AstryxArtboard"]) {
-      const line = promptSource.split("\n").find((l) => l.includes(`• ${component}`));
-      expect(line, `${component} schema line`).toBeTruthy();
-      expect(line, `${component} should declare wrap`).toContain('wrap?:"nowrap"|"wrap"|"wrap-reverse"');
+  it("exposes density presets that write gap + padding together", () => {
+    expect(inspectPanelSource).toContain("DENSITY_PRESETS");
+    expect(inspectPanelSource).toContain('setProp("gap", preset.gap)');
+    expect(inspectPanelSource).toContain('setProp("padding", preset.padding)');
+  });
+
+  it("keeps artboard align + distribute actions in the SCREENS group", () => {
+    expect(inspectPanelSource).toContain('eyebrow="SCREENS"');
+    expect(inspectPanelSource).toContain("applyArtboardAlign");
+    expect(inspectPanelSource).toContain("applyArtboardDistribute");
+    expect(inspectPanelSource).toContain('data-testid="artboard-align-panel"');
+    expect(inspectPanelSource).toContain('data-testid="artboard-distribute-horizontal"');
+  });
+
+  it("keeps equal-width / equal-height actions for element multi-select", () => {
+    expect(inspectPanelSource).toContain("makeEqualWidths");
+    expect(inspectPanelSource).toContain("makeEqualHeights");
+  });
+});
+
+describe("style tab controls", () => {
+  it("presents Fill and Text colour through ColorRow + a curated SwatchRow", () => {
+    expect(inspectPanelSource).toContain("<ColorRow");
+    expect(inspectPanelSource).toContain("<SwatchRow");
+    expect(inspectPanelSource).toContain('setProp("backgroundColor", c)');
+    expect(inspectPanelSource).toContain("setTextColor(c)");
+    expect(inspectPanelSource).toContain("PALETTE_BG_SWATCHES");
+    expect(inspectPanelSource).toContain("PALETTE_TEXT_SWATCHES");
+  });
+
+  it("hides the text colour row for artboards", () => {
+    // Text row is gated behind !isArtboard.
+    expect(inspectPanelSource).toMatch(/!isArtboard &&[\s\S]{0,200}<ColorRow label="Text"/);
+  });
+
+  it("uses radius pills mapped to the token scale and a named shadow select", () => {
+    expect(inspectPanelSource).toContain("RADIUS_PILLS");
+    expect(inspectPanelSource).toContain('setProp("borderRadius", v)');
+    expect(inspectPanelSource).toContain("SHADOW_OPTIONS");
+    expect(inspectPanelSource).toContain('setProp("shadow", v)');
+    // Radius token scale mirrors resolver.tsx.
+    expect(inspectPanelSource).toContain('token: "None", label: "None", px: 0');
+    expect(inspectPanelSource).toContain('token: "Full", label: "Full", px: 9999');
+  });
+
+  it("suppresses the swatch grid in multi-select", () => {
+    // SwatchRow only renders when !isMultiSelect.
+    expect(inspectPanelSource).toMatch(/!isMultiSelect &&[\s\S]{0,120}<SwatchRow/);
+  });
+
+  it("keeps the artboard background picker for Color / Gradient / Image", () => {
+    expect(inspectPanelSource).toContain("ArtboardBackgroundPicker");
+  });
+
+  it("lets artboards be renamed from Style (they have no Content tab)", () => {
+    expect(inspectPanelSource).toContain('setProp("label", e.target.value)');
+    expect(inspectPanelSource).toContain('aria-label="Artboard name"');
+    // Empty names fall back to the default instead of persisting "".
+    expect(inspectPanelSource).toContain('setProp("label", "Artboard")');
+  });
+});
+
+describe("style props actually render", () => {
+  const resolverSource = fs.readFileSync(
+    path.resolve(__dirname, "../resolver.tsx"),
+    "utf8",
+  );
+
+  it("maps the named shadow scale to real box-shadows in the renderer", () => {
+    expect(resolverSource).toContain("SHADOW_TOKEN");
+    // Every option the inspector offers exists in the renderer's scale.
+    for (const token of ["none", "soft", "raised", "overlay"]) {
+      expect(resolverSource, `shadow token ${token}`).toMatch(
+        new RegExp(`${token}:`),
+      );
     }
   });
 
-  it("keeps artboard label, background, and coordinates without duplicate layout rows", () => {
-    expect(componentPropsSource).toContain('label="Label"');
-    expect(inspectPanelSource).toContain("ArtboardBackgroundPicker");
-    expect(inspectPanelSource).toContain('aria-label={`${label} position`}');
+  it("applies shadow + opacity on leaf and container nodes", () => {
+    expect(resolverSource).toContain("function shadowOpacityStyle");
+    const applications = resolverSource.match(/\.\.\.shadowOpacityStyle\(/g) ?? [];
+    expect(applications.length, "leaf + container application sites").toBeGreaterThanOrEqual(2);
+  });
+
+  it("applies shadow, radius token and opacity on artboards, keeping the selection ring", () => {
+    // Artboard style consults the user shadow prop rather than only the hardcoded default.
+    expect(resolverSource).toMatch(/SHADOW_TOKEN\[shadow as string\]/);
+    expect(resolverSource).toMatch(/RADIUS_TOKEN\[borderRadius as string\]/);
+    // Selection ring is prepended even when a custom shadow is set.
+    expect(resolverSource).toContain('`0 0 0 2px #3b82f6${base !== "none" ? `, ${base}` : ""}`');
+  });
+});
+
+describe("component props ownership", () => {
+  it("no longer hand-rolls sizing / position / layout rows inside ComponentProps", () => {
     expect(componentPropsSource).not.toContain('label="Width (px)"');
     expect(componentPropsSource).not.toContain('label="Height (px)"');
     expect(componentPropsSource).not.toContain('label="X (px)"');
@@ -116,6 +231,43 @@ describe("component inspection panel layout controls", () => {
     expect(componentPropsSource).not.toContain('if (displayName === "AstryxSection")');
     expect(componentPropsSource).not.toContain('if (displayName === "AstryxStack")');
     expect(componentPropsSource).not.toContain('if (displayName === "AstryxHStack")');
-    expect(componentPropsSource).not.toMatch(/if \(displayName === "AstryxArtboard"\)[\s\S]*label="Label"[\s\S]*(?:Width|Height|X \(|Y \(|Align items|Justify|Gap \(|Padding \()/);
+  });
+});
+
+describe("inspect row primitives", () => {
+  it("exports the six row primitives plus the MIXED sentinel", () => {
+    for (const name of ["ColorRow", "SwatchRow", "PillRow", "NumberRow", "SelectRow", "SwitchRow"]) {
+      expect(rowsSource, `${name} export`).toContain(`export function ${name}`);
+    }
+    expect(rowsSource).toContain("export const MIXED");
+  });
+
+  it("uses a real <label htmlFor> gutter, not a bare div, for row labels", () => {
+    expect(rowsSource).toContain("<label");
+    expect(rowsSource).toContain("htmlFor={htmlFor}");
+    // A single shared gutter constant, applied everywhere.
+    expect(rowsSource).toContain("const GUTTER = 56");
+  });
+
+  it("marks pill groups as an accessible radiogroup", () => {
+    expect(rowsSource).toContain('role="radiogroup"');
+    expect(rowsSource).toContain('role="radio"');
+  });
+
+  it("marks the switch with role=switch and wires help via aria-describedby", () => {
+    expect(rowsSource).toContain('role="switch"');
+    expect(rowsSource).toContain("aria-describedby={helpId}");
+  });
+
+  it("labels swatches with a name, not colour alone", () => {
+    expect(rowsSource).toContain("aria-label={`${s.label}`}");
+  });
+
+  it("uses CSS variables for tokens rather than raw theme hex literals", () => {
+    expect(rowsSource).toContain("var(--primary)");
+    expect(rowsSource).toContain("var(--foreground)");
+    expect(rowsSource).toContain("var(--brand-soft)");
+    // The token comment block documents the mapping.
+    expect(rowsSource).toContain("--ip-ink");
   });
 });

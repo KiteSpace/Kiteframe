@@ -266,6 +266,27 @@ function absPositionStyle(position: string, x: number, y: number): CSSProperties
 
 const RADIUS_TOKEN: Record<string, number> = { None: 0, S: 4, M: 8, L: 16, Full: 9999 };
 
+// Named shadow scale used by the inspector's Style tab. "none" clears any
+// component-default shadow; unknown values fall back to no override.
+const SHADOW_TOKEN: Record<string, string> = {
+  none: "none",
+  soft: "0 1px 3px rgba(16,24,40,0.10), 0 1px 2px rgba(16,24,40,0.06)",
+  raised: "0 4px 12px rgba(16,24,40,0.14), 0 2px 4px rgba(16,24,40,0.08)",
+  overlay: "0 12px 32px rgba(16,24,40,0.22), 0 4px 8px rgba(16,24,40,0.10)",
+};
+
+/** Style fragment for the user-set shadow/opacity props (Style tab). */
+function shadowOpacityStyle(shadow: string | undefined, opacity: number | undefined): CSSProperties {
+  return {
+    ...(shadow !== undefined && SHADOW_TOKEN[shadow] !== undefined
+      ? { boxShadow: SHADOW_TOKEN[shadow] }
+      : {}),
+    ...(opacity !== undefined && Number.isFinite(Number(opacity)) && Number(opacity) < 100
+      ? { opacity: Math.max(0, Number(opacity)) / 100 }
+      : {}),
+  };
+}
+
 // Components that should fill their parent's width by default rather than
 // shrink-wrapping. These are block-level by nature (tables, inputs, carousels…).
 const FULL_WIDTH_LEAF = new Set([
@@ -293,7 +314,7 @@ function useLeafNode() {
   const setGuides = useContext(SnapGuideContext);
   const { id, connectors: { connect, drag }, actions, selected, nodePosition, nodeX, nodeY,
           nodeBg, nodeColor, nodeRadius, nodeWidth, nodeHeight, displayName,
-          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis } = useNode((node) => ({
+          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis, nodeShadow, nodeOpacity } = useNode((node) => ({
     selected: node.events.selected,
     nodePosition: (node.data.props?.position as string) ?? "flow",
     nodeX: (node.data.props?.x as number) ?? 0,
@@ -307,6 +328,8 @@ function useLeafNode() {
     nodeFlexGrow:   node.data.props?.flexGrow   as number | undefined,
     nodeFlexShrink: node.data.props?.flexShrink as number | undefined,
     nodeFlexBasis:  node.data.props?.flexBasis  as number | undefined,
+    nodeShadow:  node.data.props?.shadow as string | undefined,
+    nodeOpacity: node.data.props?.opacity as number | undefined,
   }));
   // Also pull the full editor actions so the resize handler can call
   // actions.history.ignore().setProp(...) to update the canvas during a drag
@@ -546,6 +569,7 @@ function useLeafNode() {
         ? { width: nodeWidth }
         : isFullWidth ? { width: "100%" } : { width: "fit-content" }),
     ...(nodeHeight !== undefined && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
+    ...shadowOpacityStyle(nodeShadow, nodeOpacity),
   };
 
   const connectRef = (r: HTMLElement | null) => {
@@ -717,7 +741,7 @@ function useContainerNode(position: string, x: number, y: number) {
   const zoom = useContext(CanvasZoomContext);
   const setGuides = useContext(SnapGuideContext);
   const { connectors: { connect, drag }, id, actions, isEmpty, selected, hovered, nodeWidth, nodeHeight,
-          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis } = useNode((node) => ({
+          nodeFlexGrow, nodeFlexShrink, nodeFlexBasis, nodeShadow, nodeOpacity } = useNode((node) => ({
     isEmpty: node.data.nodes.length === 0,
     selected: node.events.selected,
     hovered: node.events.hovered,
@@ -726,6 +750,8 @@ function useContainerNode(position: string, x: number, y: number) {
     nodeFlexGrow:   node.data.props?.flexGrow   as number | undefined,
     nodeFlexShrink: node.data.props?.flexShrink as number | undefined,
     nodeFlexBasis:  node.data.props?.flexBasis  as number | undefined,
+    nodeShadow:  node.data.props?.shadow as string | undefined,
+    nodeOpacity: node.data.props?.opacity as number | undefined,
   }));
 
   // Detect whether any node is currently being dragged in the editor.
@@ -914,6 +940,7 @@ function useContainerNode(position: string, x: number, y: number) {
     ...(nodeHeight != null && nodeHeight !== "auto" ? { height: nodeHeight } : {}),
     // overflow:visible when selected so handles rendered at negative offsets aren't clipped.
     ...(selected ? { overflow: "visible" } : {}),
+    ...shadowOpacityStyle(nodeShadow, nodeOpacity),
   };
 
   const resizeHandles = selected ? (
@@ -2670,7 +2697,7 @@ export function AstryxGrid({ children, columns = 2, gap = 12, align = "stretch",
 // Resize handle styles (reused across all three handles)
 const HANDLE_DOT: CSSProperties = { borderRadius: 2, background: "rgba(0,0,0,0.18)", transition: "background 0.12s" };
 
-export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", wrap = "nowrap", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl }: AstryxProps) {
+export function AstryxArtboard({ children, label = "Artboard", width, height, x = 64, y = 64, direction = "column", gap = 16, padding = 24, align = "stretch", justify = "start", wrap = "nowrap", backgroundColor, textColor, backgroundType, backgroundGradient, backgroundImageUrl, borderRadius, shadow, opacity }: AstryxProps) {
   const zoom = useContext(CanvasZoomContext);
   const isPreview = useContext(PreviewModeContext);
   const { connectors: { connect }, id, actions, isEmpty, selected } = useNode((node) => ({
@@ -2972,8 +2999,14 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
               }
             : { background: (backgroundColor as string) || "var(--card)" }),
           color: (textColor as string) || undefined,
-          borderRadius: 12,
-          boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+          borderRadius: borderRadius !== undefined ? (RADIUS_TOKEN[borderRadius as string] ?? 12) : 12,
+          boxShadow:
+            shadow !== undefined && SHADOW_TOKEN[shadow as string] !== undefined
+              ? SHADOW_TOKEN[shadow as string]
+              : "0 4px 24px rgba(0,0,0,0.10)",
+          ...(opacity !== undefined && Number.isFinite(Number(opacity)) && Number(opacity) < 100
+            ? { opacity: Math.max(0, Number(opacity)) / 100 }
+            : {}),
           position: "relative",
           boxSizing: "border-box",
           overflow: "visible",
@@ -3048,10 +3081,18 @@ export function AstryxArtboard({ children, label = "Artboard", width, height, x 
             }
           : { background: (backgroundColor as string) || "var(--card)" }),
           color: (textColor as string) || undefined,
-          borderRadius: 12,
-          boxShadow: selected
-            ? "0 0 0 2px #3b82f6, 0 4px 24px rgba(0,0,0,0.10)"
-            : "0 4px 24px rgba(0,0,0,0.10)",
+          borderRadius: borderRadius !== undefined ? (RADIUS_TOKEN[borderRadius as string] ?? 12) : 12,
+          boxShadow: (() => {
+            const base =
+              shadow !== undefined && SHADOW_TOKEN[shadow as string] !== undefined
+                ? SHADOW_TOKEN[shadow as string]
+                : "0 4px 24px rgba(0,0,0,0.10)";
+            // The selection ring stays visible even when the shadow is "none".
+            return selected ? `0 0 0 2px #3b82f6${base !== "none" ? `, ${base}` : ""}` : base;
+          })(),
+          ...(opacity !== undefined && Number.isFinite(Number(opacity)) && Number(opacity) < 100
+            ? { opacity: Math.max(0, Number(opacity)) / 100 }
+            : {}),
           position: "relative",
           boxSizing: "border-box",
           transition: "box-shadow 0.15s",

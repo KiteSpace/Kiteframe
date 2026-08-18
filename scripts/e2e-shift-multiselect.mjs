@@ -119,6 +119,11 @@ await page.screenshot({ path: "/tmp/e2e-530-1-shift-multiselect.png" });
 // ── 2. Inspector switches to multi-select mode ───────────────────────────────
 const multiHeader = await page.locator('text="2 selected"').count();
 check("inspector shows '2 selected'", multiHeader >= 1, `count=${multiHeader}`);
+// The redesigned inspector is tabbed; equal-width actions live in Layout.
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
 const eq = page.locator('button[aria-label="Make selected elements equal widths"]');
 const eqEnabled = (await eq.count()) === 1 && !(await eq.isDisabled());
 check("Equal widths enabled for Shift-click selection", eqEnabled);
@@ -149,6 +154,10 @@ await alphaBtn.click();
 await page.waitForTimeout(400);
 await betaBtn.click({ modifiers: ["Shift"] });
 await page.waitForTimeout(500);
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
 const eq2 = page.locator('button[aria-label="Make selected elements equal widths"]');
 if ((await eq2.count()) === 1 && !(await eq2.isDisabled())) {
   await eq2.click();

@@ -123,10 +123,18 @@ const gapPoint = await page.evaluate(() => {
 await page.mouse.click(gapPoint.x, gapPoint.y);
 await page.waitForTimeout(500);
 
-const wrapBtn = page.locator('button[aria-label="Wrap"]');
-const noWrapBtn = page.locator('button[aria-label="No wrap"]');
+// The redesigned inspector is tabbed; the Wrap pills live in the Layout tab
+// as a radiogroup ("No wrap" / "Wrap" / "Reverse").
+await page
+  .locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]:has-text("Layout")')
+  .click();
+await page.waitForTimeout(300);
+
+const wrapGroup = page.locator('[role="radiogroup"][aria-label="Wrap"]');
+const wrapBtn = wrapGroup.locator('[role="radio"]:text-is("Wrap")');
+const noWrapBtn = wrapGroup.locator('[role="radio"]:text-is("No wrap")');
 check("Wrap control rendered for HStack", (await wrapBtn.count()) === 1 && (await noWrapBtn.count()) === 1);
-check("No wrap is the default active option", (await noWrapBtn.getAttribute("aria-pressed")) === "true");
+check("No wrap is the default active option", (await noWrapBtn.getAttribute("aria-checked")) === "true");
 check("initial flexWrap is nowrap", (await hstackWrap()) === "nowrap", `wrap=${await hstackWrap()}`);
 const rowsBefore = await buttonRows();
 check("buttons on one row before wrapping", rowsBefore === 1, `rows=${rowsBefore}`);
@@ -140,12 +148,12 @@ check("buttons flow onto multiple rows", rowsAfter > 1, `rows=${rowsAfter}`);
 await page.screenshot({ path: "/tmp/e2e-532-1-wrapped.png" });
 
 // ── 3. Wrap reverse ──────────────────────────────────────────────────────────
-await page.locator('button[aria-label="Wrap reverse"]').click();
+await wrapGroup.locator('[role="radio"]:text-is("Reverse")').click();
 await page.waitForTimeout(600);
 check("flexWrap becomes wrap-reverse", (await hstackWrap()) === "wrap-reverse", `wrap=${await hstackWrap()}`);
 
 // ── 4. Persists through save/reload ─────────────────────────────────────────
-await page.locator('button[aria-label="Wrap"]').click();
+await wrapBtn.click();
 await page.waitForTimeout(2500); // allow autosave
 await page.reload({ waitUntil: "networkidle" });
 await page.waitForTimeout(2000);
