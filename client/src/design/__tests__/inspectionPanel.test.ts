@@ -296,6 +296,24 @@ describe("style section controls", () => {
   });
 });
 
+describe("palette search shortcut", () => {
+  it("focuses component search from Cmd/Ctrl+K when the palette is visible", () => {
+    expect(editorSource).toContain("handlePaletteSearchShortcut");
+    expect(editorSource).toContain(
+      'event.key.toLowerCase() !== "k"',
+    );
+    expect(editorSource).toContain(
+      "event.preventDefault();",
+    );
+    expect(editorSource).toContain(
+      "searchInputRef.current?.focus();",
+    );
+    expect(editorSource).toContain(
+      'window.addEventListener("keydown", handlePaletteSearchShortcut)',
+    );
+  });
+});
+
 describe("multi-select behavior", () => {
   it("limits multi-select to Layout + Style sections", () => {
     expect(inspectPanelSource).toMatch(

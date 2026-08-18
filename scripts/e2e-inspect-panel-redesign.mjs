@@ -85,6 +85,14 @@ await page.goto(`${base}/designs/${designId}`, { waitUntil: "networkidle", timeo
 await page.waitForTimeout(1500);
 try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 3000 }); } catch {}
 
+// ── Palette search shortcut ───────────────────────────────────────────────────
+await page.keyboard.press("Control+k");
+await page.waitForTimeout(100);
+const searchFocused = await page.evaluate(
+  () => document.activeElement?.getAttribute("aria-label") === "Search components",
+);
+check("Cmd/Ctrl+K focuses the component search", searchFocused);
+
 // Select the button so the inspector opens.
 await page.locator('button:text-is("Target")').click();
 await page.waitForTimeout(600);

@@ -4345,6 +4345,21 @@ function LeftRail() {
 
   const showInspect = !!selected && selectionSourceCanvas && !forceComponents;
 
+  // Cmd/Ctrl+K is the palette search shortcut shown in the search field.
+  // Keep it scoped to the palette view so inspector text fields retain their
+  // normal editing behavior while the search input is not mounted.
+  useEffect(() => {
+    if (showInspect) return;
+    const handlePaletteSearchShortcut = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
+      event.preventDefault();
+      setActiveIdx(-1);
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener("keydown", handlePaletteSearchShortcut);
+    return () => window.removeEventListener("keydown", handlePaletteSearchShortcut);
+  }, [showInspect]);
+
   const setViewMode = (v: PanelView) => {
     setViewModeState(v);
     writePanelView(v);
