@@ -813,7 +813,7 @@ export function NumberPairRow({
   const innerId = useId();
   return (
     <IpRow label={label} htmlFor={innerId}>
-      <div className="flex gap-[6px] flex-1">
+      <div className="flex gap-[6px] flex-1 min-w-0">
         <NumberFieldInline {...a} />
         <NumberFieldInline {...b} />
       </div>
@@ -835,7 +835,7 @@ function NumberFieldInline({
   const isAuto = !isMixed && value == null;
 
   return (
-    <IpField>
+    <IpField className="flex-1 min-w-0">
       {prefix && (
         <span
           className="flex-none text-[10.5px] font-mono font-semibold text-muted-foreground"
