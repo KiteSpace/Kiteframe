@@ -181,16 +181,66 @@ describe("layout section controls", () => {
 });
 
 describe("stack + spacing section controls", () => {
-  it("uses word-label pills for Direction, Align and Wrap and a select for Justify", () => {
+  it("uses icon pills (IconPillRow) for Direction, Align and Wrap and a JustifySelectRow for Justify", () => {
+    // All four controls are labelled correctly.
     expect(inspectPanelSource).toContain('label="Direction"');
     expect(inspectPanelSource).toContain('label="Align"');
     expect(inspectPanelSource).toContain('label="Wrap"');
     expect(inspectPanelSource).toContain('label="Justify"');
+    // Direction and Align use IconPillRow, not the legacy plain PillRow.
+    expect(inspectPanelSource).toContain("<IconPillRow");
+    // Justify uses the new glyph-aware JustifySelectRow.
+    expect(inspectPanelSource).toContain("<JustifySelectRow");
+    // Wrap still writes all three flex-wrap values.
     expect(inspectPanelSource).toContain('setProp("wrap", v)');
-    // Wrap offers all three flex-wrap values.
     expect(inspectPanelSource).toContain('value: "nowrap"');
     expect(inspectPanelSource).toContain('value: "wrap"');
     expect(inspectPanelSource).toContain('value: "wrap-reverse"');
+  });
+
+  it("direction icons are the correct column/row SVG glyphs from the handoff", () => {
+    // Column: stacked horizontal bars.
+    expect(inspectPanelSource).toContain('DIRECTION_ICONS');
+    expect(inspectPanelSource).toContain('x="2.5" y="1.5" width="9" height="3"');
+    // Row: vertical bars side by side.
+    expect(inspectPanelSource).toContain('x="1.5" y="2.5" width="3" height="9"');
+  });
+
+  it("align icons cover Start / Center / End / Stretch", () => {
+    expect(inspectPanelSource).toContain('ALIGN_ICONS');
+    // Stretch has rules on both sides.
+    expect(inspectPanelSource).toContain('x="11.6" y="1.5" width="1.4" height="11"');
+  });
+
+  it("wrap icons cover No wrap / Wrap / Reverse", () => {
+    expect(inspectPanelSource).toContain('WRAP_ICONS');
+    // No wrap: three side-by-side rects.
+    expect(inspectPanelSource).toContain('x="1" y="5.5" width="3.4" height="3"');
+  });
+
+  it("density section uses IconPillRow with the prescribed icon set", () => {
+    expect(inspectPanelSource).toContain('DENSITY_ICONS');
+    // Density label is rendered through the icon pill group.
+    expect(inspectPanelSource).toContain('label="Density"');
+  });
+
+  it("JustifySelectRow is exported from InspectRows", () => {
+    expect(rowsSource).toContain("export function JustifySelectRow");
+    // Glyph groups cover all five justify values.
+    expect(rowsSource).toContain('"Start"');
+    expect(rowsSource).toContain('"Center"');
+    expect(rowsSource).toContain('"End"');
+    expect(rowsSource).toContain('"Space between"');
+    expect(rowsSource).toContain('"Space around"');
+  });
+
+  it("IconPillRow is exported from InspectRows with accessible radio semantics", () => {
+    expect(rowsSource).toContain("export function IconPillRow");
+    // Uses role=radiogroup and aria-checked per button.
+    expect(rowsSource).toContain('role="radiogroup"');
+    expect(rowsSource).toContain('aria-checked={isActive}');
+    // data-label on each pill so callers can read label without SVG textContent.
+    expect(rowsSource).toContain('data-label={opt.label}');
   });
 
   it("exposes density presets that write gap + padding together", () => {

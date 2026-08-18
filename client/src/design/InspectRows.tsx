@@ -552,6 +552,253 @@ export function SwitchRow({ id, label, help, value, onChange, optional }: Switch
   );
 }
 
+// ─── IconPillRow ─────────────────────────────────────────────────────────────
+/**
+ * Icon-pill group row.  Each option carries a small currentColor SVG icon
+ * beside its text label.  Active pills use the ink fill (var(--primary)),
+ * inverting icons automatically.
+ *
+ * columns: 2 for 2- or 4-option groups (ip-g2), 3 for 3- or 5-option (ip-g3).
+ */
+export interface IconPillOption {
+  value: string;
+  label: string;
+  /** Inline SVG path string(s) rendered at 14×14 with currentColor. */
+  icon: React.ReactNode;
+}
+
+export interface IconPillRowProps {
+  id?: string;
+  label?: string;
+  options: IconPillOption[];
+  value: MixedValue<string>;
+  onChange: (value: string) => void;
+  /** Override grid columns (defaults to 2 for ≤2 or 4 options, 3 otherwise) */
+  columns?: 2 | 3;
+}
+
+export function IconPillRow({ id, label, options, value, onChange, columns }: IconPillRowProps) {
+  const innerId = useId();
+  const groupId = id ?? innerId;
+  const cols = columns ?? (options.length <= 2 || options.length === 4 ? 2 : 3);
+
+  const pills = (
+    <div
+      role="radiogroup"
+      aria-label={label ?? groupId}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 4,
+        flex: 1,
+      }}
+    >
+      {options.map((opt) => {
+        const isActive = value !== MIXED && value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            data-label={opt.label}
+            onClick={() => onChange(opt.value)}
+            style={{
+              height: 32,
+              padding: "0 6px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+              border: `1px solid ${isActive ? "var(--primary)" : "var(--input)"}`,
+              borderRadius: 6,
+              background: isActive ? "var(--primary)" : "var(--card)",
+              color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)",
+              fontSize: 11,
+              fontWeight: isActive ? 600 : 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <span style={{ flex: "none", opacity: isActive ? 1 : 0.9, display: "flex" }} aria-hidden="true">
+              {opt.icon}
+            </span>
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (!label) return pills;
+
+  return (
+    <IpRow label={label} htmlFor={groupId}>
+      {pills}
+    </IpRow>
+  );
+}
+
+// ─── JustifySelectRow ────────────────────────────────────────────────────────
+/**
+ * A SelectRow with a leading glyph that reflects the current justify value.
+ * The glyph is a small SVG rendered at absolute-left of the select field.
+ */
+export interface JustifyOption {
+  value: string;
+  label: string;
+}
+
+/** Map a justify value to the correct <g> variant key in the glyph */
+function justifyGlyphVariant(value: MixedValue<string>): string {
+  if (value === MIXED) return "Center";
+  const v = value as string;
+  if (v === "start") return "Start";
+  if (v === "end") return "End";
+  if (v === "between") return "Space between";
+  if (v === "around") return "Space around";
+  return "Center";
+}
+
+export interface JustifySelectRowProps {
+  id?: string;
+  label: string;
+  options: JustifyOption[];
+  value: MixedValue<string>;
+  onChange: (v: string) => void;
+}
+
+export function JustifySelectRow({ id, label, options, value, onChange }: JustifySelectRowProps) {
+  const innerId = useId();
+  const selectId = id ?? innerId;
+  const isMixed = value === MIXED;
+  const variant = justifyGlyphVariant(value);
+
+  // All five glyph groups — only the matching one is visible via display
+  const groups: Array<{ key: string; children: React.ReactNode }> = [
+    {
+      key: "Start",
+      children: (
+        <>
+          <rect x="1" y="1" width="1.4" height="12" rx=".7" opacity=".5" />
+          <rect x="4" y="3" width="3.2" height="8" rx="1" />
+          <rect x="8.2" y="3" width="3.2" height="8" rx="1" />
+        </>
+      ),
+    },
+    {
+      key: "Center",
+      children: (
+        <>
+          <rect x="1.8" y="3" width="3.2" height="8" rx="1" />
+          <rect x="9" y="3" width="3.2" height="8" rx="1" />
+          <rect x="6.3" y="1" width="1.4" height="12" rx=".7" opacity=".5" />
+        </>
+      ),
+    },
+    {
+      key: "End",
+      children: (
+        <>
+          <rect x="11.6" y="1" width="1.4" height="12" rx=".7" opacity=".5" />
+          <rect x="2.6" y="3" width="3.2" height="8" rx="1" />
+          <rect x="6.8" y="3" width="3.2" height="8" rx="1" />
+        </>
+      ),
+    },
+    {
+      key: "Space between",
+      children: (
+        <>
+          <rect x="1" y="3" width="3.2" height="8" rx="1" />
+          <rect x="9.8" y="3" width="3.2" height="8" rx="1" />
+        </>
+      ),
+    },
+    {
+      key: "Space around",
+      children: (
+        <>
+          <rect x="2" y="3" width="3.2" height="8" rx="1" />
+          <rect x="8.8" y="3" width="3.2" height="8" rx="1" />
+          <rect x="0" y="6" width="1" height="2" rx=".5" opacity=".4" />
+          <rect x="13" y="6" width="1" height="2" rx=".5" opacity=".4" />
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <IpRow label={label} htmlFor={selectId}>
+      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        {/* Leading glyph — absolutely positioned inside the select wrapper */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="currentColor"
+          aria-hidden="true"
+          data-justify-glyph=""
+          style={{
+            position: "absolute",
+            left: 9,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            color: "var(--muted-foreground)",
+            zIndex: 1,
+          }}
+        >
+          {groups.map((g) => (
+            <g
+              key={g.key}
+              data-variant={g.key}
+              style={{ display: g.key === variant ? "block" : "none" }}
+            >
+              {g.children}
+            </g>
+          ))}
+        </svg>
+        <select
+          id={selectId}
+          value={isMixed ? "" : (value as string)}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: "100%",
+            height: 32,
+            paddingLeft: 32,
+            paddingRight: 28,
+            paddingTop: 0,
+            paddingBottom: 0,
+            background: "var(--card)",
+            border: "1px solid var(--input)",
+            borderRadius: 8,
+            fontSize: 12.5,
+            fontWeight: 500,
+            color: "var(--foreground)",
+            appearance: "none",
+            cursor: "pointer",
+            backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'><path d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23a3a399' stroke-width='1.4' stroke-linecap='round'/></svg>")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 9px center",
+          }}
+        >
+          {isMixed && (
+            <option value="" disabled>
+              Mixed
+            </option>
+          )}
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </IpRow>
+  );
+}
+
 // ─── NumberPairRow ────────────────────────────────────────────────────────────
 /** Two number fields sharing one row label (e.g. W/H or X/Y). */
 export function NumberPairRow({

@@ -212,6 +212,115 @@ await page.waitForTimeout(400);
 const renamed = await page.locator("text=Login screen").count();
 check("artboard label on canvas follows the Name field", renamed >= 1, `count=${renamed}`);
 
+// ── Graphite icon pills (handoff §7: icon BESIDE the label, label always kept) ─
+// Direction pills must each carry a 14×14 currentColor SVG *and* visible text.
+const directionPills = page.locator('[role="radiogroup"][aria-label="Direction"] button');
+const dirCount = await directionPills.count();
+const dirHasIcons = dirCount === 2 &&
+  (await directionPills.locator("svg").count()) === 2;
+const dirLabels = dirCount === 2 ? await directionPills.evaluateAll(
+  (btns) => btns.map((b) => (b.getAttribute("data-label") ?? "").trim()),
+) : [];
+check(
+  "Direction pills render SVG icon beside a kept label (data-label present)",
+  dirHasIcons && JSON.stringify(dirLabels) === JSON.stringify(["Column", "Row"]),
+  `count=${dirCount} labels=${dirLabels.join(",")}`,
+);
+const dirVisibleText = dirCount === 2 ? await directionPills.evaluateAll(
+  (btns) => btns.map((b) => b.textContent.trim()),
+) : [];
+check(
+  "Direction pill labels are visible text, not icon-only",
+  dirVisibleText.every((t) => t.length > 0),
+  dirVisibleText.join(","),
+);
+const dirSvgSpec = await directionPills.first().locator("svg").evaluate((s) => ({
+  w: s.getAttribute("width"), vb: s.getAttribute("viewBox"), fill: s.getAttribute("fill"),
+}));
+check(
+  "Direction icons are 14×14 viewBox 0 0 14 14 currentColor",
+  dirSvgSpec.w === "14" && dirSvgSpec.vb === "0 0 14 14" && dirSvgSpec.fill === "currentColor",
+  JSON.stringify(dirSvgSpec),
+);
+
+// Align renders as a 2×2 icon-pill grid with four options.
+const alignPills = page.locator('[role="radiogroup"][aria-label="Align"] button');
+check(
+  "Align is a 4-option icon pill group (each with an icon)",
+  (await alignPills.count()) === 4 && (await alignPills.locator("svg").count()) === 4,
+  `count=${await alignPills.count()}`,
+);
+
+// Wrap renders 3 icon pills.
+const wrapPills = page.locator('[role="radiogroup"][aria-label="Wrap"] button');
+check(
+  "Wrap is a 3-option icon pill group",
+  (await wrapPills.count()) === 3 && (await wrapPills.locator("svg").count()) === 3,
+  `count=${await wrapPills.count()}`,
+);
+
+// Clicking an icon pill still writes the prop: activate Row, aria-checked flips.
+await directionPills.nth(1).click();
+await page.waitForTimeout(300);
+check(
+  "clicking the Row icon pill sets aria-checked",
+  (await directionPills.nth(1).getAttribute("aria-checked")) === "true",
+);
+await directionPills.nth(0).click(); // restore Column
+await page.waitForTimeout(200);
+
+// Justify keeps a select (not pills) with a leading glyph that tracks the value.
+const glyphCount = await page.locator("svg[data-justify-glyph]").count();
+check("Justify select carries a leading glyph SVG", glyphCount === 1, `glyphs=${glyphCount}`);
+const visibleGlyphGroups = await page.locator("svg[data-justify-glyph] g").evaluateAll(
+  (gs) => gs.filter((g) => g.style.display === "block").map((g) => g.getAttribute("data-variant")),
+);
+check(
+  "exactly one Justify glyph variant is visible and matches the value",
+  visibleGlyphGroups.length === 1,
+  visibleGlyphGroups.join(","),
+);
+
+// Density is an icon pill group in Spacing.
+const densityPills = page.locator('[role="radiogroup"][aria-label="Density"] button');
+check(
+  "Density is a 4-option icon pill group",
+  (await densityPills.count()) === 4 && (await densityPills.locator("svg").count()) === 4,
+  `count=${await densityPills.count()}`,
+);
+
+// ── Artboard background: Type switcher is a plain text ip-pills group ────────
+// Per the handoff reference (properties-panel.html #ip-fillmode) the three Type
+// buttons are TEXT pills — only Direction/Align/Wrap/Density/Radius are icon pills.
+const bgTypePills = page.locator('[role="radiogroup"][aria-label="Background type"] button');
+const bgTypeLabels = await bgTypePills.allInnerTexts();
+check(
+  "background Type switcher is Color / Gradient / Image text pills (per reference HTML)",
+  JSON.stringify(bgTypeLabels) === JSON.stringify(["Color", "Gradient", "Image"]) &&
+    (await bgTypePills.locator("svg").count()) === 0,
+  bgTypeLabels.join(","),
+);
+
+// Mode disclosure: only the active mode's rows are visible.
+const fillFieldVisible = async () =>
+  await page.locator('button[aria-label^="Fill:"]:visible').count();
+const stopsVisible = async () =>
+  await page.locator('span:has-text("Stops"):visible, label:has-text("Stops"):visible').count();
+check("Color mode shows the Fill field", (await fillFieldVisible()) >= 1);
+await bgTypePills.nth(1).click(); // Gradient
+await page.waitForTimeout(300);
+check(
+  "switching to Gradient hides Fill and shows Stops",
+  (await fillFieldVisible()) === 0 && (await stopsVisible()) >= 1,
+);
+await bgTypePills.nth(2).click(); // Image
+await page.waitForTimeout(300);
+const browseVisible = await page.locator("text=browse").locator("visible=true").count();
+check("Image mode shows the browse affordance", browseVisible >= 1);
+await bgTypePills.nth(0).click(); // back to Color
+await page.waitForTimeout(300);
+check("switching back to Color restores the Fill field", (await fillFieldVisible()) >= 1);
+
 await page.screenshot({ path: "/tmp/e2e-626-inspect-artboard.png" });
 
 // ── Reload: collapse memory survives ─────────────────────────────────────────

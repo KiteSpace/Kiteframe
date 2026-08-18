@@ -126,11 +126,14 @@ import {
   ColorRow,
   SwatchRow,
   PillRow,
+  IconPillRow,
+  JustifySelectRow,
   NumberRow,
   NumberPairRow,
   SelectRow,
   SwitchRow,
   type SwatchSpec,
+  type IconPillOption,
 } from "./InspectRows";
 import { detectNewScreenIntent } from "./newScreenIntent";
 import { PreviewModeContext } from "./resolver";
@@ -1178,15 +1181,20 @@ function DraggableItem({
           : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
       }`}
       style={{
-        height: 78,
-        justifyContent: "center",
+        height: 88,
+        justifyContent: "flex-start",
+        padding: "6px 6px 5px",
         ...(virtualize
-          ? { contentVisibility: "auto", containIntrinsicSize: "auto 78px" } as React.CSSProperties
+          ? { contentVisibility: "auto", containIntrinsicSize: "auto 88px" } as React.CSSProperties
           : {}),
       }}
     >
       <ComponentPreviewThumbnail def={def} />
-      <span className="text-[9.5px] font-medium leading-tight text-foreground text-center truncate max-w-full">{def.name}</span>
+      {/* Name + description — left-aligned, matching palette reference hierarchy */}
+      <div className="w-full flex flex-col items-start gap-[1px] mt-1 min-w-0">
+        <span className="text-[9.5px] font-semibold leading-tight text-foreground truncate max-w-full">{def.name}</span>
+        <span className="text-[8.5px] font-normal leading-tight text-muted-foreground/70 truncate max-w-full">{def.description}</span>
+      </div>
     </div>
   );
 }
@@ -1385,6 +1393,21 @@ function IconPickerProp({ value, onChange }: { value: string; onChange: (v: stri
 
 const BG_SWATCHES = ["#ffffff","#f8fafc","#1e293b","#0f172a","#000000","#3b82f6","#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899"];
 
+/**
+ * Artboard background picker — Color / Gradient / Image mode switcher.
+ *
+ * Matches the Graphite handoff (Part 4 reference `properties-panel.html` is
+ * authoritative for structure):
+ *  - The Type switcher is a plain `ip-pills` group — text-only Color · Gradient ·
+ *    Image buttons, exactly as in the reference (`<div class="ip-pills"
+ *    id="ip-fillmode">`). Only Direction/Align/Wrap/Density/Radius use the
+ *    `ip-pills--icon` variant; the background type row deliberately does not.
+ *  - Only the active mode's field is visible (no conditional mounting; display:none
+ *    via the hidden prop + `[hidden]{display:none!important}` at the panel root).
+ *  - Color: IpField shell + 16px swatch + hex + 22px swatch strip + checkerboard + ring.
+ *  - Gradient: IpField "Stops" row with two swatch buttons + label; preview bar; angle.
+ *  - Image: IpField "drop / browse" placeholder; upload + URL fallbacks.
+ */
 function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, any>; setProp: (k: string, v: any) => void }) {
   const activeType: "color" | "gradient" | "image" = props.backgroundType ?? "color";
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1402,9 +1425,7 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
 
   const switchType = (t: "color" | "gradient" | "image") => {
     setProp("backgroundType", t);
-    if (t === "gradient") {
-      updateGradient(grad1, grad2, gradAngle);
-    }
+    if (t === "gradient") updateGradient(grad1, grad2, gradAngle);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1425,138 +1446,260 @@ function ArtboardBackgroundPicker({ props, setProp }: { props: Record<string, an
     if (trimmed) { setProp("backgroundImageUrl", trimmed); }
   };
 
-  const pill = (t: "color" | "gradient" | "image", label: string) => (
-    <button
-      onClick={() => switchType(t)}
-      className={`flex-1 py-0.5 text-[10px] font-medium rounded transition-colors ${
-        activeType === t
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-      }`}
-    >
-      {label}
-    </button>
+  const bgColor = props.backgroundColor as string | undefined;
+  const isTransparentBg = !bgColor || bgColor === "transparent";
+
+  // ── Mode switcher pills (ip-pills style, three columns) ───────────────────
+  const typePills = (
+    <IpRow label="Type">
+      <div
+        role="radiogroup"
+        aria-label="Background type"
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4, flex: 1 }}
+      >
+        {(["color", "gradient", "image"] as const).map((t) => {
+          const isActive = activeType === t;
+          const labels = { color: "Color", gradient: "Gradient", image: "Image" };
+          return (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              data-bg-type={t}
+              onClick={() => switchType(t)}
+              style={{
+                height: 30,
+                padding: "0 4px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: `1px solid ${isActive ? "var(--primary)" : "var(--input)"}`,
+                borderRadius: 6,
+                background: isActive ? "var(--primary)" : "var(--card)",
+                color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                fontSize: 11,
+                fontWeight: isActive ? 600 : 500,
+                cursor: "pointer",
+              }}
+            >
+              {labels[t]}
+            </button>
+          );
+        })}
+      </div>
+    </IpRow>
+  );
+
+  // ── Color mode ────────────────────────────────────────────────────────────
+  const colorMode = (
+    <div hidden={activeType !== "color" || undefined}>
+      {/* Fill field: 16px swatch + hex value */}
+      <IpRow label="Fill">
+        <IpField>
+          {/* 16px swatch */}
+          <button
+            type="button"
+            aria-label={isTransparentBg ? "Fill: Transparent" : `Fill: ${bgColor}`}
+            style={{
+              width: 16,
+              height: 16,
+              flexShrink: 0,
+              borderRadius: 4,
+              border: "1px solid rgba(20,20,24,.14)",
+              padding: 0,
+              cursor: "pointer",
+              ...(isTransparentBg
+                ? {
+                    backgroundImage:
+                      "linear-gradient(45deg,#dcdce2 25%,transparent 25% 75%,#dcdce2 75%),linear-gradient(45deg,#dcdce2 25%,transparent 25% 75%,#dcdce2 75%)",
+                    backgroundSize: "8px 8px",
+                    backgroundPosition: "0 0, 4px 4px",
+                    backgroundColor: "#fff",
+                  }
+                : { background: bgColor }),
+            }}
+          />
+          {/* Hex value */}
+          <span
+            className="flex-1 text-[12px] leading-none uppercase font-mono text-foreground"
+          >
+            {isTransparentBg ? "None" : bgColor?.toUpperCase()}
+          </span>
+          <span className="flex-none text-[10.5px] font-mono text-muted-foreground">100%</span>
+        </IpField>
+      </IpRow>
+      {/* 22px swatch strip */}
+      <div
+        className="flex flex-wrap gap-[6px] mt-[6px]"
+        role="group"
+        aria-label="Background swatches"
+        style={{ paddingLeft: 66 }}
+      >
+        {/* Transparent / Default */}
+        <button
+          type="button"
+          onClick={() => setProp("backgroundColor", undefined)}
+          aria-label="Default (transparent)"
+          aria-pressed={isTransparentBg}
+          style={{
+            width: 22, height: 22, borderRadius: 5,
+            border: "1px solid rgba(20,20,24,.12)",
+            padding: 0, cursor: "pointer",
+            backgroundImage: "linear-gradient(45deg,#dcdce2 25%,transparent 25% 75%,#dcdce2 75%),linear-gradient(45deg,#dcdce2 25%,transparent 25% 75%,#dcdce2 75%)",
+            backgroundSize: "8px 8px",
+            backgroundPosition: "0 0, 4px 4px",
+            backgroundColor: "#fff",
+            boxShadow: isTransparentBg ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--foreground)" : undefined,
+          }}
+        />
+        {BG_SWATCHES.map((hex) => {
+          const isActive = bgColor === hex;
+          return (
+            <button
+              key={hex}
+              type="button"
+              onClick={() => setProp("backgroundColor", hex)}
+              aria-label={hex}
+              aria-pressed={isActive}
+              style={{
+                width: 22, height: 22, borderRadius: 5,
+                border: "1px solid rgba(20,20,24,.12)",
+                background: hex, padding: 0, cursor: "pointer",
+                boxShadow: isActive ? "0 0 0 2px var(--card), 0 0 0 3.5px var(--foreground)" : undefined,
+              }}
+            />
+          );
+        })}
+        {/* Custom color input (dashed +) */}
+        <label
+          title="Custom color"
+          aria-label="Custom color"
+          style={{
+            width: 22, height: 22, borderRadius: 5,
+            border: "1px dashed var(--input)",
+            background: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--muted-foreground)", fontSize: 13,
+          }}
+        >
+          +
+          <input
+            type="color"
+            value={bgColor && bgColor !== "transparent" ? bgColor : "#ffffff"}
+            onChange={(e) => setProp("backgroundColor", e.target.value)}
+            style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+            tabIndex={-1}
+          />
+        </label>
+      </div>
+    </div>
+  );
+
+  // ── Gradient mode ─────────────────────────────────────────────────────────
+  const gradientMode = (
+    <div hidden={activeType !== "gradient" || undefined}>
+      {/* Preview bar */}
+      <div
+        className="w-full h-8 rounded-md mb-[6px]"
+        style={{ background: `linear-gradient(${gradAngle}deg, ${grad1}, ${grad2})`, border: "1px solid var(--border)" }}
+      />
+      {/* Stops row: two swatch buttons + label */}
+      <IpRow label="Stops">
+        <IpField>
+          <label aria-label="Stop 1" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <span style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid rgba(20,20,24,.14)", background: grad1, flexShrink: 0, display: "block" }} />
+            <input type="color" value={grad1} onChange={(e) => updateGradient(e.target.value, grad2, gradAngle)}
+              style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }} tabIndex={-1} />
+          </label>
+          <label aria-label="Stop 2" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <span style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid rgba(20,20,24,.14)", background: grad2, flexShrink: 0, display: "block" }} />
+            <input type="color" value={grad2} onChange={(e) => updateGradient(grad1, e.target.value, gradAngle)}
+              style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }} tabIndex={-1} />
+          </label>
+          <span style={{ flex: 1, fontSize: 12.5, fontFamily: "inherit", fontWeight: 400, color: "var(--muted-foreground)" }}>
+            Linear · {gradAngle}°
+          </span>
+        </IpField>
+      </IpRow>
+      {/* Angle slider */}
+      <IpRow label="Angle">
+        <IpField>
+          <input
+            type="range" min={0} max={360} value={gradAngle}
+            onChange={(e) => updateGradient(grad1, grad2, Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <span style={{ flexShrink: 0, fontSize: 10.5, fontFamily: "monospace", color: "var(--muted-foreground)", width: 32, textAlign: "right" }}>
+            {gradAngle}°
+          </span>
+        </IpField>
+      </IpRow>
+    </div>
+  );
+
+  // ── Image mode ────────────────────────────────────────────────────────────
+  const imageMode = (
+    <div hidden={activeType !== "image" || undefined}>
+      {props.backgroundImageUrl ? (
+        <>
+          <div className="relative w-full h-16 rounded-md border border-border overflow-hidden mb-[6px]">
+            <img src={props.backgroundImageUrl} alt="bg" className="w-full h-full object-cover" />
+            <button
+              onClick={() => { setProp("backgroundImageUrl", undefined); setUrlInput(""); }}
+              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] flex items-center justify-center hover:bg-black/80 transition-colors"
+              title="Remove image"
+            >×</button>
+          </div>
+        </>
+      ) : (
+        <IpRow label="Image">
+          <IpField>
+            <span style={{ flex: 1, fontSize: 12.5, fontFamily: "inherit", fontWeight: 400, color: "var(--muted-foreground)" }}>
+              Drop an image or browse
+            </span>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ flexShrink: 0, fontSize: 10, color: "var(--muted-foreground)", cursor: "pointer", padding: "2px 6px", border: "1px solid var(--input)", borderRadius: 5, background: "none" }}
+            >
+              Browse
+            </button>
+          </IpField>
+        </IpRow>
+      )}
+      {/* URL input — always available in image mode */}
+      {!props.backgroundImageUrl && (
+        <IpRow label="URL">
+          <IpField>
+            <input
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyUrl(); }}
+              placeholder="Paste image URL…"
+              className="flex-1 min-w-0 bg-transparent border-none outline-none text-[12.5px] font-mono text-foreground placeholder:text-muted-foreground/40"
+            />
+            <button
+              type="button"
+              onClick={applyUrl}
+              style={{ flexShrink: 0, fontSize: 10, color: "var(--muted-foreground)", cursor: "pointer", padding: "2px 6px", border: "1px solid var(--input)", borderRadius: 5, background: "none" }}
+            >
+              Use
+            </button>
+          </IpField>
+        </IpRow>
+      )}
+    </div>
   );
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-0.5 rounded-md border border-border p-0.5 mb-2">
-        {pill("color", "Color")}
-        {pill("gradient", "Gradient")}
-        {pill("image", "Image")}
-      </div>
-
-      {activeType === "color" && (
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => setProp("backgroundColor", undefined)}
-            title="Default"
-            style={{
-              backgroundImage: "linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%)",
-              backgroundSize: "6px 6px",
-              backgroundPosition: "0 0,0 3px,3px -3px,-3px 0px",
-              backgroundColor: "#fff",
-              boxShadow: !props.backgroundColor
-                ? "0 0 0 2px hsl(var(--background)), 0 0 0 3.5px #3b82f6"
-                : undefined,
-            }}
-            className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-          />
-          {BG_SWATCHES.map((hex) => (
-            <button
-              key={hex}
-              onClick={() => setProp("backgroundColor", hex)}
-              title={hex}
-              style={{
-                background: hex,
-                boxShadow: props.backgroundColor === hex
-                  ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${hex}`
-                  : undefined,
-              }}
-              className="w-5 h-5 rounded-md border border-black/10 transition-all hover:scale-110 flex-shrink-0"
-            />
-          ))}
-          <input
-            type="color"
-            value={props.backgroundColor && props.backgroundColor !== "transparent" ? props.backgroundColor : "#ffffff"}
-            onChange={(e) => setProp("backgroundColor", e.target.value)}
-            title="Custom color"
-            className="w-5 h-5 rounded-md border border-black/10 cursor-pointer flex-shrink-0 p-0"
-            style={{ appearance: "none", padding: 0 }}
-          />
-        </div>
-      )}
-
-      {activeType === "gradient" && (
-        <div className="flex flex-col gap-2">
-          <div
-            className="w-full h-8 rounded-md border border-border"
-            style={{ background: `linear-gradient(${gradAngle}deg, ${grad1}, ${grad2})` }}
-          />
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Stop 1</span>
-            <input type="color" value={grad1} onChange={(e) => updateGradient(e.target.value, grad2, gradAngle)}
-              className="w-6 h-5 rounded border border-black/10 cursor-pointer flex-shrink-0 p-0" />
-            <span className="text-[10px] font-mono text-muted-foreground">{grad1}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Stop 2</span>
-            <input type="color" value={grad2} onChange={(e) => updateGradient(grad1, e.target.value, gradAngle)}
-              className="w-6 h-5 rounded border border-black/10 cursor-pointer flex-shrink-0 p-0" />
-            <span className="text-[10px] font-mono text-muted-foreground">{grad2}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground w-10 flex-shrink-0">Angle</span>
-            <input
-              type="range" min={0} max={360} value={gradAngle}
-              onChange={(e) => updateGradient(grad1, grad2, Number(e.target.value))}
-              className="flex-1"
-            />
-            <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{gradAngle}°</span>
-          </div>
-        </div>
-      )}
-
-      {activeType === "image" && (
-        <div className="flex flex-col gap-2">
-          {props.backgroundImageUrl ? (
-            <>
-              <div className="relative w-full h-16 rounded-md border border-border overflow-hidden">
-                <img src={props.backgroundImageUrl} alt="bg" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => { setProp("backgroundImageUrl", undefined); setUrlInput(""); }}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] flex items-center justify-center hover:bg-black/80 transition-colors"
-                  title="Remove image"
-                >×</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2 text-[10px] rounded-md border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-              >
-                ↑ Upload image
-              </button>
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") applyUrl(); }}
-                  placeholder="Paste image URL…"
-                  className="flex-1 min-w-0 rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button
-                  onClick={applyUrl}
-                  className="px-2 py-1 text-[10px] rounded border border-border bg-muted hover:bg-accent transition-colors flex-shrink-0"
-                >Use</button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+    <div className="flex flex-col gap-[6px]">
+      {typePills}
+      {colorMode}
+      {gradientMode}
+      {imageMode}
     </div>
   );
 }
@@ -3460,6 +3603,116 @@ function LayoutSection({
   );
 }
 
+// ─── Stack / Spacing icon vocabularies ───────────────────────────────────────
+
+/** 14×14 currentColor SVG icons for Direction pills (from properties-panel.html) */
+const DIRECTION_ICONS: Record<string, React.ReactNode> = {
+  column: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2.5" y="1.5" width="9" height="3" rx="1"/>
+      <rect x="2.5" y="6" width="9" height="3" rx="1"/>
+      <rect x="2.5" y="10.5" width="9" height="2" rx="1" opacity=".45"/>
+    </svg>
+  ),
+  row: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="3" height="9" rx="1"/>
+      <rect x="6" y="2.5" width="3" height="9" rx="1"/>
+      <rect x="10.5" y="2.5" width="2" height="9" rx="1" opacity=".45"/>
+    </svg>
+  ),
+};
+
+/** 14×14 currentColor SVG icons for Align pills */
+const ALIGN_ICONS: Record<string, React.ReactNode> = {
+  start: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="1.5" width="1.4" height="11" rx=".7" opacity=".5"/>
+      <rect x="4" y="2.5" width="8" height="3" rx="1"/>
+      <rect x="4" y="8.5" width="5" height="3" rx="1"/>
+    </svg>
+  ),
+  center: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="6.3" y="1.5" width="1.4" height="11" rx=".7" opacity=".5"/>
+      <rect x="3" y="2.5" width="8" height="3" rx="1"/>
+      <rect x="4.5" y="8.5" width="5" height="3" rx="1"/>
+    </svg>
+  ),
+  end: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="11.6" y="1.5" width="1.4" height="11" rx=".7" opacity=".5"/>
+      <rect x="2" y="2.5" width="8" height="3" rx="1"/>
+      <rect x="5" y="8.5" width="5" height="3" rx="1"/>
+    </svg>
+  ),
+  stretch: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="1.5" width="1.4" height="11" rx=".7" opacity=".5"/>
+      <rect x="11.6" y="1.5" width="1.4" height="11" rx=".7" opacity=".5"/>
+      <rect x="3.6" y="2.5" width="6.8" height="3" rx="1"/>
+      <rect x="3.6" y="8.5" width="6.8" height="3" rx="1"/>
+    </svg>
+  ),
+};
+
+/** 14×14 currentColor SVG icons for Wrap pills */
+const WRAP_ICONS: Record<string, React.ReactNode> = {
+  nowrap: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="5.5" width="3.4" height="3" rx="1"/>
+      <rect x="5.3" y="5.5" width="3.4" height="3" rx="1"/>
+      <rect x="9.6" y="5.5" width="3.4" height="3" rx="1"/>
+    </svg>
+  ),
+  wrap: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="2" width="5" height="3.4" rx="1"/>
+      <rect x="7" y="2" width="5" height="3.4" rx="1"/>
+      <rect x="1" y="8.6" width="5" height="3.4" rx="1"/>
+    </svg>
+  ),
+  "wrap-reverse": (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="7" y="2" width="5" height="3.4" rx="1"/>
+      <rect x="1" y="2" width="5" height="3.4" rx="1" opacity=".45"/>
+      <rect x="7" y="8.6" width="5" height="3.4" rx="1"/>
+    </svg>
+  ),
+};
+
+/** 14×14 currentColor SVG icons for Density pills */
+const DENSITY_ICONS: Record<string, React.ReactNode> = {
+  Compact: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="3.2" width="10" height="2" rx="1"/>
+      <rect x="2" y="6.1" width="10" height="2" rx="1"/>
+      <rect x="2" y="9" width="10" height="2" rx="1"/>
+    </svg>
+  ),
+  Default: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="2.4" width="10" height="2" rx="1"/>
+      <rect x="2" y="6" width="10" height="2" rx="1"/>
+      <rect x="2" y="9.6" width="10" height="2" rx="1"/>
+    </svg>
+  ),
+  Comfortable: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="1.6" width="10" height="2" rx="1"/>
+      <rect x="2" y="6" width="10" height="2" rx="1"/>
+      <rect x="2" y="10.4" width="10" height="2" rx="1"/>
+    </svg>
+  ),
+  Spacious: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="1" width="10" height="1.8" rx=".9"/>
+      <rect x="2" y="6.1" width="10" height="1.8" rx=".9"/>
+      <rect x="2" y="11.2" width="10" height="1.8" rx=".9"/>
+    </svg>
+  ),
+};
+
 // ─── Stack section (direction / align / justify / wrap for flex containers) ──
 function StackSection({
   dn,
@@ -3480,53 +3733,63 @@ function StackSection({
   justifyOptions: LayoutOption[];
   setProp: (key: string, value: any) => void;
 }) {
+  const directionIconOptions: IconPillOption[] = [
+    { value: "column", label: "Column", icon: DIRECTION_ICONS.column },
+    { value: "row",    label: "Row",    icon: DIRECTION_ICONS.row },
+  ];
+
+  const alignIconOptions: IconPillOption[] = alignOptions.map((o) => ({
+    value: o.value,
+    label: o.value.charAt(0).toUpperCase() + o.value.slice(1),
+    icon: ALIGN_ICONS[o.value] ?? null,
+  }));
+
+  const justifySelectOptions = justifyOptions.map((o) => ({
+    value: o.value,
+    label:
+      o.value === "between" ? "Space between"
+      : o.value === "around" ? "Space around"
+      : o.value.charAt(0).toUpperCase() + o.value.slice(1),
+  }));
+
+  const wrapIconOptions: IconPillOption[] = [
+    { value: "nowrap",       label: "No wrap", icon: WRAP_ICONS.nowrap },
+    { value: "wrap",         label: "Wrap",    icon: WRAP_ICONS.wrap },
+    { value: "wrap-reverse", label: "Reverse", icon: WRAP_ICONS["wrap-reverse"] },
+  ];
+
   return (
     <div>
       <IpGroup>
         {supportsDirection && (
-          <PillRow
+          <IconPillRow
             label="Direction"
-            options={[
-              { value: "column", label: "Column" },
-              { value: "row", label: "Row" },
-            ]}
+            options={directionIconOptions}
             value={direction}
             onChange={(v) => setProp("direction", v)}
+            columns={2}
           />
         )}
-        <PillRow
+        <IconPillRow
           label="Align"
-          options={alignOptions.map((o) => ({
-            value: o.value,
-            label: o.value.charAt(0).toUpperCase() + o.value.slice(1),
-          }))}
+          options={alignIconOptions}
           value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
           onChange={(v) => setProp("align", v)}
+          columns={2}
         />
-        <SelectRow
+        <JustifySelectRow
           label="Justify"
-          options={justifyOptions.map((o) => ({
-            value: o.value,
-            label:
-              o.value === "between"
-                ? "Space between"
-                : o.value === "around"
-                ? "Space around"
-                : o.value.charAt(0).toUpperCase() + o.value.slice(1),
-          }))}
+          options={justifySelectOptions}
           value={selected.props.justify ?? "start"}
           onChange={(v) => setProp("justify", v)}
         />
         {!isRoot && (
-          <PillRow
+          <IconPillRow
             label="Wrap"
-            options={[
-              { value: "nowrap", label: "No wrap" },
-              { value: "wrap", label: "Wrap" },
-              { value: "wrap-reverse", label: "Reverse" },
-            ]}
+            options={wrapIconOptions}
             value={selected.props.wrap ?? "nowrap"}
             onChange={(v) => setProp("wrap", v)}
+            columns={3}
           />
         )}
       </IpGroup>
@@ -3548,6 +3811,12 @@ function SpacingSection({
   activeSpacing: { label: string; gap: number; padding: number } | undefined;
   setProp: (key: string, value: any) => void;
 }) {
+  const densityIconOptions: IconPillOption[] = DENSITY_PRESETS.map((p) => ({
+    value: p.label,
+    label: p.label,
+    icon: DENSITY_ICONS[p.label] ?? null,
+  }));
+
   if (!supportsPadding) {
     // Stack/HStack have no padding prop — only gap.
     return (
@@ -3567,8 +3836,9 @@ function SpacingSection({
   return (
     <div>
       <IpGroup note="presets set gap + padding">
-        <PillRow
-          options={DENSITY_PRESETS.map((p) => ({ value: p.label, label: p.label }))}
+        <IconPillRow
+          label="Density"
+          options={densityIconOptions}
           value={activeSpacing?.label ?? MIXED}
           onChange={(label) => {
             const preset = DENSITY_PRESETS.find((p) => p.label === label);
@@ -3577,6 +3847,7 @@ function SpacingSection({
               setProp("padding", preset.padding);
             }
           }}
+          columns={2}
         />
         <NumberPairRow
           label="Gap/Pad"
