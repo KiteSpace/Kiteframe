@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, ArrowUp, Lock, ChevronDown, Paintbrush, GitBranch, Check } from "lucide-react";
+import { FileText, ArrowUp, Lock, ChevronDown, Paperclip, Paintbrush, GitBranch, Check } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import {
   DropdownMenu,
@@ -303,22 +303,10 @@ export function HomeHero({
                       : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
                 } disabled:opacity-50`}
                 title={isImageLocked ? "Upgrade to Advanced to use image-to-workflow" : undefined}
+                aria-label={isImageLocked ? "Upgrade to attach an image" : "Attach image"}
                 data-testid="button-hero-image"
               >
-                {isImageLocked ? <Lock className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                <div className="text-left">
-                  <div className="font-medium text-xs flex items-center gap-1">
-                    Image
-                    {isImageLocked && <span className="text-[9px] px-1 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded font-medium">Advanced</span>}
-                  </div>
-                  <div className="text-[10px] opacity-70">
-                    {isImageLocked
-                      ? "Upgrade to use"
-                      : !canAddMoreImages
-                        ? "1/1 added"
-                        : `${context.attachments.filter((a) => a.type === "image").length}/1 added`}
-                  </div>
-                </div>
+                {isImageLocked ? <Lock className="w-4 h-4" /> : <Paperclip className="w-4 h-4" />}
               </button>
               <input
                 ref={fileInputRef}
