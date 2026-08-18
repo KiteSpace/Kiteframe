@@ -163,6 +163,11 @@ export function HomeHero({
     ? "Do you have any additional details to add before we get started?"
     : "Describe your workflow, upload a photo, or start brainstorming with KiteAI";
 
+  const generationModeButtonClass =
+    generationMode === "design"
+      ? "bg-purple-600 hover:bg-purple-700"
+      : "bg-blue-600 hover:bg-blue-700";
+
   return (
     <FullBleedSection className="mb-10">
       {/* <div className="absolute inset-0 kiteframe-ambient-gradient" /> */}
@@ -180,9 +185,52 @@ export function HomeHero({
             </div>
           )}
           <div className="p-6 pb-20">
-            <h1 className="text-2xl font-bold text-foreground mb-2">
-              What are we working on today?
-            </h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+              <h1 className="text-2xl font-bold text-foreground">
+                What are we working on today?
+              </h1>
+              {onGenerationModeChange && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isDisabled}
+                      className={`flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${generationModeButtonClass}`}
+                      data-testid="button-generation-mode"
+                    >
+                      {generationMode === "design" ? (
+                        <Paintbrush className="w-3.5 h-3.5" />
+                      ) : (
+                        <GitBranch className="w-3.5 h-3.5" />
+                      )}
+                      <span>{generationMode === "design" ? "Design" : "Workflow"}</span>
+                      <ChevronDown className="w-3 h-3 opacity-80" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40">
+                    <DropdownMenuItem
+                      onClick={() => onGenerationModeChange("workflow")}
+                      className="flex items-center gap-2"
+                    >
+                      <GitBranch className="w-4 h-4" />
+                      <span>Workflow</span>
+                      {generationMode === "workflow" && (
+                        <Check className="w-3.5 h-3.5 ml-auto text-primary" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onGenerationModeChange("design")}
+                      className="flex items-center gap-2"
+                    >
+                      <Paintbrush className="w-4 h-4" />
+                      <span>Design</span>
+                      {generationMode === "design" && (
+                        <Check className="w-3.5 h-3.5 ml-auto text-primary" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
 
             {context.attachments.length > 0 && (
               <div className="mb-4">
@@ -297,47 +345,6 @@ export function HomeHero({
             </div>
 
             <div className="flex items-center gap-2">
-              {onGenerationModeChange && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      disabled={isDisabled}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      data-testid="button-generation-mode"
-                    >
-                      {generationMode === "design" ? (
-                        <Paintbrush className="w-3.5 h-3.5" />
-                      ) : (
-                        <GitBranch className="w-3.5 h-3.5" />
-                      )}
-                      <span>{generationMode === "design" ? "Design" : "Workflow"}</span>
-                      <ChevronDown className="w-3 h-3 opacity-60" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                      onClick={() => onGenerationModeChange("workflow")}
-                      className="flex items-center gap-2"
-                    >
-                      <GitBranch className="w-4 h-4" />
-                      <span>Workflow</span>
-                      {generationMode === "workflow" && (
-                        <Check className="w-3.5 h-3.5 ml-auto text-primary" />
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onGenerationModeChange("design")}
-                      className="flex items-center gap-2"
-                    >
-                      <Paintbrush className="w-4 h-4" />
-                      <span>Design</span>
-                      {generationMode === "design" && (
-                        <Check className="w-3.5 h-3.5 ml-auto text-primary" />
-                      )}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
               <button
                 onClick={handleStartDesigning}
                 disabled={!canSubmit}
