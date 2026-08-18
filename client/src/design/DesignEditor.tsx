@@ -4,7 +4,7 @@ import { _multiSelRef, publishMultiSelection, useMultiSelectionIds } from "./mul
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
 import { Trash2, Search, X, Loader2, AlertCircle, ZoomIn, ZoomOut, Maximize2, ArrowUp, Layers, Square, Type, AlignLeft, LayoutTemplate, Minus, ToggleLeft, ChevronRight, ChevronLeft, ChevronDown, StickyNote, ListTree, Sparkles, MessageCirclePlus, Upload, ImagePlus, LayoutGrid, LayoutList, Clock, Play, PenTool, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalSpaceBetween, AlignHorizontalSpaceAround, AlignVerticalSpaceBetween, AlignVerticalSpaceAround, StretchHorizontal, StretchVertical, WrapText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   readDesignChat,
   saveDesignChat,
@@ -8006,7 +8006,6 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
                 <ListTree size={14} />Layers
               </TabsTrigger>
             </TabsList>
-            <ScrollBar orientation="horizontal" className="h-1.5" />
           </ScrollArea>
         </div>
 
