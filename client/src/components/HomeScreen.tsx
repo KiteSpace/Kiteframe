@@ -52,6 +52,7 @@ import { useCreditsGate } from "@/hooks/useCreditsGate";
 import { useSubscription } from "@/hooks/useSubscription";
 import { HomeHero } from "./HomeHero";
 import { useAuth } from "@/hooks/useAuth";
+import { usePromptContextStore } from "@/contexts/PromptContextStore";
 import { DesignProjectThumbnail } from "./DesignProjectThumbnail";
 import {
   stashPendingTranscript,
@@ -240,6 +241,7 @@ export function HomeScreen({
 
   const { user: firebaseUser } = useAuth();
   const { isAdvanced, isAdmin } = useSubscription();
+  const { context: promptContext, clearStore: clearPromptStore } = usePromptContextStore();
 
   const modeStorageKey = `${HOME_MODE_STORAGE_KEY}:${firebaseUser?.uid ?? "anon"}`;
 
@@ -299,12 +301,41 @@ export function HomeScreen({
         setDesignError(null);
         setIsDesignGenerating(true);
         try {
-          const genRes = await fetch("/api/ai/design", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ prompt }),
-          });
+          // If the user attached a screenshot, use the vision endpoint instead.
+          const imageAttachment = promptContext.attachments.find(
+            (a) => a.type === "image" && a.status === "ready" && a.file,
+          );
+
+          let genRes: Response;
+          if (imageAttachment?.file) {
+            const imageBase64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const dataUrl = reader.result as string;
+                // Strip the "data:<mime>;base64," prefix
+                resolve(dataUrl.split(",")[1] ?? "");
+              };
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(imageAttachment.file!);
+            });
+            genRes = await fetch("/api/ai/design-from-image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                imageBase64,
+                mimeType: imageAttachment.file!.type || "image/png",
+                frameLabel: prompt.trim() || "Screen 1",
+              }),
+            });
+          } else {
+            genRes = await fetch("/api/ai/design", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ prompt }),
+            });
+          }
           const genData = await genRes.json();
           if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
 
@@ -354,6 +385,9 @@ export function HomeScreen({
             // Never let transcript bookkeeping break a successful generation.
           }
 
+          // Clear the attachment store now that the image has been consumed.
+          clearPromptStore();
+
           if (onOpenDesign) {
             onOpenDesign(createData.id);
           } else {
@@ -381,6 +415,10 @@ export function HomeScreen({
       openCreditsDialog,
       navigate,
       generationMode,
+      promptContext.attachments,
+      clearPromptStore,
+      firebaseUser?.uid,
+      onOpenDesign,
     ],
   );
 
