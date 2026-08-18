@@ -1175,23 +1175,32 @@ function DraggableItem({
       }}
       onDragStart={(e) => { try { e.dataTransfer.setData("application/x-component", def.id); } catch {} }}
       data-component-id={def.id}
-      className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 cursor-grab active:cursor-grabbing transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+      className={`flex flex-col items-center gap-1.5 cursor-grab active:cursor-grabbing transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         active
-          ? "border-primary/60 bg-primary/10 ring-2 ring-primary/40"
-          : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
+          ? "ring-2 ring-primary/40"
+          : ""
       }`}
       style={{
         height: 88,
         justifyContent: "flex-start",
-        padding: "6px 6px 5px",
         ...(virtualize
           ? { contentVisibility: "auto", containIntrinsicSize: "auto 88px" } as React.CSSProperties
           : {}),
       }}
     >
-      <ComponentPreviewThumbnail def={def} />
-      {/* Name + description — left-aligned, matching palette reference hierarchy */}
-      <div className="w-full flex flex-col items-start gap-[1px] mt-1 min-w-0">
+      {/* The border belongs to the thumbnail frame only. Text sits beneath it,
+          outside the tile, matching the Graphite palette reference. */}
+      <div
+        className={`w-full h-[52px] shrink-0 overflow-hidden rounded-xl border transition-colors ${
+          active
+            ? "border-primary/60 bg-primary/10"
+            : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
+        }`}
+      >
+        <ComponentPreviewThumbnail def={def} />
+      </div>
+      {/* Name + description are intentionally outside the bordered thumbnail. */}
+      <div className="w-full flex flex-col items-start gap-[1px] min-w-0">
         <span className="text-[9.5px] font-semibold leading-tight text-foreground truncate max-w-full">{def.name}</span>
         <span className="text-[8.5px] font-normal leading-tight text-muted-foreground/70 truncate max-w-full">{def.description}</span>
       </div>
