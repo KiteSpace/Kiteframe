@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, ArrowUp, Lock, ChevronDown, Layers, GitBranch, Check } from "lucide-react";
+import { Upload, FileText, ArrowUp, Lock, ChevronDown, Paintbrush, GitBranch, Check } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import {
   DropdownMenu,
@@ -306,11 +306,11 @@ export function HomeHero({
                       data-testid="button-generation-mode"
                     >
                       {generationMode === "design" ? (
-                        <Layers className="w-3.5 h-3.5" />
+                        <Paintbrush className="w-3.5 h-3.5" />
                       ) : (
                         <GitBranch className="w-3.5 h-3.5" />
                       )}
-                      <span>{generationMode === "design" ? "Interface" : "Workflow"}</span>
+                      <span>{generationMode === "design" ? "Design" : "Workflow"}</span>
                       <ChevronDown className="w-3 h-3 opacity-60" />
                     </button>
                   </DropdownMenuTrigger>
@@ -329,8 +329,8 @@ export function HomeHero({
                       onClick={() => onGenerationModeChange("design")}
                       className="flex items-center gap-2"
                     >
-                      <Layers className="w-4 h-4" />
-                      <span>Interface</span>
+                      <Paintbrush className="w-4 h-4" />
+                      <span>Design</span>
                       {generationMode === "design" && (
                         <Check className="w-3.5 h-3.5 ml-auto text-primary" />
                       )}
