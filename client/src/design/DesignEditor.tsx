@@ -1188,13 +1188,13 @@ function DraggableItem({
           : {}),
       }}
     >
-      {/* The border belongs to the thumbnail frame only. Text sits beneath it,
-          outside the tile, matching the Graphite palette reference. */}
+      {/* The filled thumbnail frame keeps text outside the tile, matching the
+          Graphite palette reference. */}
       <div
-        className={`w-full h-[52px] shrink-0 overflow-hidden rounded-xl border transition-colors ${
+        className={`w-full h-[52px] shrink-0 overflow-hidden rounded-xl bg-muted transition-colors ${
           active
-            ? "border-primary/60 bg-primary/10"
-            : "border-border bg-background hover:border-primary/30 hover:bg-primary/5"
+            ? "ring-2 ring-primary/40"
+            : "hover:bg-muted/80"
         }`}
       >
         <ComponentPreviewThumbnail def={def} />
