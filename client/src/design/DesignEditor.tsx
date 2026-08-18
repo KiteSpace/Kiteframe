@@ -4045,21 +4045,11 @@ function LeftRail() {
       className="w-[370px] shrink-0 flex flex-col border-r border-border bg-background overflow-hidden"
       aria-label={showInspect ? "Inspect panel" : "Component palette"}
     >
-      {/* Fixed header — does not scroll */}
-      <div className="shrink-0 border-b border-border">
-        {showInspect ? (
-          /* Inspect header: Back chip only — InspectPanel renders its own name/chip/tabs */
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-[12px] font-semibold text-foreground">Properties</span>
-            <button
-              onClick={() => setForceComponents(true)}
-              className="flex items-center gap-1 text-[11px] font-medium text-info hover:text-info/80 transition-colors"
-            >
-              ‹ Components
-            </button>
-          </div>
-        ) : (
-          /* Palette header: 38px search + ⌘K badge, 30px icon view toggle, chips row */
+      {/* Fixed palette header — does not scroll. Selected nodes show the
+          inspector directly without the redundant Properties header row. */}
+      {!showInspect && (
+        <div className="shrink-0 border-b border-border">
+          {/* Palette header: 38px search + ⌘K badge, 30px icon view toggle, chips row */}
           <div className="flex flex-col gap-3 px-4 py-3.5">
             {/* Search row + view toggle */}
             <div className="flex items-center gap-2">
@@ -4166,8 +4156,8 @@ function LeftRail() {
               })}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Body — scrollable */}
       <div
