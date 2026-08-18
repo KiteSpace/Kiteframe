@@ -266,7 +266,7 @@ function PreviewThumbnail({ name, children }: { name: string; children: ReactNod
   return (
     <PreviewErrorBoundary name={name}>
       <div
-        className="w-full h-[52px] overflow-hidden flex items-center justify-center"
+        className="w-full h-[104px] overflow-hidden flex items-center justify-center"
         style={{ pointerEvents: "none", userSelect: "none" }}
       >
         <div style={{ transform: "scale(0.65)", transformOrigin: "center center", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1114,11 +1114,11 @@ function ComponentPreviewThumbnail({ def }: { def: ComponentDef }) {
       </PreviewThumbnail>
     );
   }
-  // Glyph fallback: centred in the same 52px stage for visual consistency.
+  // Glyph fallback: centred in the same 104px stage for visual consistency.
   return (
     <div
       aria-hidden="true"
-      className="w-full h-[52px] overflow-hidden flex items-center justify-center"
+      className="w-full h-[104px] overflow-hidden flex items-center justify-center"
       style={{ pointerEvents: "none" }}
     >
       <GlyphTile def={def} size={38} />
@@ -1181,17 +1181,17 @@ function DraggableItem({
           : ""
       }`}
       style={{
-        height: 88,
+        height: 140,
         justifyContent: "flex-start",
         ...(virtualize
-          ? { contentVisibility: "auto", containIntrinsicSize: "auto 88px" } as React.CSSProperties
+          ? { contentVisibility: "auto", containIntrinsicSize: "auto 140px" } as React.CSSProperties
           : {}),
       }}
     >
       {/* The filled thumbnail frame keeps text outside the tile, matching the
           Graphite palette reference. */}
       <div
-        className={`w-full h-[52px] shrink-0 overflow-hidden rounded-xl bg-muted transition-colors ${
+        className={`w-full h-[104px] shrink-0 overflow-hidden rounded-xl bg-muted transition-colors ${
           active
             ? "ring-2 ring-primary/40"
             : "hover:bg-muted/80"
