@@ -1,0 +1,40 @@
+{
+  "version": "2.1.0",
+  "format": "kiteframe-workflow",
+  "exportedAt": "2026-07-27T22:35:46.511Z",
+  "metadata": {
+    "name": "Browse Tool Library — Interface v2",
+    "description": "",
+    "createdAt": "2026-07-27T22:35:46.511Z",
+    "modifiedAt": "2026-07-27T22:35:46.511Z"
+  },
+  "workflow": {
+    "nodes": [],
+    "edges": [],
+    "canvasObjects": [],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  },
+  "documentation": {
+    "workflowNames": {
+      "tab-1767824562246-iiko2y5wv": "Untitled",
+      "tab-1768505865123-ai99wmu3r": "Complex Decision-Driven Data Pipeline",
+      "tab-1768521505063-ppzao9v59": "Test Case Development and Execution Pipeline",
+      "tab-1779228985862-nm3tikkzg": "Test Case Requirements",
+      "tab-1779487214618-z7kkvn4w3": "Browse Tool Library",
+      "tab-1779487651371-ynwpcswxo": "Untitled — 2026-05-22",
+      "tab-1785188453190-084gtkqzl": "Untitled — 2026-05-19",
+      "tab-1785188508287-z18orbk0i": "Browse Tool Library — Interface",
+      "tab-1785188552405-hiyem1m25": "Untitled — 2026-05-19 — Interface",
+      "tab-1785190570294-4qq6bfnwh": "Untitled — 2026-05-19",
+      "tab-1785190645537-de1usdqh5": "Browse Tool Library — Interface",
+      "tab-1785191619814-05lgufy0m": "Browse Tool Library — Interface v2"
+    },
+    "projectDescription": ""
+  },
+  "plugins": [],
+  "checksum": "4wna2y"
+}

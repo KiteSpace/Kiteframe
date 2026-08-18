@@ -1,0 +1,972 @@
+import * as client from "openid-client";
+import { Strategy, type VerifyFunction } from "openid-client/passport";
+import passport from "passport";
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import session from "express-session";
+import type { Express, RequestHandler } from "express";
+import memoize from "memoizee";
+import connectPg from "connect-pg-simple";
+import { storage } from "./storage";
+import { db } from "./db";
+import { users, oauthProviders, userGroups, userGroupMemberships } from "@shared/schema";
+import { eq, and, count, not, inArray } from "drizzle-orm";
+import { authRateLimiter } from "./middleware/rateLimiter";
+import { sendWaitlistConfirmationEmail } from "./emailService";
+import crypto from "crypto";
+
+// Extend Passport's Express.User to include the banned sentinel so strategy
+// callbacks can return { _banned: true } without unsafe `as any` casts.
+declare global {
+  namespace Express {
+    interface User {
+      _banned?: true;
+    }
+  }
+}
+
+const handoffTokens = new Map<string, { user: any; expiresAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of Array.from(handoffTokens.entries())) {
+    if (data.expiresAt < now) handoffTokens.delete(token);
+  }
+}, 60_000);
+
+// ---------------------------------------------------------------------------
+// Ban check cache — 60-second in-memory TTL keyed by lowercased email
+// ---------------------------------------------------------------------------
+interface BanCacheEntry { banned: boolean; expiresAt: number }
+const banCache = new Map<string, BanCacheEntry>();
+const BAN_CACHE_TTL_MS = 60_000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of Array.from(banCache.entries())) {
+    if (entry.expiresAt < now) banCache.delete(key);
+  }
+}, 60_000);
+
+async function isBannedEmail(email: string | undefined | null): Promise<boolean> {
+  if (!email) return false;
+  const key = email.toLowerCase();
+  const cached = banCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.banned;
+  const row = await storage.getBannedEmail(key);
+  const banned = !!row;
+  banCache.set(key, { banned, expiresAt: Date.now() + BAN_CACHE_TTL_MS });
+  return banned;
+}
+
+export function invalidateBanCache(email: string): void {
+  banCache.delete(email.toLowerCase());
+}
+
+function isAdminEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  return adminEmails.includes(email.toLowerCase());
+}
+
+const BETA_GROUP_NAME = 'Beta';
+
+export async function getBetaSlots(): Promise<{ count: number; cap: number | null; shouldAutoApprove: boolean }> {
+  const capEnv = process.env.BETA_SIGNUP_CAP;
+  const cap = capEnv ? parseInt(capEnv, 10) : null;
+
+  // Only count organic signups (isBeta=true but NOT manually added via the Beta group)
+  const betaGroupMemberIds = db
+    .select({ userId: userGroupMemberships.userId })
+    .from(userGroupMemberships)
+    .innerJoin(userGroups, eq(userGroupMemberships.groupId, userGroups.id))
+    .where(eq(userGroups.name, BETA_GROUP_NAME));
+
+  const [{ value: betaCount }] = await db
+    .select({ value: count() })
+    .from(users)
+    .where(and(
+      eq(users.isBeta, true),
+      not(inArray(users.id, betaGroupMemberIds))
+    ));
+
+  const shouldAutoApprove = cap !== null && !isNaN(cap) && betaCount < cap;
+  return { count: betaCount, cap: cap && !isNaN(cap) ? cap : null, shouldAutoApprove };
+}
+
+const getOidcConfig = memoize(
+  async () => {
+    return await client.discovery(
+      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
+      process.env.REPL_ID!
+    );
+  },
+  { maxAge: 3600 * 1000 }
+);
+
+export function getSession() {
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  // Always use secure cookies on Replit (HTTPS) or in production
+  const isSecure = !!process.env.REPL_ID || process.env.NODE_ENV === 'production';
+  
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
+  });
+  
+  console.log('[SESSION] Cookie config:', { 
+    secure: isSecure, 
+    sameSite: 'lax', 
+    NODE_ENV: process.env.NODE_ENV,
+    REPL_ID: !!process.env.REPL_ID,
+    REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
+  });
+  
+  return session({
+    secret: process.env.SESSION_SECRET!,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    proxy: true,
+    cookie: {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+      maxAge: sessionTtl,
+    },
+  });
+}
+
+function updateUserSession(
+  user: any,
+  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
+) {
+  user.claims = tokens.claims();
+  user.access_token = tokens.access_token;
+  user.refresh_token = tokens.refresh_token;
+  user.expires_at = user.claims?.exp;
+}
+
+async function upsertUser(claims: any) {
+  const replitProviderId = claims["sub"];
+  const email = claims["email"];
+  // OIDC `email_verified` is a boolean indicating the IdP has verified the
+  // user controls the email. We require this before linking by email; an
+  // unverified email could be controlled by anyone and would enable
+  // account takeover by linking into a pre-existing record.
+  const emailVerified = claims["email_verified"] === true;
+
+  // First, check if this Replit provider ID is already linked to a user
+  const existingProvider = await db.query.oauthProviders.findFirst({
+    where: and(
+      eq(oauthProviders.provider, 'replit'),
+      eq(oauthProviders.providerId, replitProviderId)
+    ),
+  });
+
+  let dbUser;
+
+  if (existingProvider) {
+    // Update last used and return the existing user
+    await db.update(oauthProviders)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(oauthProviders.id, existingProvider.id));
+
+    dbUser = await db.query.users.findFirst({
+      where: eq(users.id, existingProvider.userId),
+    });
+  } else {
+    // Look up an existing user by email ONLY if the IdP has verified that
+    // email. Otherwise we'd auto-link unverified claims to an existing
+    // account = account takeover.
+    if (email && emailVerified) {
+      dbUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
+    } else if (email && !emailVerified) {
+      console.warn(
+        '[AUTH] Replit OIDC email not verified — refusing to auto-link by email:',
+        email,
+      );
+    }
+
+    if (!dbUser) {
+      // No existing user found — check beta cap before creating
+      const betaSlots = await getBetaSlots();
+      const autoApprove = betaSlots.shouldAutoApprove || isAdminEmail(email);
+      const [newUser] = await db.insert(users).values({
+        id: replitProviderId,
+        email: email,
+        firstName: claims["first_name"],
+        lastName: claims["last_name"],
+        profileImageUrl: claims["profile_image_url"],
+        authProvider: 'replit',
+        authProviderId: replitProviderId,
+        subscriptionTier: 'free',
+        subscriptionStatus: 'active',
+        isBeta: autoApprove,
+        waitlistRequestedAt: autoApprove ? null : new Date(),
+      }).returning();
+      if (autoApprove) {
+        console.log(`[BETA] Auto-approved new user ${email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+      } else {
+        sendWaitlistConfirmationEmail(email, claims["first_name"]).catch(console.error);
+      }
+      dbUser = newUser;
+    } else {
+      // Existing user found by email, update their profile info
+      const updateData: any = {
+        firstName: claims["first_name"] || dbUser.firstName,
+        lastName: claims["last_name"] || dbUser.lastName,
+        profileImageUrl: claims["profile_image_url"] || dbUser.profileImageUrl,
+        authProvider: 'replit',
+        authProviderId: replitProviderId,
+        updatedAt: new Date(),
+      };
+      // Also add to waitlist if not already on waitlist and not beta
+      if (!dbUser.waitlistRequestedAt && !dbUser.isBeta) {
+        updateData.waitlistRequestedAt = new Date();
+      }
+      const [updatedUser] = await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, dbUser.id))
+        .returning();
+      dbUser = updatedUser;
+    }
+
+    // Link the Replit OAuth provider to the user
+    await linkOAuthProvider(dbUser!.id, {
+      provider: 'replit',
+      providerId: replitProviderId,
+      email: email,
+      displayName: `${claims["first_name"] || ''} ${claims["last_name"] || ''}`.trim() || email,
+      profileImageUrl: claims["profile_image_url"],
+    });
+  }
+  
+  return dbUser!;
+}
+
+type OAuthProfile = {
+  provider: 'google' | 'github' | 'replit';
+  providerId: string;
+  email?: string;
+  // True only when the upstream IdP has confirmed the user controls the email
+  // (Google `verified`, GitHub `verified`, OIDC `email_verified`). Used as a
+  // hard gate on linking by email — see findOrCreateUser. An unverified email
+  // could be supplied by a malicious account and silently merge into an
+  // existing record.
+  emailVerified?: boolean;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+};
+
+async function linkOAuthProvider(userId: string, profile: OAuthProfile) {
+  const existing = await db.query.oauthProviders.findFirst({
+    where: and(
+      eq(oauthProviders.userId, userId),
+      eq(oauthProviders.provider, profile.provider)
+    ),
+  });
+
+  if (!existing) {
+    await db.insert(oauthProviders).values({
+      userId,
+      provider: profile.provider,
+      providerId: profile.providerId,
+      email: profile.email,
+      displayName: profile.displayName,
+      profileImageUrl: profile.profileImageUrl,
+    });
+  } else {
+    await db.update(oauthProviders)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(oauthProviders.id, existing.id));
+  }
+}
+
+async function findOrCreateUser(profile: OAuthProfile): Promise<{ user: any; isNewUser: boolean }> {
+  const existingProvider = await db.query.oauthProviders.findFirst({
+    where: and(
+      eq(oauthProviders.provider, profile.provider),
+      eq(oauthProviders.providerId, profile.providerId)
+    ),
+  });
+
+  if (existingProvider) {
+    await db.update(oauthProviders)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(oauthProviders.id, existingProvider.id));
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, existingProvider.userId),
+    });
+    return { user, isNewUser: false };
+  }
+
+  let user = null;
+  // Look up an existing user by email ONLY if the IdP confirmed the user
+  // owns this email. If the email is unverified we MUST NOT auto-link
+  // into a pre-existing account — doing so would let an attacker who
+  // claims an email at a third-party IdP take over the matching account.
+  if (profile.email && profile.emailVerified) {
+    user = await db.query.users.findFirst({
+      where: eq(users.email, profile.email),
+    });
+  } else if (profile.email && !profile.emailVerified) {
+    console.warn(
+      `[AUTH] ${profile.provider} email not verified — refusing to auto-link by email:`,
+      profile.email,
+    );
+  }
+
+  let isNewUser = false;
+
+  if (!user) {
+    // Check beta cap before creating
+    const betaSlots = await getBetaSlots();
+    const autoApprove = betaSlots.shouldAutoApprove || isAdminEmail(profile.email);
+    const [newUser] = await db.insert(users).values({
+      email: profile.email,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      profileImageUrl: profile.profileImageUrl,
+      authProvider: profile.provider,
+      authProviderId: profile.providerId,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'active',
+      isBeta: autoApprove,
+      waitlistRequestedAt: autoApprove ? null : new Date(),
+    }).returning();
+    if (autoApprove) {
+      console.log(`[BETA] Auto-approved new user ${profile.email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
+    } else {
+      sendWaitlistConfirmationEmail(profile.email, profile.firstName).catch(console.error);
+    }
+    user = newUser;
+    isNewUser = true;
+  } else if (!user.waitlistRequestedAt && !user.isBeta) {
+    await db.update(users)
+      .set({ waitlistRequestedAt: new Date() })
+      .where(eq(users.id, user.id));
+    user = { ...user, waitlistRequestedAt: new Date() };
+    sendWaitlistConfirmationEmail(user.email!, user.firstName).catch(console.error);
+  }
+
+  await linkOAuthProvider(user!.id, profile);
+  return { user, isNewUser };
+}
+
+export async function setupAuth(app: Express) {
+  app.set("trust proxy", 1);
+  app.use(getSession());
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  const config = await getOidcConfig();
+
+  const verify: VerifyFunction = async (
+    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+    verified: passport.AuthenticateCallback
+  ) => {
+    const claims = tokens.claims();
+    // Ban check BEFORE user creation — blocked emails never get a users row
+    const claimEmail = claims.email as string | undefined;
+    if (claimEmail && await isBannedEmail(claimEmail)) {
+      await storage.incrementBanLoginAttempts(claimEmail);
+      console.warn('[AUTH] Replit login blocked pre-creation — banned email:', claimEmail);
+      return verified(null, { _banned: true });
+    }
+    const dbUser = await upsertUser(claims);
+    const isAdmin = isAdminEmail(dbUser.email);
+    const user: any = { 
+      id: dbUser.id,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      profileImageUrl: dbUser.profileImageUrl,
+      subscriptionTier: dbUser.subscriptionTier,
+      subscriptionStatus: dbUser.subscriptionStatus,
+      isBeta: dbUser.isBeta,
+      isAdmin,
+    };
+    updateUserSession(user, tokens);
+    verified(null, user);
+  };
+
+  const registeredStrategies = new Set<string>();
+
+  // Get the Replit-controlled domain for OAuth callback
+  // REPLIT_DEV_DOMAIN is available in development, REPLIT_DOMAINS in production
+  const getReplitCallbackDomain = () => {
+    // In production deployments, REPLIT_DOMAINS contains the replit.app domain
+    // Format: "custom.domain.com,xxx.replit.app" or just "xxx.replit.app"
+    const domains = process.env.REPLIT_DOMAINS?.split(',') || [];
+    const replitDomain = domains.find(d => d.includes('replit.app') || d.includes('replit.dev'));
+    if (replitDomain) return replitDomain.trim();
+    
+    // Fallback to REPLIT_DEV_DOMAIN for development
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      return process.env.REPLIT_DEV_DOMAIN;
+    }
+    
+    return null;
+  };
+
+  const ensureStrategy = (domain: string) => {
+    // Always use the Replit-controlled domain for callback URL
+    // This is required because Replit's OIDC only accepts callbacks from registered domains
+    const callbackDomain = getReplitCallbackDomain() || domain;
+    const strategyName = `replitauth:${callbackDomain}`;
+    
+    console.log('[AUTH] ensureStrategy:', { 
+      requestDomain: domain, 
+      callbackDomain, 
+      strategyName,
+      REPLIT_DOMAINS: process.env.REPLIT_DOMAINS,
+      REPLIT_DEV_DOMAIN: process.env.REPLIT_DEV_DOMAIN,
+    });
+    
+    if (!registeredStrategies.has(strategyName)) {
+      const strategy = new Strategy(
+        {
+          name: strategyName,
+          config,
+          scope: "openid email profile offline_access",
+          callbackURL: `https://${callbackDomain}/api/callback`,
+        },
+        verify,
+      );
+      passport.use(strategy);
+      registeredStrategies.add(strategyName);
+    }
+    
+    return strategyName;
+  };
+
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: '/api/auth/google/callback',
+    }, async (accessToken, refreshToken, profile, done) => {
+      try {
+        // passport-google-oauth20 surfaces `verified` on each email entry from
+        // the Google userinfo endpoint. Treat it as a hard gate for any
+        // cross-account linking — see linkOAuthProvider/findOrCreateUser.
+        const primaryEmail = profile.emails?.[0];
+        const emailVerified = (primaryEmail as any)?.verified === true
+          || (primaryEmail as any)?.verified === 'true';
+        const oauthProfile: OAuthProfile = {
+          provider: 'google',
+          providerId: profile.id,
+          email: primaryEmail?.value,
+          emailVerified,
+          displayName: profile.displayName,
+          firstName: profile.name?.givenName,
+          lastName: profile.name?.familyName,
+          profileImageUrl: profile.photos?.[0]?.value,
+        };
+        // Ban check BEFORE user creation — blocked emails never get a users row
+        if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
+          await storage.incrementBanLoginAttempts(oauthProfile.email);
+          console.warn('[AUTH] Google login blocked pre-creation — banned email:', oauthProfile.email);
+          return done(null, { _banned: true });
+        }
+        const { user, isNewUser } = await findOrCreateUser(oauthProfile);
+        done(null, { ...user, _isNewUser: isNewUser });
+      } catch (error) {
+        done(error as Error);
+      }
+    }));
+
+    app.get('/api/auth/google',
+      authRateLimiter,
+      passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })
+    );
+
+    app.get('/api/auth/google/callback',
+      authRateLimiter,
+      passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
+      async (req, res) => {
+        const user = req.user as any;
+
+        // Banned sentinel — set in strategy before user creation; no users row was created
+        if (user?._banned) {
+          req.logout(() => {});
+          return res.redirect('/?error=account_suspended');
+        }
+
+        // Capture and clear the new-user flag from the passport user object
+        const isNewUser = !!user?._isNewUser;
+        if (user?._isNewUser !== undefined) delete user._isNewUser;
+
+        const isAdmin = isAdminEmail(user?.email);
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
+        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
+        
+        // Persist new-user flag in session so /api/auth/user can return it once
+        if (isNewUser) (req.session as any).isNewUser = true;
+
+        console.log('[AUTH] Google callback:', {
+          userExists: !!user,
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          isNewUser,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
+          redirectTarget,
+        });
+
+        req.session.save((err) => {
+          if (err) {
+            console.error('[AUTH] Session save error:', err);
+          }
+          console.log('[AUTH] Google Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
+        });
+      }
+    );
+  }
+
+  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+    passport.use(new GitHubStrategy({
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: '/api/auth/github/callback',
+    }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+      try {
+        // GitHub never returns a `verified` flag in the basic profile, so we
+        // ALWAYS hit the user/emails endpoint to determine verification.
+        // Verified emails are the only ones eligible for cross-account
+        // linking. Unverified emails are dropped entirely (no fallback to
+        // "any email"), since GitHub allows users to add — but not yet
+        // verify — arbitrary addresses.
+        let email: string | undefined = undefined;
+        let emailVerified = false;
+
+        if (accessToken) {
+          try {
+            const emailResponse = await fetch('https://api.github.com/user/emails', {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Kiteframe-App',
+              },
+            });
+            if (emailResponse.ok) {
+              const emails = await emailResponse.json();
+              const primaryVerified = emails.find(
+                (e: any) => e.primary && e.verified,
+              );
+              const anyVerified = emails.find((e: any) => e.verified);
+              const chosen = primaryVerified || anyVerified;
+              if (chosen) {
+                email = chosen.email;
+                emailVerified = true;
+                console.log('[AUTH] GitHub verified email selected:', email);
+              } else {
+                console.warn(
+                  '[AUTH] GitHub user has no verified email — refusing to link by email',
+                );
+              }
+            }
+          } catch (emailError) {
+            console.error('[AUTH] Failed to fetch GitHub emails:', emailError);
+          }
+        }
+
+        const oauthProfile: OAuthProfile = {
+          provider: 'github',
+          providerId: profile.id,
+          email,
+          emailVerified,
+          displayName: profile.displayName || profile.username,
+          profileImageUrl: profile.photos?.[0]?.value,
+        };
+        // Ban check BEFORE user creation — blocked emails never get a users row
+        if (oauthProfile.email && await isBannedEmail(oauthProfile.email)) {
+          await storage.incrementBanLoginAttempts(oauthProfile.email);
+          console.warn('[AUTH] GitHub login blocked pre-creation — banned email:', oauthProfile.email);
+          return done(null, { _banned: true });
+        }
+        const { user, isNewUser } = await findOrCreateUser(oauthProfile);
+        done(null, { ...user, _isNewUser: isNewUser });
+      } catch (error) {
+        done(error as Error);
+      }
+    }));
+
+    app.get('/api/auth/github',
+      authRateLimiter,
+      passport.authenticate('github', { scope: ['user:email'] })
+    );
+
+    app.get('/api/auth/github/callback',
+      authRateLimiter,
+      passport.authenticate('github', { failureRedirect: '/?error=github_auth_failed' }),
+      async (req, res) => {
+        const user = req.user as any;
+
+        // Banned sentinel — set in strategy before user creation; no users row was created
+        if (user?._banned) {
+          req.logout(() => {});
+          return res.redirect('/?error=account_suspended');
+        }
+
+        // Capture and clear the new-user flag from the passport user object
+        const isNewUser = !!user?._isNewUser;
+        if (user?._isNewUser !== undefined) delete user._isNewUser;
+
+        const isAdmin = isAdminEmail(user?.email);
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
+        const redirectTarget = `/auth-complete?redirect=${encodeURIComponent(finalDestination)}`;
+
+        // Persist new-user flag in session so /api/auth/user can return it once
+        if (isNewUser) (req.session as any).isNewUser = true;
+
+        console.log('[AUTH] GitHub callback:', {
+          userExists: !!user,
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          isNewUser,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
+          redirectTarget,
+        });
+
+        req.session.save((err) => {
+          if (err) {
+            console.error('[AUTH] Session save error:', err);
+          }
+          console.log('[AUTH] GitHub Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
+        });
+      }
+    );
+  }
+
+  app.get('/api/auth/providers', async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = (req.user as any).id || (req.user as any).claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found' });
+    }
+
+    const providers = await db.query.oauthProviders.findMany({
+      where: eq(oauthProviders.userId, userId),
+    });
+
+    res.json({
+      providers: providers.map(p => ({
+        provider: p.provider,
+        email: p.email,
+        displayName: p.displayName,
+        linkedAt: p.linkedAt,
+      })),
+    });
+  });
+
+  const isGoogleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const isGitHubEnabled = !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
+
+  console.log('[AUTH] Providers enabled:', {
+    google: isGoogleEnabled,
+    github: isGitHubEnabled,
+    replit: true
+  });
+
+  app.get('/api/auth/available-providers', (req, res) => {
+    const isProductionDeployment = !!process.env.REPLIT_DEPLOYMENT;
+    const providers: string[] = [];
+    if (!isProductionDeployment) {
+      providers.push('replit');
+    }
+    if (isGoogleEnabled) {
+      providers.push('google');
+    }
+    if (isGitHubEnabled) {
+      providers.push('github');
+    }
+    res.json({ providers });
+  });
+
+  if (!isGoogleEnabled) {
+    app.get('/api/auth/google', (req, res) => {
+      res.status(404).json({ error: 'Google authentication is not configured' });
+    });
+    app.get('/api/auth/google/callback', (req, res) => {
+      res.status(404).json({ error: 'Google authentication is not configured' });
+    });
+  }
+
+  if (!isGitHubEnabled) {
+    app.get('/api/auth/github', (req, res) => {
+      res.status(404).json({ error: 'GitHub authentication is not configured' });
+    });
+    app.get('/api/auth/github/callback', (req, res) => {
+      res.status(404).json({ error: 'GitHub authentication is not configured' });
+    });
+  }
+
+  app.get("/api/login", authRateLimiter, (req, res, next) => {
+    const strategyName = ensureStrategy(req.hostname);
+    
+    // Encode the origin domain in state so we can redirect back after OAuth
+    // This is needed because Replit OAuth callback uses replit.app domain
+    // but we want to redirect users back to their original domain (e.g., kiteframe.space)
+    const originDomain = req.hostname;
+    const stateData = Buffer.from(JSON.stringify({ originDomain })).toString('base64url');
+    
+    passport.authenticate(strategyName, {
+      prompt: "login consent",
+      scope: ["openid", "email", "profile", "offline_access"],
+      state: stateData,
+    })(req, res, next);
+  });
+
+  app.get("/api/callback", authRateLimiter, (req, res, next) => {
+    const hostname = req.hostname;
+    const strategyName = ensureStrategy(hostname);
+    
+    // Decode the origin domain from state parameter
+    let originDomain = hostname; // fallback to callback domain
+    try {
+      const stateParam = req.query.state as string;
+      if (stateParam) {
+        const stateData = JSON.parse(Buffer.from(stateParam, 'base64url').toString());
+        if (stateData.originDomain) {
+          originDomain = stateData.originDomain;
+        }
+      }
+    } catch (e) {
+      console.warn('[AUTH] Failed to parse state parameter:', e);
+    }
+    
+    console.log('[AUTH] Replit callback started:', {
+      hostname,
+      originDomain,
+      strategyName,
+      protocol: req.protocol,
+      originalUrl: req.originalUrl,
+      query: req.query,
+      sessionID: req.sessionID,
+      REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
+    });
+    
+    passport.authenticate(strategyName, {
+      failureRedirect: "/api/login",
+    }, (err: any, user: any, info: any) => {
+      console.log('[AUTH] Replit authenticate result:', {
+        hasError: !!err,
+        error: err?.message || err,
+        hasUser: !!user,
+        userId: user?.id,
+        email: user?.email,
+        info: info,
+      });
+      
+      if (err) {
+        console.error('[AUTH] Replit auth error:', err);
+        return res.redirect(`https://${originDomain}/?error=replit_auth_error`);
+      }
+      if (!user) {
+        console.error('[AUTH] Replit auth no user returned, info:', info);
+        return res.redirect(`https://${originDomain}/?error=replit_auth_no_user`);
+      }
+      // Banned sentinel — set in verify() before user creation; no users row was created
+      if (user?._banned) {
+        return res.redirect(`https://${originDomain}/?error=account_suspended`);
+      }
+      req.logIn(user, async (loginErr) => {
+        if (loginErr) {
+          console.error('[AUTH] Replit logIn error:', loginErr);
+          return res.redirect(`https://${originDomain}/?error=replit_login_error`);
+        }
+        
+        const isAdmin = isAdminEmail(user?.email);
+        const finalDestination = (user?.isBeta || isAdmin) ? '/app' : '/waitlist';
+        
+        // Generate a single-use handoff token so the custom domain (kiteframe.space)
+        // can establish its own session cookie via /api/auth/handoff.
+        // This is required because the .replit.app session cookie is not sent to kiteframe.space.
+        const handoffToken = crypto.randomBytes(32).toString('hex');
+        handoffTokens.set(handoffToken, { user: req.user, expiresAt: Date.now() + 60_000 });
+        
+        const redirectTarget = `https://${originDomain}/auth-complete?token=${handoffToken}&redirect=${encodeURIComponent(finalDestination)}`;
+        
+        console.log('[AUTH] Replit callback success:', {
+          userId: user?.id,
+          email: user?.email,
+          isBeta: user?.isBeta,
+          isAdmin,
+          originDomain,
+          sessionId: req.sessionID,
+          isAuthenticated: req.isAuthenticated?.(),
+          finalDestination,
+          redirectTarget,
+        });
+        
+        // Save session explicitly and use HTML redirect like Google/GitHub
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[AUTH] Replit session save error:', saveErr);
+          }
+          console.log('[AUTH] Replit Set-Cookie:', res.getHeader('Set-Cookie'));
+          const safeRedirect = JSON.stringify(redirectTarget);
+          res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>Completing sign in...</title></head>
+<body>
+  <p>Completing sign in...</p>
+  <script>
+    setTimeout(function() {
+      window.location.replace(${safeRedirect});
+    }, 100);
+  </script>
+</body>
+</html>
+          `);
+        });
+      });
+    })(req, res, next);
+  });
+
+  app.get("/api/auth/handoff", (req, res, next) => {
+    const token = req.query.token as string;
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+
+    const entry = handoffTokens.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      handoffTokens.delete(token);
+      console.warn('[AUTH] Handoff token invalid or expired:', token?.slice(0, 8));
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    handoffTokens.delete(token);
+
+    req.logIn(entry.user, (err) => {
+      if (err) {
+        console.error('[AUTH] Handoff logIn error:', err);
+        return next(err);
+      }
+      req.session.save((saveErr) => {
+        if (saveErr) console.error('[AUTH] Handoff session save error:', saveErr);
+        console.log('[AUTH] Handoff success for user:', entry.user?.id, 'domain:', req.hostname);
+        res.json({ success: true });
+      });
+    });
+  });
+
+  app.get("/api/logout", authRateLimiter, (req, res) => {
+    req.logout(() => {
+      res.redirect(
+        client.buildEndSessionUrl(config, {
+          client_id: process.env.REPL_ID!,
+          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+        }).href
+      );
+    });
+  });
+}
+
+export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  const user = req.user as any;
+
+  console.log('[AUTH DEBUG] isAuthenticated check:', {
+    url: req.url,
+    hasCookie: Boolean(req.headers.cookie),
+    sessionID: req.sessionID,
+    hasSession: Boolean(req.session),
+    hasUser: Boolean(user),
+    isAuthenticatedFn: req.isAuthenticated?.(),
+    userHasExpiresAt: Boolean(user?.expires_at),
+    userHasId: Boolean(user?.id),
+  });
+
+  if (!req.isAuthenticated() || !user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Ban check — 60-second cached lookup so it doesn't hit DB on every request
+  if (await isBannedEmail(user.email)) {
+    console.warn('[AUTH] isAuthenticated blocked — banned email:', user.email);
+    return res.status(403).json({ error: 'account_suspended', message: 'Account suspended. Contact support.' });
+  }
+
+  // For Google/GitHub OAuth users, they don't have expires_at (no OIDC refresh)
+  // Just check they have a valid user ID and allow through
+  if (!user.expires_at) {
+    if (user.id) {
+      return next();
+    }
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // For Replit OIDC users, check token expiration
+  const now = Math.floor(Date.now() / 1000);
+  if (now <= user.expires_at) {
+    return next();
+  }
+
+  const refreshToken = user.refresh_token;
+  if (!refreshToken) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const config = await getOidcConfig();
+    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
+    updateUserSession(user, tokenResponse);
+    return next();
+  } catch (error) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+};

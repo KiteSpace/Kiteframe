@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<!--
+  Kiteframe — Inspect panel (options 3a component selected / 3b artboard selected)
+  LEFT rail. This panel REPLACES the component palette when a node is selected ON
+  THE CANVAS: same 320px column, same border side, so selection never reflows the
+  canvas. Nothing selected → the palette (builder-panel-1b.html) owns this rail.
+  A click in the LAYERS panel does NOT swap the rail — Layers is a navigator; it
+  highlights the row and reveals the node, and the rail keeps showing Components.
+  See README-inspect-panel.md §0.
+  Handoff code. Open this file directly to see it render standalone.
+  Spec: README-inspect-panel.md
+
+  Graphite alignment: these token VALUES match THEME.md (Graphite · Light).
+  THEME.md is authoritative for color; this file is authoritative for geometry,
+  structure and behavior. When porting, map each local token to its THEME.md
+  variable rather than copying the hex:
+    --*-chrome → --background      --*-line        → --border
+    --*-raised → --card            --*-line-strong → --input
+    --*-subtle → --muted           --*-fg          → --foreground
+    --*-track  → --accent          --*-fg-muted    → --muted-foreground
+    --*-ink    → --primary         --*-accent      → --brand
+    --*-info   → --info            --*-canvas      → --kf-canvas
+  Dark mode: swap in the .dark values from THEME.md §3-4. The canvas stays LIGHT
+  and artboards are never themed — THEME.md §4.
+
+  Contents
+    1. Tokens        :root — same names as builder-panel-1b.html, extended
+    2. Panel shell   .ip-panel (340px) + sticky header
+    3. Header        breadcrumb / name + kind chip / close / tab bar
+    4. Row primitives  ColorRow SwatchRow PillRow NumberRow SelectRow SwitchRow
+    5. Tabs          Layout / Style / Content panels
+    6. States        nothing selected, multi-select, locked
+    7. Behavior      tab memory per kind, progressive disclosure, presets, numbers
+
+  The five ideas this file exists to carry
+    - TABS, NOT SCROLL. Style | Layout | Content. Each fits the panel height for a
+      typical selection, so nobody scrolls past 20 swatches to reach "gap".
+    - ONE 56px LABEL GUTTER. Every control's left edge lines up, so the eye scans
+      values, not labels. The gutter is a real <label for>, never a <div>.
+    - PROGRESSIVE DISCLOSURE. X/Y only exist when position is absolute; gradient
+      stops only when the fill mode is gradient. A dead control is worse than none.
+    - NAMED TOKENS OVER RAW NUMBERS. Radius is None/S/M/L/Full; shadow is
+      None/Soft/Raised/Overlay. Nobody hand-tunes x/y/blur/spread in 340px.
+    - MONO FOR VALUES. Numbers and hex are always mono so they don't jitter width
+      as they change under a drag.
+
+  Try in the demo bar at the top: switch selection between Component / Artboard /
+  Nothing / 3 selected / Locked. Tab choice is remembered per node kind.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspect panel — 3a / 3b</title>
+<style>
+/* ─── 1. Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --ip-chrome:      #FBFBFC;   /* NOT pure white — artboards must separate */
+  --ip-raised:      #ffffff;   /* fields, menus, active segmented item */
+  --ip-subtle:      #f3f3f5;
+  --ip-hover:       #f3f3f5;
+  --ip-track:       #eeeef1;
+
+  --ip-line:        #e4e4e8;
+  --ip-line-soft:   #eeeef1;
+  --ip-line-strong: #d6d6dc;
+
+  --ip-fg:          #1e1e21;
+  --ip-fg-muted:    #54545c;
+  --ip-fg-subtle:   #77777f;
+  --ip-fg-faint:    #9a9aa3;
+  --ip-fg-disabled: #c4c4cc;
+
+  --ip-ink:         #131316;   /* active pill fill, primary actions */
+  --ip-ink-fg:      #ffffff;
+  --ip-accent:      #9B6BFF;   /* selection + focus ring (Violet Flash) */
+  --ip-accent-soft: #f2effa;
+  --ip-accent-fg:   #6D3FD6;   /* violet text on the soft fill */
+  --ip-info:        #189FDB;   /* Kite blue — links, breadcrumb hover */
+  --ip-warn-bg:     #FFF1D0;
+  --ip-warn-fg:     #8a5a00;
+
+  /* kind chips */
+  --ip-kind-el-fg:  #6D5AA8;  --ip-kind-el-bg:  #f2effa;
+  --ip-kind-fr-fg:  #2b7a6b;  --ip-kind-fr-bg:  #e9f5f2;
+  --ip-kind-tx-fg:  #a06520;  --ip-kind-tx-bg:  #fdf2e6;
+
+  --ip-gutter: 56px;          /* THE label gutter. One number, everywhere. */
+  --ip-h:      32px;          /* control height (pills are 30px) */
+  --ip-r-sm: 6px;
+  --ip-r:    8px;
+  --ip-shadow-raise: 0 1px 2px rgba(0,0,0,.07);
+
+  --ip-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ip-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* ─── 2. Panel shell ────────────────────────────────────────────────────── */
+/* LEFT rail. 320px — the SAME width as the component palette it replaces, so
+   selecting a node never reflows the canvas. Border is on the right. */
+.ip-panel {
+  width: 320px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--ip-chrome);
+  border-right: 1px solid var(--ip-line);
+  font-family: var(--ip-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.ip-panel *, .ip-panel *::before, .ip-panel *::after { box-sizing: border-box; }
+
+.ip-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ip-body::-webkit-scrollbar { width: 8px; }
+.ip-body::-webkit-scrollbar-thumb { background: #d6d6dc; border-radius: 8px; }
+
+/* ─── 3. Header ─────────────────────────────────────────────────────────── */
+.ip-back {
+  display: flex; align-items: center; gap: 5px;
+  border: 0; background: none; padding: 0 0 8px; cursor: pointer;
+  font: 500 11.5px/1 var(--ip-sans); color: var(--ip-fg-faint);
+}
+.ip-back:hover { color: var(--ip-info); }
+
+.ip-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: none;
+  background: var(--ip-chrome);
+  border-bottom: 1px solid var(--ip-line);
+  padding: 12px 14px 0;
+}
+
+/* breadcrumb: truncates from the LEFT so the last segment stays readable */
+.ip-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 400 11px/1.3 var(--ip-sans);
+  color: var(--ip-fg-faint);
+  overflow: hidden;
+  direction: rtl;              /* clips the head, not the tail */
+  text-align: left;
+}
+.ip-crumbs > * { direction: ltr; flex: none; }
+.ip-crumbs button {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--ip-fg-faint);
+  max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ip-crumbs button:hover { color: var(--ip-info); }
+/* the leaf is DOM-first (deepest-first order + direction:rtl): never truncate it;
+   ancestors keep the 96px cap and give way instead */
+.ip-crumbs button:first-child { max-width: none; }
+.ip-crumbs .ip-sep { color: #d0d0c8; }
+
+.ip-title-row { display: flex; align-items: center; gap: 8px; padding: 5px 0 10px; }
+.ip-title {
+  font: 600 16px/1.2 var(--ip-sans);
+  color: var(--ip-fg);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ip-kind {
+  flex: none;
+  font: 500 9.5px/1 var(--ip-sans);
+  border-radius: 999px;
+  padding: 4px 7px;
+}
+.ip-kind[data-kind="element"] { color: var(--ip-kind-el-fg); background: var(--ip-kind-el-bg); }
+.ip-kind[data-kind="frame"]   { color: var(--ip-kind-fr-fg); background: var(--ip-kind-fr-bg); }
+.ip-kind[data-kind="text"]    { color: var(--ip-kind-tx-fg); background: var(--ip-kind-tx-bg); }
+.ip-kind[data-kind="mixed"]   { color: var(--ip-fg-muted);   background: var(--ip-track); }
+.ip-kind[data-kind="locked"]  { color: var(--ip-warn-fg);    background: var(--ip-warn-bg); }
+
+.ip-close {
+  flex: none; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--ip-r-sm); background: none;
+  color: var(--ip-fg-faint); font-size: 13px; cursor: pointer;
+}
+.ip-close:hover { background: var(--ip-hover); color: var(--ip-fg-muted); }
+
+/* tab bar */
+.ip-tabs { display: flex; gap: 2px; padding: 0 0 8px; }
+.ip-tabs button {
+  padding: 6px 11px;
+  border: 0; border-radius: var(--ip-r-sm); background: none;
+  font: 500 12px/1 var(--ip-sans); color: var(--ip-fg-subtle); cursor: pointer;
+}
+.ip-tabs button:hover { background: var(--ip-hover); }
+.ip-tabs button[aria-selected="true"] {
+  background: var(--ip-track); color: var(--ip-fg); font-weight: 600;
+}
+
+/* ─── 4. Row primitives ─────────────────────────────────────────────────── */
+.ip-group { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ip-group + .ip-group { border-top: 1px solid var(--ip-line-soft); }
+.ip-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font: 700 10px/1 var(--ip-sans); letter-spacing: .11em; color: var(--ip-fg-faint);
+}
+.ip-eyebrow .ip-note { font: 400 10px/1 var(--ip-sans); letter-spacing: 0; color: #c4c4cc; }
+
+.ip-row { display: flex; align-items: center; gap: 10px; }
+.ip-row > label,
+.ip-row > .ip-label {
+  width: var(--ip-gutter);
+  flex: none;
+  font: 500 12px/1.3 var(--ip-sans);
+  color: var(--ip-fg-muted);
+}
+.ip-row > .ip-control { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+
+.ip-field {
+  flex: 1 1 0;              /* paired fields must share the row... */
+  min-width: 0;             /* ...and min-width:auto would floor them at
+                               the input's min-content width */
+  height: var(--ip-h);
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 9px;
+  background: var(--ip-raised);
+  border: 1px solid var(--ip-line-strong);
+  border-radius: var(--ip-r);
+}
+/* any field given an explicit width keeps it */
+.ip-field[style*="width"] { flex: none; }
+.ip-field:focus-within { border-color: var(--ip-fg); box-shadow: 0 0 0 3px rgba(30,30,33,.06); }
+.ip-field input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: none;
+  font: 500 12.5px/1 var(--ip-mono); color: var(--ip-fg);
+}
+.ip-field input::placeholder { color: var(--ip-fg-faint); font-family: var(--ip-sans); }
+.ip-prefix {
+  flex: none; font: 600 10.5px/1 var(--ip-mono); color: var(--ip-fg-faint);
+  cursor: ew-resize;                 /* drag the prefix to scrub */
+  user-select: none;
+}
+.ip-suffix { flex: none; font: 500 10.5px/1 var(--ip-mono); color: var(--ip-fg-faint); }
+
+/* ColorRow */
+.ip-swatch-btn {
+  width: 16px; height: 16px; flex: none;
+  border: 1px solid rgba(20,20,24,.14); border-radius: 4px;
+  padding: 0; cursor: pointer;
+}
+.ip-transparent {                     /* never an empty box */
+  background-image:
+    linear-gradient(45deg, #dcdce2 25%, transparent 25% 75%, #dcdce2 75%),
+    linear-gradient(45deg, #dcdce2 25%, transparent 25% 75%, #dcdce2 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+  background-color: #fff;
+}
+.ip-hex { flex: 1; font: 500 12px/1 var(--ip-mono); color: var(--ip-fg); text-transform: uppercase; }
+
+/* SwatchRow — the project palette, not a rainbow */
+.ip-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding-left: calc(var(--ip-gutter) + 10px); }
+.ip-swatches button {
+  width: 22px; height: 22px; padding: 0;
+  border: 1px solid rgba(20,20,24,.12); border-radius: 5px; cursor: pointer;
+}
+.ip-swatches button[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ip-fg);   /* ring, not a checkmark */
+}
+.ip-swatches .ip-more {
+  background: none; border: 1px dashed var(--ip-line-strong);
+  color: var(--ip-fg-faint); font: 400 13px/1 var(--ip-sans);
+}
+
+/* PillRow */
+.ip-pills { display: flex; gap: 4px; flex: 1; }
+.ip-pills button {
+  flex: 1; height: 30px; padding: 0 4px;
+  border: 1px solid var(--ip-line-strong); border-radius: var(--ip-r-sm);
+  background: var(--ip-raised);
+  font: 500 11.5px/1 var(--ip-sans); color: var(--ip-fg-muted); cursor: pointer;
+}
+.ip-pills button:hover { background: var(--ip-hover); }
+.ip-pills button[aria-checked="true"] {
+  background: var(--ip-ink); border-color: var(--ip-ink);
+  color: var(--ip-ink-fg); font-weight: 600;
+}
+
+/* SelectRow */
+.ip-select {
+  width: 100%; height: var(--ip-h);
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--ip-line-strong); border-radius: var(--ip-r);
+  background: var(--ip-raised) no-repeat right 9px center;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'><path d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23a3a399' stroke-width='1.4' stroke-linecap='round'/></svg>");
+  font: 500 12.5px/1 var(--ip-sans); color: var(--ip-fg);
+  appearance: none; cursor: pointer;
+}
+
+/* SwitchRow */
+.ip-switch-row { display: flex; align-items: flex-start; gap: 10px; }
+.ip-switch-copy { flex: 1; min-width: 0; }
+.ip-switch-title { font: 500 12.5px/1.3 var(--ip-sans); color: var(--ip-fg); }
+.ip-switch-help  { font: 400 11px/1.4 var(--ip-sans); color: var(--ip-fg-faint); }
+.ip-switch {
+  flex: none; width: 38px; height: 22px; padding: 2px;
+  border: 0; border-radius: 999px; background: var(--ip-line-strong);
+  cursor: pointer; display: flex; align-items: center; justify-content: flex-start;
+}
+.ip-switch::after { content: ""; width: 18px; height: 18px; border-radius: 999px;
+  background: #fff; box-shadow: var(--ip-shadow-raise); }
+.ip-switch[aria-checked="true"] { background: var(--ip-ink); justify-content: flex-end; }
+
+/* optional tag + Mixed */
+.ip-optional { font: 400 9.5px/1 var(--ip-sans); color: var(--ip-fg-disabled); margin-left: 5px; }
+.ip-mixed { font-family: var(--ip-sans) !important; color: var(--ip-fg-faint) !important; font-style: italic; }
+
+/* Auto chip, inside the W/H field */
+.ip-auto {
+  flex: none; padding: 3px 5px;
+  border: 1px solid var(--ip-line-strong); border-radius: 4px; background: none;
+  font: 600 9px/1 var(--ip-mono); color: var(--ip-fg-faint); cursor: pointer;
+}
+.ip-auto[aria-pressed="true"] {
+  background: var(--ip-accent-soft); border-color: #e6def9; color: var(--ip-accent-fg);
+}
+
+/* [hidden] loses to any display: declaration, and .ip-row is display:flex —
+   so the attribute silently does nothing without this. */
+.ip-panel [hidden], .ip-rail[hidden] { display: none !important; }
+
+/* focus ring, everywhere */
+.ip-panel button:focus-visible,
+.ip-panel select:focus-visible,
+.ip-panel [tabindex]:focus-visible {
+  outline: 2px solid var(--ip-accent); outline-offset: 2px;
+}
+
+/* ─── 5. Tab + disclosure switching ─────────────────────────────────────── */
+/* One attribute drives the whole panel; no conditional trees. */
+.ip-panel[data-tab="layout"]  [data-tab-panel]:not([data-tab-panel="layout"]),
+.ip-panel[data-tab="style"]   [data-tab-panel]:not([data-tab-panel="style"]),
+.ip-panel[data-tab="content"] [data-tab-panel]:not([data-tab-panel="content"]) { display: none; }
+
+/* X/Y exist only in absolute position */
+.ip-panel:not([data-position="absolute"]) [data-when="absolute"] { display: none; }
+/* fill-mode disclosure (artboard only) */
+.ip-panel:not([data-fill="gradient"]) [data-when="gradient"] { display: none; }
+.ip-panel:not([data-fill="image"])    [data-when="image"]    { display: none; }
+.ip-panel[data-fill="gradient"] [data-when="solid"],
+.ip-panel[data-fill="image"]    [data-when="solid"] { display: none; }
+/* kind scoping: artboards and containers have no Content tab */
+.ip-panel:not([data-kind="element"]):not([data-kind="text"]) [data-kind-only="component"] { display: none; }
+.ip-panel[data-kind="frame"] [data-kind-only="element"] { display: none; }
+.ip-panel:not([data-kind="frame"]) [data-kind-only="artboard"] { display: none; }
+/* locked: read-only body */
+.ip-panel[data-locked="true"] .ip-body { opacity: .6; pointer-events: none; }
+
+/* ─── 6. Nothing selected: the component palette, same rail ─────────────── */
+.ip-rail-head { padding: 16px 14px 12px; }
+.ip-rail-group {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px 8px; border-bottom: 1px solid var(--ip-line-soft);
+}
+.ip-rail-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+.ip-rail-name { font: 700 11px/1 var(--ip-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--ip-fg-muted); }
+.ip-rail-count { font: 500 11px/1 var(--ip-mono); color: var(--ip-fg-faint); }
+.ip-rail-rows { padding: 6px 10px 12px; display: flex; flex-direction: column; gap: 1px; }
+.ip-rail-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 7px 8px; border-radius: var(--ip-r); cursor: grab;
+}
+.ip-rail-row:hover { background: var(--ip-hover); }
+.ip-rail-tile {
+  width: 32px; height: 24px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ip-subtle); border: 1px solid var(--ip-line);
+  border-radius: 5px; font: 600 9px/1 var(--ip-mono); color: var(--ip-fg-faint);
+}
+.ip-rail-label { flex: 1; font: 500 13px/1.3 var(--ip-sans); color: var(--ip-fg); }
+.ip-rail-desc { font: 400 11px/1.3 var(--ip-sans); color: var(--ip-fg-faint); }
+.ip-rail-hint {
+  margin: 0; padding: 14px; border-top: 1px solid var(--ip-line-soft);
+  font: 400 11.5px/1.5 var(--ip-sans); color: var(--ip-fg-faint);
+}
+
+.ip-unlock {
+  margin-left: auto; border: 0; background: none; padding: 0; cursor: pointer;
+  font: 500 11px/1 var(--ip-sans); color: var(--ip-info);
+}
+
+/* demo chrome only — delete when porting */
+body { margin: 0; height: 100vh; display: flex; flex-direction: column;
+  background: #ececeb; font-family: var(--ip-sans); }
+.demo-bar { flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: #fff; border-bottom: 1px solid #d6d6dc; }
+.demo-bar span { font: 700 10px/1 var(--ip-sans); letter-spacing: .11em; color: #77777f; }
+.demo-bar button { padding: 6px 10px; border: 1px solid #d6d6dc; border-radius: 7px;
+  background: #fff; font: 500 12px/1 var(--ip-sans); color: #54545c; cursor: pointer; }
+.demo-bar button[aria-pressed="true"] { background: #131316; border-color: #131316; color: #fff; font-weight: 600; }
+.demo-stage { flex: 1; display: flex; min-height: 0; }
+.demo-canvas { flex: 1; background: #e9e9ec;
+  background-image: radial-gradient(#dedeD8 1px, transparent 1px); background-size: 16px 16px; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span>SELECTION</span>
+  <button type="button" data-sel="component" aria-pressed="true">Component (3a)</button>
+  <button type="button" data-sel="artboard"  aria-pressed="false">Artboard (3b)</button>
+  <button type="button" data-sel="none"      aria-pressed="false">Nothing / via Layers</button>
+  <button type="button" data-sel="multi"     aria-pressed="false">3 selected</button>
+  <button type="button" data-sel="locked"    aria-pressed="false">Locked</button>
+</div>
+
+<div class="demo-stage">
+
+  <!-- ─── PANEL (LEFT) ─────────────────────────────────────────────────────────── -->
+  <aside class="ip-panel" id="ip"
+         data-tab="layout" data-kind="element" data-position="in-flow" data-fill="solid"
+         data-locked="false" aria-label="Inspect">
+
+    <!-- 3. Header -->
+    <div class="ip-header" id="ip-header">
+      <button type="button" class="ip-back" id="ip-back">‹ Components</button>
+      <div class="ip-crumbs" id="ip-crumbs">
+        <button type="button">ChatMessage</button>
+        <span class="ip-sep">/</span>
+        <button type="button">Chat</button>
+        <span class="ip-sep">/</span>
+        <button type="button">Editor View</button>
+      </div>
+      <div class="ip-title-row">
+        <div class="ip-title" id="ip-name">ChatMessage</div>
+        <span class="ip-kind" id="ip-kindchip" data-kind="element">element</span>
+        <button type="button" class="ip-unlock" id="ip-unlock" hidden>Unlock to edit</button>
+        <button type="button" class="ip-close" id="ip-deselect"
+                aria-label="Deselect and return to components" title="Deselect · Esc">✕</button>
+      </div>
+      <div class="ip-tabs" role="tablist" aria-label="Inspect sections">
+        <button type="button" role="tab" data-tab="style"   aria-selected="false">Style</button>
+        <button type="button" role="tab" data-tab="layout"  aria-selected="true">Layout</button>
+        <button type="button" role="tab" data-tab="content" aria-selected="false" data-kind-only="component">Content</button>
+      </div>
+    </div>
+
+    <div class="ip-body" id="ip-body">
+
+      <!-- ─── LAYOUT ──────────────────────────────────────────────────── -->
+      <div data-tab-panel="layout" role="tabpanel" aria-label="Layout">
+
+        <div class="ip-group">
+          <div class="ip-row">
+            <label class="ip-label" for="ip-w">Size</label>
+            <div class="ip-control">
+              <div class="ip-field">
+                <span class="ip-prefix" title="Drag to scrub">W</span>
+                <input id="ip-w" value="320" size="1" inputmode="decimal">
+                <button type="button" class="ip-auto" aria-pressed="false" aria-label="Auto width">AUTO</button>
+              </div>
+              <div class="ip-field">
+                <span class="ip-prefix" title="Drag to scrub">H</span>
+                <input id="ip-h-val" value="" size="1" placeholder="—" inputmode="decimal">
+                <button type="button" class="ip-auto" aria-pressed="true" aria-label="Auto height">AUTO</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-pos">Position</label>
+            <div class="ip-control">
+              <select class="ip-select" id="ip-pos">
+                <option value="in-flow">In flow</option>
+                <option value="absolute">Absolute</option>
+                <option value="sticky">Sticky</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- only rendered when position is absolute -->
+          <div class="ip-row" data-when="absolute">
+            <span class="ip-label">Offset</span>
+            <div class="ip-control">
+              <div class="ip-field"><span class="ip-prefix">X</span><input value="24" size="1" inputmode="decimal"></div>
+              <div class="ip-field"><span class="ip-prefix">Y</span><input value="96" size="1" inputmode="decimal"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ip-group">
+          <div class="ip-eyebrow">STACK</div>
+          <div class="ip-row">
+            <span class="ip-label">Direction</span>
+            <div class="ip-control"><div class="ip-pills" role="radiogroup" aria-label="Direction">
+              <button type="button" role="radio" aria-checked="true">Column</button>
+              <button type="button" role="radio" aria-checked="false">Row</button>
+            </div></div>
+          </div>
+          <div class="ip-row">
+            <span class="ip-label">Align</span>
+            <div class="ip-control"><div class="ip-pills" role="radiogroup" aria-label="Align">
+              <button type="button" role="radio" aria-checked="false">Start</button>
+              <button type="button" role="radio" aria-checked="true">Center</button>
+              <button type="button" role="radio" aria-checked="false">End</button>
+              <button type="button" role="radio" aria-checked="false">Stretch</button>
+            </div></div>
+          </div>
+          <div class="ip-row">
+            <label class="ip-label" for="ip-justify">Justify</label>
+            <div class="ip-control">
+              <select class="ip-select" id="ip-justify">
+                <option>Start</option><option>Center</option><option>End</option>
+                <option>Space between</option><option>Space around</option>
+              </select>
+            </div>
+          </div>
+          <div class="ip-row">
+            <span class="ip-label">Wrap</span>
+            <div class="ip-control"><div class="ip-pills" role="radiogroup" aria-label="Wrap">
+              <button type="button" role="radio" aria-checked="true">No wrap</button>
+              <button type="button" role="radio" aria-checked="false">Wrap</button>
+              <button type="button" role="radio" aria-checked="false">Reverse</button>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="ip-group">
+          <div class="ip-eyebrow">SPACING <span class="ip-note">presets set gap + padding</span></div>
+          <div class="ip-row">
+            <span class="ip-label">Density</span>
+            <div class="ip-control"><div class="ip-pills" id="ip-density" role="radiogroup" aria-label="Density">
+              <button type="button" role="radio" aria-checked="false" data-gap="4"  data-pad="8">Compact</button>
+              <button type="button" role="radio" aria-checked="true"  data-gap="8"  data-pad="12">Default</button>
+              <button type="button" role="radio" aria-checked="false" data-gap="12" data-pad="16">Comfy</button>
+              <button type="button" role="radio" aria-checked="false" data-gap="20" data-pad="24">Spacious</button>
+            </div></div>
+          </div>
+          <div class="ip-row">
+            <span class="ip-label">Spacing</span>
+            <div class="ip-control">
+              <div class="ip-field"><span class="ip-prefix">GAP</span><input id="ip-gap" value="8" size="1" inputmode="decimal"></div>
+              <div class="ip-field"><span class="ip-prefix">PAD</span><input id="ip-pad" value="12" size="1" inputmode="decimal"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STYLE ───────────────────────────────────────────────────── -->
+      <div data-tab-panel="style" role="tabpanel" aria-label="Style">
+
+        <div class="ip-group">
+          <!-- artboard only: background type swaps the field beneath it -->
+          <div class="ip-row" data-kind-only="artboard">
+            <span class="ip-label">Type</span>
+            <div class="ip-control"><div class="ip-pills" id="ip-fillmode" role="radiogroup" aria-label="Background type">
+              <button type="button" role="radio" aria-checked="true"  data-fill="solid">Color</button>
+              <button type="button" role="radio" aria-checked="false" data-fill="gradient">Gradient</button>
+              <button type="button" role="radio" aria-checked="false" data-fill="image">Image</button>
+            </div></div>
+          </div>
+
+          <div class="ip-row" data-when="solid">
+            <label class="ip-label" for="ip-fill">Fill</label>
+            <div class="ip-control"><div class="ip-field">
+              <button type="button" class="ip-swatch-btn" id="ip-fill" style="background:#189FDB" aria-label="Fill color, Kite blue, #189FDB"></button>
+              <span class="ip-hex">#189FDB</span>
+              <span class="ip-suffix">100%</span>
+            </div></div>
+          </div>
+          <div class="ip-swatches" data-when="solid" role="group" aria-label="Project palette">
+            <button type="button" class="ip-transparent" aria-label="Transparent" aria-pressed="false"></button>
+            <button type="button" style="background:#ffffff" aria-label="White, #FFFFFF" aria-pressed="false"></button>
+            <button type="button" style="background:#eeeef1" aria-label="Neutral 100, #EEEEF1" aria-pressed="false"></button>
+            <button type="button" style="background:#131316" aria-label="Ink, #131316" aria-pressed="false"></button>
+            <button type="button" style="background:#9B6BFF" aria-label="Violet Flash, #9B6BFF" aria-pressed="false"></button>
+            <button type="button" style="background:#189FDB" aria-label="Kite blue, #189FDB" aria-pressed="true"></button>
+            <button type="button" style="background:#4BE3A4" aria-label="Success, #4BE3A4" aria-pressed="false"></button>
+            <button type="button" style="background:#E5484D" aria-label="Danger, #E5484D" aria-pressed="false"></button>
+            <button type="button" class="ip-more" aria-label="More colors">+</button>
+          </div>
+
+          <div class="ip-row" data-when="gradient">
+            <span class="ip-label">Stops</span>
+            <div class="ip-control"><div class="ip-field">
+              <button type="button" class="ip-swatch-btn" style="background:#9B6BFF" aria-label="Stop 1"></button>
+              <button type="button" class="ip-swatch-btn" style="background:#189FDB" aria-label="Stop 2"></button>
+              <span class="ip-hex" style="font-family:var(--ip-sans);font-weight:400;color:var(--ip-fg-faint)">Linear · 180°</span>
+            </div></div>
+          </div>
+          <div class="ip-row" data-when="image">
+            <span class="ip-label">Image</span>
+            <div class="ip-control"><div class="ip-field">
+              <span class="ip-hex" style="font-family:var(--ip-sans);font-weight:400;color:var(--ip-fg-faint)">Drop an image or browse</span>
+            </div></div>
+          </div>
+
+          <div class="ip-row" data-kind-only="element">
+            <label class="ip-label" for="ip-text">Text</label>
+            <div class="ip-control"><div class="ip-field">
+              <button type="button" class="ip-swatch-btn" id="ip-text" style="background:#1e1e21" aria-label="Text color, Ink, #1E1E21"></button>
+              <span class="ip-hex">#1E1E21</span>
+              <span class="ip-suffix">100%</span>
+            </div></div>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-border">Border</label>
+            <div class="ip-control">
+              <div class="ip-field" style="flex:1">
+                <button type="button" class="ip-swatch-btn" id="ip-border" style="background:#d6d6dc" aria-label="Border color, #D6D6DC"></button>
+                <span class="ip-hex">#D6D6DC</span>
+              </div>
+              <div class="ip-field" style="width:70px"><span class="ip-prefix">W</span><input value="1" size="1" inputmode="decimal"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ip-group">
+          <div class="ip-row">
+            <span class="ip-label">Radius</span>
+            <div class="ip-control"><div class="ip-pills" id="ip-radius" role="radiogroup" aria-label="Radius">
+              <button type="button" role="radio" aria-checked="false" data-r="0">None</button>
+              <button type="button" role="radio" aria-checked="false" data-r="4">S</button>
+              <button type="button" role="radio" aria-checked="true"  data-r="8">M</button>
+              <button type="button" role="radio" aria-checked="false" data-r="16">L</button>
+              <button type="button" role="radio" aria-checked="false" data-r="999">Full</button>
+            </div></div>
+          </div>
+          <!-- shown only when the node's value is off the token scale -->
+          <div class="ip-row" id="ip-radius-custom" hidden>
+            <span class="ip-label">Custom</span>
+            <div class="ip-control"><div class="ip-field" style="width:96px">
+              <span class="ip-prefix">R</span><input id="ip-radius-val" value="11" size="1" inputmode="decimal">
+            </div></div>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-shadow">Shadow</label>
+            <div class="ip-control">
+              <select class="ip-select" id="ip-shadow">
+                <option>None</option><option selected>Soft</option><option>Raised</option><option>Overlay</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-opacity">Opacity</label>
+            <div class="ip-control"><div class="ip-field" style="width:96px">
+              <input id="ip-opacity" value="100" size="1" inputmode="decimal"><span class="ip-suffix">%</span>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── CONTENT ─────────────────────────────────────────────────── -->
+      <!-- Rendered from the component's PropSchema, in declaration order. -->
+      <div data-tab-panel="content" role="tabpanel" aria-label="Content">
+        <div class="ip-group">
+          <div class="ip-row" style="align-items:flex-start">
+            <label class="ip-label" for="ip-msg" style="padding-top:8px">Message</label>
+            <div class="ip-control"><div class="ip-field" style="height:auto; padding:8px 9px">
+              <textarea id="ip-msg" rows="3" style="flex:1;border:0;outline:0;background:none;resize:vertical;font:400 12.5px/1.5 var(--ip-sans);color:var(--ip-fg)">Added a 'Create New Scenario' button, a label for existing scenarios, and a vertical list of scenario cards.</textarea>
+            </div></div>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-sender">Sender</label>
+            <div class="ip-control">
+              <select class="ip-select" id="ip-sender">
+                <option>User</option><option selected>Assistant</option><option>System</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ip-switch-row">
+            <div class="ip-switch-copy">
+              <div class="ip-switch-title">Own message</div>
+              <div class="ip-switch-help" id="ip-own-help">Aligns right, accent fill</div>
+            </div>
+            <button type="button" class="ip-switch" role="switch" aria-checked="false"
+                    aria-describedby="ip-own-help" aria-label="Own message"></button>
+          </div>
+
+          <div class="ip-row">
+            <label class="ip-label" for="ip-ts">Time <span class="ip-optional">optional</span></label>
+            <div class="ip-control"><div class="ip-field">
+              <input id="ip-ts" value="" placeholder="10:42 AM">
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 6. Nothing selected → the component palette occupies this same rail.
+         There is no "Select a layer to inspect it" empty state any more: the rail
+         always has a job. Abbreviated here — the real markup is
+         builder-panel-1b.html, unchanged. -->
+    <div class="ip-rail" id="ip-rail" hidden>
+      <div class="ip-rail-head">
+        <div class="ip-field" style="width:100%">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--ip-fg-subtle)" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>
+          </svg>
+          <input placeholder="Search 32 components" aria-label="Search components"
+                 style="font-family:var(--ip-sans);font-weight:400;font-size:14px">
+          <kbd style="font:600 10px/1 var(--ip-mono);color:var(--ip-fg-faint);border:1px solid var(--ip-line-strong);border-radius:4px;padding:3px 5px">⌘K</kbd>
+        </div>
+      </div>
+      <div class="ip-rail-group">
+        <span class="ip-rail-dot" style="background:#6D5AA8"></span>
+        <span class="ip-rail-name">Controls</span>
+        <span class="ip-rail-count">8</span>
+      </div>
+      <div class="ip-rail-rows">
+        <div class="ip-rail-row"><span class="ip-rail-tile">BTN</span><span class="ip-rail-label">Button</span><span class="ip-rail-desc">Action button</span></div>
+        <div class="ip-rail-row"><span class="ip-rail-tile">INP</span><span class="ip-rail-label">TextInput</span><span class="ip-rail-desc">Input field</span></div>
+        <div class="ip-rail-row"><span class="ip-rail-tile">SEL</span><span class="ip-rail-label">Select</span><span class="ip-rail-desc">Dropdown</span></div>
+        <div class="ip-rail-row"><span class="ip-rail-tile">SWT</span><span class="ip-rail-label">Switch</span><span class="ip-rail-desc">On / off</span></div>
+      </div>
+      <p class="ip-rail-hint">Select a node on the canvas to inspect it.</p>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* ─── 7. Behavior ───────────────────────────────────────────────────────── */
+(function () {
+  const panel  = document.getElementById('ip');
+  const header = document.getElementById('ip-header');
+  const body   = document.getElementById('ip-body');
+  const rail   = document.getElementById('ip-rail');
+  const name   = document.getElementById('ip-name');
+  const chip   = document.getElementById('ip-kindchip');
+  const crumbs = document.getElementById('ip-crumbs');
+  const unlock = document.getElementById('ip-unlock');
+  const tabs   = [...panel.querySelectorAll('[role="tab"]')];
+
+  /* Which tabs a kind gets, and the remembered choice PER KIND —
+     re-selecting a ChatMessage keeps you on Content; an artboard lands on Layout. */
+  const TABS = {
+    element: ['style', 'layout', 'content'],
+    text:    ['style', 'layout', 'content'],
+    frame:   ['style', 'layout'],
+    mixed:   ['style', 'layout']
+  };
+  const tabByKind = { element: 'layout', text: 'style', frame: 'layout', mixed: 'style' };
+
+  function setTab(tab) {
+    const kind = panel.dataset.kind;
+    const allowed = TABS[kind] || ['style', 'layout'];
+    const next = allowed.includes(tab) ? tab : allowed[0];   /* fallback on kind switch */
+    panel.dataset.tab = next;
+    tabByKind[kind] = next;
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === next)));
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => setTab(t.dataset.tab));
+    t.addEventListener('keydown', e => {                     /* arrow-key navigable */
+      const visible = tabs.filter(x => x.offsetParent !== null);
+      const at = visible.indexOf(t);
+      if (e.key === 'ArrowRight') visible[(at + 1) % visible.length].focus();
+      if (e.key === 'ArrowLeft')  visible[(at - 1 + visible.length) % visible.length].focus();
+    });
+  });
+
+  /* progressive disclosure: X/Y follow position, seeded from measured offset */
+  document.getElementById('ip-pos').addEventListener('change', e => {
+    panel.dataset.position = e.target.value;
+    /* on switching to absolute, seed X/Y from the node's current offset so
+       nothing jumps — do that here in the real port. */
+  });
+
+  /* fill mode (artboard) */
+  const fillmode = document.getElementById('ip-fillmode');
+  fillmode.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    [...fillmode.children].forEach(b => b.setAttribute('aria-checked', String(b === btn)));
+    panel.dataset.fill = btn.dataset.fill;
+  });
+
+  /* generic radiogroup pills */
+  panel.querySelectorAll('.ip-pills[role="radiogroup"]').forEach(group => {
+    if (group === fillmode) return;
+    group.addEventListener('click', e => {
+      const btn = e.target.closest('button'); if (!btn) return;
+      [...group.children].forEach(b => b.setAttribute('aria-checked', String(b === btn)));
+      if (group.id === 'ip-density') {                        /* presets write the fields */
+        document.getElementById('ip-gap').value = btn.dataset.gap;
+        document.getElementById('ip-pad').value = btn.dataset.pad;
+      }
+      if (group.id === 'ip-radius') document.getElementById('ip-radius-custom').hidden = true;
+    });
+  });
+
+  /* editing gap/pad by hand simply deselects every preset — no confirmation */
+  const DENSITY = { Compact: [4, 8], Default: [8, 12], Comfy: [12, 16], Spacious: [20, 24] };
+  const syncDensity = () => {
+    const gap = +document.getElementById('ip-gap').value;
+    const pad = +document.getElementById('ip-pad').value;
+    [...document.getElementById('ip-density').children].forEach(b => {
+      const d = DENSITY[b.textContent.trim()];
+      b.setAttribute('aria-checked', String(!!d && d[0] === gap && d[1] === pad));
+    });
+  };
+  ['ip-gap', 'ip-pad'].forEach(id => document.getElementById(id).addEventListener('input', syncDensity));
+
+  /* Auto chip: pressing AUTO clears the number; typing a number clears AUTO */
+  panel.querySelectorAll('.ip-auto').forEach(btn => {
+    const input = btn.parentElement.querySelector('input');
+    btn.addEventListener('click', () => {
+      const on = btn.getAttribute('aria-pressed') !== 'true';
+      btn.setAttribute('aria-pressed', String(on));
+      if (on) { input.value = ''; input.placeholder = '—'; }
+    });
+    input.addEventListener('input', () => { if (input.value) btn.setAttribute('aria-pressed', 'false'); });
+  });
+
+  /* swatches: single-select ring */
+  panel.querySelectorAll('.ip-swatches').forEach(row => {
+    row.addEventListener('click', e => {
+      const btn = e.target.closest('button'); if (!btn || btn.classList.contains('ip-more')) return;
+      [...row.children].forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    });
+  });
+
+  /* switches */
+  panel.querySelectorAll('[role="switch"]').forEach(sw => {
+    sw.addEventListener('click', () =>
+      sw.setAttribute('aria-checked', String(sw.getAttribute('aria-checked') !== 'true')));
+  });
+
+  /* numbers: ↑↓ ±1, ⇧ ±10, ⌥ ±.1; math on commit; empty resets to inherited */
+  panel.querySelectorAll('.ip-field input[inputmode="decimal"]').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      const stepBy = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
+      const v = parseFloat(input.value || '0');
+      input.value = String(+(v + (e.key === 'ArrowUp' ? stepBy : -stepBy)).toFixed(2));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    input.addEventListener('change', () => {
+      const raw = input.value.trim();
+      if (/^[\d+\-*/.\s()]+$/.test(raw) && /[+\-*/]/.test(raw)) {     /* 12*2 → 24 */
+        try { const out = Function('"use strict";return (' + raw + ')')();
+              if (typeof out === 'number' && isFinite(out)) input.value = String(+out.toFixed(2)); }
+        catch (err) { /* invalid input reverts, no error state */ }
+      }
+      syncDensity();
+    });
+    /* drag the prefix label to scrub */
+    const prefix = input.parentElement.querySelector('.ip-prefix');
+    if (!prefix) return;
+    prefix.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const x0 = e.clientX, v0 = parseFloat(input.value || '0');
+      const move = ev => { input.value = String(Math.round(v0 + (ev.clientX - x0))); syncDensity(); };
+      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    });
+  });
+
+  /* demo: swap the selection */
+  const SELECTIONS = {
+    component: { kind: 'element', name: 'ChatMessage', chip: 'element', crumbs: ['ChatMessage', 'Chat', 'Editor View'], locked: false, empty: false },
+    artboard:  { kind: 'frame',   name: 'Editor View - Configuration', chip: 'frame', crumbs: ['Editor View - Configuration'], locked: false, empty: false },
+    none:      { empty: true },
+    multi:     { kind: 'mixed',   name: '3 selected', chip: 'mixed', crumbs: ['Chat', 'Editor View'], locked: false, empty: false, mixed: true },
+    locked:    { kind: 'element', name: 'ChatMessage', chip: 'locked', crumbs: ['ChatMessage', 'Chat'], locked: true, empty: false }
+  };
+  document.querySelectorAll('.demo-bar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.demo-bar button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      const s = SELECTIONS[btn.dataset.sel];
+      const isEmpty = !!s.empty;
+      /* the rail swaps its whole contents; the canvas never reflows */
+      header.hidden = isEmpty; body.hidden = isEmpty; rail.hidden = !isEmpty;
+      if (isEmpty) return;
+      panel.dataset.kind = s.kind;
+      panel.dataset.locked = String(s.locked);
+      unlock.hidden = !s.locked;
+      name.textContent = s.name;
+      chip.textContent = s.chip; chip.dataset.kind = s.chip;
+      crumbs.innerHTML = s.crumbs.map(c => '<button type="button">' + c + '</button>')
+        .join('<span class="ip-sep">/</span>');
+      /* differing values read Mixed and write to all on edit */
+      panel.querySelectorAll('.ip-hex').forEach(el => el.classList.toggle('ip-mixed', !!s.mixed));
+      if (s.mixed) panel.querySelectorAll('.ip-hex').forEach(el => el.dataset.was = el.dataset.was || el.textContent);
+      panel.querySelectorAll('.ip-hex').forEach(el => { el.textContent = s.mixed ? 'Mixed' : (el.dataset.was || el.textContent); });
+      setTab(tabByKind[s.kind] || 'style');
+    });
+  });
+
+  /* returning to the palette: the back link, the ✕, and Escape all do it, and
+     the palette's scroll position should be preserved across the swap */
+  const showRail = () => {
+    header.hidden = true; body.hidden = true; rail.hidden = false;
+    document.querySelectorAll('.demo-bar button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.sel === 'none')));
+  };
+  document.getElementById('ip-back').addEventListener('click', showRail);
+  document.getElementById('ip-deselect').addEventListener('click', showRail);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !e.target.matches('input, textarea')) showRail();
+  });
+
+  setTab('layout');
+})();
+</script>
+</body>
+</html>

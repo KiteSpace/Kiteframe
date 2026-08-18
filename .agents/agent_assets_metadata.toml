@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "_pbvRlXj1TyqRnDmYx_9k"
+uri = "file://astryx-schema-reference.md"
+type = "text"
+title = "Astryx Schema Reference"
+
+[[outputs]]
+id = "ckVCE1PmiIg2aHEJt5tbw"
+uri = "file://kiteframe-brainstorm-scripts.zip"
+type = "unspecified"
+title = "kiteframe-brainstorm scripts"

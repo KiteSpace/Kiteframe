@@ -1,0 +1,234 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-12-22T19:57:53.014Z",
+  "workflow": {
+    "id": "tab-1766433337197-m2brennyk",
+    "name": "Untitled",
+    "description": "",
+    "links": [],
+    "categories": []
+  },
+  "canvas": {
+    "nodes": [
+      {
+        "id": "node-1766433338168-j5kphxgr2",
+        "type": "input",
+        "position": {
+          "x": 278.9629248086143,
+          "y": -100
+        },
+        "data": {
+          "label": "Business-Critical Initiative",
+          "description": "It's go time!",
+          "icon": "ArrowRight",
+          "iconColor": "text-blue-500",
+          "fontSize": 18,
+          "bold": true,
+          "textAlign": "center",
+          "nodeIcon": "✅",
+          "iconVisible": true,
+          "colors": {
+            "headerBackground": "#64748b",
+            "bodyBackground": "#f0f1f3",
+            "borderColor": "#64748b",
+            "headerTextColor": "#ffffff"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "measuredWidth": 200,
+        "style": {}
+      },
+      {
+        "id": "node-1766433338168-u7q3a22ra",
+        "type": "process",
+        "position": {
+          "x": 278.9629248086143,
+          "y": 35.199643916122966
+        },
+        "data": {
+          "label": "Hey KiteAI!",
+          "description": "Hi, how can I help you?",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "nodeIcon": "💡",
+          "iconVisible": true,
+          "colors": {
+            "headerBackground": "#06b6d4",
+            "bodyBackground": "#e6f8fb",
+            "borderColor": "#06b6d4",
+            "headerTextColor": "#000000"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-1766433338168-4em2wfoa3",
+        "type": "process",
+        "position": {
+          "x": 278.9629248086143,
+          "y": 168.91443398667408
+        },
+        "data": {
+          "label": "Collaboration Powered by Kite AI",
+          "description": "Clear alignment on scope, roles, and success criteria",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#3b82f6",
+            "bodyBackground": "#ebf3fe",
+            "borderColor": "#3b82f6",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "⚡",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {},
+        "measuredWidth": 200,
+        "measuredHeight": 118.578125
+      },
+      {
+        "id": "node-1766433338168-26kxtiea3",
+        "type": "process",
+        "position": {
+          "x": 278.9629248086143,
+          "y": 323.56735110937376
+        },
+        "data": {
+          "label": "Magic",
+          "description": "Kite AI generates a structured PRD in seconds",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#8b5cf6",
+            "bodyBackground": "#f3effe",
+            "borderColor": "#8b5cf6",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "⭐",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {},
+        "measuredWidth": 200,
+        "measuredHeight": 102.984375
+      },
+      {
+        "id": "node-1766433338168-v1rwud29w",
+        "type": "process",
+        "position": {
+          "x": 278.9629248086143,
+          "y": 461.93505830262455
+        },
+        "data": {
+          "label": "Let's go!",
+          "description": "Teams execute with confidence",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#22c55e",
+            "bodyBackground": "#e9f9ef",
+            "borderColor": "#22c55e",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "🚀",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {},
+        "measuredWidth": 200
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-1766433350411",
+        "source": "node-1766433338168-j5kphxgr2",
+        "target": "node-1766433338168-u7q3a22ra",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766433351910",
+        "source": "node-1766433338168-u7q3a22ra",
+        "target": "node-1766433338168-4em2wfoa3",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766433354226",
+        "source": "node-1766433338168-4em2wfoa3",
+        "target": "node-1766433338168-26kxtiea3",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766433355893",
+        "source": "node-1766433338168-26kxtiea3",
+        "target": "node-1766433338168-v1rwud29w",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      }
+    ],
+    "canvasObjects": [],
+    "viewport": {
+      "x": 575.209817155978,
+      "y": 155.76958418991393,
+      "zoom": 0.8596757463152813
+    }
+  }
+}

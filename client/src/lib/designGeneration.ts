@@ -1,0 +1,319 @@
+// ─── craft.js prompt (for KiteAI design generation) ─────────────────────────
+
+export const DESIGN_SYSTEM_PROMPT_CLIENT = `You are generating a UI design using Astryx design-system components. Output ONLY a JSON object in craft.js state format. No text before or after, no markdown fences.
+
+Format (example: user profile card with nested containers):
+{
+  "ROOT": {
+    "type": { "resolvedName": "AstryxSection" },
+    "isCanvas": true,
+    "props": { "direction": "column", "gap": 16, "padding": 24 },
+    "displayName": "AstryxSection",
+    "custom": {},
+    "parent": null,
+    "hidden": false,
+    "nodes": ["identity-row", "actions-row"],
+    "linkedNodes": {}
+  },
+  "identity-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 12, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["user-avatar", "user-info"],
+    "linkedNodes": {}
+  },
+  "user-avatar": {
+    "type": { "resolvedName": "AstryxAvatar" },
+    "isCanvas": false,
+    "props": { "name": "Jane Smith", "size": "md" },
+    "displayName": "AstryxAvatar",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-info": {
+    "type": { "resolvedName": "AstryxStack" },
+    "isCanvas": true,
+    "props": { "gap": 4 },
+    "displayName": "AstryxStack",
+    "custom": {},
+    "parent": "identity-row",
+    "hidden": false,
+    "nodes": ["user-name", "user-role"],
+    "linkedNodes": {}
+  },
+  "user-name": {
+    "type": { "resolvedName": "AstryxHeading" },
+    "isCanvas": false,
+    "props": { "children": "Jane Smith", "size": "md" },
+    "displayName": "AstryxHeading",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "user-role": {
+    "type": { "resolvedName": "AstryxText" },
+    "isCanvas": false,
+    "props": { "children": "Product Designer", "size": "sm", "muted": true },
+    "displayName": "AstryxText",
+    "custom": {},
+    "parent": "user-info",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "actions-row": {
+    "type": { "resolvedName": "AstryxHStack" },
+    "isCanvas": true,
+    "props": { "gap": 8, "align": "center" },
+    "displayName": "AstryxHStack",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": ["btn-follow", "btn-message"],
+    "linkedNodes": {}
+  },
+  "btn-follow": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Follow", "variant": "primary", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "btn-message": {
+    "type": { "resolvedName": "AstryxButton" },
+    "isCanvas": false,
+    "props": { "children": "Message", "variant": "outline", "size": "sm", "disabled": false },
+    "displayName": "AstryxButton",
+    "custom": {},
+    "parent": "actions-row",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}
+
+Key nesting patterns shown above:
+- AstryxHStack ("identity-row") holds both a leaf (AstryxAvatar) and a container (AstryxStack "user-info")
+- AstryxStack ("user-info") holds two leaves (AstryxHeading + AstryxText) — nested inside an HStack
+- AstryxHStack ("actions-row") holds two leaf buttons side-by-side
+- Always set "isCanvas": true on AstryxStack/AstryxHStack so they accept children
+
+RULES:
+- ROOT MUST always be AstryxSection. It is the only valid root.
+- All node IDs must be unique strings (e.g. "hero-card", "cta-button", or "node-1").
+- "parent" is null only for ROOT. Every other node must reference an existing parent.
+- "nodes" lists child IDs in order. Leaf components always have nodes=[].
+- CONTAINERS (isCanvas=true, can have children in "nodes"): AstryxSection, AstryxStack, AstryxHStack, AstryxCard, AstryxList, AstryxGrid, AstryxFormLayout, AstryxField, AstryxInputGroup, AstryxFieldStatus, AstryxArtboard, AstryxOverlay, AstryxClickableCard, AstryxSelectableCard.
+- LEAVES (isCanvas=false, nodes=[]): all remaining components (see quick-reference below).
+- Use AstryxStack for vertical grouping and AstryxHStack for horizontal rows inside a section.
+- Keep node count under 40.
+- Use the full palette — don't default to only Section/Button/Text. Pick components that best suit the UI being described.
+
+COMPONENT QUICK-REFERENCE:
+
+— CONTAINERS —
+- AstryxSection: top-level flex container, props: { direction: "row"|"column", gap: number, padding: number }
+- AstryxStack:   vertical stack, props: { gap: number }
+- AstryxHStack:  horizontal row, props: { gap: number, align: "start"|"center"|"end" }
+
+— TYPOGRAPHY —
+- AstryxHeading: title/headline, props: { children: string, size: "sm"|"md"|"lg"|"xl"|"2xl" }
+- AstryxText:    body copy, props: { children: string, size: "xs"|"sm"|"md"|"lg", muted: boolean }
+
+— INPUTS & ACTIONS —
+- AstryxButton:    action button, props: { children: string, variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
+- AstryxTextInput: text field, props: { placeholder: string, label: string, disabled: boolean }
+
+— FORM CONTROLS —
+- AstryxSelect:     dropdown selector, props: { placeholder: string, options: string (comma-separated), open?: boolean }
+- AstryxCheckbox:   checkbox with label, props: { label: string, checked: boolean }
+- AstryxRadioGroup: radio button group, props: { options: string (comma-separated), selected: string }
+- AstryxSlider:     range slider, props: { value: number, min: number, max: number }
+- AstryxTextArea:   multi-line text field, props: { label: string, placeholder: string, rows: number (1-20), disabled: boolean }
+- AstryxSwitch:     on/off toggle, props: { label: string, checked: boolean, disabled: boolean }
+- AstryxNumberInput: numeric stepper field, props: { label: string, value: number, min?: number, max?: number, step?: number, disabled: boolean }
+- AstryxToggleButton: toggleable button, props: { children: string, pressed: boolean, size: "sm"|"md"|"lg", disabled: boolean }
+- AstryxSegmentedControl: segmented picker, props: { options: string (comma-separated), selected: string (must match one option), size: "sm"|"md"|"lg" }
+- AstryxCheckboxList: multi-select checkbox list, props: { label?: string, options: string (comma-separated), selected: string (comma-separated subset) }
+- AstryxIconButton: icon-only button, props: { name: string (icon name, e.g. "search"), variant: "primary"|"secondary"|"outline"|"ghost", size: "sm"|"md"|"lg", disabled: boolean }
+
+— DATE & TIME INPUTS —
+All four share label/open/invalid/disabled/required. The first three take a single "placeholder"; AstryxDateRangeInput has two ends, so it takes startPlaceholder and endPlaceholder instead and ignores "placeholder". Set open: true only when the design should show the picker expanded; the panel renders inline below the field, pushing later content down.
+- AstryxDateInput: date field, props: { label?: string, value: string (display text, e.g. "Aug 16, 2026"), placeholder: string, month: string (panel heading, e.g. "August 2026"), selectedDay: number (1-31, highlighted in the panel), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxTimeInput: time field, props: { label?: string, value: string (e.g. "10:30"), placeholder: string, times: string (comma-separated options), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxDateTimeInput: date + time field, props: { label?: string, value: string (e.g. "Aug 16, 2026 · 10:30"), placeholder: string, month: string, selectedDay: number, times: string (comma-separated), selectedTime: string, open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxDateRangeInput: date range field, props: { label?: string, startValue: string, endValue: string, startPlaceholder: string, endPlaceholder: string, month: string, rangeStart: number (1-31), rangeEnd: number (1-31), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+
+— FILE INPUT —
+- AstryxFileInput: upload field, props: { label?: string, placeholder: string (empty-state prompt), fileName: string (set it to show the populated state, leave "" for the dropzone), fileSize: string, hint: string (accepted formats), invalid: boolean, disabled: boolean, required: boolean }
+
+— ADVANCED SELECTION & SEARCH —
+- AstryxTypeahead: search-as-you-type field, props: { label?: string, query: string (typed text), placeholder: string, suggestions: string (comma-separated), highlighted: string (must match one suggestion), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxMultiSelector: multi-select dropdown, props: { label?: string, placeholder: string, options: string (comma-separated), selected: string (comma-separated subset, shown as chips in the field), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxComplexSelector: rich option list, props: { label?: string, placeholder: string, options: string (comma-separated "Title:Description" pairs), selected: string (must match a Title), open: boolean, invalid: boolean, disabled: boolean, required: boolean }
+- AstryxPowerSearch: search bar with filter chips, props: { placeholder: string, query: string, filters: string (comma-separated "key:value" chips), resultCount: string (e.g. "42 results"), suggestions: string (comma-separated), open: boolean, disabled: boolean }
+- AstryxTokenizer: tag/token entry, props: { label?: string, tokens: string (comma-separated chips), placeholder: string, max: number (0 = no limit; exceeding it renders the error state), invalid: boolean, disabled: boolean, required: boolean }
+
+— STATUS & FEEDBACK —
+- AstryxBadge:       label chip, props: { children: string, color: "blue"|"green"|"amber"|"red"|"gray" }
+- AstryxBanner:      alert bar, props: { children: string, variant: "info"|"success"|"warning"|"error" }
+- AstryxProgressBar: progress track, props: { value: number (0-100), color: "blue"|"green"|"amber"|"red" }
+- AstryxStatusDot:   presence dot, props: { status: "online"|"offline"|"busy"|"away" }
+- AstryxSpinner:     loading spinner, props: { size: "sm"|"md"|"lg" }
+- AstryxSkeleton:    loading placeholder, props: { width: number, height: number }
+
+— MEDIA & IDENTITY —
+- AstryxAvatar: user avatar, props: { name: string, src: string (optional), size: "xs"|"sm"|"md"|"lg" }
+- AstryxIcon:   icon glyph, props: { name: string, size: "sm"|"md"|"lg" }
+
+— DATA DISPLAY —
+- AstryxTable:     data table, props: { rows: number (1-10), columns: number (1-6), headers: string[] (column names, e.g. ["Name","Email","Role"]), cellData: string[][] (row data, e.g. [["Alice Chen","alice@acme.com","Admin"]]) }
+- AstryxTabs:      tab navigation bar, props: { tabs: string (comma-separated), active: string }
+- AstryxAccordion: collapsible sections, props: { items: string (comma-separated), open: string }
+- AstryxCalendar:  date picker, props: { month: string }
+- AstryxCommand:   search/command palette, props: { placeholder: string }
+- AstryxCarousel:  image/slide carousel, props: { slides: string (comma-separated) }
+
+— LAYOUT —
+- AstryxResizable: split panel layout, props: { direction: "horizontal"|"vertical" }
+- AstryxGrid:      equal-column grid (isCanvas=true), props: { columns: number (1-6), gap: number, align?: "start"|"center"|"end"|"stretch" }
+
+— FORM STRUCTURE (all isCanvas=true) —
+- AstryxFormLayout:  form field grid, holds AstryxField children, props: { columns: number (1-4), gap: number }
+- AstryxField:       labelled wrapper around exactly ONE input node; carries the label itself so the inner input needs no label prop, props: { label: string, helpText?: string, error?: string, required?: boolean, gap?: number }
+- AstryxInputGroup:  joined horizontal input row (e.g. text field + button), props: { gap: number (0 = visually attached) }
+- AstryxFieldStatus: validation message wrapper, holds an AstryxText child, props: { status: "error"|"success"|"warning"|"info" }
+
+— CONTENT —
+- AstryxCard:        content card, props: { variant: "elevated"|"outlined"|"ghost", gap: number (default 12) }
+- AstryxChatMessage: chat bubble, props: { children: string, sender: string, timestamp: string (optional), isOwn: boolean }
+- AstryxEmptyState:  empty placeholder, props: { title: string, description: string (optional), action: string (optional) }
+- AstryxToken:       removable tag chip, props: { children: string }
+- AstryxDivider:     horizontal rule, props: { label: string (optional) }
+
+— NAVIGATION —
+- AstryxNavbar:     top navigation bar, props: { brand: string, links: string (comma-separated) }
+- AstryxSidebar:    vertical navigation panel, props: { items: string (comma-separated), active: string }
+- AstryxBreadcrumb: breadcrumb trail, props: { items: string (comma-separated) }
+- AstryxNavMenu:    nav item row/column, props: { items: string (comma-separated; "Label:12" adds a count badge, "---" a separator), active: string, orientation: "horizontal"|"vertical", showIcons: boolean }
+- AstryxMobileNav:  bottom tab bar, props: { items: string (comma-separated "Label:iconName", e.g. "Home:home,Search:search"), active: string, position: "bottom"|"top", showLabels: boolean }
+- AstryxNavIcon:    one nav icon, meant for use inside bars and menus, props: { glyph: string (icon name or literal glyph), label: string, badge: string, active: boolean, showLabel: boolean }
+- AstryxPagination: page control, props: { pageCount: number, currentPage: number, showArrows: boolean, align: "start"|"center"|"end" }
+- AstryxLink:       inline text link, props: { label: string, href: string, underline: "always"|"hover"|"none", external: boolean, size: "xs"|"sm"|"md"|"lg" }
+
+— DISPLAY PRIMITIVES —
+- AstryxTimestamp:   relative time label, props: { value: string (an ISO date renders as "2 hours ago"; any other text is shown verbatim), prefix: string, showIcon: boolean, size: "xs"|"sm"|"md", muted: boolean }
+- AstryxIndicator:   status dot or count, props: { variant: "dot"|"pulse"|"count", tone: "neutral"|"info"|"success"|"warning"|"danger", count: number, label: string }
+- AstryxThumbnail:   small image tile, props: { src: string (optional), label: string, size: number (24-320 px), radius: "none"|"sm"|"md"|"lg"|"full", showLabel: boolean }
+- AstryxAvatarGroup: stacked avatars, props: { names: string (comma-separated full names), max: number (how many are shown), overflowCount: number (0 = derive "+N" from the names that did not fit), size: "xs"|"sm"|"md"|"lg" }
+
+— SELECTABLE CARDS (both isCanvas=true; content goes in nodes[] like AstryxCard) —
+- AstryxClickableCard:  card that reads as clickable, props: { variant: "elevated"|"outlined"|"ghost", interactive: boolean, hovered: boolean (draws the hover state), padding: number, gap: number }
+- AstryxSelectableCard: card with a selected state, props: { variant: "elevated"|"outlined"|"ghost", selected: boolean, indicator: "check"|"radio"|"none", padding: number, disabled: boolean, gap: number }
+
+— OVERLAYS —
+- AstryxModal:  dialog/modal overlay, props: { title: string, children: string }
+- AstryxDrawer: slide-in drawer panel, props: { title: string, side: "left"|"right" }
+- AstryxSheet:  bottom/side sheet, props: { title: string }
+
+— ANCHORED OVERLAYS (render inline inside the artboard, always visible — never portalled, never hidden behind a trigger) —
+"placement" picks which side of the anchor the panel sits on; "align" is the cross-axis alignment; "open": false draws the closed state.
+- AstryxPopover:   anchored popover, props: { anchorLabel: string, title: string, description: string, confirmLabel: string, cancelLabel: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+- AstryxTooltip:   small dark tooltip, props: { anchorLabel: string, text: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+- AstryxHoverCard: profile hover card, props: { anchorLabel: string, name: string, handle: string, bio: string, meta: string, src: string (optional avatar), placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean, showArrow: boolean }
+
+— MENUS —
+"items" is ONE comma-separated string: "---" is a separator, "Label:Shortcut" adds shortcut text, a leading "!" marks a destructive item. e.g. "Edit:⌘E,Duplicate,---,!Delete"
+- AstryxDropdownMenu: button-triggered menu, props: { label: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+- AstryxContextMenu:  right-click menu, props: { surfaceLabel: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+- AstryxMoreMenu:     "⋯" overflow menu, props: { glyph: string, items: string, selected: string, placement: "top"|"bottom"|"left"|"right", align: "start"|"center"|"end", width: number, open: boolean }
+
+— DIALOGS & SURFACES —
+- AstryxAlertDialog: confirmation dialog on a scrim stage, props: { title: string, description: string, confirmLabel: string, cancelLabel: string, tone: "danger"|"warning"|"info", scrim: "dark"|"light"|"blur"|"none", stageHeight: number, showStage: boolean, width: number }
+- AstryxToast:       notification rendered in place, props: { title: string, description: string, variant: "info"|"success"|"warning"|"error", actionLabel: string, showClose: boolean, position: "top-left"|"top-center"|"top-right"|"bottom-left"|"bottom-center"|"bottom-right", stageHeight: number, showStage: boolean, width: number }
+- AstryxLightbox:    image viewer on a dark stage, props: { src: string (optional), caption: string, counter: string, stageHeight: number, showControls: boolean, showClose: boolean }
+- AstryxOverlay:     scrim/backdrop CONTAINER (isCanvas=true) holding other components in nodes[], props: { scrim: "dark"|"light"|"blur"|"none", padding: number, align: "start"|"center"|"end", minHeight: number }
+
+— CHARTS —
+- AstryxBarChart:  bar chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+- AstryxLineChart: line chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+- AstryxPieChart:  pie/donut chart, props: { labels: string (comma-separated), values: string (comma-separated numbers) }
+
+— MEDIA & CODE —
+- AstryxVideoPlayer: video player, props: { src: string (optional), title: string (optional) }
+- AstryxCodeBlock:   syntax-highlighted code block, props: { code: string, language: string }
+
+— LIST —
+- AstryxList:     list container (isCanvas=true, holds AstryxListItem children), props: { gap: number }
+- AstryxListItem: single list row, props: { primary: string, secondary: string (optional), leading: string (optional) }
+
+— ARTBOARD (multi-screen use only) —
+- AstryxArtboard: named canvas frame for multi-screen editing (isCanvas=true); use only when the design spans multiple distinct screens`;
+
+// ─── craft.js types ────────────────────────────────────────────────────────────
+
+export interface CraftNodeType {
+  resolvedName: string;
+}
+
+export interface CraftNode {
+  type: CraftNodeType;
+  isCanvas?: boolean;
+  props: Record<string, unknown>;
+  displayName?: string;
+  custom?: Record<string, unknown>;
+  parent: string | null;
+  hidden?: boolean;
+  nodes: string[];
+  linkedNodes?: Record<string, string>;
+}
+
+export interface CraftJsState {
+  ROOT: CraftNode;
+  [nodeId: string]: CraftNode;
+}
+
+// ─── Type guards ──────────────────────────────────────────────────────────────
+
+export function isCraftJsDesignState(obj: unknown): obj is CraftJsState {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  if (!o['ROOT'] || typeof o['ROOT'] !== 'object') return false;
+  const root = o['ROOT'] as Record<string, unknown>;
+  if (!root['type'] || typeof root['type'] !== 'object') return false;
+  const rootType = root['type'] as Record<string, unknown>;
+  return typeof rootType['resolvedName'] === 'string';
+}
+
+// Kept for backward compatibility with old external_entities flat-JSON designs
+export interface DesignComponent {
+  id: string;
+  astryxComponent: string;
+  x: number;
+  y: number;
+  props?: Record<string, unknown>;
+}
+
+export interface DesignData {
+  title: string;
+  components: DesignComponent[];
+}
+
+export function isDesignJson(obj: unknown): obj is DesignData {
+  if (!obj || typeof obj !== 'object') return false;
+  const o = obj as Record<string, unknown>;
+  return Array.isArray(o.components) && typeof o.title === 'string';
+}

@@ -1,0 +1,9 @@
+run = "bash start-direct.sh"
+
+[deployment]
+deploymentTarget = "cloudrun"
+ignoredPaths = [".git"]
+
+[[ports]]
+localPort = 11434
+externalPort = 80

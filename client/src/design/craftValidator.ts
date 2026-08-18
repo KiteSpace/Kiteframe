@@ -1,0 +1,991 @@
+/**
+ * Pure craft.js state validation utilities — no React or craftjs runtime deps.
+ * Safe to import from server-side code, tests, and scripts alike.
+ *
+ * Keeping this module framework-free is intentional: resolver.tsx imports from
+ * here (not the other way around) so tests can import the real production
+ * validators without dragging in @craftjs/core or @/components/astryx.
+ */
+
+// ─── Allowed component list ────────────────────────────────────────────────────
+// This is the single source of truth.  resolver.tsx imports it to build its
+// resolver map; the design-system prompt must document every entry here.
+// AstryxUnknown is included so the validator accepts graceful-degradation nodes.
+
+export const ALLOWED_CRAFT_COMPONENTS: readonly string[] = [
+  // Containers
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+  // Typography
+  "AstryxHeading",
+  "AstryxText",
+  // Inputs & actions
+  "AstryxButton",
+  "AstryxTextInput",
+  // Form controls
+  "AstryxSelect",
+  "AstryxCheckbox",
+  "AstryxRadioGroup",
+  "AstryxSlider",
+  // Status & feedback
+  "AstryxBadge",
+  "AstryxBanner",
+  "AstryxProgressBar",
+  "AstryxStatusDot",
+  "AstryxSpinner",
+  "AstryxSkeleton",
+  // Media & identity
+  "AstryxAvatar",
+  "AstryxIcon",
+  // Data display
+  "AstryxTable",
+  "AstryxTabs",
+  "AstryxAccordion",
+  // Content
+  "AstryxCard",
+  "AstryxChatMessage",
+  "AstryxEmptyState",
+  "AstryxToken",
+  "AstryxDivider",
+  // Media & navigation
+  "AstryxCalendar",
+  "AstryxCommand",
+  "AstryxCarousel",
+  // Layout
+  "AstryxResizable",
+  // Form structure (containers)
+  "AstryxField",
+  "AstryxFieldStatus",
+  "AstryxFormLayout",
+  "AstryxInputGroup",
+  "AstryxGrid",
+  // Form inputs
+  "AstryxTextArea",
+  "AstryxSwitch",
+  "AstryxNumberInput",
+  "AstryxToggleButton",
+  "AstryxSegmentedControl",
+  "AstryxCheckboxList",
+  "AstryxIconButton",
+  // Date & time inputs
+  "AstryxDateInput",
+  "AstryxTimeInput",
+  "AstryxDateTimeInput",
+  "AstryxDateRangeInput",
+  // File input
+  "AstryxFileInput",
+  // Advanced selection & search
+  "AstryxTypeahead",
+  "AstryxMultiSelector",
+  "AstryxComplexSelector",
+  "AstryxPowerSearch",
+  "AstryxTokenizer",
+  // Navigation, display primitives & selectable cards
+  "AstryxNavMenu",
+  "AstryxMobileNav",
+  "AstryxNavIcon",
+  "AstryxPagination",
+  "AstryxLink",
+  "AstryxTimestamp",
+  "AstryxIndicator",
+  "AstryxThumbnail",
+  "AstryxAvatarGroup",
+  "AstryxClickableCard",
+  "AstryxSelectableCard",
+  // Navigation
+  "AstryxNavbar",
+  "AstryxSidebar",
+  "AstryxBreadcrumb",
+  // Overlays
+  "AstryxModal",
+  "AstryxDrawer",
+  "AstryxSheet",
+  // Anchored overlays
+  "AstryxPopover",
+  "AstryxTooltip",
+  "AstryxHoverCard",
+  // Menus
+  "AstryxDropdownMenu",
+  "AstryxContextMenu",
+  "AstryxMoreMenu",
+  // Dialogs & surfaces
+  "AstryxAlertDialog",
+  "AstryxToast",
+  "AstryxLightbox",
+  "AstryxOverlay",
+  // Charts
+  "AstryxBarChart",
+  "AstryxLineChart",
+  "AstryxPieChart",
+  // Media
+  "AstryxVideoPlayer",
+  "AstryxCodeBlock",
+  // List
+  "AstryxList",
+  "AstryxListItem",
+  // Artboard (named canvas frame for multi-screen editing)
+  "AstryxArtboard",
+  // Fallback for unknown components (not in prompt; used by sanitizeCraftState)
+  "AstryxUnknown",
+];
+
+/**
+ * The leaf placeholder every unresolvable node degrades to. It renders a dashed
+ * box labelled with the original component name (carried in
+ * `props.astryxComponent`), so a design containing something the library does not
+ * have still lands on the canvas with the gap clearly marked.
+ */
+export const PLACEHOLDER_COMPONENT = "AstryxUnknown";
+
+// ─── "Did you mean" suggestions ───────────────────────────────────────────────
+// When a generation asks for a component the library does not have, the reply
+// should point at the closest thing the user *could* ask for. This only ever
+// feeds message text — the node itself always becomes the placeholder, never an
+// automatically chosen substitute (guessing a real component silently changes
+// the design into something the user did not ask for).
+
+// Checked in order, so put the more specific families first: "DatePicker"
+// matches both /date/ and /picker/ and should resolve to the calendar.
+const ALTERNATIVE_HINTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/date|time|schedule|day|month|year|calendar/, "AstryxCalendar"],
+  [/dropdown|combobox|listbox|autocomplete|typeahead|picker|select/, "AstryxSelect"],
+  [/toggle|switch/, "AstryxSwitch"],
+  [/dialog|modal|popup|lightbox|overlay/, "AstryxModal"],
+  [/drawer|offcanvas|flyout/, "AstryxDrawer"],
+  [/tooltip|popover|hovercard/, "AstryxBadge"],
+  [/breadcrumb|navigation|navbar|menubar|topbar/, "AstryxNavbar"],
+  [/sidebar|railnav/, "AstryxSidebar"],
+  [/stepper|wizard|timeline|progress/, "AstryxProgressBar"],
+  [/rating|stars|slider|range/, "AstryxSlider"],
+  [/upload|dropzone|filepicker/, "AstryxEmptyState"],
+  [/chart|graph|plot|sparkline/, "AstryxBarChart"],
+  [/map|iframe|embed|video|player/, "AstryxVideoPlayer"],
+  [/pagination|paginator/, "AstryxHStack"],
+  [/toast|snackbar|notification|alert/, "AstryxBanner"],
+  [/chip|tag|pill|label/, "AstryxToken"],
+  [/image|photo|thumbnail|logo|avatar/, "AstryxAvatar"],
+  [/grid|masonry|columns/, "AstryxGrid"],
+];
+
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      curr[j] = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Best-effort "closest available component" for a name the library doesn't have.
+ * Returns null rather than guessing wildly — no suggestion reads better than a
+ * confidently wrong one.
+ */
+export function suggestAlternativeComponent(unknownName: string): string | null {
+  const base = String(unknownName ?? "")
+    .replace(/^Astryx/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+  if (!base) return null;
+
+  for (const [pattern, suggestion] of ALTERNATIVE_HINTS) {
+    if (pattern.test(base)) return suggestion;
+  }
+
+  // Prefer a containment match on the longest candidate name, so
+  // "PrimaryActionButton" resolves to Button rather than to a shorter accident.
+  const candidates = ALLOWED_CRAFT_COMPONENTS.filter(
+    (c) => c !== PLACEHOLDER_COMPONENT && c !== "AstryxArtboard",
+  );
+  let contained: string | null = null;
+  for (const candidate of candidates) {
+    const cb = candidate.replace(/^Astryx/, "").toLowerCase();
+    if (cb.length < 4) continue;
+    if (base.includes(cb) || cb.includes(base)) {
+      if (!contained || cb.length > contained.replace(/^Astryx/, "").length) contained = candidate;
+    }
+  }
+  if (contained) return contained;
+
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const candidate of candidates) {
+    const score = editDistance(base, candidate.replace(/^Astryx/, "").toLowerCase());
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  // Only offer a near miss; beyond roughly a third of the name being wrong the
+  // "suggestion" is noise.
+  return best !== null && bestScore <= Math.max(2, Math.floor(base.length / 3)) ? best : null;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CraftStateValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+// ─── Validator ────────────────────────────────────────────────────────────────
+
+export function validateCraftState(state: unknown): CraftStateValidationResult {
+  const errors: string[] = [];
+
+  if (!state || typeof state !== "object") {
+    return { valid: false, errors: ["craft_state must be an object"] };
+  }
+
+  const map = state as Record<string, unknown>;
+
+  if (!map["ROOT"]) {
+    errors.push("craft_state must have a ROOT node");
+  }
+
+  const nodeIds = new Set(Object.keys(map));
+
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") {
+      errors.push(`Node "${nodeId}" is not an object`);
+      continue;
+    }
+
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+
+    if (!resolvedName) {
+      errors.push(`Node "${nodeId}" missing type.resolvedName`);
+    } else if (!ALLOWED_CRAFT_COMPONENTS.includes(resolvedName as string)) {
+      console.warn(
+        `[validateCraftState] Node "${nodeId}" has unknown component type: "${resolvedName}" — will be rendered as AstryxUnknown`,
+      );
+    }
+
+    if (nodeId !== "ROOT" && n["parent"] && !nodeIds.has(n["parent"] as string)) {
+      errors.push(`Node "${nodeId}" references non-existent parent: "${n["parent"]}"`);
+    }
+
+    if (Array.isArray(n["nodes"])) {
+      for (const childId of n["nodes"] as string[]) {
+        if (!nodeIds.has(childId)) {
+          errors.push(`Node "${nodeId}" references non-existent child: "${childId}"`);
+        }
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+// ─── ROOT container contract ─────────────────────────────────────────────────
+// ROOT is craft.js's immutable canvas container. It must always resolve to a
+// real *container* component, because a non-container ROOT renders no children
+// at all — the entire design silently disappears even though every node is
+// still present and correctly parented in the state map.
+//
+// Only these names are acceptable on ROOT. Anything else (an artboard, an
+// unknown/hallucinated name, craft.js's own literal "Root", or the
+// AstryxUnknown placeholder) is coerced to AstryxSection.
+export const ROOT_CONTAINER_COMPONENTS: readonly string[] = [
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+];
+
+export function isValidRootComponent(resolvedName: unknown): boolean {
+  return typeof resolvedName === "string" && ROOT_CONTAINER_COMPONENTS.includes(resolvedName);
+}
+
+// Components whose ONLY valid semantic is "container". craft.js reads `isCanvas`
+// from the stored node state, not from the component's static .craft config, so a
+// generator that omits or falsifies the field produces a node that renders none of
+// its children — the content is still in the node map and the layers panel, but the
+// canvas shows an empty box. Enforce the field for every one of these on repair.
+// Must stay in sync with ALWAYS_CANVAS_COMPONENTS in server/lib/designSchema.ts and
+// with the "Containers (isCanvas:true)" line in server/lib/designPrompt.ts.
+export const ALWAYS_CANVAS_COMPONENTS: readonly string[] = [
+  "AstryxArtboard",
+  "AstryxSection",
+  "AstryxStack",
+  "AstryxHStack",
+  "AstryxCard",
+  "AstryxList",
+  "AstryxGrid",
+  "AstryxFormLayout",
+  "AstryxField",
+  "AstryxInputGroup",
+  "AstryxFieldStatus",
+  "AstryxOverlay",
+  "AstryxClickableCard",
+  "AstryxSelectableCard",
+];
+
+/**
+ * Force `map.ROOT` to be a valid, canvas-enabled container.
+ *
+ * Returns true when the ROOT node was modified. Safe to call repeatedly and
+ * safe to call on a map with no ROOT (it is a no-op in that case — ROOT
+ * reconstruction is handled separately).
+ *
+ * This MUST run before any pass that replaces unrecognized component names
+ * with AstryxUnknown, otherwise ROOT is turned into a non-container
+ * placeholder and the whole canvas renders blank.
+ */
+export function normalizeRootNode(map: Record<string, unknown>, logPrefix: string): boolean {
+  const root = map["ROOT"];
+  if (!root || typeof root !== "object") return false;
+
+  const rootNode = root as Record<string, unknown>;
+  const rootType = rootNode["type"];
+  const resolvedName =
+    rootType && typeof rootType === "object"
+      ? (rootType as Record<string, unknown>)["resolvedName"]
+      : undefined;
+
+  const typeIsValid = isValidRootComponent(resolvedName);
+  const isCanvasValid = rootNode["isCanvas"] === true;
+  if (typeIsValid && isCanvasValid) return false;
+
+  const existingProps =
+    rootNode["props"] && typeof rootNode["props"] === "object"
+      ? (rootNode["props"] as Record<string, unknown>)
+      : {};
+
+  const patch: Record<string, unknown> = { ...rootNode, isCanvas: true };
+
+  if (!typeIsValid) {
+    // `label` only means something on AstryxArtboard; strip it so a mis-typed
+    // artboard ROOT doesn't leave a stray label behind on the canvas container.
+    const { label: removedLabel, astryxComponent: _dropped, ...sanitizedProps } = existingProps;
+    console.warn(
+      `[${logPrefix}] ROOT.type was "${String(resolvedName ?? "(missing)")}"${
+        removedLabel !== undefined ? ` (label=${String(removedLabel)})` : ""
+      } — corrected to AstryxSection so the canvas renders its children`,
+    );
+    patch["type"] = { resolvedName: "AstryxSection" };
+    patch["displayName"] = "AstryxSection";
+    patch["props"] = sanitizedProps;
+  } else if (!isCanvasValid) {
+    console.warn(`[${logPrefix}] Enforcing isCanvas:true on ROOT`);
+  }
+
+  map["ROOT"] = patch;
+  return true;
+}
+
+// ─── Reference repairer ──────────────────────────────────────────────────────
+// Removes dangling parent/child cross-references from AI-generated craft state,
+// backfills unusable node types, and degrades unknown component names to the
+// placeholder. Call this before validateCraftState: everything here exists so a
+// salvageable design lands on the canvas instead of being discarded whole.
+//
+// Must stay behaviourally in sync with repairCraftState in
+// server/lib/designSchema.ts — see the parity test in
+// client/src/design/__tests__/repairParity.test.ts.
+
+/** What repairCraftState had to change, for reporting back to the user. */
+export interface CraftRepairReport {
+  /** Original names of components replaced by the placeholder, de-duplicated. */
+  substitutedComponents: string[];
+  /** Nodes that arrived with no usable type at all and were given the placeholder. */
+  typelessNodeIds: string[];
+}
+
+export interface CraftRepairResult {
+  state: unknown;
+  report: CraftRepairReport;
+}
+
+export function repairCraftState(state: unknown): unknown {
+  return repairCraftStateWithReport(state).state;
+}
+
+export function repairCraftStateWithReport(state: unknown): CraftRepairResult {
+  const substituted: string[] = [];
+  const typelessNodeIds: string[] = [];
+  const report = (): CraftRepairReport => ({
+    substitutedComponents: Array.from(new Set(substituted)),
+    typelessNodeIds,
+  });
+
+  if (!state || typeof state !== "object") return { state, report: report() };
+  const map = { ...(state as Record<string, unknown>) } as Record<string, unknown>;
+  const nodeIds = new Set(Object.keys(map));
+  const allowedSet = new Set<string>(ALLOWED_CRAFT_COMPONENTS);
+
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = { ...(node as Record<string, unknown>) };
+
+    // Strip dangling child references
+    if (Array.isArray(n["nodes"])) {
+      const repaired = (n["nodes"] as string[]).filter((id) => nodeIds.has(id));
+      if (repaired.length !== (n["nodes"] as string[]).length) {
+        n["nodes"] = repaired;
+      }
+    }
+
+    // Strip dangling linkedNodes references
+    if (n["linkedNodes"] && typeof n["linkedNodes"] === "object") {
+      const ln = { ...(n["linkedNodes"] as Record<string, string>) };
+      let changed = false;
+      for (const [k, v] of Object.entries(ln)) {
+        if (!nodeIds.has(v)) { delete ln[k]; changed = true; }
+      }
+      if (changed) n["linkedNodes"] = ln;
+    }
+
+    // Strip parent reference if parent node doesn't exist
+    if (n["parent"] && !nodeIds.has(n["parent"] as string) && nodeId !== "ROOT") {
+      n["parent"] = null;
+    }
+
+    // ── Enforce safe defaults for fields Craft.js reads from stored state ───
+    // `hidden`      — Craft.js reads this to conditionally hide a node in the
+    //                 canvas/layer panel; missing → treated as truthy garbage.
+    // `custom`      — Craft.js spreads this onto the node's user-data bag;
+    //                 missing → crashes the Editor resolver on first access.
+    // `displayName` — Craft.js shows this in the layers panel and uses it
+    //                 during drag-drop; missing → falls back to "undefined".
+    // `hidden` — normalize any non-boolean value (absent, null, "false", 1…)
+    //            to a proper false so Craft.js always gets a boolean and the
+    //            server schema's required-boolean check never rejects the node.
+    if (typeof n["hidden"] !== "boolean") {
+      n["hidden"] = false;
+    }
+    if (!n["custom"] || typeof n["custom"] !== "object" || Array.isArray(n["custom"])) {
+      n["custom"] = {};
+    }
+    // ── Backfill a node type that craft.js could never resolve ──────────────
+    // A node with no `type` (or no `resolvedName` inside it) is the ONLY
+    // component-type problem validateCraftState actually rejects. Giving it the
+    // placeholder here means a design carrying one malformed node still lands,
+    // with that node visible as a labelled gap, instead of being thrown away.
+    if (!n["type"] || typeof n["type"] !== "object" || Array.isArray(n["type"])) {
+      n["type"] = { resolvedName: PLACEHOLDER_COMPONENT };
+      typelessNodeIds.push(nodeId);
+    } else {
+      // Clone: `n` is a shallow copy, so its `type` still aliases the input.
+      n["type"] = { ...(n["type"] as Record<string, unknown>) };
+    }
+    const typeObj = n["type"] as Record<string, unknown>;
+    if (typeof typeObj["resolvedName"] !== "string" || !typeObj["resolvedName"]) {
+      typeObj["resolvedName"] = PLACEHOLDER_COMPONENT;
+      if (!typelessNodeIds.includes(nodeId)) typelessNodeIds.push(nodeId);
+    }
+
+    // ── Degrade unknown component names to the placeholder ──────────────────
+    // ROOT is deliberately exempt: the placeholder is a leaf that renders no
+    // children, so demoting ROOT blanks the entire canvas while every node
+    // survives in the state map. normalizeRootNode (below) coerces ROOT to a
+    // real container instead.
+    const resolvedName = typeObj["resolvedName"] as string;
+    if (nodeId !== "ROOT" && resolvedName !== PLACEHOLDER_COMPONENT && !allowedSet.has(resolvedName)) {
+      console.warn(
+        `[repairCraftState] Unknown component "${resolvedName}" on node "${nodeId}" — replacing with ${PLACEHOLDER_COMPONENT}`,
+      );
+      typeObj["resolvedName"] = PLACEHOLDER_COMPONENT;
+      const existingProps =
+        n["props"] && typeof n["props"] === "object" && !Array.isArray(n["props"])
+          ? (n["props"] as Record<string, unknown>)
+          : {};
+      // The placeholder renders this name, so the user can see what was swapped.
+      n["props"] = { ...existingProps, astryxComponent: resolvedName };
+      n["displayName"] = PLACEHOLDER_COMPONENT;
+      substituted.push(resolvedName);
+    }
+
+    // ── A placeholder keeps the container-ness of what it replaced ──────────
+    // If the missing component was a container, forcing a leaf here hides its
+    // entire subtree — the same whole-design loss this fallback exists to
+    // prevent, one level down. The placeholder renders its children, so the
+    // content survives inside a clearly marked gap.
+    //
+    // Applied to every placeholder node, not just freshly substituted ones, so
+    // designs saved while the placeholder was leaf-only get their hidden
+    // subtrees back the next time they are opened.
+    if (typeObj["resolvedName"] === PLACEHOLDER_COMPONENT) {
+      n["isCanvas"] = Array.isArray(n["nodes"]) && (n["nodes"] as unknown[]).length > 0;
+    }
+
+    // Derived AFTER substitution so the layers panel never disagrees with the
+    // component actually rendered on the canvas.
+    if (typeof n["displayName"] !== "string") {
+      n["displayName"] = typeObj["resolvedName"] as string;
+    }
+
+    map[nodeId] = n;
+  }
+
+  // ── ROOT type normalization ──────────────────────────────────────────────
+  // Saved designs and AI/bridge output can have ROOT typed as something that
+  // is not a container: AstryxArtboard (renders as a blank, undeletable second
+  // screen), craft.js's own literal "Root", or any hallucinated name (which a
+  // later sanitize pass would turn into the non-container AstryxUnknown
+  // placeholder, blanking the entire canvas). ROOT is the canvas container, so
+  // coerce it to AstryxSection and guarantee isCanvas. This runs during every
+  // hydration repair pass, so affected persisted designs self-heal the next
+  // time they are opened (and the repaired state is saved back on the next
+  // autosave).
+  normalizeRootNode(map, "repairCraftState");
+
+  // ── ROOT reconstruction fallback ─────────────────────────────────────────
+  // If the AI omits ROOT entirely, synthesise a minimal one so the canvas has
+  // something to anchor to. Prefer nodes whose parent field already says "ROOT";
+  // if none exist, collect all nodes that have no valid parent (truly orphaned).
+  if (!map["ROOT"]) {
+    console.warn("[repairCraftState] ROOT node missing — synthesising from orphaned nodes");
+    const childrenOfRoot: string[] = [];
+    const orphans: string[] = [];
+    for (const [id, node] of Object.entries(map)) {
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n["parent"] === "ROOT") {
+        childrenOfRoot.push(id);
+      } else if (!n["parent"] || !nodeIds.has(n["parent"] as string)) {
+        orphans.push(id);
+      }
+    }
+    const rootChildren = childrenOfRoot.length > 0 ? childrenOfRoot : orphans;
+    // Set every adopted child's parent to ROOT
+    for (const id of rootChildren) {
+      const n = map[id] as Record<string, unknown>;
+      map[id] = { ...n, parent: "ROOT" };
+    }
+    map["ROOT"] = {
+      type: { resolvedName: "AstryxSection" },
+      // Must match the resolved name. A displayName of "Root" round-trips back
+      // through craft.js's reverse resolver lookup as a literal "Root" type,
+      // which is not a known component and gets demoted to a non-container
+      // placeholder — blanking the canvas.
+      displayName: "AstryxSection",
+      props: {},
+      nodes: rootChildren,
+      linkedNodes: {},
+      parent: null,
+      hidden: false,
+      isCanvas: true,
+      custom: {},
+    };
+  }
+
+  // ── Orphan reattachment ──────────────────────────────────────────────────
+  // The AI sometimes emits nodes (including whole artboard subtrees) whose
+  // `parent` field is set but which are missing from that parent's `nodes`
+  // array. Reachability-based pruning would silently delete that valid
+  // content, producing a blank canvas. Reattach every unreferenced node to
+  // its declared parent (or ROOT as a fallback) BEFORE any pruning runs.
+  // Genuinely empty disconnected artboards ("ghosts" from the old bug) are
+  // deliberately left alone so the ghost-cleanup prune can still remove them.
+  {
+    const referenced = new Set<string>();
+    for (const node of Object.values(map)) {
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (Array.isArray(n["nodes"])) {
+        for (const id of n["nodes"] as unknown[]) {
+          if (typeof id === "string") referenced.add(id);
+        }
+      }
+      if (n["linkedNodes"] && typeof n["linkedNodes"] === "object") {
+        for (const id of Object.values(n["linkedNodes"] as Record<string, unknown>)) {
+          if (typeof id === "string") referenced.add(id);
+        }
+      }
+    }
+
+    const reattach = (nodeId: string) => {
+      const n = map[nodeId] as Record<string, unknown>;
+      const declaredParent = typeof n["parent"] === "string" ? (n["parent"] as string) : null;
+      const parentId = declaredParent && nodeIds.has(declaredParent) ? declaredParent : "ROOT";
+      const parentNode = map[parentId] as Record<string, unknown> | undefined;
+      if (!parentNode || typeof parentNode !== "object") return;
+      const parentChildren = Array.isArray(parentNode["nodes"])
+        ? [...(parentNode["nodes"] as string[])]
+        : [];
+      console.warn(
+        `[repairCraftState] Reattaching orphaned node "${nodeId}" to parent "${parentId}"`,
+      );
+      parentChildren.push(nodeId);
+      map[parentId] = { ...parentNode, nodes: parentChildren };
+      if (parentId !== declaredParent) {
+        // Re-read from the map — this node may have been updated already
+        // (e.g. children appended to it as a parent).
+        map[nodeId] = { ...(map[nodeId] as Record<string, unknown>), parent: parentId };
+      }
+      referenced.add(nodeId);
+    };
+
+    const isOrphan = (nodeId: string) =>
+      nodeId !== "ROOT" && !referenced.has(nodeId) && !!map[nodeId] && typeof map[nodeId] === "object";
+    const resolvedNameOf = (nodeId: string) =>
+      ((map[nodeId] as Record<string, unknown>)["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+
+    // Pass 1: non-artboard orphans — attaching them may repopulate an
+    // artboard whose own `nodes` array was also broken.
+    for (const nodeId of Object.keys(map)) {
+      if (!isOrphan(nodeId) || resolvedNameOf(nodeId) === "AstryxArtboard") continue;
+      reattach(nodeId);
+    }
+    // Pass 2: artboard orphans — skip only artboards STILL empty now, which
+    // are the legacy "ghost" blank canvases the on-open prune cleans up.
+    for (const nodeId of Object.keys(map)) {
+      if (!isOrphan(nodeId) || resolvedNameOf(nodeId) !== "AstryxArtboard") continue;
+      const n = map[nodeId] as Record<string, unknown>;
+      const childCount = Array.isArray(n["nodes"]) ? (n["nodes"] as unknown[]).length : 0;
+      if (childCount === 0) continue;
+      reattach(nodeId);
+    }
+  }
+
+  // ── isCanvas enforcement for container components ────────────────────────
+  // Craft.js reads `isCanvas` from the stored node state (not from the
+  // component's static .craft config) to decide whether children are rendered
+  // inside a node. If `isCanvas` is absent or false on a container, the canvas
+  // shows a tiny blank "Container" box even though the children exist in the
+  // node map and appear in the layers panel. This happens when designs are
+  // generated externally (workflow-bridge, etc.) or when the AI omits the field.
+  // See ALWAYS_CANVAS_COMPONENTS for why these names are always containers.
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+    if (typeof resolvedName === "string" && ALWAYS_CANVAS_COMPONENTS.includes(resolvedName) && n["isCanvas"] !== true) {
+      console.warn(`[repairCraftState] Enforcing isCanvas:true on ${resolvedName} node "${nodeId}"`);
+      map[nodeId] = { ...n, isCanvas: true };
+    }
+  }
+
+  // ── Artboard enforcement ─────────────────────────────────────────────────
+  // ROOT's direct children must be AstryxArtboard nodes. If the AI emits
+  // ROOT → AstryxSection/Stack/etc → content (omitting the artboard wrapper),
+  // synthesise a "Screen 1" artboard and re-parent the orphan children under
+  // it so the canvas always has the required ROOT → AstryxArtboard → content
+  // hierarchy before craft.js deserializes the state.
+  const rootNodeEntry = map["ROOT"] as Record<string, unknown> | undefined;
+  if (rootNodeEntry && Array.isArray(rootNodeEntry["nodes"])) {
+    const rootChildren = rootNodeEntry["nodes"] as string[];
+    const artboardIds: string[] = [];
+    const nonArtboardIds: string[] = [];
+
+    for (const id of rootChildren) {
+      const node = map[id];
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+      if (resolvedName === "AstryxArtboard") {
+        artboardIds.push(id);
+      } else {
+        nonArtboardIds.push(id);
+      }
+    }
+
+    if (nonArtboardIds.length > 0) {
+      const artboardId = `kf_ab_${Math.random().toString(36).slice(2, 8)}`;
+      console.warn(
+        `[repairCraftState] Wrapping ${nonArtboardIds.length} non-artboard ROOT child(ren) in synthesised artboard "${artboardId}"`,
+      );
+      for (const id of nonArtboardIds) {
+        const n = map[id] as Record<string, unknown>;
+        map[id] = { ...n, parent: artboardId };
+      }
+      map[artboardId] = {
+        type: { resolvedName: "AstryxArtboard" },
+        isCanvas: true,
+        props: { label: "Screen 1", direction: "column", gap: 16, padding: 24 },
+        displayName: "AstryxArtboard",
+        custom: {},
+        parent: "ROOT",
+        hidden: false,
+        nodes: nonArtboardIds,
+        linkedNodes: {},
+      };
+      map["ROOT"] = { ...rootNodeEntry, nodes: [artboardId, ...artboardIds] };
+    }
+  }
+
+  return { state: map, report: report() };
+}
+
+/**
+ * JSON-string convenience wrapper around repairCraftState. Returns the input
+ * unchanged when it cannot be parsed. Use this before any reachability-based
+ * pruning so orphaned-but-valid content is reattached instead of deleted.
+ */
+export function repairCraftStateJson(craftStateJson: string): string {
+  try {
+    const parsed = JSON.parse(craftStateJson);
+    return JSON.stringify(repairCraftState(parsed));
+  } catch {
+    return craftStateJson;
+  }
+}
+
+// ─── Sanitizer ────────────────────────────────────────────────────────────────
+// Replaces any resolvedName not in ALLOWED_CRAFT_COMPONENTS with "AstryxUnknown"
+// and preserves the original name in props.astryxComponent so the placeholder
+// can display it.  Call this before passing a craft state string to <Frame>.
+
+export function sanitizeCraftState(craftStateJson: string): string {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(craftStateJson) as Record<string, unknown>;
+  } catch {
+    return craftStateJson;
+  }
+
+  if (!map || typeof map !== "object") return craftStateJson;
+
+  let changed = false;
+
+  // ROOT is never a candidate for AstryxUnknown substitution. AstryxUnknown is
+  // a leaf placeholder that renders no children, so demoting ROOT to it blanks
+  // the entire canvas while leaving every node intact in the state map — the
+  // design looks successfully generated in logs but nothing is ever drawn.
+  // Normalize ROOT to a real container first so the loop below skips it.
+  if (normalizeRootNode(map, "sanitizeCraftState")) {
+    changed = true;
+  }
+
+  for (const [nodeId, node] of Object.entries(map)) {
+    if (!node || typeof node !== "object") continue;
+    if (nodeId === "ROOT") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] as
+      | string
+      | undefined;
+    // Keep container-ness: the placeholder renders its children, so an
+    // unresolved container does not take its whole subtree down with it.
+    const hasChildren = Array.isArray(n["nodes"]) && (n["nodes"] as unknown[]).length > 0;
+
+    if (resolvedName && resolvedName !== "AstryxUnknown" && !ALLOWED_CRAFT_COMPONENTS.includes(resolvedName)) {
+      console.warn(
+        `[sanitizeCraftState] Replacing unknown component "${resolvedName}" on node "${nodeId}" with AstryxUnknown`,
+      );
+      map[nodeId] = {
+        ...n,
+        type: { resolvedName: "AstryxUnknown" },
+        displayName: "AstryxUnknown",
+        props: { ...(n["props"] as object | undefined), astryxComponent: resolvedName },
+        isCanvas: hasChildren,
+      };
+      changed = true;
+    } else if (resolvedName === "AstryxUnknown" && n["isCanvas"] !== hasChildren) {
+      // Already a placeholder — heal states persisted while the placeholder was
+      // leaf-only, whose children are currently hidden. Repair normally does
+      // this first, but sanitizeCraftState also runs directly ahead of
+      // <Frame data={...}> on paths that skip repair, and must not undo it.
+      map[nodeId] = { ...n, isCanvas: hasChildren };
+      changed = true;
+    }
+  }
+
+  // ROOT.nodes is the authoritative Craft.js tree. Reconcile direct children
+  // against it so stale parent pointers cannot turn disconnected AI nodes into
+  // visible canvas artifacts. Nodes listed in ROOT are reparented to ROOT;
+  // nodes merely claiming ROOT as parent remain disconnected until a generation
+  // explicitly includes them in the tree.
+  const rootEntry = map["ROOT"] as Record<string, unknown> | undefined;
+  if (rootEntry && Array.isArray(rootEntry.nodes)) {
+    const rootNodes = (rootEntry.nodes as string[]).filter(
+      (id, index, all) => typeof id === "string" && id in map && all.indexOf(id) === index,
+    );
+    if (rootNodes.length !== (rootEntry.nodes as string[]).length) {
+      map["ROOT"] = { ...rootEntry, nodes: rootNodes };
+      changed = true;
+    }
+    for (const id of rootNodes) {
+      const node = map[id];
+      if (!node || typeof node !== "object") continue;
+      const n = node as Record<string, unknown>;
+      if (n.parent !== "ROOT") {
+        map[id] = { ...n, parent: "ROOT" };
+        changed = true;
+      }
+    }
+    if (rootNodes.length > 0) {
+      const rootNodeSet = new Set(rootNodes);
+      for (const [id, node] of Object.entries(map)) {
+        if (id === "ROOT" || rootNodeSet.has(id) || !node || typeof node !== "object") continue;
+        const n = node as Record<string, unknown>;
+        if (n.parent === "ROOT") {
+          map[id] = { ...n, parent: null };
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return changed ? JSON.stringify(map) : craftStateJson;
+}
+
+// ─── Disconnected artboard detector ──────────────────────────────────────────
+/**
+ * Inspects a craft state and returns the labels (or IDs) of AstryxArtboard
+ * nodes that exist in the map but are NOT reachable from ROOT via the `nodes`
+ * / `linkedNodes` tree.  These are the "ghost" artboards that appear as blank
+ * canvases when a design was saved before the pruning safeguard was in place.
+ *
+ * Returns an empty array when the state is healthy — safe to call on every
+ * design open without changing anything.
+ */
+export function detectDisconnectedArtboards(craftStateJson: string): { id: string; label: string }[] {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(craftStateJson) as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+
+  // Build the reachable set (same BFS as pruneUnreachableCraftNodes).
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  if (!root || typeof root !== "object") return [];
+
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children = [
+      ...(Array.isArray(node.nodes) ? (node.nodes as string[]) : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? (node.linkedNodes as Record<string, unknown>)
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  // Collect AstryxArtboard nodes that were not reached.
+  const disconnected: { id: string; label: string }[] = [];
+  for (const [id, node] of Object.entries(map)) {
+    if (reachable.has(id) || !node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    const resolvedName = (n["type"] as Record<string, unknown> | undefined)?.["resolvedName"];
+    if (resolvedName === "AstryxArtboard") {
+      const props = n["props"] as Record<string, unknown> | undefined;
+      const label =
+        typeof props?.["label"] === "string" && props["label"].trim()
+          ? props["label"]
+          : id;
+      disconnected.push({ id, label });
+    }
+  }
+
+  return disconnected;
+}
+
+/**
+ * Compact diagnostic summary of a craft state's artboard structure. Used by
+ * the interface-generation lifecycle logging ("[artboard-trace]") to pinpoint
+ * where a blank/undeletable artboard is introduced: AI response, client
+ * merge, persistence, or hydration.
+ */
+export function summarizeArtboards(craftState: string | Record<string, unknown>): {
+  totalNodes: number;
+  rootNodes: string[];
+  artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean }[];
+  disconnectedArtboardIds: string[];
+} {
+  let map: Record<string, unknown>;
+  if (typeof craftState === "string") {
+    try {
+      map = JSON.parse(craftState) as Record<string, unknown>;
+    } catch {
+      return { totalNodes: 0, rootNodes: [], artboards: [], disconnectedArtboardIds: [] };
+    }
+  } else {
+    map = craftState ?? {};
+  }
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  const rootNodes = Array.isArray(root?.nodes) ? (root!.nodes as string[]) : [];
+  const disconnected = new Set(
+    detectDisconnectedArtboards(typeof craftState === "string" ? craftState : JSON.stringify(map)).map((d) => d.id),
+  );
+  const artboards: { id: string; label: string; parent: unknown; childCount: number; inRootNodes: boolean; empty: boolean }[] = [];
+  for (const [id, node] of Object.entries(map)) {
+    if (id === "ROOT") continue; // ROOT is the canvas container, never a real screen artboard
+    if (!node || typeof node !== "object") continue;
+    const n = node as Record<string, unknown>;
+    if ((n["type"] as Record<string, unknown> | undefined)?.["resolvedName"] !== "AstryxArtboard") continue;
+    const props = n["props"] as Record<string, unknown> | undefined;
+    const children = Array.isArray(n["nodes"]) ? (n["nodes"] as string[]) : [];
+    artboards.push({
+      id,
+      label: typeof props?.["label"] === "string" ? (props["label"] as string) : id,
+      parent: n["parent"],
+      childCount: children.length,
+      inRootNodes: rootNodes.includes(id),
+      empty: children.length === 0,
+    });
+  }
+  return {
+    totalNodes: Object.keys(map).length,
+    rootNodes,
+    artboards,
+    disconnectedArtboardIds: Array.from(disconnected),
+  };
+}
+
+/**
+ * Returns a state containing only nodes reachable from ROOT through `nodes`
+ * and `linkedNodes`. Fresh full-state AI generations use this before
+ * persistence so disconnected canvas nodes cannot render as ghost artboards.
+ */
+export function pruneUnreachableCraftNodes(craftStateJson: string): string {
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(craftStateJson) as Record<string, unknown>;
+  } catch {
+    return craftStateJson;
+  }
+
+  const root = map["ROOT"] as Record<string, unknown> | undefined;
+  if (!root || typeof root !== "object") return craftStateJson;
+
+  const reachable = new Set<string>(["ROOT"]);
+  const queue = ["ROOT"];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = map[id] as Record<string, unknown> | undefined;
+    if (!node || typeof node !== "object") continue;
+    const children = [
+      ...(Array.isArray(node.nodes) ? node.nodes : []),
+      ...Object.values(
+        node.linkedNodes && typeof node.linkedNodes === "object"
+          ? node.linkedNodes as Record<string, unknown>
+          : {},
+      ),
+    ];
+    for (const childId of children) {
+      if (typeof childId === "string" && childId in map && !reachable.has(childId)) {
+        reachable.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+
+  if (reachable.size === Object.keys(map).length) return craftStateJson;
+  const pruned = Object.fromEntries(
+    Object.entries(map).filter(([id]) => reachable.has(id)),
+  );
+  return JSON.stringify(pruned);
+}

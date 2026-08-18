@@ -1,0 +1,400 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { LayerModeTabs, type LayerMode } from './LayerModeTabs';
+import { VirtualTree } from './VirtualTree';
+import { computeTri, cascade, isEffectivelyOn, Tri } from './triStateUtils';
+import { GroupRow, LeafRow } from './TreeRow';
+import { buildMultiViewTrees } from './multiViewBuilder';
+import { AncestorsStore } from './ancestorsStore';
+import { focusBus } from '@/stores/focusBus';
+import { nodeToWorkflowStore } from '@/stores/nodeToWorkflowStore';
+import { 
+  VLStore, 
+  collapseStore, 
+  useProjectWorkflowNames, 
+  generateDefaultWorkflowNames 
+} from '@/stores/layersStateManager';
+import { Search, Circle, Square, Triangle, Hexagon, Minus, ArrowRight, Pen, Type, StickyNote } from 'lucide-react';
+import type { CanvasObject, ShapeNodeData } from '@/lib/kiteframe/types';
+
+function getShapeIcon(shapeType: string) {
+  switch (shapeType) {
+    case 'rectangle': return Square;
+    case 'circle': return Circle;
+    case 'triangle': return Triangle;
+    case 'hexagon': return Hexagon;
+    case 'line': return Minus;
+    case 'arrow': return ArrowRight;
+    case 'polygon': return Pen;
+    default: return Square;
+  }
+}
+
+function getCanvasObjectIcon(type: string, data: any) {
+  if (type === 'shape') {
+    return getShapeIcon(data.shapeType);
+  } else if (type === 'text') {
+    return Type;
+  } else if (type === 'sticky') {
+    return StickyNote;
+  }
+  return Square;
+}
+
+function getCanvasObjectLabel(type: string, data: any): string {
+  if (type === 'shape') {
+    const shapeType = data.shapeType as string;
+    return shapeType.charAt(0).toUpperCase() + shapeType.slice(1);
+  } else if (type === 'text') {
+    return 'Text';
+  } else if (type === 'sticky') {
+    return 'Sticky Note';
+  }
+  return 'Object';
+}
+
+function getCanvasObjectColor(type: string, data: any): string {
+  if (type === 'shape') {
+    return (data as ShapeNodeData).fillColor || '#3b82f6';
+  } else if (type === 'sticky') {
+    return data.backgroundColor || '#fef08a';
+  } else if (type === 'text') {
+    return data.textColor || '#000000';
+  }
+  return '#3b82f6';
+}
+
+function ShapesListView({ canvasObjects, searchQuery }: { canvasObjects: CanvasObject[]; searchQuery: string }) {
+  const filteredObjects = useMemo(() => {
+    if (!searchQuery.trim()) return canvasObjects;
+    const lowerQuery = searchQuery.toLowerCase();
+    return canvasObjects.filter(obj => {
+      const label = getCanvasObjectLabel(obj.type, obj.data);
+      return label.toLowerCase().includes(lowerQuery);
+    });
+  }, [canvasObjects, searchQuery]);
+
+  if (filteredObjects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-4">
+        <Square className="h-8 w-8 mb-2 opacity-50" />
+        <p className="text-sm text-center">
+          {canvasObjects.length === 0 
+            ? "No objects on canvas" 
+            : "No objects match your search"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-y-auto h-full">
+      {filteredObjects.map((obj) => {
+        const Icon = getCanvasObjectIcon(obj.type, obj.data);
+        const label = getCanvasObjectLabel(obj.type, obj.data);
+        const color = getCanvasObjectColor(obj.type, obj.data);
+        
+        return (
+          <div
+            key={obj.id}
+            onClick={() => focusBus.focusCanvasObject(obj.id, { select: true })}
+            className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors
+              hover:bg-gray-100 dark:hover:bg-gray-800
+              ${obj.selected ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+            data-testid={`shape-layer-${obj.id}`}
+          >
+            <Icon 
+              size={16} 
+              style={{ color }}
+              className="flex-shrink-0"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+              {label}
+            </span>
+            {obj.hidden && (
+              <span className="text-xs text-gray-400 ml-auto">(hidden)</span>
+            )}
+          </div>
+        );
+      })}
+      <div className="h-12" />
+    </div>
+  );
+}
+
+export function LayersPanel({ nodes, edges, frames, canvasObjects, projectId }:{
+  nodes:any[]; edges:any[]; frames?:any[]; canvasObjects?:CanvasObject[]; projectId?: string;
+}) {
+  const [mode, setMode] = useState<LayerMode>('structure');
+  const [tree, setTree] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapseVersion, forceCollapseUpdate] = React.useReducer((x: number) => x + 1, 0);
+
+  useEffect(()=>{
+    const w = new Worker(new URL('./graphWorker.ts', import.meta.url), { type:'module' });
+    w.onmessage = (e:any)=> setTree(buildMultiViewTrees(nodes, edges, frames ?? [], e.data));
+    w.postMessage({ nodes, edges, frames, pinnedWorkflows:{} });
+    return ()=> w.terminate();
+  }, [nodes, edges, frames]);
+
+  const rootId = mode==='structure' ? 'structureRoot' : mode==='topology' ? 'topologyRoot' : mode==='spatial' ? 'spatialRoot' : 'linksRoot';
+  const getChildren = (id:string):string[] => tree?.groups[id]?.childIds ?? [];
+
+  const workflowNames = useProjectWorkflowNames();
+
+  // Compute default workflow names for display
+  const defaultWorkflowNames = useMemo(() => {
+    if (!tree) return {} as Record<string, string>;
+    const workflowsById: Record<string, string[]> = {};
+    Object.entries(tree.groups).forEach(([groupId, group]) => {
+      if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
+        const wfKey = groupId.slice(3);
+        workflowsById[wfKey] = (group as any).childIds.filter((id: string) => !id.startsWith('e:'));
+      }
+    });
+    return generateDefaultWorkflowNames(workflowsById, nodes);
+  }, [tree, nodes]);
+
+  // Update nodeToWorkflowStore in useEffect (not during render)
+  useEffect(() => {
+    if (!tree) return;
+    const mappings: { nodeId: string; workflowGroupId: string; workflowName: string }[] = [];
+    Object.entries(tree.groups).forEach(([groupId, group]) => {
+      if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
+        const wfName = workflowNames.get(groupId) || defaultWorkflowNames[groupId] || (group as any).name;
+        (group as any).childIds.forEach((childId: string) => {
+          if (!childId.startsWith('e:')) {
+            mappings.push({ 
+              nodeId: childId, 
+              workflowGroupId: groupId, 
+              workflowName: wfName 
+            });
+          }
+        });
+      }
+    });
+    nodeToWorkflowStore.setMultiple(mappings);
+  }, [tree, workflowNames, defaultWorkflowNames]);
+
+  const { rows, ancestorsIndex, defaultNames } = useMemo(()=>{
+    if(!tree) return { rows:[], ancestorsIndex:{} as Record<string,string[]>, defaultNames:{} as Record<string,string> };
+    
+    const generatedDefaults = defaultWorkflowNames;
+    
+    const idx: Record<string,string[]> = {};
+    const out:any[]=[];
+    
+    // Helper to check if item matches search query (memoized lowercased)
+    const lowerQuery = searchQuery.toLowerCase().trim();
+    const matchesSearch = (label: string) => {
+      if (!lowerQuery) return true;
+      return label.toLowerCase().includes(lowerQuery);
+    };
+    
+    // Recursive helper to check if any descendant matches search
+    const hasMatchingDescendant = (groupId: string): boolean => {
+      const group = tree.groups[groupId];
+      if (!group) return false;
+      
+      for (const cid of group.childIds) {
+        if (tree.groups[cid]) {
+          // Child is a group - resolve its name and check recursively
+          const childGroup = tree.groups[cid];
+          let childDisplayName = childGroup.name;
+          if (childGroup.role === 'workflow' && cid.startsWith('wf:')) {
+            childDisplayName = workflowNames.get(cid) || generatedDefaults[cid] || childGroup.name;
+          }
+          
+          if (matchesSearch(childDisplayName) || hasMatchingDescendant(cid)) {
+            return true;
+          }
+        } else {
+          // Child is a leaf - check its label
+          const leaf = tree.leaves[cid];
+          if (leaf && matchesSearch(leaf.label || cid)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    
+    const walk=(id:string, depth:number, ancestors:string[])=>{
+      const g = tree.groups[id]; if(!g) return;
+      g.childIds.forEach((cid: string)=>{ idx[cid] = ancestors.concat(id); });
+      
+      // Skip rendering the structureRoot itself - only render its children (workflows)
+      const shouldRenderGroup = id !== 'structureRoot';
+      
+      if (shouldRenderGroup) {
+        // Resolve display name for workflow groups
+        let displayName = g.name;
+        if (g.role === 'workflow' && id.startsWith('wf:')) {
+          displayName = workflowNames.get(id) || generatedDefaults[id] || g.name;
+        } else if (g.role === 'linkGroup' && id.startsWith('links:')) {
+          // Resolve workflow names in link group labels
+          const match = id.match(/links:(.+)\|(.+)/);
+          if (match) {
+            const [, wfA, wfB] = match;
+            const nameA = workflowNames.get(`wf:${wfA}`) || generatedDefaults[`wf:${wfA}`] || wfA;
+            const nameB = workflowNames.get(`wf:${wfB}`) || generatedDefaults[`wf:${wfB}`] || wfB;
+            displayName = `Between ${nameA} ↔ ${nameB}`;
+          }
+        }
+        
+        // Check if this group matches or has any matching descendants
+        const groupMatches = matchesSearch(displayName);
+        const hasMatchingChildren = hasMatchingDescendant(id);
+        
+        // Include this group if no search query OR it matches OR has matching descendants
+        if (!lowerQuery || groupMatches || hasMatchingChildren) {
+          out.push({ type:'group', id, label:displayName, depth, childIds:g.childIds, role:g.role, collapsed: collapseStore.get(id) });
+        }
+      }
+      
+      // Always process children (whether we render the group or not)
+      const isCollapsed = shouldRenderGroup ? collapseStore.get(id) : false; // Root is never collapsed
+      if (!isCollapsed || lowerQuery) { // Show children if not collapsed OR when searching
+        for (const cid of g.childIds) {
+          if (tree.groups[cid]) {
+            // For structureRoot children (workflows), they should render at depth 0
+            const childDepth = shouldRenderGroup ? depth + 1 : depth;
+            walk(cid, childDepth, ancestors.concat(id));
+          } else {
+            const leaf = tree.leaves[cid];
+            if (leaf && (!lowerQuery || matchesSearch(leaf.label || cid))) {
+              const leafDepth = shouldRenderGroup ? depth + 1 : depth + 1; // Leaves are always one level deeper
+              out.push({ 
+                type:'leaf', 
+                id:cid, 
+                label:leaf.label ?? cid, 
+                depth:leafDepth, 
+                role:leaf.role,
+                nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined
+              });
+            }
+          }
+        }
+      }
+    };
+    walk(rootId, 0, []);
+    
+    return { rows: out, ancestorsIndex: idx, defaultNames: generatedDefaults };
+  }, [tree, rootId, workflowNames, nodes, searchQuery, collapseVersion]);
+
+  useEffect(()=>{ AncestorsStore.set(ancestorsIndex); }, [ancestorsIndex]);
+
+  const [, force] = React.useReducer(x=>x+1, 0);
+  useEffect(()=>{ 
+    const unsubscribe = VLStore.subscribe(force); 
+    return () => { unsubscribe(); };
+  },[]);
+  
+  useEffect(() => {
+    const unsubscribe = collapseStore.subscribe(forceCollapseUpdate);
+    return unsubscribe;
+  }, []);
+  
+  const flags = VLStore.get();
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900" role="tree" aria-label="Layers">
+      <LayerModeTabs mode={mode} setMode={setMode} />
+      
+      {/* Search Bar */}
+      <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search layers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-colors"
+            data-testid="input-layers-search"
+          />
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
+        {mode === 'objects' ? (
+          <ShapesListView 
+            canvasObjects={canvasObjects || []} 
+            searchQuery={searchQuery}
+          />
+        ) : (
+          <VirtualTree
+            rows={rows}
+            Row={({type,id,label,depth,childIds,role,collapsed,nodeType}:{type:'group'|'leaf';id:string;label:string;depth:number;childIds?:string[];role?:string;collapsed?:boolean;nodeType?:string})=>{
+              if (type==='group') {
+                const triHidden:Tri = computeTri(childIds ?? [], flags.hidden);
+                const triLocked:Tri = computeTri(childIds ?? [], flags.locked);
+                const onToggleHidden = () => {
+                  const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
+                  cascade(id, !(triHidden==='on'), getChildren, next.hidden);
+                  VLStore.set(next);
+                };
+                const onToggleLocked = () => {
+                  const next = { hidden: { ...flags.hidden }, locked: { ...flags.locked } };
+                  cascade(id, !(triLocked==='on'), getChildren, next.locked);
+                  VLStore.set(next);
+                };
+                const handleClick = () => {
+                  if (role === 'workflow' && childIds) {
+                    const nodeIds = childIds.filter(cid => !cid.startsWith('e:'));
+                    focusBus.focusWorkflow(nodeIds);
+                  }
+                };
+                
+                const handleNameChange = role === 'workflow' ? (newName: string) => {
+                  // Let errors propagate to GroupRow for proper toast feedback
+                  workflowNames.set(id, newName);
+                } : undefined;
+                
+                const handleToggleCollapse = () => {
+                  collapseStore.toggle(id);
+                };
+                
+                return <GroupRow 
+                  id={id} depth={depth} label={label} childIds={childIds ?? []}
+                  triHidden={triHidden} triLocked={triLocked}
+                  onToggleHidden={onToggleHidden} onToggleLocked={onToggleLocked}
+                  onClick={handleClick}
+                  onNameChange={handleNameChange}
+                  role={role}
+                  collapsed={collapsed}
+                  onToggleCollapse={handleToggleCollapse}
+                />;
+              } else {
+                const ancestors = ancestorsIndex[id] ?? [];
+                const effHidden = isEffectivelyOn(id, ancestors, flags.hidden);
+                const effLocked = isEffectivelyOn(id, ancestors, flags.locked);
+                
+                const handleClick = () => {
+                  if (role === 'node') {
+                    focusBus.focusNodes([id], { select: true });
+                  } else if (role === 'edge' && id.startsWith('e:')) {
+                    const edgeId = id.slice(2);
+                    const edge = edges.find(e => e.id === edgeId);
+                    if (edge) {
+                      focusBus.focusNodes([edge.source, edge.target]);
+                    }
+                  }
+                };
+                
+                return <LeafRow 
+                  id={id} depth={depth} label={label} 
+                  effHidden={effHidden} effLocked={effLocked}
+                  onClick={handleClick}
+                  role={role}
+                  nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
+                />;
+              }
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default LayersPanel;

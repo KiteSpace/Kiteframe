@@ -1,0 +1,331 @@
+{
+  "version": "2.1.0",
+  "format": "kiteframe-workflow",
+  "exportedAt": "2026-05-27T17:06:53.074Z",
+  "metadata": {
+    "name": "Untitled",
+    "description": "",
+    "createdAt": "2026-05-27T17:06:53.074Z",
+    "modifiedAt": "2026-05-27T17:06:53.074Z"
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "input",
+        "position": {
+          "x": 300,
+          "y": 250
+        },
+        "data": {
+          "label": "User Signs Up",
+          "description": "New user creates account",
+          "icon": "User",
+          "iconColor": "hsl(221.2, 83.2%, 53.3%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "2",
+        "type": "process",
+        "position": {
+          "x": 550,
+          "y": 250
+        },
+        "data": {
+          "label": "Welcome Screen",
+          "description": "Show value prop and next steps",
+          "icon": "Sparkles",
+          "iconColor": "hsl(262.1, 83.3%, 57.8%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "3",
+        "type": "condition",
+        "position": {
+          "x": 800,
+          "y": 250
+        },
+        "data": {
+          "label": "Account Type?",
+          "description": "Free or Pro selection",
+          "icon": "GitBranch",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "4",
+        "type": "process",
+        "position": {
+          "x": 1050,
+          "y": 150
+        },
+        "data": {
+          "label": "Pro Upgrade Flow",
+          "description": "Show pricing, features, payment",
+          "icon": "Crown",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "5",
+        "type": "process",
+        "position": {
+          "x": 1050,
+          "y": 350
+        },
+        "data": {
+          "label": "Skip to Free",
+          "description": "Continue with free tier",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "6",
+        "type": "process",
+        "position": {
+          "x": 1300,
+          "y": 250
+        },
+        "data": {
+          "label": "Project Setup",
+          "description": "Create first project screen",
+          "icon": "FolderPlus",
+          "iconColor": "hsl(221.2, 83.2%, 53.3%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "7",
+        "type": "input",
+        "position": {
+          "x": 1550,
+          "y": 250
+        },
+        "data": {
+          "label": "Project Details",
+          "description": "Name, description, template selection",
+          "icon": "FileText",
+          "iconColor": "hsl(262.1, 83.3%, 57.8%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "8",
+        "type": "ai",
+        "position": {
+          "x": 1800,
+          "y": 250
+        },
+        "data": {
+          "label": "AI Canvas Setup",
+          "description": "Generate initial workflow nodes",
+          "icon": "Sparkles",
+          "iconColor": "hsl(262.1, 83.3%, 57.8%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      },
+      {
+        "id": "9",
+        "type": "output",
+        "position": {
+          "x": 2050,
+          "y": 250
+        },
+        "data": {
+          "label": "Canvas Ready",
+          "description": "User lands in working canvas",
+          "icon": "CheckCircle",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "displayText": ""
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1-2",
+        "source": "1",
+        "target": "2",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2-3",
+        "source": "2",
+        "target": "3",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3-4",
+        "source": "3",
+        "target": "4",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3-5",
+        "source": "3",
+        "target": "5",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4-6",
+        "source": "4",
+        "target": "6",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e5-6",
+        "source": "5",
+        "target": "6",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6-7",
+        "source": "6",
+        "target": "7",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e7-8",
+        "source": "7",
+        "target": "8",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(262.1, 83.3%, 57.8%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8-9",
+        "source": "8",
+        "target": "9",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "markerEnd": {
+          "type": "arrow"
+        },
+        "selected": false
+      }
+    ],
+    "canvasObjects": [],
+    "viewport": {
+      "x": -63.76432227916098,
+      "y": 142.82191992055567,
+      "zoom": 0.7751490077851991
+    }
+  },
+  "documentation": {
+    "workflowNames": {
+      "tab-1777482248979-357vn6pwj": "Autonomous Vehicle Fleet Incident Management System",
+      "tab-1777585332695-9zgcacw0l": "Untitled",
+      "tab-1778279462370-z39x9tu9f": "This is a good example",
+      "tab-1778279488857-e8x3dvpis": "Untitled",
+      "tab-1778280299000-96560oc7p": "Untitled",
+      "tab-1779901584323-08m2dcysn": "Untitled"
+    },
+    "projectDescription": "",
+    "projectOverview": {
+      "name": "Untitled",
+      "description": "",
+      "categories": [],
+      "createdAt": 1779901584396,
+      "updatedAt": 1779901584435
+    }
+  },
+  "plugins": [],
+  "checksum": "tz6sw"
+}

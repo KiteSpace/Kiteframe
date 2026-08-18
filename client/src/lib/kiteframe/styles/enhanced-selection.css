@@ -1,0 +1,56 @@
+/* Enhanced Node Selection Styles - Restored Premium Visual Feedback */
+
+.kiteframe-node.selected {
+  /* Remove outline since it doesn't follow border-radius, use box-shadow instead */
+  
+  /* Enhanced layered box-shadow for premium glow effect that follows border-radius */
+  box-shadow: 
+    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
+    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 
+    0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 
+    0 2px 8px rgba(0,0,0,0.08) !important;
+  
+  /* Subtle background tint */
+  background-color: hsla(221.2, 83.2%, 53.3%, 0.03) !important;
+  
+  /* Ensure border-radius matches the base node (10px) */
+  border-radius: 10px !important;
+  
+  /* Slight elevation and scaling for prominence */
+  transform: scale(1.01) !important;
+  z-index: 100 !important;
+  
+  /* Enhanced transition for smooth selection feedback */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.kiteframe-node.selected:hover {
+  /* Enhanced hover state for selected nodes with matching border radius */
+  box-shadow: 
+    0 0 0 3px hsl(221.2, 83.2%, 53.3%),
+    0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.2), 
+    0 6px 25px hsla(221.2, 83.2%, 53.3%, 0.3), 
+    0 4px 12px rgba(0,0,0,0.12) !important;
+  transform: scale(1.02) !important;
+  border-radius: 10px !important;
+}
+
+/* Selection animation for smooth transitions */
+@keyframes nodeSelect {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px hsl(221.2, 83.2%, 53.3%), 0 0 0 6px hsla(221.2, 83.2%, 53.3%, 0.15), 0 4px 20px hsla(221.2, 83.2%, 53.3%, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+  }
+}
+
+/* Apply animation when selection occurs */
+.kiteframe-node.selected {
+  animation: nodeSelect 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -1,0 +1,1228 @@
+{
+  "version": "2.1.0",
+  "format": "kiteframe-workflow",
+  "exportedAt": "2026-07-27T22:34:45.557Z",
+  "metadata": {
+    "name": "Browse Tool Library",
+    "description": "Auto-created from autosave",
+    "createdAt": "2026-07-27T22:34:45.557Z",
+    "modifiedAt": "2026-07-27T22:34:45.557Z"
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "1",
+        "data": {
+          "icon": "Library",
+          "label": "Browse Tool Library",
+          "iconColor": "hsl(221.2, 83.2%, 53.3%)",
+          "description": "User selects modules and tools from available catalog",
+          "displayText": ""
+        },
+        "type": "input",
+        "label": "Browse Tool Library",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 300,
+          "y": 250
+        },
+        "selected": false
+      },
+      {
+        "id": "2",
+        "data": {
+          "icon": "Settings",
+          "label": "Configure Test Case",
+          "iconColor": "hsl(262.1, 83.3%, 57.8%)",
+          "description": "Drag-drop modules, set parameters, define execution order",
+          "displayText": ""
+        },
+        "type": "process",
+        "label": "Configure Test Case",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 550,
+          "y": 250
+        },
+        "selected": false
+      },
+      {
+        "id": "2a",
+        "data": {
+          "icon": "CheckCircle",
+          "label": "Validate Configuration",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Check required parameters, module compatibility, parameter ranges",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Validate Configuration",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 550,
+          "y": 400
+        },
+        "selected": false
+      },
+      {
+        "id": "2b",
+        "data": {
+          "icon": "AlertCircle",
+          "label": "Configuration Error",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Missing parameters, invalid values, or incompatible modules",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Configuration Error",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 550,
+          "y": 550
+        },
+        "selected": false
+      },
+      {
+        "id": "3",
+        "data": {
+          "icon": "GitBranch",
+          "label": "Select Environment",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Choose: Sim / HIL / SIL",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Select Environment",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 800,
+          "y": 250
+        },
+        "selected": false
+      },
+      {
+        "id": "3a",
+        "data": {
+          "icon": "Activity",
+          "label": "Check Environment Availability",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Verify selected environment is online and accessible",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Check Environment Availability",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1050,
+          "y": 50
+        },
+        "selected": false
+      },
+      {
+        "id": "3b",
+        "data": {
+          "icon": "XCircle",
+          "label": "Environment Unavailable",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Selected environment offline or at capacity",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Environment Unavailable",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1050,
+          "y": -100
+        },
+        "selected": false
+      },
+      {
+        "id": "4",
+        "data": {
+          "icon": "Play",
+          "label": "Run on Simulation",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "description": "Execute test in virtual environment",
+          "displayText": ""
+        },
+        "type": "process",
+        "label": "Run on Simulation",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1050,
+          "y": 150
+        },
+        "selected": false
+      },
+      {
+        "id": "4a",
+        "data": {
+          "icon": "GitBranch",
+          "label": "Execution Status",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Check if test completed, failed, or timed out",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Execution Status",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1300,
+          "y": 50
+        },
+        "selected": false
+      },
+      {
+        "id": "4b",
+        "data": {
+          "icon": "AlertTriangle",
+          "label": "Execution Failed",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Test crashed, timeout, or environment error",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Execution Failed",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1550,
+          "y": -100
+        },
+        "selected": false
+      },
+      {
+        "id": "4c",
+        "data": {
+          "icon": "RefreshCw",
+          "label": "Retry Execution",
+          "iconColor": "hsl(221.2, 83.2%, 53.3%)",
+          "description": "Attempt test execution again (max 3 retries)",
+          "displayText": ""
+        },
+        "type": "process",
+        "label": "Retry Execution",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1300,
+          "y": -100
+        },
+        "selected": false
+      },
+      {
+        "id": "5",
+        "data": {
+          "icon": "Cpu",
+          "label": "Run on HIL/SIL",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "description": "Execute on hardware/software in the loop",
+          "displayText": ""
+        },
+        "type": "process",
+        "label": "Run on HIL/SIL",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1050,
+          "y": 300
+        },
+        "selected": false
+      },
+      {
+        "id": "6",
+        "data": {
+          "icon": "BarChart",
+          "label": "Generate Metrics",
+          "iconColor": "hsl(280, 100%, 70%)",
+          "description": "Process results and compute performance metrics",
+          "displayText": ""
+        },
+        "type": "ai",
+        "label": "Generate Metrics",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1300,
+          "y": 225
+        },
+        "selected": false
+      },
+      {
+        "id": "6a",
+        "data": {
+          "icon": "CheckSquare",
+          "label": "Validate Results",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Check if metrics generation succeeded and data is complete",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Validate Results",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1300,
+          "y": 375
+        },
+        "selected": false
+      },
+      {
+        "id": "6b",
+        "data": {
+          "icon": "AlertCircle",
+          "label": "Incomplete Results",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Partial data or metrics calculation failed",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Incomplete Results",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1300,
+          "y": 525
+        },
+        "selected": false
+      },
+      {
+        "id": "7",
+        "data": {
+          "icon": "LineChart",
+          "label": "View Results",
+          "iconColor": "hsl(173, 58%, 39%)",
+          "description": "Interactive charts, export data, compare runs",
+          "displayText": ""
+        },
+        "type": "output",
+        "label": "View Results",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1550,
+          "y": 225
+        },
+        "selected": false
+      },
+      {
+        "id": "8",
+        "data": {
+          "icon": "Save",
+          "label": "Save Test Case?",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Make reusable or shareable",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Save Test Case?",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1550,
+          "y": 400
+        },
+        "selected": false
+      },
+      {
+        "id": "8a",
+        "data": {
+          "icon": "Shield",
+          "label": "Check Permissions",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Verify user has rights to publish to library",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Check Permissions",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1800,
+          "y": 250
+        },
+        "selected": false
+      },
+      {
+        "id": "8b",
+        "data": {
+          "icon": "Lock",
+          "label": "Permission Denied",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "User lacks publish permissions",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Permission Denied",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 2050,
+          "y": 250
+        },
+        "selected": false
+      },
+      {
+        "id": "9",
+        "data": {
+          "icon": "Upload",
+          "label": "Publish to Library",
+          "iconColor": "hsl(221.2, 83.2%, 53.3%)",
+          "description": "Save with permissions for team reuse",
+          "displayText": ""
+        },
+        "type": "process",
+        "label": "Publish to Library",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1800,
+          "y": 400
+        },
+        "selected": false
+      },
+      {
+        "id": "9a",
+        "data": {
+          "icon": "CheckCircle",
+          "label": "Publish Status",
+          "iconColor": "hsl(47.9, 95.8%, 53.1%)",
+          "description": "Verify save completed successfully",
+          "displayText": ""
+        },
+        "type": "condition",
+        "label": "Publish Status",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 2050,
+          "y": 400
+        },
+        "selected": false
+      },
+      {
+        "id": "9b",
+        "data": {
+          "icon": "XCircle",
+          "label": "Publish Failed",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Network error, storage full, or validation failed",
+          "displayText": ""
+        },
+        "type": "error",
+        "label": "Publish Failed",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 2050,
+          "y": 550
+        },
+        "selected": false
+      },
+      {
+        "id": "10",
+        "data": {
+          "icon": "CheckCircle",
+          "label": "Success - Test Published",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "description": "Test case saved and available in library",
+          "displayText": ""
+        },
+        "type": "output",
+        "label": "Success - Test Published",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 2300,
+          "y": 400
+        },
+        "selected": false
+      },
+      {
+        "id": "11",
+        "data": {
+          "icon": "Eye",
+          "label": "Success - Results Viewed",
+          "iconColor": "hsl(142.1, 76.2%, 36.3%)",
+          "description": "Workflow complete without saving",
+          "displayText": ""
+        },
+        "type": "output",
+        "label": "Success - Results Viewed",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1800,
+          "y": 550
+        },
+        "selected": false
+      },
+      {
+        "id": "12",
+        "data": {
+          "icon": "XCircle",
+          "label": "Failure - Execution Error",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Test could not complete after retries",
+          "displayText": ""
+        },
+        "type": "output",
+        "label": "Failure - Execution Error",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 1800,
+          "y": -100
+        },
+        "selected": false
+      },
+      {
+        "id": "13",
+        "data": {
+          "icon": "AlertCircle",
+          "label": "Failure - Invalid Configuration",
+          "iconColor": "hsl(0, 84.2%, 60.2%)",
+          "description": "Test case requires correction",
+          "displayText": ""
+        },
+        "type": "output",
+        "label": "Failure - Invalid Configuration",
+        "width": 200,
+        "height": 100,
+        "position": {
+          "x": 800,
+          "y": 550
+        },
+        "selected": false
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1-2",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "1",
+        "target": "2",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2-2a",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "2",
+        "target": "2a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2a-3",
+        "data": {
+          "label": "Valid"
+        },
+        "type": "bezier",
+        "label": "Valid",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "2a",
+        "target": "3",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2a-2b",
+        "data": {
+          "label": "Invalid"
+        },
+        "type": "bezier",
+        "label": "Invalid",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "2a",
+        "target": "2b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2b-13",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "2b",
+        "target": "13",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2b-2",
+        "data": {
+          "label": "Fix & Retry"
+        },
+        "type": "bezier",
+        "label": "Fix & Retry",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "source": "2b",
+        "target": "2",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e2-3",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "2",
+        "target": "3",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3-3a",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "3",
+        "target": "3a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3a-4",
+        "data": {
+          "label": "Available"
+        },
+        "type": "bezier",
+        "label": "Available",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "3a",
+        "target": "4",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3a-3b",
+        "data": {
+          "label": "Unavailable"
+        },
+        "type": "bezier",
+        "label": "Unavailable",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "3a",
+        "target": "3b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3b-3",
+        "data": {
+          "label": "Select Another"
+        },
+        "type": "bezier",
+        "label": "Select Another",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "source": "3b",
+        "target": "3",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3-4",
+        "data": {
+          "label": "Sim"
+        },
+        "type": "bezier",
+        "label": "Sim",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "3",
+        "target": "4",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e3-5",
+        "data": {
+          "label": "HIL/SIL"
+        },
+        "type": "bezier",
+        "label": "HIL/SIL",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "3",
+        "target": "5",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4-4a",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "4",
+        "target": "4a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4a-6",
+        "data": {
+          "label": "Success"
+        },
+        "type": "bezier",
+        "label": "Success",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "4a",
+        "target": "6",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4a-4c",
+        "data": {
+          "label": "Failed"
+        },
+        "type": "bezier",
+        "label": "Failed",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2
+        },
+        "source": "4a",
+        "target": "4c",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4c-4",
+        "data": {
+          "label": "Retry"
+        },
+        "type": "bezier",
+        "label": "Retry",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "source": "4c",
+        "target": "4",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4c-4b",
+        "data": {
+          "label": "Max Retries"
+        },
+        "type": "bezier",
+        "label": "Max Retries",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "4c",
+        "target": "4b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4b-12",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "4b",
+        "target": "12",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e4-6",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "4",
+        "target": "6",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e5-6",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "5",
+        "target": "6",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6-6a",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "6",
+        "target": "6a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6a-7",
+        "data": {
+          "label": "Complete"
+        },
+        "type": "bezier",
+        "label": "Complete",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "6a",
+        "target": "7",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6a-6b",
+        "data": {
+          "label": "Incomplete"
+        },
+        "type": "bezier",
+        "label": "Incomplete",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "6a",
+        "target": "6b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6b-7",
+        "data": {
+          "label": "Partial Results"
+        },
+        "type": "bezier",
+        "label": "Partial Results",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "source": "6b",
+        "target": "7",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e6-7",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "6",
+        "target": "7",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e7-8",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "7",
+        "target": "8",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8-8a",
+        "data": {
+          "label": "Yes"
+        },
+        "type": "bezier",
+        "label": "Yes",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "8",
+        "target": "8a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8-11",
+        "data": {
+          "label": "No"
+        },
+        "type": "bezier",
+        "label": "No",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "8",
+        "target": "11",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8a-9",
+        "data": {
+          "label": "Authorized"
+        },
+        "type": "bezier",
+        "label": "Authorized",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "8a",
+        "target": "9",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8a-8b",
+        "data": {
+          "label": "Denied"
+        },
+        "type": "bezier",
+        "label": "Denied",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "8a",
+        "target": "8b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8b-11",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "8b",
+        "target": "11",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e8-9",
+        "data": {
+          "label": "Yes"
+        },
+        "type": "bezier",
+        "label": "Yes",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "8",
+        "target": "9",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e9-9a",
+        "data": {},
+        "type": "bezier",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "source": "9",
+        "target": "9a",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e9a-10",
+        "data": {
+          "label": "Success"
+        },
+        "type": "bezier",
+        "label": "Success",
+        "style": {
+          "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+          "strokeWidth": 2
+        },
+        "source": "9a",
+        "target": "10",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e9a-9b",
+        "data": {
+          "label": "Failed"
+        },
+        "type": "bezier",
+        "label": "Failed",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "9a",
+        "target": "9b",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e9b-9",
+        "data": {
+          "label": "Retry"
+        },
+        "type": "bezier",
+        "label": "Retry",
+        "style": {
+          "strokeColor": "hsl(47.9, 95.8%, 53.1%)",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "source": "9b",
+        "target": "9",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "e9b-11",
+        "data": {
+          "label": "Abort"
+        },
+        "type": "bezier",
+        "label": "Abort",
+        "style": {
+          "strokeColor": "hsl(0, 84.2%, 60.2%)",
+          "strokeWidth": 2
+        },
+        "source": "9b",
+        "target": "11",
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      }
+    ],
+    "canvasObjects": [],
+    "viewport": {
+      "x": -68.33630189313908,
+      "y": 177.40347219054155,
+      "zoom": 0.6934192998072048
+    }
+  },
+  "documentation": {
+    "workflowNames": {
+      "tab-1767824562246-iiko2y5wv": "Untitled",
+      "tab-1768505865123-ai99wmu3r": "Complex Decision-Driven Data Pipeline",
+      "tab-1768521505063-ppzao9v59": "Test Case Development and Execution Pipeline",
+      "tab-1779228985862-nm3tikkzg": "Test Case Requirements",
+      "tab-1779487214618-z7kkvn4w3": "Browse Tool Library",
+      "tab-1779487651371-ynwpcswxo": "Untitled — 2026-05-22",
+      "tab-1785188453190-084gtkqzl": "Untitled — 2026-05-19",
+      "tab-1785188508287-z18orbk0i": "Browse Tool Library — Interface",
+      "tab-1785188552405-hiyem1m25": "Untitled — 2026-05-19 — Interface",
+      "tab-1785190570294-4qq6bfnwh": "Untitled — 2026-05-19",
+      "tab-1785190645537-de1usdqh5": "Browse Tool Library — Interface",
+      "tab-1785191619814-05lgufy0m": "Browse Tool Library — Interface v2"
+    },
+    "projectDescription": "Auto-created from autosave",
+    "projectOverview": {
+      "name": "Browse Tool Library",
+      "description": "",
+      "categories": [],
+      "createdAt": 1785189579725,
+      "updatedAt": 1785191673307
+    }
+  },
+  "plugins": [],
+  "checksum": "6wlrdp"
+}

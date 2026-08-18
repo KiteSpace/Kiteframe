@@ -1,0 +1,1124 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-09-20T05:03:47.113Z",
+  "workflow": {
+    "id": "tab-1758344568354-4tprblqu6",
+    "name": "Fresh Adventure",
+    "description": "",
+    "links": [],
+    "categories": []
+  },
+  "canvas": {
+    "nodes": [
+      {
+        "id": "node-1-ai-1758328899662-0",
+        "type": "input",
+        "position": {
+          "x": 100,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Login",
+          "description": "User starts by logging in",
+          "icon": "ArrowRight",
+          "iconColor": "text-blue-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-2-ai-1758328899662-1",
+        "type": "process",
+        "position": {
+          "x": 350,
+          "y": 100
+        },
+        "data": {
+          "label": "Receive Prompt",
+          "description": "Receives prompt to enter SSO credentials",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-3-ai-1758328899662-2",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 100
+        },
+        "data": {
+          "label": "Send Code",
+          "description": "TXT message to phone with code",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-4-ai-1758328899662-3",
+        "type": "input",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Enter Code",
+          "description": "User adds code and submits",
+          "icon": "ArrowRight",
+          "iconColor": "text-blue-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-5-ai-1758328899662-4",
+        "type": "process",
+        "position": {
+          "x": 1100,
+          "y": 100
+        },
+        "data": {
+          "label": "Validation",
+          "description": "Validation step",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-6-ai-1758328899662-5",
+        "type": "condition",
+        "position": {
+          "x": 1350,
+          "y": 100
+        },
+        "data": {
+          "label": "Check Validity",
+          "description": "Valid?",
+          "icon": "HelpCircle",
+          "iconColor": "text-yellow-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-7-ai-1758328899662-6",
+        "type": "process",
+        "position": {
+          "x": 1600,
+          "y": 100
+        },
+        "data": {
+          "label": "Logged In",
+          "description": "User is logged in",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-8-ai-1758328899662-7",
+        "type": "output",
+        "position": {
+          "x": 1850,
+          "y": 100
+        },
+        "data": {
+          "label": "Success",
+          "description": "Success message",
+          "icon": "ArrowLeft",
+          "iconColor": "text-red-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "node-9-ai-1758328899662-8",
+        "type": "process",
+        "position": {
+          "x": 1350,
+          "y": 350
+        },
+        "data": {
+          "label": "Resend Code",
+          "description": "Send again?",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "draggable": true,
+        "selectable": true,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "lane-0-act-0-1758328914528",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "Generate Report",
+          "description": "Lane: Finance\nActivity: Generate Report",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(0, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-1-act-0-1758328914528",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 750
+        },
+        "data": {
+          "label": "Review Application",
+          "description": "Lane: Operations\nActivity: Review Application",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(120, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-2-act-0-1758328914528",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 900
+        },
+        "data": {
+          "label": "Verify Information",
+          "description": "Lane: Support\nActivity: Verify Information",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(240, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-0-act-1-1758328914528",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 600
+        },
+        "data": {
+          "label": "Submit Request",
+          "description": "Lane: Finance\nActivity: Submit Request",
+          "icon": "Activity",
+          "iconColor": "hsl(0, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-2-act-1-1758328914528",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 900
+        },
+        "data": {
+          "label": "Complete Task",
+          "description": "Lane: Support\nActivity: Complete Task",
+          "icon": "Activity",
+          "iconColor": "hsl(240, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-1-act-1-1758328914528",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 750
+        },
+        "data": {
+          "label": "Create Account",
+          "description": "Lane: Operations\nActivity: Create Account",
+          "icon": "Activity",
+          "iconColor": "hsl(120, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-1-act-2-1758328914528",
+        "type": "process",
+        "position": {
+          "x": 950,
+          "y": 750
+        },
+        "data": {
+          "label": "Archive Records",
+          "description": "Lane: Operations\nActivity: Archive Records",
+          "icon": "Activity",
+          "iconColor": "hsl(120, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-0-act-0-1758328920231",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 1140
+        },
+        "data": {
+          "label": "Complete Task",
+          "description": "Lane: Finance\nActivity: Complete Task",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(0, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-1-act-0-1758328920231",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 1290
+        },
+        "data": {
+          "label": "Submit Request",
+          "description": "Lane: Legal\nActivity: Submit Request",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(120, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-2-act-0-1758328920231",
+        "type": "input",
+        "position": {
+          "x": 250,
+          "y": 1440
+        },
+        "data": {
+          "label": "Archive Records",
+          "description": "Lane: Operations\nActivity: Archive Records",
+          "icon": "ArrowRight",
+          "iconColor": "hsl(240, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-2-act-1-1758328920231",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 1440
+        },
+        "data": {
+          "label": "Create Account",
+          "description": "Lane: Operations\nActivity: Create Account",
+          "icon": "Activity",
+          "iconColor": "hsl(240, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-0-act-1-1758328920231",
+        "type": "process",
+        "position": {
+          "x": 600,
+          "y": 1140
+        },
+        "data": {
+          "label": "Review Application",
+          "description": "Lane: Finance\nActivity: Review Application",
+          "icon": "Activity",
+          "iconColor": "hsl(0, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-2-act-2-1758328920231",
+        "type": "process",
+        "position": {
+          "x": 950,
+          "y": 1440
+        },
+        "data": {
+          "label": "Send Notification",
+          "description": "Lane: Operations\nActivity: Send Notification",
+          "icon": "Activity",
+          "iconColor": "hsl(240, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      },
+      {
+        "id": "lane-0-act-2-1758328920231",
+        "type": "process",
+        "position": {
+          "x": 950,
+          "y": 1140
+        },
+        "data": {
+          "label": "Approve Process",
+          "description": "Lane: Finance\nActivity: Approve Process",
+          "icon": "Activity",
+          "iconColor": "hsl(0, 70%, 50%)",
+          "colors": {
+            "headerBackground": "#1e293b",
+            "headerTextColor": "#f1f5f9",
+            "bodyBackground": "#334155",
+            "bodyTextColor": "#cbd5e1",
+            "borderColor": "#475569"
+          }
+        },
+        "width": 200,
+        "height": 90,
+        "selected": false,
+        "draggable": true,
+        "selectable": true,
+        "style": {}
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-1-ai-1758328899662-0",
+        "source": "node-1-ai-1758328899662-0",
+        "target": "node-2-ai-1758328899662-1",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-2-ai-1758328899662-1",
+        "source": "node-2-ai-1758328899662-1",
+        "target": "node-3-ai-1758328899662-2",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-3-ai-1758328899662-2",
+        "source": "node-3-ai-1758328899662-2",
+        "target": "node-4-ai-1758328899662-3",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-4-ai-1758328899662-3",
+        "source": "node-4-ai-1758328899662-3",
+        "target": "node-5-ai-1758328899662-4",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-5-ai-1758328899662-4",
+        "source": "node-5-ai-1758328899662-4",
+        "target": "node-6-ai-1758328899662-5",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-6-ai-1758328899662-5",
+        "source": "node-6-ai-1758328899662-5",
+        "target": "node-7-ai-1758328899662-6",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-7-ai-1758328899662-6",
+        "source": "node-7-ai-1758328899662-6",
+        "target": "node-8-ai-1758328899662-7",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-8-ai-1758328899662-7",
+        "source": "node-6-ai-1758328899662-5",
+        "target": "node-9-ai-1758328899662-8",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "edge-9-ai-1758328899662-8",
+        "source": "node-9-ai-1758328899662-8",
+        "target": "node-4-ai-1758328899662-3",
+        "type": "bezier",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-0-0-1758328914528",
+        "source": "lane-0-act-0-1758328914528",
+        "target": "lane-0-act-1-1758328914528",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-1-0-1758328914528",
+        "source": "lane-1-act-0-1758328914528",
+        "target": "lane-1-act-1-1758328914528",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-1-1-1758328914528",
+        "source": "lane-1-act-1-1758328914528",
+        "target": "lane-1-act-2-1758328914528",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-2-0-1758328914528",
+        "source": "lane-2-act-0-1758328914528",
+        "target": "lane-2-act-1-1758328914528",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-0-0-1758328920231",
+        "source": "lane-0-act-0-1758328920231",
+        "target": "lane-0-act-1-1758328920231",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-0-1-1758328920231",
+        "source": "lane-0-act-1-1758328920231",
+        "target": "lane-0-act-2-1758328920231",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-2-0-1758328920231",
+        "source": "lane-2-act-0-1758328920231",
+        "target": "lane-2-act-1-1758328920231",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-lane-2-1-1758328920231",
+        "source": "lane-2-act-1-1758328920231",
+        "target": "lane-2-act-2-1758328920231",
+        "type": "step",
+        "animated": true,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      },
+      {
+        "id": "swim-edge-handoff-1-1758328920231",
+        "source": "lane-0-act-2-1758328920231",
+        "target": "lane-1-act-0-1758328920231",
+        "type": "bezier",
+        "animated": false,
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2,
+          "strokeDasharray": "5,5"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "reconnectable": true,
+        "interactable": true,
+        "data": {
+          "strokeSelected": "#8b5cf6"
+        }
+      }
+    ],
+    "canvasObjects": [
+      {
+        "id": "object-1758344616778",
+        "type": "sticky",
+        "position": {
+          "x": 400,
+          "y": 1391
+        },
+        "data": {
+          "text": "Sticky note...",
+          "backgroundColor": "#fef3c7",
+          "textColor": "#92400e"
+        },
+        "width": 200,
+        "height": 150,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "object-1758344622278",
+        "type": "shape",
+        "position": {
+          "x": 550,
+          "y": 1391
+        },
+        "data": {
+          "shapeType": "hexagon",
+          "fillColor": "#e5e7eb",
+          "fillOpacity": 0.7,
+          "gradient": {
+            "enabled": false,
+            "type": "linear",
+            "direction": 0,
+            "colors": [
+              {
+                "color": "#e5e7eb",
+                "position": 0
+              },
+              {
+                "color": "#d1d5db",
+                "position": 1
+              }
+            ]
+          },
+          "strokeColor": "#374151",
+          "strokeWidth": 2,
+          "strokeOpacity": 1,
+          "strokeStyle": "solid",
+          "borderRadius": 8,
+          "opacity": 1,
+          "shadow": {
+            "enabled": false,
+            "color": "#00000040",
+            "blur": 8,
+            "offsetX": 0,
+            "offsetY": 4
+          },
+          "lineCap": "round",
+          "arrowSize": 1
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "object-1758344624518",
+        "type": "text",
+        "position": {
+          "x": 250,
+          "y": 1541
+        },
+        "data": {
+          "text": "Click to edit text",
+          "fontSize": 16,
+          "fontFamily": "Inter, system-ui, sans-serif",
+          "textColor": "#000000"
+        },
+        "width": 200,
+        "height": 50,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "object-1758344625150",
+        "type": "text",
+        "position": {
+          "x": 400,
+          "y": 1541
+        },
+        "data": {
+          "text": "Click to edit text",
+          "fontSize": 16,
+          "fontFamily": "Inter, system-ui, sans-serif",
+          "textColor": "#000000"
+        },
+        "width": 200,
+        "height": 50,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "object-1758344625934",
+        "type": "text",
+        "position": {
+          "x": 550,
+          "y": 1541
+        },
+        "data": {
+          "text": "Click to edit text",
+          "fontSize": 16,
+          "fontFamily": "Inter, system-ui, sans-serif",
+          "textColor": "#000000"
+        },
+        "width": 200,
+        "height": 50,
+        "selected": false,
+        "style": {}
+      }
+    ],
+    "viewport": {
+      "x": -299.99999999999994,
+      "y": -1718,
+      "zoom": 1.4
+    }
+  }
+}

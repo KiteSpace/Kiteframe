@@ -1,0 +1,428 @@
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { 
+  User, 
+  CreditCard, 
+  LogOut, 
+  Trash2, 
+  Zap,
+  Loader2,
+  AlertTriangle,
+  ArrowLeft,
+  Tag,
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Link } from 'wouter';
+import kiteframeIcon from "@assets/kiteframe@2x_1758226635607.png";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useReplitAuth } from '@/hooks/useReplitAuth';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import type { User as UserType } from '@shared/schema';
+import { SiteFooter } from '@/components/SiteFooter';
+
+const tierInfo = {
+  free: {
+    name: 'Free',
+    icon: Zap,
+    color: 'bg-slate-100 text-slate-800',
+    credits: 25,
+  },
+  advanced: {
+    name: 'Advanced',
+    icon: Zap,
+    color: 'bg-blue-100 text-blue-800',
+    credits: 50,
+  },
+  pro: {
+    name: 'Pro',
+    icon: Zap,
+    color: 'bg-purple-100 text-purple-800',
+    credits: 150,
+  },
+};
+
+export default function Account() {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const { user: authUser, isLoading: authLoading } = useReplitAuth();
+  const { toast } = useToast();
+
+  const { data: userData } = useQuery<UserType>({
+    queryKey: ['/api/auth/user'],
+    enabled: !!authUser,
+  });
+
+  const { data: subscriptionData } = useQuery<{
+    tier?: string;
+    status?: string;
+    billingPeriodEnd?: string;
+    isAdmin?: boolean;
+    isUnlimited?: boolean;
+    canManageBilling?: boolean;
+  }>({
+    queryKey: ['/api/subscription'],
+    enabled: !!authUser,
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/billing/portal', {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
+      toast({
+        title: 'Error',
+        description: error.message || 'Unable to open billing portal.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', '/api/account', {});
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Account Deleted',
+        description: 'Your account has been permanently deleted.',
+      });
+      window.location.href = '/';
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Unable to delete account. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const promoMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest('POST', '/api/credits/redeem', { code });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: 'Promo code applied!', description: data.message });
+        setPromoCode('');
+      } else {
+        toast({
+          title: 'Redemption failed',
+          description: data.error || 'Invalid or already used code',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to redeem promo code',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Sign in Required</CardTitle>
+            <CardDescription>Please sign in to view your account settings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.href = '/api/login'} className="w-full">
+              Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const rawTier = subscriptionData?.tier ?? 'free';
+  const currentTier = (rawTier in tierInfo ? rawTier : 'free') as keyof typeof tierInfo;
+  const tier = tierInfo[currentTier];
+  const TierIcon = tier.icon;
+  const isTrialing = subscriptionData?.status === 'trialing';
+  const isAdminAccount = subscriptionData?.isAdmin === true || subscriptionData?.isUnlimited === true;
+  const canManageBilling = subscriptionData?.canManageBilling === true;
+  const showManageButton = canManageBilling && (currentTier !== 'free' || subscriptionData?.status === 'active' || isTrialing);
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      {/* Header with back button and logo */}
+      <header className="h-16 px-4 py-2 flex items-center justify-between bg-card border-b border-border shadow-sm">
+        <div className="flex items-center gap-4">
+          <Link href="/">
+            <a className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="link-back-to-app">
+              <ArrowLeft className="h-5 w-5" />
+              <img src={kiteframeIcon} alt="Kiteframe" className="w-6 h-6" />
+              <span className="text-lg font-semibold">Kiteframe</span>
+            </a>
+          </Link>
+        </div>
+      </header>
+
+      <div className="py-12 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-8">Account Settings</h1>
+
+        <div className="space-y-6">
+          {/* Profile Card */}
+          <Card data-testid="card-profile">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={userData?.profileImageUrl || ''} />
+                  <AvatarFallback>
+                    {userData?.firstName?.[0] || userData?.email?.[0]?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {userData?.firstName && userData?.lastName
+                      ? `${userData.firstName} ${userData.lastName}`
+                      : userData?.email || 'User'}
+                  </h3>
+                  <p className="text-slate-500">{userData?.email}</p>
+                  <Badge variant="outline" className="mt-1">
+                    {userData?.authProvider || 'Replit'} Account
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Card */}
+          <Card data-testid="card-subscription">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Subscription
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${tier.color}`}>
+                    <TierIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{tier.name} Plan</h3>
+                    <p className="text-sm text-slate-500">{tier.credits} credits/day</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isTrialing ? (
+                    <Badge variant="outline" className="text-amber-600 border-amber-400">
+                      Trialing
+                    </Badge>
+                  ) : (
+                    <Badge 
+                      variant={subscriptionData?.status === 'active' ? 'default' : 'secondary'}
+                    >
+                      {subscriptionData?.status === 'active' ? 'Active' : subscriptionData?.status || 'Active'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {subscriptionData?.billingPeriodEnd && (
+                <p className="text-sm text-slate-500 mb-4">
+                  Next billing date: {new Date(subscriptionData.billingPeriodEnd).toLocaleDateString()}
+                </p>
+              )}
+
+              {subscriptionData && isAdminAccount && (
+                <p className="text-sm text-slate-500 mb-4" data-testid="text-admin-billing-info">
+                  This account has unlimited access and is not managed through Stripe.
+                </p>
+              )}
+
+              {subscriptionData && !isAdminAccount && currentTier !== 'free' && !canManageBilling && (
+                <p className="text-sm text-amber-700 dark:text-amber-400 mb-4" data-testid="text-missing-billing-account">
+                  We couldn&apos;t find a linked billing account for this plan. Choose a plan again on{' '}
+                  <Link href="/pricing">
+                    <a className="font-medium underline hover:no-underline">Pricing</a>
+                  </Link>
+                  {' '}to restore billing access.
+                </p>
+              )}
+
+              {showManageButton && (
+                <Button
+                  variant="outline"
+                  onClick={() => portalMutation.mutate()}
+                  disabled={portalMutation.isPending}
+                  data-testid="button-manage-subscription"
+                >
+                  {portalMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Manage Subscription
+                </Button>
+              )}
+
+            </CardContent>
+          </Card>
+
+          {/* Promo Code Card */}
+          <Card data-testid="card-promo-code">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Promo Code
+              </CardTitle>
+              <CardDescription>
+                Enter a promo code to add bonus credits to your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2 max-w-sm">
+                <Input
+                  type="text"
+                  placeholder="Enter promo code"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !promoMutation.isPending && promoCode.trim()) {
+                      promoMutation.mutate(promoCode.trim());
+                    }
+                  }}
+                  disabled={promoMutation.isPending}
+                  data-testid="input-promo-code"
+                />
+                <Button
+                  onClick={() => promoMutation.mutate(promoCode.trim())}
+                  disabled={promoMutation.isPending || !promoCode.trim()}
+                  data-testid="button-redeem-promo"
+                >
+                  {promoMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Redeem
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sign Out */}
+          <Card data-testid="card-signout">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LogOut className="h-5 w-5" />
+                Session
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                onClick={() => window.location.href = '/api/logout'}
+                data-testid="button-signout"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          {/* Danger Zone */}
+          <Card className="border-red-200" data-testid="card-danger-zone">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription>
+                Permanent actions that cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" data-testid="button-delete-account">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your account, including:
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>All your saved projects and workflows</li>
+                        <li>Your subscription (will be canceled)</li>
+                        <li>Your account data and settings</li>
+                        <li>Your authentication connection</li>
+                      </ul>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteMutation.mutate()}
+                      className="bg-red-600 hover:bg-red-700"
+                      disabled={deleteMutation.isPending}
+                      data-testid="button-confirm-delete"
+                    >
+                      {deleteMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : null}
+                      Yes, delete my account
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        </div>
+        </div>
+      </div>
+
+      <SiteFooter />
+    </div>
+  );
+}

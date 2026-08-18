@@ -1,0 +1,359 @@
+{
+  "name": "Dreamy Blueprint",
+  "nodes": [
+    {
+      "id": "node-1-ai-1756838069103-0",
+      "type": "input",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "data": {
+        "label": "User starts by logging in",
+        "description": "Initial user login",
+        "icon": "ArrowRight",
+        "iconColor": "text-blue-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-2-ai-1756838069103-1",
+      "type": "process",
+      "position": {
+        "x": 350,
+        "y": 100
+      },
+      "data": {
+        "label": "Receives prompt to enter SSO credentials",
+        "description": "Prompt for credentials",
+        "icon": "Cog",
+        "iconColor": "text-green-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-3-ai-1756838069103-2",
+      "type": "process",
+      "position": {
+        "x": 600,
+        "y": 100
+      },
+      "data": {
+        "label": "TXT message to phone w/ code",
+        "description": "Send code via SMS",
+        "icon": "Cog",
+        "iconColor": "text-green-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-4-ai-1756838069103-3",
+      "type": "process",
+      "position": {
+        "x": 100,
+        "y": 350
+      },
+      "data": {
+        "label": "User adds code and submits",
+        "description": "User enters received code",
+        "icon": "Cog",
+        "iconColor": "text-green-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-5-ai-1756838069103-4",
+      "type": "process",
+      "position": {
+        "x": 350,
+        "y": 350
+      },
+      "data": {
+        "label": "Validation step",
+        "description": "Code validation",
+        "icon": "Cog",
+        "iconColor": "text-green-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-6-ai-1756838069103-5",
+      "type": "condition",
+      "position": {
+        "x": 600,
+        "y": 350
+      },
+      "data": {
+        "label": "Valid?",
+        "description": "Check if code is valid",
+        "icon": "HelpCircle",
+        "iconColor": "text-yellow-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-7-ai-1756838069103-6",
+      "type": "process",
+      "position": {
+        "x": 850,
+        "y": 350
+      },
+      "data": {
+        "label": "User is logged in",
+        "description": "Successful login",
+        "icon": "Cog",
+        "iconColor": "text-green-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-8-ai-1756838069103-7",
+      "type": "output",
+      "position": {
+        "x": 1100,
+        "y": 350
+      },
+      "data": {
+        "label": "Success message",
+        "description": "Display success message",
+        "icon": "ArrowLeft",
+        "iconColor": "text-red-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    },
+    {
+      "id": "node-9-ai-1756838069103-8",
+      "type": "condition",
+      "position": {
+        "x": 600,
+        "y": 600
+      },
+      "data": {
+        "label": "Send again?",
+        "description": "Option to resend code",
+        "icon": "HelpCircle",
+        "iconColor": "text-yellow-500"
+      },
+      "width": 200,
+      "height": 100,
+      "draggable": true,
+      "selectable": true,
+      "selected": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "node-1",
+      "target": "node-2",
+      "type": "step",
+      "animated": false,
+      "style": {
+        "strokeColor": "hsl(142.1, 76.2%, 36.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-2",
+      "source": "node-2",
+      "target": "node-3",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(346.8, 77.2%, 49.8%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-1-ai-1756838069103-0",
+      "source": "node-1-ai-1756838069103-0",
+      "target": "node-2-ai-1756838069103-1",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-2-ai-1756838069103-1",
+      "source": "node-2-ai-1756838069103-1",
+      "target": "node-3-ai-1756838069103-2",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-3-ai-1756838069103-2",
+      "source": "node-3-ai-1756838069103-2",
+      "target": "node-4-ai-1756838069103-3",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-4-ai-1756838069103-3",
+      "source": "node-4-ai-1756838069103-3",
+      "target": "node-5-ai-1756838069103-4",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-5-ai-1756838069103-4",
+      "source": "node-5-ai-1756838069103-4",
+      "target": "node-6-ai-1756838069103-5",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-6-ai-1756838069103-5",
+      "source": "node-6-ai-1756838069103-5",
+      "target": "node-7-ai-1756838069103-6",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-7-ai-1756838069103-6",
+      "source": "node-7-ai-1756838069103-6",
+      "target": "node-8-ai-1756838069103-7",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-8-ai-1756838069103-7",
+      "source": "node-6-ai-1756838069103-5",
+      "target": "node-9-ai-1756838069103-8",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    },
+    {
+      "id": "edge-9-ai-1756838069103-8",
+      "source": "node-9-ai-1756838069103-8",
+      "target": "node-3-ai-1756838069103-2",
+      "type": "bezier",
+      "animated": true,
+      "style": {
+        "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+        "strokeWidth": 2
+      },
+      "markers": {
+        "type": "arrow",
+        "position": "end"
+      },
+      "selected": false
+    }
+  ],
+  "viewport": {
+    "x": -37.22936631566313,
+    "y": 4.994739476081023,
+    "zoom": 0.6618939051583808
+  }
+}

@@ -1,0 +1,633 @@
+{
+  "project": {
+    "id": "project-1766521870362-ayndle6mo",
+    "name": "Kiteframe for Product Alignment",
+    "createdAt": "2025-12-23T21:10:56.837Z",
+    "updatedAt": "2025-12-23T21:10:56.837Z"
+  },
+  "projectPRD": {
+    "sections": [
+      {
+        "id": "overview",
+        "title": "Project Overview",
+        "content": "The 'Untitled' project consists of two distinct workflows designed to streamline processes and enhance productivity. The project aims to provide a structured approach to task management and execution."
+      },
+      {
+        "id": "goals",
+        "title": "Goals & Objectives",
+        "content": "- Develop efficient workflows to optimize task completion.\n- Ensure seamless transition between workflow nodes.\n- Achieve clear entry and exit points for each workflow."
+      },
+      {
+        "id": "architecture",
+        "title": "System Architecture",
+        "content": "The project architecture is composed of two primary workflows. Workflow 1 includes 6 nodes and 5 connections, starting at 'Start' and ending at 'Success'. Workflow 2 comprises 9 nodes and 9 connections, beginning at 'Start' and concluding at 'Ideation Phase Mockup'."
+      },
+      {
+        "id": "workflows",
+        "title": "Workflow Summary",
+        "content": "- **Workflow 1**: \n  - Nodes: 6\n  - Connections: 5\n  - Entry Point: Start\n  - Exit Point: Success\n- **Workflow 2**: \n  - Nodes: 9\n  - Connections: 9\n  - Entry Point: Start\n  - Exit Point: Ideation Phase Mockup"
+      },
+      {
+        "id": "assumptions",
+        "title": "Assumptions",
+        "content": "- All nodes and connections are functional and tested.\n- Entry and exit points are clearly defined and accessible.\n- Resources are available to support workflow execution."
+      }
+    ],
+    "version": 1,
+    "generatedAt": 1766522455540
+  },
+  "workflows": [
+    {
+      "workflowId": "workflow-node-1766522003633-0",
+      "workflowName": "Workflow 2",
+      "prdSections": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "Workflow 2 is designed to streamline the design process from ideation to development handoff. It involves generating design ideas, collaborating with team members, syncing design systems, and preparing designs for development."
+        },
+        {
+          "id": "requirements",
+          "title": "Requirements",
+          "content": "The workflow must support seamless transitions between phases, allow for AI-generated mockups, and ensure design consistency across tools. It should facilitate collaboration and efficient handoff to development environments."
+        },
+        {
+          "id": "user-flow",
+          "title": "User Flow",
+          "content": "1. Initiate the design process at the Start node. 2. Generate and refine ideas in the Ideation Phase. 3. Collaborate with team members. 4. Sync design systems. 5. Prepare designs for handoff. 6. Export designs to Replit. 7. Create PRD. 8. Achieve alignment between design and development."
+        },
+        {
+          "id": "inputs-outputs",
+          "title": "Inputs & Outputs",
+          "content": "Inputs: Design ideas, team collaboration. Outputs: AI-generated wireframe, aligned design and development."
+        },
+        {
+          "id": "failure-scenarios",
+          "title": "Failure Scenarios",
+          "content": "Potential failures include: inability to generate mockups, collaboration breakdowns, sync errors with design systems, export issues to Replit, and incomplete PRD documentation."
+        },
+        {
+          "id": "recovery-fallback",
+          "title": "Recovery & Fallback Paths",
+          "content": "Implement retry logic for mockup generation and system syncs. Provide manual override options for collaboration and export processes. Ensure backup and version control for PRD documentation."
+        },
+        {
+          "id": "operational-risks",
+          "title": "Operational Risks",
+          "content": "Monitor system integrations for sync errors. Ensure AI tools are reliable for mockup generation. Implement alerts for process failures and maintain logs for troubleshooting."
+        },
+        {
+          "id": "acceptance-criteria",
+          "title": "Acceptance Criteria",
+          "content": "Successful completion of the workflow results in a comprehensive PRD and design assets ready for development. All nodes must function without errors, and outputs must meet predefined quality standards."
+        }
+      ],
+      "canvas": {
+        "nodes": [
+          {
+            "id": "node-1766522003633-0",
+            "type": "input",
+            "position": {
+              "x": 300,
+              "y": 500
+            },
+            "data": {
+              "label": "Start",
+              "description": "Initiate the design process",
+              "icon": "play",
+              "iconColor": "green",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 118.59375
+          },
+          {
+            "id": "node-1766522003633-1",
+            "type": "process",
+            "position": {
+              "x": 550,
+              "y": 500
+            },
+            "data": {
+              "label": "Ideation Phase",
+              "description": "Generate and refine design ideas",
+              "icon": "lightbulb",
+              "iconColor": "yellow",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "image-1766522023076-xxb2q3gyf",
+            "type": "image",
+            "position": {
+              "x": 550,
+              "y": 665.6806368952191
+            },
+            "data": {
+              "label": "Ideation Phase Mockup",
+              "description": "AI-generated wireframe",
+              "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMzgwIiBoZWlnaHQ9IjI4MCIgZmlsbD0iI2Y1ZjVmNSIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjIiLz4KICA8cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIzNjAiIGhlaWdodD0iNDAiIGZpbGw9IiNkZGQiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHRleHQgeD0iNDAiIHk9IjQ1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiMzMzMiPklkZWF0aW9uIFBoYXNlPC90ZXh0PgogIDxjaXJjbGUgY3g9IjQwIiBjeT0iMTAwIiByPSIxNSIgZmlsbD0iI2RkZCIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjEiLz4KICA8dGV4dCB4PSI2NSIgeT0iMTA1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2NjYiPkdlbmVyYXRlIElkZWFzPC90ZXh0PgogIDxjaXJjbGUgY3g9IjQwIiBjeT0iMTUwIiByPSIxNSIgZmlsbD0iI2RkZCIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjEiLz4KICA8dGV4dCB4PSI2NSIgeT0iMTU1IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM2NjYiPlJlZmluZSBJZGVhczwvdGV4dD4KICA8cmVjdCB4PSIyMCIgeT0iMjAwIiB3aWR0aD0iMzYwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjZGRkIiBzdHJva2U9IiM5OTkiIHN0cm9rZS13aWR0aD0iMSIvPgogIDx0ZXh0IHg9IjMwIiB5PSIyMjUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NiI+Tm90ZXM6PC90ZXh0PgogIDxsaW5lIHgxPSIzMCIgeTE9IjI0MCIgeDI9IjM3MCIgeTI9IjI0MCIgc3Ryb2tlPSIjOTk5IiBzdHJva2Utd2lkdGg9IjEiLz4KICA8bGluZSB4MT0iMzAiIHkxPSIyNjAiIHgyPSIzNzAiIHkyPSIyNjAiIHN0cm9rZT0iIzk5OSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPGxpbmUgeDE9IjMwIiB5MT0iMjgwIiB4Mj0iMzcwIiB5Mj0iMjgwIiBzdHJva2U9IiM5OTkiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=",
+              "filename": "Ideation Phase.svg",
+              "sourceType": "data",
+              "imageSize": "contain",
+              "naturalWidth": 400,
+              "naturalHeight": 300,
+              "isImageBroken": false,
+              "colors": {
+                "headerBackground": "#1e293b",
+                "headerTextColor": "#ffffff",
+                "bodyBackground": "#e9eaeb",
+                "borderColor": "#1e293b"
+              }
+            },
+            "width": 400,
+            "height": 300,
+            "style": {
+              "height": 182,
+              "width": 200
+            },
+            "selected": false
+          },
+          {
+            "id": "node-1766522003633-2",
+            "type": "process",
+            "position": {
+              "x": 800,
+              "y": 500
+            },
+            "data": {
+              "label": "Collaboration",
+              "description": "Collaborate with team members",
+              "icon": "users",
+              "iconColor": "blue",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "node-1766522003633-5",
+            "type": "process",
+            "position": {
+              "x": 1050,
+              "y": 700
+            },
+            "data": {
+              "label": "Sync Design System",
+              "description": "Update design systems across tools",
+              "icon": "sync",
+              "iconColor": "cyan",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              },
+              "nodeIcon": "⭐",
+              "iconVisible": true
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "node-1766522003633-3",
+            "type": "process",
+            "position": {
+              "x": 1050,
+              "y": 500
+            },
+            "data": {
+              "label": "Design Handoff",
+              "description": "Prepare designs for development handoff",
+              "icon": "handshake",
+              "iconColor": "purple",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "node-1766522003633-4",
+            "type": "process",
+            "position": {
+              "x": 1300,
+              "y": 500
+            },
+            "data": {
+              "label": "Export to Replit",
+              "description": "Transfer design to development environment",
+              "icon": "share",
+              "iconColor": "orange",
+              "status": "done",
+              "colors": {
+                "headerBackground": "#f97316",
+                "headerTextColor": "#000000",
+                "bodyBackground": "#fef1e8",
+                "borderColor": "#f97316"
+              },
+              "nodeIcon": "⚡",
+              "iconVisible": true
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "node-1766522003633-6",
+            "type": "process",
+            "position": {
+              "x": 1672.387879676829,
+              "y": 321.7229308522973
+            },
+            "data": {
+              "label": "PRD Creation",
+              "description": "Document product requirements",
+              "icon": "file-alt",
+              "iconColor": "teal",
+              "hyperlinks": [
+                {
+                  "id": "link-1766523727168",
+                  "text": "Jira with PRD",
+                  "url": "https://www.atlassian.com/",
+                  "showPreview": true,
+                  "metadata": {
+                    "title": "Collaboration software for software, IT and business teams | Atlassian",
+                    "description": "Atlassian",
+                    "favicon": "https://www.atlassian.com/favicon.ico"
+                  }
+                }
+              ],
+              "colors": {
+                "headerBackground": "#3b82f6",
+                "headerTextColor": "#000000",
+                "bodyBackground": "#ebf3fe",
+                "borderColor": "#3b82f6"
+              },
+              "status": "done",
+              "nodeIcon": "💡",
+              "iconVisible": true
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          },
+          {
+            "id": "node-1766522003633-7",
+            "type": "output",
+            "position": {
+              "x": 2029.41342362861,
+              "y": 500
+            },
+            "data": {
+              "label": "Success",
+              "description": "Design and development aligned",
+              "icon": "check-circle",
+              "iconColor": "green",
+              "colors": {
+                "headerBackground": "#ffffff",
+                "headerTextColor": "#0f172a",
+                "bodyBackground": "#ffffff",
+                "borderColor": "#e2e8f0"
+              },
+              "status": "done"
+            },
+            "width": 200,
+            "height": 100,
+            "selected": false,
+            "measuredWidth": 200,
+            "measuredHeight": 120.1875
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge-1766522003633-0",
+            "source": "node-1766522003633-0",
+            "target": "node-1766522003633-1",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-1",
+            "source": "node-1766522003633-1",
+            "target": "node-1766522003633-2",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-2",
+            "source": "node-1766522003633-2",
+            "target": "node-1766522003633-3",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-3",
+            "source": "node-1766522003633-3",
+            "target": "node-1766522003633-4",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-4",
+            "source": "node-1766522003633-4",
+            "target": "node-1766522003633-6",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-5",
+            "source": "node-1766522003633-6",
+            "target": "node-1766522003633-7",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-6",
+            "source": "node-1766522003633-2",
+            "target": "node-1766522003633-5",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-1766522003633-7",
+            "source": "node-1766522003633-5",
+            "target": "node-1766522003633-3",
+            "type": "bezier",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "arrow",
+              "position": "end"
+            },
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          },
+          {
+            "id": "edge-wireframe-1766522023076",
+            "source": "node-1766522003633-1",
+            "target": "image-1766522023076-xxb2q3gyf",
+            "type": "straight",
+            "style": {
+              "strokeColor": "#1e293b",
+              "strokeWidth": 2,
+              "strokeDasharray": "5,5",
+              "stroke": "#1e293b"
+            },
+            "markers": {
+              "type": "circle",
+              "position": "end"
+            },
+            "label": "mockup",
+            "reconnectable": true,
+            "interactable": true,
+            "selected": false,
+            "data": {
+              "strokeSelected": "#ffffff"
+            }
+          }
+        ],
+        "canvasObjects": [
+          {
+            "id": "object-1766523411911",
+            "type": "text",
+            "position": {
+              "x": 1257.909968925907,
+              "y": 346.4064217938212
+            },
+            "data": {
+              "text": "Our Awesome App",
+              "fontSize": 16,
+              "fontFamily": "Inter, system-ui, sans-serif",
+              "textColor": "#f97316",
+              "hyperlink": {
+                "url": "https://replit.com/",
+                "text": "Our Awesome App",
+                "showPreview": true,
+                "showText": false,
+                "metadata": {
+                  "title": "Replit – Build apps and sites with AI",
+                  "description": "Build and deploy software collaboratively with the power of AI without spending a second on setup.",
+                  "image": "https://replit.com/public/images/opengraph.png",
+                  "siteName": "replit",
+                  "favicon": "https://replit.com/public/icons/favicon-prompt-192.png"
+                }
+              }
+            },
+            "width": 200,
+            "height": 50,
+            "selected": false,
+            "style": {
+              "width": 240,
+              "height": 130
+            }
+          },
+          {
+            "id": "obj-1766523457680-ajq41rroa",
+            "type": "text",
+            "position": {
+              "x": 50,
+              "y": 50
+            },
+            "data": {
+              "text": "Our Awesome App",
+              "fontSize": 16,
+              "fontFamily": "Inter, system-ui, sans-serif",
+              "textColor": "#000000",
+              "hyperlink": {
+                "url": "https://replit.com/",
+                "text": "Our Awesome App",
+                "showPreview": true,
+                "showText": false,
+                "metadata": {
+                  "title": "Replit – Build apps and sites with AI",
+                  "description": "Build and deploy software collaboratively with the power of AI without spending a second on setup.",
+                  "image": "https://replit.com/public/images/opengraph.png",
+                  "siteName": "replit",
+                  "favicon": "https://replit.com/public/icons/favicon-prompt-192.png"
+                }
+              }
+            },
+            "width": 200,
+            "height": 50,
+            "selected": false,
+            "style": {
+              "width": 300,
+              "height": 111
+            }
+          },
+          {
+            "id": "object-1766523483484",
+            "type": "text",
+            "position": {
+              "x": 1257.195466479216,
+              "y": 209.62058301192184
+            },
+            "data": {
+              "text": "Click to edit text",
+              "fontSize": 16,
+              "fontFamily": "Inter, system-ui, sans-serif",
+              "textColor": "#000000",
+              "hyperlink": {
+                "url": "https://github.com/",
+                "text": "Click to edit text",
+                "showPreview": true,
+                "showText": false,
+                "metadata": {
+                  "title": "GitHub · Change is constant. GitHub keeps you ahead.",
+                  "description": "Join the world&#39;s most widely adopted, AI-powered developer platform where millions of developers, businesses, and the largest open source community build software that advances humanity.",
+                  "image": "https://images.ctfassets.net/8aevphvgewt8/4pe4eOtUJ0ARpZRE4fNekf/f52b1f9c52f059a33170229883731ed0/GH-Homepage-Universe-img.png",
+                  "siteName": "GitHub",
+                  "favicon": "https://github.githubassets.com/favicons/favicon"
+                }
+              }
+            },
+            "width": 200,
+            "height": 50,
+            "selected": false,
+            "style": {
+              "width": 242.8045335207839,
+              "height": 130
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "generatedAt": "2025-12-23T21:10:56.837Z",
+  "version": "1.0.0"
+}

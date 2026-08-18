@@ -1,0 +1,743 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-12-22T19:42:41.966Z",
+  "workflow": {
+    "id": "tab-1766185518555-icgqg54c9",
+    "name": "Untitled",
+    "description": "This project streamlines the process of launching critical business projects using Kite AI, ensuring efficiency and effectiveness through a structured 16-step workflow.",
+    "links": [],
+    "categories": []
+  },
+  "canvas": {
+    "nodes": [
+      {
+        "id": "1-kiteai-1766183815176-0",
+        "type": "input",
+        "position": {
+          "x": 234.196265055358,
+          "y": 232.8384582279045
+        },
+        "data": {
+          "label": "Business-Critical Initiative",
+          "description": "It's go time!",
+          "icon": "ArrowRight",
+          "iconColor": "text-blue-500",
+          "fontSize": 18,
+          "bold": true,
+          "textAlign": "center",
+          "nodeIcon": "⭐",
+          "iconVisible": true,
+          "colors": {
+            "headerBackground": "#6366f1",
+            "bodyBackground": "#eff0fe",
+            "borderColor": "#6366f1",
+            "headerTextColor": "#000000"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "measuredWidth": 200,
+        "style": {}
+      },
+      {
+        "id": "3-kiteai-1766183815176-2",
+        "type": "process",
+        "position": {
+          "x": 484.3997400539978,
+          "y": 132.8384582279045
+        },
+        "data": {
+          "label": "Hey KiteAI!",
+          "description": "Hi, how can I help you?",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "nodeIcon": "💡",
+          "iconVisible": true,
+          "colors": {
+            "headerBackground": "#22c55e",
+            "bodyBackground": "#e9f9ef",
+            "borderColor": "#22c55e",
+            "headerTextColor": "#000000"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "4-kiteai-1766183815176-3",
+        "type": "process",
+        "position": {
+          "x": 715.1313698172432,
+          "y": 132.8384582279045
+        },
+        "data": {
+          "label": "Collaboration Powered by Kite AI",
+          "description": "Clear alignment on scope, roles, and success criteria",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#3b82f6",
+            "bodyBackground": "#ebf3fe",
+            "borderColor": "#3b82f6",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "⚡",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {},
+        "measuredWidth": 200
+      },
+      {
+        "id": "6-kiteai-1766183815176-5",
+        "type": "process",
+        "position": {
+          "x": 947.6345431618563,
+          "y": 132.8384582279045
+        },
+        "data": {
+          "label": "Magic",
+          "description": "Kite AI generates a structured PRD in seconds",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#8b5cf6",
+            "bodyBackground": "#f3effe",
+            "borderColor": "#8b5cf6",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "⭐",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "7-kiteai-1766183815176-6",
+        "type": "process",
+        "position": {
+          "x": 1180.4339408096198,
+          "y": 132.8384582279045
+        },
+        "data": {
+          "label": "Let's go!",
+          "description": "Teams execute with confidence",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#06b6d4",
+            "bodyBackground": "#e6f8fb",
+            "borderColor": "#06b6d4",
+            "headerTextColor": "#000000"
+          },
+          "nodeIcon": "🚀",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {},
+        "measuredWidth": 200
+      },
+      {
+        "id": "9-kiteai-1766183815176-8",
+        "type": "process",
+        "position": {
+          "x": 483.3997400539978,
+          "y": 332.83845822790454
+        },
+        "data": {
+          "label": "Kickoff",
+          "description": "So are you leading this meeting, or am I?",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "10-kiteai-1766183815176-9",
+        "type": "process",
+        "position": {
+          "x": 368.8397411705951,
+          "y": 498.3636437257123
+        },
+        "data": {
+          "label": "Scatter",
+          "description": "Everyone get to it!",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "11-kiteai-1766183815176-10",
+        "type": "process",
+        "position": {
+          "x": 716.1313698172432,
+          "y": 320.50137069982566
+        },
+        "data": {
+          "label": "Requirements doc created",
+          "description": "Hmmmm, this seems incomplete and outdated. Who took notes??",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "measuredWidth": 200,
+        "style": {}
+      },
+      {
+        "id": "12-kiteai-1766183815176-11",
+        "type": "process",
+        "position": {
+          "x": 617.4159866542703,
+          "y": 653.9936371204702
+        },
+        "data": {
+          "label": "Design review",
+          "description": "This is what the PRD stated. Did I miss a meeting?",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "13-kiteai-1766183815176-12",
+        "type": "process",
+        "position": {
+          "x": 892.4282595121763,
+          "y": 631.0967789453102
+        },
+        "data": {
+          "label": "Engineering questions surface late",
+          "description": "We're going to need Craig over in ML Sys dept for this...",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "measuredWidth": 200,
+        "style": {}
+      },
+      {
+        "id": "14-kiteai-1766183815176-13",
+        "type": "process",
+        "position": {
+          "x": 892.4282595121763,
+          "y": 441.58785826950225
+        },
+        "data": {
+          "label": "Another meeting scheduled",
+          "description": "Well, we're running out sprints. Let's build and we can address the tech debt after release.",
+          "icon": "Cog",
+          "iconColor": "text-green-500"
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "measuredWidth": 200,
+        "style": {}
+      },
+      {
+        "id": "15-kiteai-1766183815176-14",
+        "type": "process",
+        "position": {
+          "x": 986.9675808279301,
+          "y": 302.5962876675806
+        },
+        "data": {
+          "label": "Scope changes introduced",
+          "description": "There's no time!",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "nodeIcon": "❌",
+          "iconVisible": false,
+          "colors": {
+            "headerBackground": "#f8fafc",
+            "bodyBackground": "#ffffff",
+            "borderColor": "#e2e8f0",
+            "headerTextColor": "#0f172a",
+            "bodyTextColor": "#334155"
+          }
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      },
+      {
+        "id": "16-kiteai-1766183815176-15",
+        "type": "process",
+        "position": {
+          "x": 1180.4339408096198,
+          "y": 498.6580558947552
+        },
+        "data": {
+          "label": "Launch?",
+          "description": "¯\\_(ツ)_/¯",
+          "icon": "Cog",
+          "iconColor": "text-green-500",
+          "colors": {
+            "headerBackground": "#f97316",
+            "bodyBackground": "#fef1e8",
+            "borderColor": "#f97316",
+            "headerTextColor": "#000000"
+          },
+          "fontSize": 20,
+          "bold": true,
+          "textAlign": "center",
+          "nodeIcon": "🚩",
+          "iconVisible": true
+        },
+        "width": 200,
+        "height": 100,
+        "selected": false,
+        "style": {}
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-kiteai-1766183815176-0",
+        "source": "1-kiteai-1766183815176-0",
+        "target": "2-kiteai-1766183815176-1",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-1",
+        "source": "2-kiteai-1766183815176-1",
+        "target": "3-kiteai-1766183815176-2",
+        "type": "straight",
+        "data": {
+          "label": "Yes"
+        },
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "edge-kiteai-1766183815176-2",
+        "source": "3-kiteai-1766183815176-2",
+        "target": "4-kiteai-1766183815176-3",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-3",
+        "source": "4-kiteai-1766183815176-3",
+        "target": "5-kiteai-1766183815176-4",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-4",
+        "source": "5-kiteai-1766183815176-4",
+        "target": "6-kiteai-1766183815176-5",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-5",
+        "source": "6-kiteai-1766183815176-5",
+        "target": "7-kiteai-1766183815176-6",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-6",
+        "source": "7-kiteai-1766183815176-6",
+        "target": "8-kiteai-1766183815176-7",
+        "type": "straight",
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-7",
+        "source": "2-kiteai-1766183815176-1",
+        "target": "9-kiteai-1766183815176-8",
+        "type": "bezier",
+        "data": {
+          "label": "No"
+        },
+        "style": {
+          "strokeColor": "hsl(221.2, 83.2%, 53.3%)",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false
+      },
+      {
+        "id": "edge-kiteai-1766183815176-8",
+        "source": "9-kiteai-1766183815176-8",
+        "target": "10-kiteai-1766183815176-9",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-9",
+        "source": "10-kiteai-1766183815176-9",
+        "target": "11-kiteai-1766183815176-10",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-10",
+        "source": "11-kiteai-1766183815176-10",
+        "target": "12-kiteai-1766183815176-11",
+        "type": "straight",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-13",
+        "source": "14-kiteai-1766183815176-13",
+        "target": "15-kiteai-1766183815176-14",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-kiteai-1766183815176-14",
+        "source": "15-kiteai-1766183815176-14",
+        "target": "16-kiteai-1766183815176-15",
+        "type": "straight",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "selected": false,
+        "data": {},
+        "animated": true
+      },
+      {
+        "id": "edge-1766184029305",
+        "source": "12-kiteai-1766183815176-11",
+        "target": "14-kiteai-1766183815176-13",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766184043755",
+        "source": "14-kiteai-1766183815176-13",
+        "target": "10-kiteai-1766183815176-9",
+        "type": "step",
+        "style": {
+          "strokeColor": "#ef4444",
+          "strokeWidth": 2,
+          "stroke": "#ef4444"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false,
+        "animated": true
+      },
+      {
+        "id": "edge-1766184048804",
+        "source": "10-kiteai-1766183815176-9",
+        "target": "12-kiteai-1766183815176-11",
+        "type": "step",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766184074938",
+        "source": "12-kiteai-1766183815176-11",
+        "target": "13-kiteai-1766183815176-12",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#1e293b",
+          "strokeWidth": 2,
+          "stroke": "#1e293b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766184325682",
+        "source": "1-kiteai-1766183815176-0",
+        "target": "3-kiteai-1766183815176-2",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#22c55e",
+          "strokeWidth": 2,
+          "stroke": "#22c55e"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766184327845",
+        "source": "1-kiteai-1766183815176-0",
+        "target": "9-kiteai-1766183815176-8",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#eab308",
+          "strokeWidth": 2,
+          "stroke": "#eab308"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766184448638-nvsvzsf23",
+        "source": "14-kiteai-1766183815176-13",
+        "target": "node-1766184448638-0xdul0ie9",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "selected": false,
+        "data": {}
+      },
+      {
+        "id": "edge-1766184454549",
+        "source": "14-kiteai-1766183815176-13",
+        "target": "13-kiteai-1766183815176-12",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#64748b",
+          "strokeWidth": 2,
+          "strokeDasharray": "8 4",
+          "strokeLinecap": "butt",
+          "stroke": "#64748b"
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false,
+        "markerEnd": {
+          "type": "circle",
+          "size": 8
+        },
+        "markerStart": {
+          "type": "circle",
+          "size": 8
+        },
+        "animated": true
+      },
+      {
+        "id": "edge-1766184980436",
+        "source": "7-kiteai-1766183815176-6",
+        "target": "node-1766184941202-z2uv9om2z",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      },
+      {
+        "id": "edge-1766352137830",
+        "source": "4-kiteai-1766183815176-3",
+        "target": "6-kiteai-1766183815176-5",
+        "type": "bezier",
+        "style": {
+          "strokeColor": "#3b82f6",
+          "strokeWidth": 2
+        },
+        "markers": {
+          "type": "arrow",
+          "position": "end"
+        },
+        "reconnectable": true,
+        "interactable": true,
+        "data": {},
+        "selected": false
+      }
+    ],
+    "canvasObjects": [],
+    "viewport": {
+      "x": 138.2156149100026,
+      "y": -19.642412496123825,
+      "zoom": 0.8630817839857741
+    }
+  }
+}

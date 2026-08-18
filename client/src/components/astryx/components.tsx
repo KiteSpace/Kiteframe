@@ -1,0 +1,2861 @@
+import { useState, useEffect, Children, type ReactNode, type CSSProperties } from "react";
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
+
+type AstryxProps = Record<string, any>;
+
+function pick<T>(map: Record<string, T>, key: any, fallback: T): T {
+  return (map[key as string] ?? fallback) as T;
+}
+
+export function AstryxButton({ children = "Button", variant = "primary", size = "md", disabled, borderRadius }: AstryxProps) {
+  const sizeClass    = pick({ sm: "px-2 py-1 text-xs", md: "px-3 py-1.5 text-sm", lg: "px-4 py-2 text-base" }, size, "px-3 py-1.5 text-sm");
+  const variantClass = pick({
+    primary:   "bg-blue-600 text-white hover:bg-blue-700",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+    outline:   "border border-gray-300 text-gray-700 hover:bg-gray-50",
+    ghost:     "text-gray-700 hover:bg-gray-100",
+  }, variant, "bg-blue-600 text-white");
+  return (
+    <button
+      className={`w-full inline-flex items-center justify-center rounded-md font-medium transition-colors ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function AstryxCard({ children = "Card content", variant = "elevated", borderRadius }: AstryxProps) {
+  const variantClass = pick({ elevated: "bg-white shadow-md border border-gray-100", outlined: "bg-white border border-gray-300", ghost: "bg-gray-50" }, variant, "bg-white shadow-md");
+  return <div className={`w-full rounded-lg p-4 ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
+}
+
+export function AstryxBadge({ children = "Badge", color = "blue" }: AstryxProps) {
+  const colorClass = pick({ blue: "bg-blue-100 text-blue-800", green: "bg-green-100 text-green-800", amber: "bg-amber-100 text-amber-800", red: "bg-red-100 text-red-800", gray: "bg-gray-100 text-gray-700" }, color, "bg-blue-100 text-blue-800");
+  return (
+    <div className="w-full flex">
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>{children}</span>
+    </div>
+  );
+}
+
+export function AstryxText({ children = "Text", size = "md", muted, color }: AstryxProps) {
+  const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base", lg: "text-lg" }, size, "text-base");
+  return <p className={`w-full ${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`} style={color ? { color } : undefined}>{children}</p>;
+}
+
+export function AstryxHeading({ children = "Heading", size = "lg", color }: AstryxProps) {
+  const sizeClass = pick({ sm: "text-base font-semibold", md: "text-lg font-semibold", lg: "text-xl font-bold", xl: "text-2xl font-bold", "2xl": "text-3xl font-bold" }, size, "text-xl font-bold");
+  return <h2 className={`w-full ${sizeClass} text-gray-900`} style={color ? { color } : undefined}>{children}</h2>;
+}
+
+export function AstryxAvatar({ name = "?", src, size = "md" }: AstryxProps) {
+  const sizeClass = pick({ xs: "w-6 h-6 text-xs", sm: "w-8 h-8 text-sm", md: "w-10 h-10 text-base", lg: "w-14 h-14 text-lg" }, size, "w-10 h-10 text-base");
+  const initials = String(name).split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} rounded-full bg-blue-500 text-white flex items-center justify-center font-medium overflow-hidden`}>
+        {src ? <img src={src} alt={name} className="w-full h-full object-cover" /> : initials}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxSpinner({ size = "md" }: AstryxProps) {
+  const sizeClass = pick({ sm: "w-4 h-4", md: "w-6 h-6", lg: "w-8 h-8" }, size, "w-6 h-6");
+  return (
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin`} />
+    </div>
+  );
+}
+
+export function AstryxDivider({ label }: AstryxProps) {
+  return (
+    <div className="flex items-center gap-2 w-full">
+      <div className="flex-1 h-px bg-gray-200" />
+      {label && <span className="text-xs text-gray-500 whitespace-nowrap">{label}</span>}
+      <div className="flex-1 h-px bg-gray-200" />
+    </div>
+  );
+}
+
+export function AstryxProgressBar({ value = 50, color = "blue", borderRadius }: AstryxProps) {
+  const colorClass   = pick({ blue: "bg-blue-500", green: "bg-green-500", amber: "bg-amber-500", red: "bg-red-500" }, color, "bg-blue-500");
+  const clampedValue = Math.max(0, Math.min(100, Number(value)));
+  return (
+    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden" style={borderRadius !== undefined ? { borderRadius } : undefined}>
+      <div className={`h-full ${colorClass} rounded-full transition-all`} style={{ width: `${clampedValue}%` }} />
+    </div>
+  );
+}
+
+export function AstryxStatusDot({ status = "online", size = "md" }: AstryxProps) {
+  const colorClass = pick({ online: "bg-green-500", offline: "bg-gray-400", busy: "bg-red-500", away: "bg-amber-500" }, status, "bg-green-500");
+  const sizeClass  = pick({ sm: "w-2 h-2", md: "w-2.5 h-2.5", lg: "w-3.5 h-3.5" }, size, "w-2.5 h-2.5");
+  return (
+    <div className="w-full flex justify-center">
+      <div className={`${sizeClass} rounded-full ${colorClass}`} />
+    </div>
+  );
+}
+
+export function AstryxSkeleton({ height = 16 }: AstryxProps) {
+  return <div className="w-full rounded animate-pulse bg-gray-200" style={{ height }} />;
+}
+
+export function AstryxBanner({ children = "Banner message", variant = "info", borderRadius }: AstryxProps) {
+  const variantClass = pick({
+    info:    "bg-blue-50 border-blue-200 text-blue-800",
+    success: "bg-green-50 border-green-200 text-green-800",
+    warning: "bg-amber-50 border-amber-200 text-amber-800",
+    error:   "bg-red-50 border-red-200 text-red-800",
+  }, variant, "bg-blue-50 border-blue-200 text-blue-800");
+  return <div className={`w-full px-3 py-2 rounded-md border text-sm ${variantClass}`} style={borderRadius !== undefined ? { borderRadius } : undefined}>{children}</div>;
+}
+
+export function AstryxEmptyState({ title = "Nothing here", description, action }: AstryxProps) {
+  return (
+    <div className="w-full flex flex-col items-center gap-2 p-6 text-center">
+      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xl">○</div>
+      <p className="text-sm font-medium text-gray-900">{title}</p>
+      {description && <p className="text-xs text-gray-500">{description}</p>}
+      {action && <button className="mt-1 text-xs text-blue-600 hover:underline">{action}</button>}
+    </div>
+  );
+}
+
+export function AstryxChatMessage({ children = "Message", sender = "User", timestamp, isOwn }: AstryxProps) {
+  return (
+    <div className={`w-full flex flex-col gap-0.5 ${isOwn ? "items-end" : "items-start"}`}>
+      <span className="text-xs text-gray-500">{sender}{timestamp ? ` · ${timestamp}` : ""}</span>
+      <div className={`px-3 py-2 rounded-2xl text-sm max-w-xs ${isOwn ? "bg-blue-600 text-white rounded-tr-sm" : "bg-gray-100 text-gray-900 rounded-tl-sm"}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxToken({ children = "Tag" }: AstryxProps) {
+  return (
+    <div className="w-full flex">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
+        {children}
+        <span className="text-gray-400 hover:text-gray-600 cursor-pointer">×</span>
+      </span>
+    </div>
+  );
+}
+
+export function AstryxTextInput({ placeholder = "Enter text…", label, value, disabled, borderRadius }: AstryxProps) {
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      <input
+        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 w-full"
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+        placeholder={placeholder}
+        defaultValue={value}
+        disabled={disabled}
+        readOnly
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
+      />
+    </div>
+  );
+}
+
+export function AstryxStack({ children, gap = 8 }: AstryxProps) {
+  return <div className="w-full flex flex-col" style={{ gap }}>{children}</div>;
+}
+
+export function AstryxHStack({ children, gap = 8, align = "center" }: AstryxProps) {
+  const alignClass = pick({ start: "items-start", center: "items-center", end: "items-end" }, align, "items-center");
+  return <div className={`w-full flex flex-row ${alignClass}`} style={{ gap }}>{children}</div>;
+}
+
+export const ICON_GLYPHS: Record<string, string> = {
+  star: "★", check: "✓", heart: "♥", arrow: "→", chevron: "›",
+  home: "⌂", user: "○", search: "⌕", close: "✕", x: "✕",
+  plus: "+", minus: "−", settings: "⚙", mail: "✉", lock: "⊕",
+  info: "ⓘ", warning: "⚠", edit: "✎", trash: "⊘", upload: "↑",
+  download: "↓", menu: "☰", grid: "⊞", share: "↗", eye: "◉",
+  send: "➤", bookmark: "⬟", pin: "⊙", link: "⊗", image: "▣",
+  bell: "◎", calendar: "◪", phone: "☎", tag: "◈",
+};
+export function AstryxIcon({ name = "star", size = "md" }: AstryxProps) {
+  const sizeClass = pick({ sm: "text-base", md: "text-xl", lg: "text-2xl" }, size, "text-xl");
+  const key = String(name).toLowerCase().trim();
+  const glyph = ICON_GLYPHS[key] ?? (String(name).charAt(0).toUpperCase() || "⬡");
+  return (
+    <div className="w-full flex justify-center">
+      <span className={`${sizeClass} text-gray-500 select-none`} title={name}>{glyph}</span>
+    </div>
+  );
+}
+
+export function AstryxSection({ children, direction = "column", gap = 16, padding = 16 }: AstryxProps) {
+  return (
+    <div style={{ display: "flex", flexDirection: direction as "row" | "column", gap, padding, minHeight: 32, width: "100%" }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Stand-in for a component the library doesn't have.
+ *
+ * It renders its children. When the missing component was a CONTAINER, dropping
+ * them would lose its entire subtree — the same "design got discarded" failure
+ * this placeholder exists to prevent, just one level down. So the gap is marked
+ * by the dashed box and its label, while the content inside still draws.
+ */
+export function AstryxUnknown({
+  astryxComponent,
+  children,
+}: {
+  astryxComponent: string;
+  children?: ReactNode;
+}) {
+  const hasChildren = Children.count(children) > 0;
+  return (
+    <div className="w-full border border-dashed border-gray-300 rounded-md px-3 py-2 text-xs text-gray-400 bg-gray-50">
+      [{astryxComponent}]
+      {hasChildren ? (
+        <div className="mt-2 flex flex-col gap-2 text-gray-900">{children}</div>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── New components ────────────────────────────────────────────────────────────
+
+export function AstryxTable({ rows = 3, columns = 3, cellData: cellDataProp, headers: headersProp }: AstryxProps) {
+  const numCols = Math.min(Math.max(1, Number(columns)), 6);
+  const numRows = Math.min(Math.max(1, Number(rows)), 10);
+  const headers = Array.from({ length: numCols }, (_, i) =>
+    (headersProp as string[] | undefined)?.[i] ?? `Col ${i + 1}`
+  );
+  const bodyRows = Array.from({ length: numRows }, (_, r) =>
+    Array.from({ length: numCols }, (_, c) =>
+      (cellDataProp as string[][] | undefined)?.[r]?.[c] ?? "—"
+    )
+  );
+  return (
+    <div className="rounded-md border border-gray-200 overflow-hidden w-full">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 bg-gray-50">
+            {headers.map((h, i) => (
+              <th key={i} className="px-3 py-2 text-left text-xs font-medium text-gray-500">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bodyRows.map((row, i) => (
+            <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+              {row.map((cell, j) => (
+                <td key={j} className="px-3 py-2 text-gray-400">{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function AstryxTabs({ tabs = "Tab 1,Tab 2,Tab 3", active = "Tab 1" }: AstryxProps) {
+  const tabList = String(tabs).split(",").map((t) => t.trim()).filter(Boolean);
+  const [activeTab, setActiveTab] = useState<string>(active);
+  useEffect(() => { setActiveTab(active); }, [active]);
+  return (
+    <div className="w-full">
+      <div className="inline-flex h-9 items-center rounded-lg bg-gray-100 p-1 gap-0.5">
+        {tabList.map((tab) => (
+          <div
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3 py-1 rounded-md text-sm font-medium cursor-pointer transition-colors ${tab === activeTab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            {tab}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxAccordion({ items = "Section 1,Section 2,Section 3", open = "Section 1" }: AstryxProps) {
+  const itemList = String(items).split(",").map((t) => t.trim()).filter(Boolean);
+  const [openItem, setOpenItem] = useState<string>(open);
+  useEffect(() => { setOpenItem(open); }, [open]);
+  return (
+    <div className="w-full divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
+      {itemList.map((item) => (
+        <div key={item}>
+          <div
+            onClick={() => setOpenItem(item === openItem ? "" : item)}
+            className="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-800 bg-white cursor-pointer hover:bg-gray-50"
+          >
+            {item}
+            <span className="text-gray-400 text-xs">{item === openItem ? "▲" : "▼"}</span>
+          </div>
+          {item === openItem && (
+            <div className="px-4 py-3 text-sm text-gray-600 bg-gray-50 border-t border-gray-100">
+              Content for {item}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxSelect({ placeholder = "Select option…", options = "Option 1,Option 2,Option 3", size = "md", borderRadius, open = false }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const heightClass = pick({ sm: "h-7 text-xs", md: "h-9 text-sm", lg: "h-11 text-base" }, size, "h-9 text-sm");
+  const preview = optionList.slice(0, 3);
+  return (
+    <div className="flex flex-col w-full">
+      <div
+        className={`flex ${heightClass} w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-500 cursor-pointer hover:border-gray-400`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <span>{placeholder}</span>
+        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      {open === true && preview.length > 0 && (
+        <div className="mt-0.5 border border-gray-200 rounded-md bg-white shadow-sm overflow-hidden">
+          {preview.map((opt, i) => (
+            <div key={i} className="px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AstryxCheckbox({ label = "Checkbox label", checked = false }: AstryxProps) {
+  return (
+    <div className="w-full flex items-center gap-2">
+      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+        {checked && (
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </div>
+      <span className="text-sm text-gray-700">{label}</span>
+    </div>
+  );
+}
+
+export function AstryxRadioGroup({ options = "Option A,Option B,Option C", selected = "Option A" }: AstryxProps) {
+  const optionList = String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  return (
+    <div className="w-full flex flex-col gap-2">
+      {optionList.map((opt) => (
+        <div key={opt} className="flex items-center gap-2">
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${opt === selected ? "border-blue-600" : "border-gray-300"}`}>
+            {opt === selected && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+          </div>
+          <span className="text-sm text-gray-700">{opt}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxSlider({ value = 50, min = 0, max = 100 }: AstryxProps) {
+  const pct = Math.max(0, Math.min(100, ((Number(value) - Number(min)) / (Number(max) - Number(min))) * 100));
+  return (
+    <div className="w-full flex flex-col gap-1.5">
+      <div className="relative h-1.5 w-full rounded-full bg-gray-200">
+        <div className="absolute h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border border-blue-400 bg-white shadow"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-gray-400">
+        <span>{min}</span>
+        <span>{value}</span>
+        <span>{max}</span>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCalendar({ month = "July 2026" }: AstryxProps) {
+  const days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const dates = [
+    null, null, 1, 2, 3, 4, 5,
+    6, 7, 8, 9, 10, 11, 12,
+    13, 14, 15, 16, 17, 18, 19,
+    20, 21, 22, 23, 24, 25, 26,
+    27, 28, 29, 30, 31, null, null,
+  ];
+  return (
+    <div className="rounded-md border border-gray-200 bg-white p-3 w-full text-sm">
+      <div className="flex items-center justify-between mb-2">
+        <button className="text-gray-400 hover:text-gray-600 px-1 text-xs">◀</button>
+        <span className="font-medium text-gray-800 text-xs">{month}</span>
+        <button className="text-gray-400 hover:text-gray-600 px-1 text-xs">▶</button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((d) => (
+          <div key={d} className="text-center text-[10px] text-gray-400 py-0.5">{d}</div>
+        ))}
+        {dates.map((d, i) => (
+          <div
+            key={i}
+            className={`text-center text-[11px] py-0.5 rounded ${d === 14 ? "bg-blue-600 text-white" : d ? "text-gray-700 hover:bg-gray-100 cursor-pointer" : ""}`}
+          >
+            {d ?? ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCommand({ placeholder = "Search commands…" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg border border-gray-200 bg-white shadow-md overflow-hidden">
+      <div className="flex items-center px-3 py-2 border-b border-gray-100">
+        <svg className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <span className="text-sm text-gray-400">{placeholder}</span>
+      </div>
+      <div className="py-1">
+        {["New Document", "Open File", "Save As…", "Export PDF"].map((item) => (
+          <div key={item} className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">{item}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCarousel({ slides = "Slide 1,Slide 2,Slide 3" }: AstryxProps) {
+  const slideList = String(slides).split(",").map((s) => s.trim()).filter(Boolean);
+  const safeLen = slideList.length || 1;
+  const [activeSlide, setActiveSlide] = useState(0);
+  return (
+    <div className="relative w-full overflow-hidden rounded-lg border border-gray-200">
+      <div className="flex items-center justify-center h-24 bg-gradient-to-br from-blue-50 to-blue-100">
+        <span className="text-sm text-blue-600 font-medium">{slideList[activeSlide] ?? slideList[0]}</span>
+      </div>
+      <div className="absolute inset-y-0 left-1 flex items-center">
+        <button
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i - 1 + safeLen) % safeLen); }}
+          className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
+        >◀</button>
+      </div>
+      <div className="absolute inset-y-0 right-1 flex items-center">
+        <button
+          onClick={(e) => { e.stopPropagation(); setActiveSlide((i) => (i + 1) % safeLen); }}
+          className="w-6 h-6 rounded-full bg-white/90 shadow text-gray-600 text-xs flex items-center justify-center"
+        >▶</button>
+      </div>
+      <div className="flex justify-center gap-1 py-1.5 bg-white border-t border-gray-100">
+        {slideList.map((_, i) => (
+          <div
+            key={i}
+            onClick={() => setActiveSlide(i)}
+            className={`w-1.5 h-1.5 rounded-full cursor-pointer ${i === activeSlide ? "bg-blue-600" : "bg-gray-300"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxResizable({ direction = "horizontal" }: AstryxProps) {
+  const isH = direction === "horizontal";
+  return (
+    <div className={`flex ${isH ? "flex-row" : "flex-col"} w-full h-20 rounded-md border border-gray-200 overflow-hidden`}>
+      <div className="flex-1 bg-white flex items-center justify-center">
+        <span className="text-xs text-gray-400">Panel 1</span>
+      </div>
+      <div className={`${isH ? "w-0.5 cursor-col-resize" : "h-0.5 cursor-row-resize"} bg-gray-200 hover:bg-blue-400 transition-colors`} />
+      <div className="flex-1 bg-gray-50 flex items-center justify-center">
+        <span className="text-xs text-gray-400">Panel 2</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+
+export function AstryxNavbar({ logo = "AppName", links = "Home,Features,Pricing,About", actions = "Sign In,Get Started" }: AstryxProps) {
+  const linkList = String(links).split(",").map((s) => s.trim()).filter(Boolean);
+  const actionList = String(actions).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <nav className="w-full flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+      <span className="font-semibold text-gray-900 text-sm">{logo}</span>
+      <div className="flex items-center gap-5">
+        {linkList.map((l) => (
+          <span key={l} className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer">{l}</span>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        {actionList.map((a, i) => (
+          <button key={a} className={`px-3 py-1.5 rounded-md text-sm font-medium ${i === actionList.length - 1 ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}>{a}</button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+export function AstryxSidebar({ logo = "App", items = "Dashboard,Analytics,Projects,Settings,Help", active = "Dashboard" }: AstryxProps) {
+  const itemList = String(items).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <div className="flex flex-col w-full min-h-48 bg-white border-r border-gray-200 py-3">
+      <div className="px-4 pb-3 mb-1 border-b border-gray-100">
+        <span className="font-semibold text-gray-900 text-sm">{logo}</span>
+      </div>
+      <nav className="flex flex-col gap-0.5 px-2 pt-2">
+        {itemList.map((item) => (
+          <div key={item} className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm cursor-pointer ${item === active ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-600 hover:bg-gray-100"}`}>
+            <span className="text-xs opacity-60">◈</span>
+            {item}
+          </div>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+export function AstryxBreadcrumb({ items = "Home,Projects,Current Page" }: AstryxProps) {
+  const itemList = String(items).split(",").map((s) => s.trim()).filter(Boolean);
+  return (
+    <nav className="w-full flex items-center gap-1.5 text-sm flex-wrap">
+      {itemList.map((item, i) => (
+        <span key={i} className="flex items-center gap-1.5">
+          <span className={i === itemList.length - 1 ? "text-gray-900 font-medium" : "text-blue-600 hover:underline cursor-pointer"}>{item}</span>
+          {i < itemList.length - 1 && <span className="text-gray-400 text-xs">›</span>}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+// ─── Overlays ─────────────────────────────────────────────────────────────────
+
+export function AstryxModal({ title = "Confirm Action", description = "Are you sure you want to continue? This action cannot be undone.", confirmLabel = "Confirm", cancelLabel = "Cancel" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg bg-white border border-gray-200 shadow-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      </div>
+      <div className="px-5 py-4">
+        <p className="text-sm text-gray-600">{description}</p>
+      </div>
+      <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+        <button className="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 border border-gray-300 bg-white">{cancelLabel}</button>
+        <button className="px-3 py-1.5 rounded-md text-sm font-medium text-white bg-blue-600">{confirmLabel}</button>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxDrawer({ title = "Drawer", side = "right", description = "Drawer content goes here." }: AstryxProps) {
+  return (
+    <div className={`flex ${side === "left" ? "flex-row" : "flex-row-reverse"} w-full min-h-40`}>
+      <div className="w-64 bg-white border-l border-gray-200 flex flex-col shadow-xl shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <button className="text-gray-400 text-xs">✕</button>
+        </div>
+        <div className="px-4 py-3 text-sm text-gray-600 flex-1">{description}</div>
+      </div>
+      <div className="flex-1 bg-gray-100 flex items-center justify-center text-xs text-gray-400 min-h-24">page content</div>
+    </div>
+  );
+}
+
+export function AstryxSheet({ title = "Sheet", side = "bottom", description = "Sheet content goes here." }: AstryxProps) {
+  return (
+    <div className={`flex ${side === "top" ? "flex-col" : "flex-col-reverse"} w-full min-h-40`}>
+      <div className="w-full bg-white border-t border-gray-200 rounded-t-xl shadow-xl">
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="w-8 h-1 rounded-full bg-gray-300" />
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <button className="text-gray-400 text-xs">✕</button>
+        </div>
+        <div className="px-4 py-3 text-sm text-gray-600">{description}</div>
+      </div>
+      <div className="flex-1 bg-gray-100 flex items-center justify-center text-xs text-gray-400 min-h-12">page content</div>
+    </div>
+  );
+}
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+
+function parseChartData(raw: string): { name: string; value: number }[] {
+  return String(raw).split(",").map((s) => {
+    const [n, v] = s.trim().split(":");
+    return { name: n?.trim() || "?", value: Number(v) || 0 };
+  }).filter((d) => d.name && d.name !== "?");
+}
+
+const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#6b7280"];
+
+function resolveColor(color: string) {
+  return color === "green" ? "#10b981" : color === "red" ? "#ef4444" : color === "amber" ? "#f59e0b" : "#3b82f6";
+}
+
+export function AstryxBarChart({ data = "Jan:120,Feb:95,Mar:140,Apr:110,May:160,Jun:130", color = "blue", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  const fill = resolveColor(color);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={parsed} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Bar dataKey="value" fill={fill} radius={[3, 3, 0, 0] as any} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function AstryxLineChart({ data = "Jan:120,Feb:95,Mar:140,Apr:110,May:160,Jun:130", color = "blue", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  const stroke = resolveColor(color);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={180}>
+        <LineChart data={parsed} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Line type="monotone" dataKey="value" stroke={stroke} strokeWidth={2} dot={{ r: 3, fill: stroke }} activeDot={{ r: 5 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function AstryxPieChart({ data = "Category A:40,Category B:30,Category C:20,Other:10", title }: AstryxProps) {
+  const parsed = parseChartData(data);
+  return (
+    <div className="w-full">
+      {title && <p className="text-sm font-medium text-gray-700 mb-2">{title}</p>}
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie data={parsed} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={2}>
+            {parsed.map((_: any, i: number) => (
+              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e5e7eb" }} />
+          <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 10, color: "#6b7280" }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export function AstryxVideoPlayer({ title = "Video Title", duration = "3:45" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-900">
+      <div className="relative w-full bg-gray-800 flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
+        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center cursor-pointer">
+          <span className="text-white text-xl ml-1">▶</span>
+        </div>
+        <div className="absolute bottom-2 right-2 text-xs text-white/70 bg-black/40 px-1.5 py-0.5 rounded">{duration}</div>
+      </div>
+      <div className="px-3 py-2 bg-white border-t border-gray-200">
+        <div className="flex items-center gap-2 mb-1.5">
+          <button className="text-gray-600 text-sm">▶</button>
+          <div className="flex-1 h-1 bg-gray-200 rounded-full">
+            <div className="w-1/3 h-full bg-blue-500 rounded-full" />
+          </div>
+          <span className="text-xs text-gray-500">{duration}</span>
+        </div>
+        {title && <p className="text-xs text-gray-700 font-medium truncate">{title}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function AstryxCodeBlock({ code = 'function greet(name) {\n  return `Hello, ${name}!`;\n}', language = "javascript" }: AstryxProps) {
+  return (
+    <div className="w-full rounded-lg overflow-hidden border border-gray-200">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800 border-b border-gray-700">
+        <span className="text-xs text-gray-400 font-mono">{language}</span>
+        <span className="text-xs text-gray-500">copy</span>
+      </div>
+      <pre className="w-full bg-gray-900 px-4 py-3 text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed whitespace-pre-wrap">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+// ─── List ─────────────────────────────────────────────────────────────────────
+
+export function AstryxList({ children, divided = true }: AstryxProps) {
+  return (
+    <div className={`w-full rounded-md border border-gray-200 bg-white overflow-hidden ${divided ? "divide-y divide-gray-100" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
+export function AstryxListItem({ label = "List item", description, icon, active = false, meta }: AstryxProps) {
+  return (
+    <div className={`w-full flex items-center gap-3 px-4 py-3 ${active ? "bg-blue-50" : "hover:bg-gray-50"}`}>
+      {icon && <span className="text-base text-gray-400 shrink-0 w-5 text-center">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${active ? "text-blue-700" : "text-gray-900"}`}>{label}</p>
+        {description && <p className="text-xs text-gray-500 truncate mt-0.5">{description}</p>}
+      </div>
+      {meta && <span className="text-xs text-gray-400 shrink-0">{meta}</span>}
+    </div>
+  );
+}
+
+// ─── Form structure ───────────────────────────────────────────────────────────
+
+export function AstryxField({ children, label = "Field label", helpText, error, required = false }: AstryxProps) {
+  return (
+    <div className="w-full flex flex-col gap-1">
+      {label && (
+        <label className="text-xs font-medium text-gray-700">
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
+      {children}
+      {error
+        ? <p className="text-xs text-red-600">{error}</p>
+        : helpText ? <p className="text-xs text-gray-500">{helpText}</p> : null}
+    </div>
+  );
+}
+
+export function AstryxFieldStatus({ children = "This field is required", status = "error" }: AstryxProps) {
+  const toneClass = pick({
+    error:   "text-red-600",
+    success: "text-green-600",
+    warning: "text-amber-600",
+    info:    "text-gray-500",
+  }, status, "text-red-600");
+  const glyph = pick({ error: "⚠", success: "✓", warning: "⚠", info: "ⓘ" }, status, "⚠");
+  return (
+    <div className={`w-full flex items-start gap-1.5 text-xs ${toneClass}`}>
+      <span className="shrink-0 leading-4 select-none">{glyph}</span>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+export function AstryxFormLayout({ children, columns = 1, gap = 16 }: AstryxProps) {
+  const columnCount = Math.min(Math.max(1, Number(columns) || 1), 4);
+  return (
+    <div
+      className="w-full"
+      style={{ display: "grid", gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, gap: Math.max(0, Number(gap) || 0) }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AstryxInputGroup({ children, gap = 0 }: AstryxProps) {
+  const resolvedGap = Math.max(0, Number(gap) || 0);
+  return (
+    <div className="w-full flex flex-row items-stretch" style={{ gap: resolvedGap }}>
+      {children}
+    </div>
+  );
+}
+
+export function AstryxGrid({ children, columns = 2, gap = 12, align = "stretch" }: AstryxProps) {
+  const columnCount = Math.min(Math.max(1, Number(columns) || 2), 6);
+  const alignItems = pick({ start: "start", center: "center", end: "end", stretch: "stretch" }, align, "stretch");
+  return (
+    <div
+      className="w-full"
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gap: Math.max(0, Number(gap) || 0),
+        alignItems,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Form inputs ──────────────────────────────────────────────────────────────
+
+export function AstryxTextArea({ placeholder = "Enter text…", label, value, rows = 4, disabled, borderRadius }: AstryxProps) {
+  const rowCount = Math.min(Math.max(1, Number(rows) || 4), 20);
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      <textarea
+        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 w-full"
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+        placeholder={placeholder}
+        defaultValue={value}
+        rows={rowCount}
+        disabled={disabled}
+        readOnly
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
+      />
+    </div>
+  );
+}
+
+export function AstryxSwitch({ label = "Enable option", checked = false, disabled }: AstryxProps) {
+  return (
+    <div className={`w-full flex items-center gap-2 ${disabled ? "opacity-50" : ""}`}>
+      <div className={`w-8 h-[18px] rounded-full shrink-0 relative transition-colors ${checked ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span
+          className="absolute top-[2px] w-3.5 h-3.5 rounded-full bg-white shadow transition-transform"
+          style={{ transform: `translateX(${checked ? 16 : 2}px)` }}
+        />
+      </div>
+      {label && <span className="text-sm text-gray-700">{label}</span>}
+    </div>
+  );
+}
+
+export function AstryxNumberInput({ label, value = 0, min, max, step = 1, disabled, borderRadius }: AstryxProps) {
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      <div
+        className={`flex items-stretch w-full rounded-md border border-gray-300 bg-white overflow-hidden ${disabled ? "opacity-50" : ""}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <input
+          className="flex-1 min-w-0 px-3 py-1.5 text-sm text-gray-900 bg-transparent focus:outline-none"
+          type="number"
+          value={Number(value) || 0}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          readOnly
+          tabIndex={-1}
+          onChange={() => {}}
+          onMouseDown={(e) => e.preventDefault()}
+        />
+        <div className="flex flex-col border-l border-gray-300 select-none">
+          <span className="flex-1 px-2 flex items-center text-[9px] text-gray-500 leading-none hover:bg-gray-50">▲</span>
+          <span className="flex-1 px-2 flex items-center text-[9px] text-gray-500 leading-none border-t border-gray-200 hover:bg-gray-50">▼</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AstryxToggleButton({ children = "Toggle", pressed = false, size = "md", disabled, borderRadius }: AstryxProps) {
+  const sizeClass = pick({ sm: "px-2 py-1 text-xs", md: "px-3 py-1.5 text-sm", lg: "px-4 py-2 text-base" }, size, "px-3 py-1.5 text-sm");
+  const stateClass = pressed
+    ? "bg-blue-600 border-blue-600 text-white"
+    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50";
+  return (
+    <button
+      className={`w-full inline-flex items-center justify-center rounded-md border font-medium transition-colors ${sizeClass} ${stateClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+      disabled={disabled}
+      aria-pressed={!!pressed}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function AstryxSegmentedControl({ options = "Option A,Option B,Option C", selected = "Option A", size = "md", borderRadius }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const sizeClass = pick({ sm: "text-xs py-0.5", md: "text-sm py-1", lg: "text-base py-1.5" }, size, "text-sm py-1");
+  return (
+    <div
+      className="w-full inline-flex items-stretch gap-0.5 rounded-md bg-gray-100 p-0.5"
+      style={borderRadius !== undefined ? { borderRadius } : undefined}
+    >
+      {optionList.map((opt) => (
+        <span
+          key={opt}
+          className={`flex-1 text-center px-3 rounded font-medium truncate ${sizeClass} ${
+            opt === selected ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+          }`}
+        >
+          {opt}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxCheckboxList({ options = "Option A,Option B,Option C", selected = "Option A", label }: AstryxProps) {
+  const optionList = Array.isArray(options)
+    ? options.map(String)
+    : String(options).split(",").map((o) => o.trim()).filter(Boolean);
+  const selectedSet = new Set(
+    (Array.isArray(selected) ? selected.map(String) : String(selected).split(","))
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+  return (
+    <div className="w-full flex flex-col gap-2">
+      {label && <label className="text-xs font-medium text-gray-700">{label}</label>}
+      {optionList.map((opt) => {
+        const isChecked = selectedSet.has(opt);
+        return (
+          <div key={opt} className="flex items-center gap-2">
+            <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+              {isChecked && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="text-sm text-gray-700">{opt}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function AstryxIconButton({ name = "star", variant = "outline", size = "md", disabled, borderRadius }: AstryxProps) {
+  const sizeClass = pick({ sm: "w-7 h-7 text-sm", md: "w-9 h-9 text-base", lg: "w-11 h-11 text-lg" }, size, "w-9 h-9 text-base");
+  const variantClass = pick({
+    primary:   "bg-blue-600 text-white hover:bg-blue-700 border border-blue-600",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-100",
+    outline:   "border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white",
+    ghost:     "text-gray-700 hover:bg-gray-100 border border-transparent",
+  }, variant, "border border-gray-300 text-gray-700 bg-white");
+  const key = String(name).toLowerCase().trim();
+  const glyph = ICON_GLYPHS[key] ?? (String(name).charAt(0).toUpperCase() || "⬡");
+  return (
+    <div className="w-full flex">
+      <button
+        className={`inline-flex items-center justify-center rounded-md transition-colors shrink-0 ${sizeClass} ${variantClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+        disabled={disabled}
+        title={name}
+      >
+        <span className="select-none leading-none">{glyph}</span>
+      </button>
+    </div>
+  );
+}
+
+// ─── Date, time and advanced selection inputs ─────────────────────────────────
+//
+// These are DESIGN-TIME representations, not working widgets. They must look
+// convincing and expose their populated / invalid / open states as props, so a
+// designer can compose the "filled" or "error" state from the inspector instead
+// of having to interact with the control to reach it.
+//
+// Any panel these open — a calendar, a suggestion list — renders INLINE, in
+// normal flow beneath the field. The canvas applies a pan/zoom transform, and a
+// transformed ancestor becomes the containing block for `position: fixed`, so a
+// portalled or fixed panel escapes the artboard it belongs to. See
+// .agents/memory/fixed-overlay-inside-transformed-canvas.md.
+
+/** Comma-separated string or array → trimmed list. */
+function toList(value: any): string[] {
+  if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
+  return String(value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Default prop values for the controls below, shared by the components and by
+ * the design inspector.
+ *
+ * The inspector has to fall back to exactly what the canvas renders when a prop
+ * is absent. If the two drift, the inspector shows a value the design is not
+ * using — and the moment the user edits any field in that panel, the shown
+ * value is written back, silently replacing the real one. Keeping one constant
+ * makes that drift impossible rather than something to re-check by hand.
+ */
+export const INPUT_DEFAULTS = {
+  AstryxDateInput: {
+    placeholder: "Select a date…",
+    month: "August 2026",
+    selectedDay: 16,
+  },
+  AstryxTimeInput: {
+    placeholder: "Select a time…",
+    times: "09:00,09:30,10:00,10:30,11:00,11:30",
+  },
+  AstryxDateTimeInput: {
+    placeholder: "Select date and time…",
+    month: "August 2026",
+    selectedDay: 16,
+    times: "09:00,09:30,10:00,10:30,11:00,11:30",
+    selectedTime: "10:00",
+  },
+  AstryxDateRangeInput: {
+    startPlaceholder: "Start date",
+    endPlaceholder: "End date",
+    month: "August 2026",
+    rangeStart: 12,
+    rangeEnd: 20,
+  },
+  AstryxFileInput: {
+    placeholder: "Drop a file here, or browse",
+    fileSize: "248 KB",
+    hint: "PNG, JPG or PDF up to 10 MB",
+  },
+  AstryxTypeahead: {
+    placeholder: "Start typing to search…",
+    suggestions: "Alice Chen,Alicia Moore,Alistair Reed,Amara Osei",
+  },
+  AstryxMultiSelector: {
+    placeholder: "Select options…",
+    options: "Design,Engineering,Marketing,Sales,Support",
+    selected: "Design,Engineering",
+  },
+  AstryxComplexSelector: {
+    placeholder: "Choose a plan…",
+    options: "Starter:For small teams getting going,Growth:Everything in Starter plus analytics,Scale:Advanced controls and SSO",
+    selected: "Growth",
+  },
+  AstryxPowerSearch: {
+    placeholder: "Search everything…",
+    filters: "status:Active,owner:Alice Chen",
+    suggestions: "Recent: quarterly report,Recent: onboarding checklist",
+  },
+  AstryxTokenizer: {
+    placeholder: "Add a tag…",
+    tokens: "design,research,prototype",
+  },
+} as const;
+
+function fieldShellClass(invalid?: boolean, disabled?: boolean) {
+  return [
+    "flex w-full items-center gap-2 rounded-md border px-3 py-1.5",
+    invalid ? "border-red-400" : "border-gray-300",
+    disabled ? "bg-gray-50 opacity-60" : "bg-white",
+  ].join(" ");
+}
+
+function FieldShellLabel({ label, required }: AstryxProps) {
+  if (!label) return null;
+  return (
+    <label className="text-xs font-medium text-gray-700">
+      {label}
+      {required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+/** Dropdown panel. Deliberately in normal flow — never portalled or fixed. */
+function InlinePanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-1 w-full rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {children}
+    </div>
+  );
+}
+
+function CalendarGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function ClockGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <circle cx="12" cy="12" r="9" strokeWidth={2} />
+      <path strokeLinecap="round" strokeWidth={2} d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function SearchGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+}
+
+function ChevronGlyph() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+/**
+ * Compact month grid shared by the date family, so the four controls read as
+ * one set. `selectedDay` / `rangeStart` / `rangeEnd` are day numbers rather
+ * than parsed dates: real calendar and locale logic is out of scope here, and a
+ * day number is what the inspector can meaningfully offer.
+ */
+function MiniMonth({ month = "August 2026", selectedDay, rangeStart, rangeEnd }: AstryxProps) {
+  const dayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+  const cells: (number | null)[] = [
+    null, null,
+    ...Array.from({ length: 31 }, (_, i) => i + 1),
+    null, null,
+  ];
+  const sel = Number(selectedDay);
+  const from = Number(rangeStart);
+  const to = Number(rangeEnd);
+  const hasRange = Number.isFinite(from) && Number.isFinite(to);
+  const isEdge = (d: number) => d === sel || (hasRange && (d === from || d === to));
+  const isInside = (d: number) => hasRange && d > from && d < to;
+
+  return (
+    <div className="p-2">
+      <div className="flex items-center justify-between mb-1.5 px-1">
+        <span className="text-[10px] text-gray-400">◀</span>
+        <span className="text-[11px] font-medium text-gray-800">{month}</span>
+        <span className="text-[10px] text-gray-400">▶</span>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {dayNames.map((d) => (
+          <div key={d} className="text-center text-[9px] text-gray-400">{d}</div>
+        ))}
+        {cells.map((d, i) => (
+          <div
+            key={i}
+            className={`text-center text-[10px] py-0.5 rounded ${
+              d == null
+                ? ""
+                : isEdge(d)
+                ? "bg-blue-600 text-white font-medium"
+                : isInside(d)
+                ? "bg-blue-50 text-blue-700"
+                : "text-gray-700"
+            }`}
+          >
+            {d ?? ""}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimeColumn({ times, selectedTime }: AstryxProps) {
+  const list = toList(times);
+  return (
+    <div className="max-h-36 overflow-hidden">
+      {list.map((t) => (
+        <div
+          key={t}
+          className={`px-3 py-1 text-[11px] cursor-pointer ${
+            t === selectedTime ? "bg-blue-600 text-white font-medium" : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {t}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AstryxDateInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxDateInput.placeholder,
+  month = INPUT_DEFAULTS.AstryxDateInput.month,
+  selectedDay = INPUT_DEFAULTS.AstryxDateInput.selectedDay,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <CalendarGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <MiniMonth month={month} selectedDay={selectedDay} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTimeInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxTimeInput.placeholder,
+  times = INPUT_DEFAULTS.AstryxTimeInput.times,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <ClockGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <TimeColumn times={times} selectedTime={value} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxDateTimeInput({
+  label, value = "",
+  placeholder = INPUT_DEFAULTS.AstryxDateTimeInput.placeholder,
+  month = INPUT_DEFAULTS.AstryxDateTimeInput.month,
+  selectedDay = INPUT_DEFAULTS.AstryxDateTimeInput.selectedDay,
+  times = INPUT_DEFAULTS.AstryxDateTimeInput.times,
+  selectedTime = INPUT_DEFAULTS.AstryxDateTimeInput.selectedTime,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(value).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${filled ? "text-gray-900" : "text-gray-400"}`}>
+          {filled ? value : placeholder}
+        </span>
+        <CalendarGlyph />
+        <ClockGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <div className="flex">
+            <div className="flex-1 border-r border-gray-100">
+              <MiniMonth month={month} selectedDay={selectedDay} />
+            </div>
+            <div className="w-20 shrink-0 py-2">
+              <TimeColumn times={times} selectedTime={selectedTime} />
+            </div>
+          </div>
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxDateRangeInput({
+  label, startValue = "", endValue = "",
+  startPlaceholder = INPUT_DEFAULTS.AstryxDateRangeInput.startPlaceholder,
+  endPlaceholder = INPUT_DEFAULTS.AstryxDateRangeInput.endPlaceholder,
+  month = INPUT_DEFAULTS.AstryxDateRangeInput.month,
+  rangeStart = INPUT_DEFAULTS.AstryxDateRangeInput.rangeStart,
+  rangeEnd = INPUT_DEFAULTS.AstryxDateRangeInput.rangeEnd,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const startFilled = String(startValue).trim().length > 0;
+  const endFilled = String(endValue).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <span className={`flex-1 truncate text-sm ${startFilled ? "text-gray-900" : "text-gray-400"}`}>
+          {startFilled ? startValue : startPlaceholder}
+        </span>
+        <span className="text-gray-300 text-sm shrink-0">→</span>
+        <span className={`flex-1 truncate text-sm ${endFilled ? "text-gray-900" : "text-gray-400"}`}>
+          {endFilled ? endValue : endPlaceholder}
+        </span>
+        <CalendarGlyph />
+      </div>
+      {open && (
+        <InlinePanel>
+          <MiniMonth month={month} rangeStart={rangeStart} rangeEnd={rangeEnd} />
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxFileInput({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxFileInput.placeholder,
+  fileName = "",
+  fileSize = INPUT_DEFAULTS.AstryxFileInput.fileSize,
+  hint = INPUT_DEFAULTS.AstryxFileInput.hint,
+  invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const filled = String(fileName).trim().length > 0;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      {filled ? (
+        <div
+          className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+          style={borderRadius !== undefined ? { borderRadius } : undefined}
+        >
+          <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-sm shrink-0">▤</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-gray-900 truncate">{fileName}</p>
+            <p className="text-xs text-gray-500">{fileSize}</p>
+          </div>
+          <span className="text-gray-400 text-sm shrink-0 cursor-pointer hover:text-gray-600">×</span>
+        </div>
+      ) : (
+        <div
+          className={`flex w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed px-3 py-5 text-center ${invalid ? "border-red-400 bg-red-50/40" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-gray-50/60"}`}
+          style={borderRadius !== undefined ? { borderRadius } : undefined}
+        >
+          <span className="text-gray-400 text-base leading-none">↑</span>
+          <p className="text-sm text-gray-600">{placeholder}</p>
+          {hint && <p className="text-xs text-gray-400">{hint}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTypeahead({
+  label, query = "",
+  placeholder = INPUT_DEFAULTS.AstryxTypeahead.placeholder,
+  suggestions = INPUT_DEFAULTS.AstryxTypeahead.suggestions,
+  highlighted = "", open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const list = toList(suggestions);
+  const typed = String(query);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div className={fieldShellClass(invalid, disabled)} style={borderRadius !== undefined ? { borderRadius } : undefined}>
+        <SearchGlyph />
+        <span className={`flex-1 truncate text-sm ${typed ? "text-gray-900" : "text-gray-400"}`}>
+          {typed || placeholder}
+        </span>
+        {typed && <span className="text-gray-400 text-sm shrink-0">×</span>}
+      </div>
+      {open && list.length > 0 && (
+        <InlinePanel>
+          {list.map((s) => {
+            // Bold the typed prefix so the match is legible at a glance.
+            const matches = typed && s.toLowerCase().startsWith(typed.toLowerCase());
+            return (
+              <div
+                key={s}
+                className={`px-3 py-1.5 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                  s === highlighted ? "bg-blue-50 text-blue-900" : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {matches ? (
+                  <>
+                    <span className="font-semibold">{s.slice(0, typed.length)}</span>
+                    {s.slice(typed.length)}
+                  </>
+                ) : (
+                  s
+                )}
+              </div>
+            );
+          })}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxMultiSelector({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxMultiSelector.placeholder,
+  options = INPUT_DEFAULTS.AstryxMultiSelector.options,
+  selected = INPUT_DEFAULTS.AstryxMultiSelector.selected,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const optionList = toList(options);
+  const selectedList = toList(selected);
+  const selectedSet = new Set(selectedList);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border px-2 py-1.5 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <div className="flex flex-1 flex-wrap items-center gap-1 min-w-0">
+          {selectedList.length === 0 ? (
+            <span className="text-sm text-gray-400 px-1">{placeholder}</span>
+          ) : (
+            selectedList.map((s) => (
+              <span key={s} className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-700">
+                {s}
+                <span className="text-gray-400">×</span>
+              </span>
+            ))
+          )}
+        </div>
+        <ChevronGlyph />
+      </div>
+      {open && optionList.length > 0 && (
+        <InlinePanel>
+          {optionList.map((opt) => {
+            const isChecked = selectedSet.has(opt);
+            return (
+              <div key={opt} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer">
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-600 border-blue-600" : "border-gray-300 bg-white"}`}>
+                  {isChecked && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                {opt}
+              </div>
+            );
+          })}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxComplexSelector({
+  label,
+  placeholder = INPUT_DEFAULTS.AstryxComplexSelector.placeholder,
+  options = INPUT_DEFAULTS.AstryxComplexSelector.options,
+  selected = INPUT_DEFAULTS.AstryxComplexSelector.selected,
+  open = false, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  // Each option is "Title:Description" — the description is what makes this
+  // control worth using over a plain Select.
+  const rows = toList(options).map((entry) => {
+    const idx = entry.indexOf(":");
+    return idx === -1
+      ? { title: entry, description: "" }
+      : { title: entry.slice(0, idx).trim(), description: entry.slice(idx + 1).trim() };
+  });
+  const chosen = rows.find((r) => r.title === selected);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 ${invalid ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <div className="flex-1 min-w-0">
+          {chosen ? (
+            <>
+              <p className="text-sm text-gray-900 truncate">{chosen.title}</p>
+              {chosen.description && <p className="text-xs text-gray-500 truncate">{chosen.description}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">{placeholder}</p>
+          )}
+        </div>
+        <ChevronGlyph />
+      </div>
+      {open && rows.length > 0 && (
+        <InlinePanel>
+          {rows.map((r) => (
+            <div
+              key={r.title}
+              className={`flex items-start gap-2 px-3 py-2 border-b border-gray-100 last:border-0 cursor-pointer ${
+                r.title === selected ? "bg-blue-50" : "hover:bg-gray-50"
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm truncate ${r.title === selected ? "text-blue-900 font-medium" : "text-gray-900"}`}>{r.title}</p>
+                {r.description && <p className="text-xs text-gray-500 truncate">{r.description}</p>}
+              </div>
+              {r.title === selected && <span className="text-blue-600 text-xs shrink-0 mt-0.5">✓</span>}
+            </div>
+          ))}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxPowerSearch({
+  placeholder = INPUT_DEFAULTS.AstryxPowerSearch.placeholder, query = "",
+  filters = INPUT_DEFAULTS.AstryxPowerSearch.filters,
+  resultCount = "",
+  suggestions = INPUT_DEFAULTS.AstryxPowerSearch.suggestions,
+  open = false, disabled = false, borderRadius,
+}: AstryxProps) {
+  const filterList = toList(filters);
+  const suggestionList = toList(suggestions);
+  const typed = String(query);
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <div
+        className={`flex w-full items-center gap-2 rounded-md border border-gray-300 px-3 py-2 ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        <SearchGlyph />
+        <div className="flex flex-1 flex-wrap items-center gap-1 min-w-0">
+          {filterList.map((f) => {
+            const idx = f.indexOf(":");
+            const key = idx === -1 ? f : f.slice(0, idx);
+            const val = idx === -1 ? "" : f.slice(idx + 1);
+            return (
+              <span key={f} className="inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
+                <span className="opacity-70">{key}:</span>
+                {val}
+                <span className="text-blue-300">×</span>
+              </span>
+            );
+          })}
+          <span className={`text-sm ${typed ? "text-gray-900" : "text-gray-400"}`}>{typed || placeholder}</span>
+        </div>
+        {resultCount !== "" && <span className="text-xs text-gray-400 shrink-0">{resultCount}</span>}
+      </div>
+      {open && suggestionList.length > 0 && (
+        <InlinePanel>
+          {suggestionList.map((s) => (
+            <div key={s} className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer">
+              <span className="text-gray-300 text-xs">⌕</span>
+              <span className="truncate">{s}</span>
+            </div>
+          ))}
+        </InlinePanel>
+      )}
+    </div>
+  );
+}
+
+export function AstryxTokenizer({
+  label,
+  tokens = INPUT_DEFAULTS.AstryxTokenizer.tokens,
+  placeholder = INPUT_DEFAULTS.AstryxTokenizer.placeholder,
+  max = 0, invalid = false, disabled = false, required = false, borderRadius,
+}: AstryxProps) {
+  const tokenList = toList(tokens);
+  const limit = Number(max) || 0;
+  const overLimit = limit > 0 && tokenList.length > limit;
+  return (
+    <div className="w-full flex flex-col gap-1">
+      <FieldShellLabel label={label} required={required} />
+      <div
+        className={`flex w-full flex-wrap items-center gap-1 rounded-md border px-2 py-1.5 ${invalid || overLimit ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 opacity-60" : "bg-white"}`}
+        style={borderRadius !== undefined ? { borderRadius } : undefined}
+      >
+        {tokenList.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+            {t}
+            <span className="text-gray-400 cursor-pointer hover:text-gray-600">×</span>
+          </span>
+        ))}
+        <span className="flex-1 min-w-[60px] text-sm text-gray-400 px-1">{placeholder}</span>
+        {limit > 0 && (
+          <span className={`text-xs shrink-0 ${overLimit ? "text-red-500" : "text-gray-400"}`}>
+            {tokenList.length}/{limit}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Overlays, menus & surfaces ───────────────────────────────────────────────
+//
+// DESIGN-TIME OVERLAY APPROACH — read this before adding another overlay.
+//
+// A real component library portals overlays to document.body, hides them until
+// a trigger fires, and traps focus. A design tool needs the exact opposite: the
+// user is drawing a picture of an interface, so the overlay has to be a visible,
+// selectable, movable object sitting inside its artboard.
+//
+// Two rules make that work, and every component below reuses them rather than
+// inventing its own variation:
+//
+// 1. NEVER portal and NEVER use `position: fixed`. The canvas applies a pan/zoom
+//    transform, and a transformed ancestor becomes the containing block for
+//    fixed descendants — so a "fixed" overlay is positioned against the canvas
+//    layer, not the viewport. It lands outside the artboard it belongs to and
+//    then silently eats clicks meant for whatever it covers.
+//    See .agents/memory/fixed-overlay-inside-transformed-canvas.md.
+//
+// 2. EVERY OVERLAY OWNS ITS OWN BOUNDS. Anchored overlays (popover, tooltip,
+//    menus) lay the anchor and the panel out as flex siblings — `placement` picks
+//    the flex direction and `align` the cross-axis — so the panel is *inside* the
+//    component's own box by construction and cannot escape the artboard. Panels
+//    shrink (`minWidth: 0`, `maxWidth: 100%`) instead of overflowing sideways.
+//    Scrim-based overlays (dialog, toast, lightbox) render on a bounded stage
+//    that is `position: relative` with an explicit height and `overflow: hidden`,
+//    so its absolutely-positioned layers resolve against the stage rather than
+//    some arbitrary ancestor.
+//    See .agents/memory/preview-owns-its-containing-block.md.
+//
+// A consequence worth stating: `open` does not mean "mounted on trigger", it is
+// just another inspector prop. Setting it false is how a user designs the closed
+// state. Nothing here has trigger, dismiss or timer behaviour, and nothing sets
+// `pointer-events: none` — that silently breaks craft.js selection and drag-drop
+// (see .agents/memory/craftjs-pointer-events.md).
+
+export type OverlayPlacement = "top" | "bottom" | "left" | "right";
+export type OverlayAlign = "start" | "center" | "end";
+
+const PLACEMENT_DIRECTION: Record<string, "row" | "row-reverse" | "column" | "column-reverse"> = {
+  bottom: "column", top: "column-reverse", right: "row", left: "row-reverse",
+};
+const ALIGN_ITEMS: Record<string, "flex-start" | "center" | "flex-end"> = {
+  start: "flex-start", center: "center", end: "flex-end",
+};
+
+/** Scrim treatments, shared by the stage helper and the AstryxOverlay container. */
+export const OVERLAY_SCRIMS: Record<string, CSSProperties> = {
+  dark:  { background: "rgba(15, 23, 42, 0.55)" },
+  light: { background: "rgba(255, 255, 255, 0.72)" },
+  blur:  { background: "rgba(15, 23, 42, 0.28)", backdropFilter: "blur(3px)" },
+  none:  { background: "transparent" },
+};
+
+/**
+ * Single source of truth for every non-trivial overlay default, for exactly the
+ * reason INPUT_DEFAULTS exists: the inspector rows are controlled inputs seeded
+ * from a fallback, so a fallback that disagrees with the component's own default
+ * silently overwrites real props the first time the user edits that panel.
+ * See .agents/memory/inspector-default-drift.md.
+ */
+export const OVERLAY_DEFAULTS = {
+  AstryxPopover: {
+    anchorLabel: "Share",
+    title: "Share this project",
+    description: "Anyone with the link can view this design.",
+    confirmLabel: "Copy link",
+    cancelLabel: "",
+    placement: "bottom",
+    align: "start",
+    width: 240,
+    open: true,
+    showArrow: true,
+  },
+  AstryxTooltip: {
+    anchorLabel: "Save draft",
+    text: "Saves without publishing",
+    placement: "top",
+    align: "center",
+    width: 200,
+    open: true,
+    showArrow: true,
+  },
+  AstryxHoverCard: {
+    anchorLabel: "@alicechen",
+    name: "Alice Chen",
+    handle: "@alicechen",
+    bio: "Product designer at Acme. Building the design system.",
+    meta: "Joined March 2024",
+    placement: "bottom",
+    align: "start",
+    width: 260,
+    open: true,
+    showArrow: true,
+  },
+  AstryxDropdownMenu: {
+    label: "Actions",
+    items: "Edit:⌘E,Duplicate:⌘D,---,Move to…,!Delete:⌫",
+    selected: "",
+    placement: "bottom",
+    align: "start",
+    width: 200,
+    open: true,
+  },
+  AstryxContextMenu: {
+    surfaceLabel: "Right-click anywhere in this area",
+    items: "Cut:⌘X,Copy:⌘C,Paste:⌘V,---,!Delete",
+    selected: "",
+    placement: "bottom",
+    align: "start",
+    width: 190,
+    open: true,
+  },
+  AstryxMoreMenu: {
+    glyph: "⋯",
+    items: "Rename,Duplicate,---,!Delete",
+    selected: "",
+    placement: "bottom",
+    align: "end",
+    width: 170,
+    open: true,
+  },
+  AstryxAlertDialog: {
+    title: "Delete this design?",
+    description: "This permanently removes the design and all of its screens. This cannot be undone.",
+    confirmLabel: "Delete",
+    cancelLabel: "Cancel",
+    tone: "danger",
+    scrim: "dark",
+    stageHeight: 200,
+    width: 320,
+    showStage: true,
+  },
+  AstryxToast: {
+    title: "Changes saved",
+    description: "Your design has been updated.",
+    variant: "success",
+    actionLabel: "Undo",
+    position: "bottom-right",
+    stageHeight: 160,
+    width: 280,
+    showClose: true,
+    showStage: true,
+  },
+  AstryxLightbox: {
+    src: "",
+    caption: "Homepage hero — final",
+    counter: "3 of 12",
+    stageHeight: 220,
+    showControls: true,
+    showClose: true,
+  },
+  AstryxOverlay: {
+    scrim: "dark",
+    padding: 24,
+    align: "center",
+    minHeight: 160,
+  },
+} as const;
+
+/** A panel is never wider than the space it has — this is what keeps it in frame. */
+const panelSizeStyle = (width: any, fallback: number): CSSProperties => ({
+  width: Number(width) || fallback,
+  maxWidth: "100%",
+  minWidth: 0,
+  flexShrink: 1,
+  // Every string here is user- or AI-supplied. A long unbroken value (a URL, a
+  // pasted id) would otherwise render past the panel edge and out of the
+  // artboard, which is exactly the escape this section exists to prevent.
+  overflowWrap: "anywhere",
+});
+
+function PanelArrow({ placement = "bottom", align = "start", color = "#ffffff" }: AstryxProps) {
+  const s = 6;
+  const vertical = placement === "top" || placement === "bottom";
+  const offset: CSSProperties =
+    align === "center" ? {}
+    : vertical
+      ? (align === "start" ? { marginLeft: 12 } : { marginRight: 12 })
+      : (align === "start" ? { marginTop: 12 } : { marginBottom: 12 });
+  const shape: CSSProperties =
+    placement === "top"   ? { borderLeft: `${s}px solid transparent`, borderRight: `${s}px solid transparent`, borderTop: `${s}px solid ${color}` }
+    : placement === "left"  ? { borderTop: `${s}px solid transparent`, borderBottom: `${s}px solid transparent`, borderLeft: `${s}px solid ${color}` }
+    : placement === "right" ? { borderTop: `${s}px solid transparent`, borderBottom: `${s}px solid transparent`, borderRight: `${s}px solid ${color}` }
+    :                         { borderLeft: `${s}px solid transparent`, borderRight: `${s}px solid transparent`, borderBottom: `${s}px solid ${color}` };
+  return <div style={{ width: 0, height: 0, flexShrink: 0, ...shape, ...offset }} />;
+}
+
+/**
+ * Lays an anchor and its floating panel out as flex siblings. `placement`
+ * chooses the side by picking the flex direction, so the panel is contained by
+ * this element instead of floating over the page.
+ */
+function AnchoredOverlay({
+  placement = "bottom", align = "start", open = true, showArrow = true,
+  arrowColor = "#ffffff", anchor, children,
+}: AstryxProps) {
+  const direction = PLACEMENT_DIRECTION[placement as string] ?? "column";
+  const alignItems = ALIGN_ITEMS[align as string] ?? "flex-start";
+  return (
+    <div className="w-full flex" style={{ flexDirection: direction, alignItems, flexWrap: "nowrap" }}>
+      {anchor}
+      {open && showArrow ? <PanelArrow placement={placement} align={align} color={arrowColor} /> : null}
+      {open ? children : null}
+    </div>
+  );
+}
+
+/**
+ * A bounded stage for scrim-based overlays. `position: relative` + an explicit
+ * height + `overflow: hidden` means the scrim and the dialog resolve against
+ * this box and physically cannot escape the artboard.
+ */
+function OverlayStage({
+  minHeight = 180, scrim = "dark", align = "center", justify = "center",
+  padding = 16, surface = "#f8fafc", showPageHint = true, children,
+}: AstryxProps) {
+  const h = Math.max(60, Number(minHeight) || 180);
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-lg border border-gray-200"
+      style={{ minHeight: h, background: surface }}
+    >
+      {showPageHint ? (
+        <div className="absolute inset-0 flex flex-col gap-2 p-3">
+          <div className="h-2.5 w-1/3 rounded bg-gray-200" />
+          <div className="h-2 w-2/3 rounded bg-gray-100" />
+          <div className="h-2 w-1/2 rounded bg-gray-100" />
+          <div className="mt-auto h-2 w-1/4 rounded bg-gray-100" />
+        </div>
+      ) : null}
+      <div className="absolute inset-0" style={OVERLAY_SCRIMS[scrim as string] ?? OVERLAY_SCRIMS.dark} />
+      <div
+        className="relative flex"
+        style={{
+          minHeight: h,
+          alignItems: ALIGN_ITEMS[align as string] ?? "center",
+          justifyContent: ALIGN_ITEMS[justify as string] ?? "center",
+          padding: Math.max(0, Number(padding) || 0),
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface ParsedMenuItem { kind: "item" | "separator"; label: string; shortcut?: string; destructive?: boolean; }
+
+/**
+ * Menu items are one comma-separated string, matching how every other list-bearing
+ * component in this palette takes its content. Within it: "---" is a separator,
+ * "Label:Shortcut" adds right-aligned shortcut text, and a leading "!" marks a
+ * destructive item.
+ */
+export function parseMenuItems(raw: any): ParsedMenuItem[] {
+  return String(raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (/^-{2,}$/.test(entry)) return { kind: "separator" as const, label: "" };
+      const destructive = entry.startsWith("!");
+      const body = destructive ? entry.slice(1).trim() : entry;
+      const sep = body.indexOf(":");
+      const label = sep === -1 ? body : body.slice(0, sep).trim();
+      const shortcut = sep === -1 ? undefined : body.slice(sep + 1).trim() || undefined;
+      return { kind: "item" as const, label, shortcut, destructive };
+    })
+    .filter((i) => i.kind === "separator" || i.label.length > 0);
+}
+
+function MenuPanel({ items, selected = "", width = 200, fallbackWidth = 200 }: AstryxProps) {
+  const parsed = parseMenuItems(items);
+  return (
+    <div
+      className="rounded-md border border-gray-200 bg-white py-1 shadow-lg overflow-hidden"
+      style={panelSizeStyle(width, fallbackWidth)}
+    >
+      {parsed.length === 0 ? (
+        <div className="px-3 py-1.5 text-xs text-gray-400">No items</div>
+      ) : parsed.map((item, i) =>
+        item.kind === "separator" ? (
+          <div key={i} className="my-1 h-px bg-gray-100" />
+        ) : (
+          <div
+            key={i}
+            className={`flex items-center justify-between gap-6 px-3 py-1.5 text-sm ${
+              item.label === selected ? "bg-gray-100 text-gray-900 font-medium"
+                : item.destructive ? "text-red-600" : "text-gray-700"
+            }`}
+          >
+            {/* min-w-0 is what makes `truncate` actually truncate: without it the
+                flex item refuses to shrink below its content and a long unbroken
+                label pushes out of the panel instead of ellipsing. */}
+            <span className="min-w-0 truncate">{item.label}</span>
+            {item.shortcut ? <span className="shrink-0 text-xs text-gray-400">{item.shortcut}</span> : null}
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
+const anchorChipClass =
+  "inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm";
+
+/**
+ * The anchor is the other half of an anchored overlay, and it carries a
+ * user-supplied label — so it needs the same bounds discipline as the panel.
+ * It may shrink and must wrap rather than push itself past the artboard edge.
+ */
+const anchorStyle: CSSProperties = { flexShrink: 1, minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" };
+
+// ── Anchored overlays ─────────────────────────────────────────────────────────
+
+export function AstryxPopover({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxPopover.anchorLabel,
+  title = OVERLAY_DEFAULTS.AstryxPopover.title,
+  description = OVERLAY_DEFAULTS.AstryxPopover.description,
+  confirmLabel = OVERLAY_DEFAULTS.AstryxPopover.confirmLabel,
+  cancelLabel = OVERLAY_DEFAULTS.AstryxPopover.cancelLabel,
+  placement = OVERLAY_DEFAULTS.AstryxPopover.placement,
+  align = OVERLAY_DEFAULTS.AstryxPopover.align,
+  width = OVERLAY_DEFAULTS.AstryxPopover.width,
+  open = OVERLAY_DEFAULTS.AstryxPopover.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxPopover.showArrow,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#ffffff"
+      anchor={<span className={anchorChipClass} style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg" style={panelSizeStyle(width, 240)}>
+        {title ? <p className="text-sm font-semibold text-gray-900">{title}</p> : null}
+        {description ? <p className="mt-1 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+        {confirmLabel || cancelLabel ? (
+          <div className="mt-3 flex justify-end gap-2">
+            {cancelLabel ? <span className="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">{cancelLabel}</span> : null}
+            {confirmLabel ? <span className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">{confirmLabel}</span> : null}
+          </div>
+        ) : null}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxTooltip({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxTooltip.anchorLabel,
+  text = OVERLAY_DEFAULTS.AstryxTooltip.text,
+  placement = OVERLAY_DEFAULTS.AstryxTooltip.placement,
+  align = OVERLAY_DEFAULTS.AstryxTooltip.align,
+  width = OVERLAY_DEFAULTS.AstryxTooltip.width,
+  open = OVERLAY_DEFAULTS.AstryxTooltip.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxTooltip.showArrow,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#111827"
+      anchor={<span className={anchorChipClass} style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div
+        className="rounded-md bg-gray-900 px-2 py-1 text-xs leading-snug text-white shadow-lg"
+        style={panelSizeStyle(width, 200)}
+      >
+        {text}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxHoverCard({
+  anchorLabel = OVERLAY_DEFAULTS.AstryxHoverCard.anchorLabel,
+  name = OVERLAY_DEFAULTS.AstryxHoverCard.name,
+  handle = OVERLAY_DEFAULTS.AstryxHoverCard.handle,
+  bio = OVERLAY_DEFAULTS.AstryxHoverCard.bio,
+  meta = OVERLAY_DEFAULTS.AstryxHoverCard.meta,
+  src,
+  placement = OVERLAY_DEFAULTS.AstryxHoverCard.placement,
+  align = OVERLAY_DEFAULTS.AstryxHoverCard.align,
+  width = OVERLAY_DEFAULTS.AstryxHoverCard.width,
+  open = OVERLAY_DEFAULTS.AstryxHoverCard.open,
+  showArrow = OVERLAY_DEFAULTS.AstryxHoverCard.showArrow,
+}: AstryxProps) {
+  const initials = String(name).split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={showArrow} arrowColor="#ffffff"
+      anchor={<span className="text-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2" style={anchorStyle}>{anchorLabel}</span>}
+    >
+      <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg" style={panelSizeStyle(width, 260)}>
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-blue-500 text-sm font-medium text-white flex items-center justify-center">
+            {src ? <img src={src} alt={name} className="h-full w-full object-cover" /> : initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
+            {handle ? <p className="truncate text-xs text-gray-500">{handle}</p> : null}
+          </div>
+        </div>
+        {bio ? <p className="mt-2 text-xs leading-relaxed text-gray-600">{bio}</p> : null}
+        {meta ? <p className="mt-2 text-[11px] text-gray-400">{meta}</p> : null}
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+// ── Menus ─────────────────────────────────────────────────────────────────────
+
+export function AstryxDropdownMenu({
+  label = OVERLAY_DEFAULTS.AstryxDropdownMenu.label,
+  items = OVERLAY_DEFAULTS.AstryxDropdownMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxDropdownMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxDropdownMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxDropdownMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxDropdownMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxDropdownMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <span className={anchorChipClass} style={anchorStyle}>
+          {label}
+          <span className="text-xs text-gray-400">▾</span>
+        </span>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, marginLeft: placement === "right" ? 4 : 0, marginRight: placement === "left" ? 4 : 0, ...panelSizeStyle(width, 200) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={200} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxContextMenu({
+  surfaceLabel = OVERLAY_DEFAULTS.AstryxContextMenu.surfaceLabel,
+  items = OVERLAY_DEFAULTS.AstryxContextMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxContextMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxContextMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxContextMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxContextMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxContextMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <div className="w-full rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-4 text-center text-xs text-gray-400" style={anchorStyle}>
+          {surfaceLabel}
+        </div>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, ...panelSizeStyle(width, 190) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={190} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+export function AstryxMoreMenu({
+  glyph = OVERLAY_DEFAULTS.AstryxMoreMenu.glyph,
+  items = OVERLAY_DEFAULTS.AstryxMoreMenu.items,
+  selected = OVERLAY_DEFAULTS.AstryxMoreMenu.selected,
+  placement = OVERLAY_DEFAULTS.AstryxMoreMenu.placement,
+  align = OVERLAY_DEFAULTS.AstryxMoreMenu.align,
+  width = OVERLAY_DEFAULTS.AstryxMoreMenu.width,
+  open = OVERLAY_DEFAULTS.AstryxMoreMenu.open,
+}: AstryxProps) {
+  return (
+    <AnchoredOverlay
+      placement={placement} align={align} open={open} showArrow={false}
+      anchor={
+        <span className="inline-flex h-8 min-w-8 items-center justify-center overflow-hidden rounded-md border border-gray-300 bg-white px-1 text-base leading-none text-gray-600 shadow-sm" style={anchorStyle}>
+          {glyph}
+        </span>
+      }
+    >
+      <div style={{ marginTop: placement === "bottom" ? 4 : 0, marginBottom: placement === "top" ? 4 : 0, ...panelSizeStyle(width, 170) }}>
+        <MenuPanel items={items} selected={selected} width={width} fallbackWidth={170} />
+      </div>
+    </AnchoredOverlay>
+  );
+}
+
+// ── Dialogs & surfaces ────────────────────────────────────────────────────────
+
+const DIALOG_TONES: Record<string, { icon: string; iconClass: string; confirmClass: string }> = {
+  danger:  { icon: "⚠", iconClass: "bg-red-100 text-red-600",     confirmClass: "bg-red-600 text-white" },
+  warning: { icon: "⚠", iconClass: "bg-amber-100 text-amber-600", confirmClass: "bg-amber-500 text-white" },
+  info:    { icon: "ⓘ", iconClass: "bg-blue-100 text-blue-600",   confirmClass: "bg-blue-600 text-white" },
+};
+
+export function AstryxAlertDialog({
+  title = OVERLAY_DEFAULTS.AstryxAlertDialog.title,
+  description = OVERLAY_DEFAULTS.AstryxAlertDialog.description,
+  confirmLabel = OVERLAY_DEFAULTS.AstryxAlertDialog.confirmLabel,
+  cancelLabel = OVERLAY_DEFAULTS.AstryxAlertDialog.cancelLabel,
+  tone = OVERLAY_DEFAULTS.AstryxAlertDialog.tone,
+  scrim = OVERLAY_DEFAULTS.AstryxAlertDialog.scrim,
+  stageHeight = OVERLAY_DEFAULTS.AstryxAlertDialog.stageHeight,
+  showStage = OVERLAY_DEFAULTS.AstryxAlertDialog.showStage,
+  width = OVERLAY_DEFAULTS.AstryxAlertDialog.width,
+}: AstryxProps) {
+  const t = DIALOG_TONES[tone as string] ?? DIALOG_TONES.danger;
+  const dialog = (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-2xl" style={panelSizeStyle(width, 320)}>
+      <div className="flex items-start gap-3">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${t.iconClass}`}>{t.icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900">{title}</p>
+          {description ? <p className="mt-1 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        {cancelLabel ? <span className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700">{cancelLabel}</span> : null}
+        {confirmLabel ? <span className={`rounded-md px-3 py-1.5 text-xs font-medium ${t.confirmClass}`}>{confirmLabel}</span> : null}
+      </div>
+    </div>
+  );
+  if (showStage === false) return <div className="w-full">{dialog}</div>;
+  return <OverlayStage minHeight={stageHeight} scrim={scrim} align="center" justify="center">{dialog}</OverlayStage>;
+}
+
+const TOAST_VARIANTS: Record<string, { icon: string; iconClass: string; ring: string }> = {
+  info:    { icon: "ⓘ", iconClass: "bg-blue-100 text-blue-600",   ring: "border-gray-200" },
+  success: { icon: "✓", iconClass: "bg-green-100 text-green-600", ring: "border-gray-200" },
+  warning: { icon: "⚠", iconClass: "bg-amber-100 text-amber-600", ring: "border-amber-200" },
+  error:   { icon: "✕", iconClass: "bg-red-100 text-red-600",     ring: "border-red-200" },
+};
+
+const TOAST_POSITIONS: Record<string, { align: OverlayAlign; justify: OverlayAlign }> = {
+  "top-left":      { align: "start",  justify: "start" },
+  "top-center":    { align: "start",  justify: "center" },
+  "top-right":     { align: "start",  justify: "end" },
+  "bottom-left":   { align: "end",    justify: "start" },
+  "bottom-center": { align: "end",    justify: "center" },
+  "bottom-right":  { align: "end",    justify: "end" },
+};
+
+export function AstryxToast({
+  title = OVERLAY_DEFAULTS.AstryxToast.title,
+  description = OVERLAY_DEFAULTS.AstryxToast.description,
+  variant = OVERLAY_DEFAULTS.AstryxToast.variant,
+  actionLabel = OVERLAY_DEFAULTS.AstryxToast.actionLabel,
+  showClose = OVERLAY_DEFAULTS.AstryxToast.showClose,
+  position = OVERLAY_DEFAULTS.AstryxToast.position,
+  stageHeight = OVERLAY_DEFAULTS.AstryxToast.stageHeight,
+  showStage = OVERLAY_DEFAULTS.AstryxToast.showStage,
+  width = OVERLAY_DEFAULTS.AstryxToast.width,
+}: AstryxProps) {
+  const v = TOAST_VARIANTS[variant as string] ?? TOAST_VARIANTS.info;
+  const pos = TOAST_POSITIONS[position as string] ?? TOAST_POSITIONS["bottom-right"];
+  const toast = (
+    <div className={`flex items-start gap-2.5 rounded-lg border bg-white p-3 shadow-lg ${v.ring}`} style={panelSizeStyle(width, 280)}>
+      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${v.iconClass}`}>{v.icon}</div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-900">{title}</p>
+        {description ? <p className="mt-0.5 text-xs leading-relaxed text-gray-600">{description}</p> : null}
+      </div>
+      {actionLabel ? <span className="shrink-0 text-xs font-medium text-blue-600">{actionLabel}</span> : null}
+      {showClose ? <span className="shrink-0 text-xs text-gray-400">✕</span> : null}
+    </div>
+  );
+  if (showStage === false) return <div className="w-full">{toast}</div>;
+  return (
+    <OverlayStage minHeight={stageHeight} scrim="none" align={pos.align} justify={pos.justify} padding={12}>
+      {toast}
+    </OverlayStage>
+  );
+}
+
+export function AstryxLightbox({
+  src = OVERLAY_DEFAULTS.AstryxLightbox.src,
+  caption = OVERLAY_DEFAULTS.AstryxLightbox.caption,
+  counter = OVERLAY_DEFAULTS.AstryxLightbox.counter,
+  stageHeight = OVERLAY_DEFAULTS.AstryxLightbox.stageHeight,
+  showControls = OVERLAY_DEFAULTS.AstryxLightbox.showControls,
+  showClose = OVERLAY_DEFAULTS.AstryxLightbox.showClose,
+}: AstryxProps) {
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-lg border border-gray-800"
+      style={{ minHeight: Math.max(120, Number(stageHeight) || 220), background: "#0b1120" }}
+    >
+      <div className="relative flex flex-col items-center justify-center gap-2 px-10 py-5" style={{ minHeight: Math.max(120, Number(stageHeight) || 220) }}>
+        <div className="flex w-full max-w-full flex-1 items-center justify-center overflow-hidden rounded-md bg-gray-800/60" style={{ minHeight: 90 }}>
+          {src
+            ? <img src={src} alt={caption} className="max-h-full max-w-full object-contain" />
+            : <span className="text-2xl text-gray-500">▣</span>}
+        </div>
+        {caption ? <p className="max-w-full truncate text-xs text-gray-300">{caption}</p> : null}
+        {counter ? <p className="text-[11px] text-gray-500">{counter}</p> : null}
+      </div>
+      {showControls ? (
+        <>
+          <div className="absolute inset-y-0 left-2 flex items-center">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs text-white">◀</span>
+          </div>
+          <div className="absolute inset-y-0 right-2 flex items-center">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs text-white">▶</span>
+          </div>
+        </>
+      ) : null}
+      {showClose ? (
+        <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs text-white">✕</span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Container. A scrim/backdrop surface that holds other components in normal
+ * flow — flow layout means the box grows with its children, so nothing dropped
+ * inside can escape the artboard.
+ */
+export function AstryxOverlay({
+  children,
+  scrim = OVERLAY_DEFAULTS.AstryxOverlay.scrim,
+  padding = OVERLAY_DEFAULTS.AstryxOverlay.padding,
+  align = OVERLAY_DEFAULTS.AstryxOverlay.align,
+  minHeight = OVERLAY_DEFAULTS.AstryxOverlay.minHeight,
+}: AstryxProps) {
+  return (
+    <div
+      className="w-full rounded-lg"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        alignItems: ALIGN_ITEMS[align as string] ?? "center",
+        justifyContent: "center",
+        minHeight: Math.max(40, Number(minHeight) || 160),
+        padding: Math.max(0, Number(padding) || 0),
+        boxSizing: "border-box",
+        ...(OVERLAY_SCRIMS[scrim as string] ?? OVERLAY_SCRIMS.dark),
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ─── Navigation, display primitives & selectable cards ────────────────────────
+//
+// Bounds discipline here is the same as the overlay section above: every label
+// is user- or AI-supplied, so anything rendering one is allowed to shrink
+// (`min-w-0`) and to wrap or ellipse rather than push itself past the artboard
+// edge. Nothing in this section positions itself absolutely outside its own box
+// — a notification badge is an inline pill, not an overhanging dot — because a
+// component placed at the artboard edge would otherwise paint outside the frame.
+//
+// The item-bearing navigation components reuse `parseMenuItems` from the menu
+// section: one comma-separated string, "---" for a separator and a ":" suffix
+// for the per-item extra (a count badge for NavMenu, an icon name for
+// MobileNav). One list syntax across the palette means one thing to learn.
+
+export const NAV_DISPLAY_DEFAULTS = {
+  AstryxNavMenu: {
+    items: "Overview,Projects:12,Reports,---,Settings",
+    active: "Overview",
+    orientation: "horizontal",
+    showIcons: false,
+  },
+  AstryxMobileNav: {
+    items: "Home:home,Search:search,Alerts:bell,Profile:user",
+    active: "Home",
+    position: "bottom",
+    showLabels: true,
+  },
+  AstryxNavIcon: {
+    glyph: "home",
+    label: "Home",
+    badge: "",
+    active: false,
+    showLabel: true,
+  },
+  AstryxPagination: {
+    pageCount: 8,
+    currentPage: 3,
+    showArrows: true,
+    align: "start",
+  },
+  AstryxLink: {
+    label: "View documentation",
+    href: "/docs",
+    underline: "hover",
+    external: false,
+    size: "sm",
+  },
+  AstryxTimestamp: {
+    value: "2 hours ago",
+    prefix: "Updated",
+    showIcon: true,
+    size: "sm",
+    muted: true,
+  },
+  AstryxIndicator: {
+    variant: "dot",
+    tone: "success",
+    count: 3,
+    label: "Live",
+  },
+  AstryxThumbnail: {
+    src: "",
+    label: "cover.jpg",
+    size: 72,
+    radius: "md",
+    showLabel: true,
+  },
+  AstryxAvatarGroup: {
+    names: "Alice Chen,Ben Ortiz,Cara Diaz,Dan Ellis,Eve Ng",
+    max: 3,
+    overflowCount: 0,
+    size: "md",
+  },
+  AstryxClickableCard: {
+    variant: "elevated",
+    interactive: true,
+    hovered: false,
+    padding: 16,
+  },
+  AstryxSelectableCard: {
+    variant: "outlined",
+    selected: true,
+    indicator: "check",
+    padding: 16,
+    disabled: false,
+  },
+} as const;
+
+/** Labels shrink and wrap instead of pushing their component past the frame. */
+const navLabelStyle: CSSProperties = { minWidth: 0, overflowWrap: "anywhere" };
+
+const clampNumber = (value: any, min: number, max: number, fallback: number) => {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+
+/** An icon name from ICON_GLYPHS, a literal glyph, or the label's first letter. */
+function navGlyph(nameOrGlyph: any, fallbackLabel: any = ""): string {
+  const raw = String(nameOrGlyph ?? "").trim();
+  if (!raw) return String(fallbackLabel).trim().charAt(0).toUpperCase() || "◈";
+  return ICON_GLYPHS[raw.toLowerCase()] ?? raw.charAt(0).toUpperCase();
+}
+
+/**
+ * Relative time for a design surface. A parseable date becomes "2 hours ago";
+ * anything else is a literal the designer typed and is shown verbatim, which is
+ * what makes the displayed value fully inspector-settable. Deliberately a pure
+ * function of (value, now) with no timer — a design never ticks.
+ */
+export function formatRelativeTime(value: any, now: number = Date.now()): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return raw;
+  const deltaSec = Math.round((now - parsed) / 1000);
+  const future = deltaSec < 0;
+  const abs = Math.abs(deltaSec);
+  const say = (n: number, unit: string) => {
+    const phrase = `${n} ${unit}${n === 1 ? "" : "s"}`;
+    return future ? `in ${phrase}` : `${phrase} ago`;
+  };
+  if (abs < 45) return future ? "in a moment" : "just now";
+  if (abs < 3600) return say(Math.round(abs / 60), "minute");
+  if (abs < 86400) return say(Math.round(abs / 3600), "hour");
+  if (abs < 604800) return say(Math.round(abs / 86400), "day");
+  if (abs < 2629800) return say(Math.round(abs / 604800), "week");
+  if (abs < 31557600) return say(Math.round(abs / 2629800), "month");
+  return say(Math.round(abs / 31557600), "year");
+}
+
+/**
+ * The page numbers a pagination control shows, with "…" where a run is elided.
+ * Always includes the first and last page and a window around the current one.
+ */
+export function paginationPages(pageCount: any, currentPage: any): (number | "…")[] {
+  const total = clampNumber(pageCount, 1, 999, 1);
+  const current = clampNumber(currentPage, 1, total, 1);
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push("…");
+  for (let p = start; p <= end; p++) pages.push(p);
+  if (end < total - 1) pages.push("…");
+  pages.push(total);
+  return pages;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export function AstryxNavMenu({
+  items = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.items,
+  active = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.active,
+  orientation = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.orientation,
+  showIcons = NAV_DISPLAY_DEFAULTS.AstryxNavMenu.showIcons,
+}: AstryxProps) {
+  const parsed = parseMenuItems(items);
+  const vertical = orientation === "vertical";
+  return (
+    <nav className={`w-full flex ${vertical ? "flex-col items-stretch gap-0.5" : "flex-row flex-wrap items-center gap-1"}`}>
+      {parsed.length === 0 ? (
+        <span className="px-2 py-1 text-xs text-gray-400">No items</span>
+      ) : parsed.map((item, i) =>
+        item.kind === "separator" ? (
+          vertical
+            ? <div key={i} className="my-1 h-px w-full bg-gray-200" />
+            : <div key={i} className="mx-1 h-4 w-px shrink-0 bg-gray-200" />
+        ) : (
+          <span
+            key={i}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${
+              item.label === active ? "bg-blue-50 font-medium text-blue-700"
+                : item.destructive ? "text-red-600" : "text-gray-600"
+            }`}
+            style={navLabelStyle}
+          >
+            {showIcons ? <span className="shrink-0 text-xs opacity-60">◈</span> : null}
+            <span className="min-w-0">{item.label}</span>
+            {item.shortcut ? (
+              <span className="shrink-0 rounded-full bg-gray-100 px-1.5 text-[10px] font-medium leading-4 text-gray-600">{item.shortcut}</span>
+            ) : null}
+          </span>
+        ),
+      )}
+    </nav>
+  );
+}
+
+export function AstryxMobileNav({
+  items = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.items,
+  active = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.active,
+  position = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.position,
+  showLabels = NAV_DISPLAY_DEFAULTS.AstryxMobileNav.showLabels,
+}: AstryxProps) {
+  const parsed = parseMenuItems(items).filter((i) => i.kind === "item");
+  return (
+    <nav
+      className={`w-full flex items-stretch justify-around gap-1 bg-white px-2 py-2 ${
+        position === "top" ? "border-b" : "border-t"
+      } border-gray-200`}
+    >
+      {parsed.length === 0 ? (
+        <span className="px-2 py-1 text-xs text-gray-400">No items</span>
+      ) : parsed.map((item, i) => {
+        const isActive = item.label === active;
+        return (
+          <span
+            key={i}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-md px-1 py-1 ${
+              isActive ? "text-blue-600" : "text-gray-500"
+            }`}
+          >
+            <span className="text-base leading-none">{navGlyph(item.shortcut, item.label)}</span>
+            {showLabels ? (
+              <span className="min-w-0 max-w-full truncate text-[11px] font-medium">{item.label}</span>
+            ) : null}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AstryxNavIcon({
+  glyph = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.glyph,
+  label = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.label,
+  badge = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.badge,
+  active = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.active,
+  showLabel = NAV_DISPLAY_DEFAULTS.AstryxNavIcon.showLabel,
+}: AstryxProps) {
+  const badgeText = String(badge ?? "").trim();
+  const labelText = String(label ?? "").trim();
+  return (
+    <span
+      className={`inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
+        active ? "bg-blue-50 font-medium text-blue-700" : "text-gray-600"
+      }`}
+      style={navLabelStyle}
+    >
+      <span className="shrink-0 text-base leading-none">{navGlyph(glyph, labelText)}</span>
+      {showLabel && labelText ? <span className="min-w-0">{labelText}</span> : null}
+      {badgeText ? (
+        <span className="shrink-0 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-4 text-white">{badgeText}</span>
+      ) : null}
+    </span>
+  );
+}
+
+export function AstryxPagination({
+  pageCount = NAV_DISPLAY_DEFAULTS.AstryxPagination.pageCount,
+  currentPage = NAV_DISPLAY_DEFAULTS.AstryxPagination.currentPage,
+  showArrows = NAV_DISPLAY_DEFAULTS.AstryxPagination.showArrows,
+  align = NAV_DISPLAY_DEFAULTS.AstryxPagination.align,
+}: AstryxProps) {
+  const total = clampNumber(pageCount, 1, 999, 1);
+  const current = clampNumber(currentPage, 1, total, 1);
+  const pages = paginationPages(total, current);
+  const justify = align === "center" ? "justify-center" : align === "end" ? "justify-end" : "justify-start";
+  const arrowClass = (disabled: boolean) =>
+    `inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md border border-gray-300 px-2 text-sm ${
+      disabled ? "text-gray-300" : "text-gray-600 bg-white"
+    }`;
+  return (
+    <nav className={`w-full flex flex-wrap items-center gap-1 ${justify}`}>
+      {showArrows ? <span className={arrowClass(current <= 1)}>‹</span> : null}
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`gap-${i}`} className="inline-flex h-7 w-6 shrink-0 items-center justify-center text-sm text-gray-400">…</span>
+        ) : (
+          <span
+            key={p}
+            className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-md px-2 text-sm ${
+              p === current ? "bg-blue-600 font-medium text-white" : "border border-gray-300 bg-white text-gray-700"
+            }`}
+          >
+            {p}
+          </span>
+        ),
+      )}
+      {showArrows ? <span className={arrowClass(current >= total)}>›</span> : null}
+    </nav>
+  );
+}
+
+export function AstryxLink({
+  label,
+  children,
+  href = NAV_DISPLAY_DEFAULTS.AstryxLink.href,
+  underline = NAV_DISPLAY_DEFAULTS.AstryxLink.underline,
+  external = NAV_DISPLAY_DEFAULTS.AstryxLink.external,
+  size = NAV_DISPLAY_DEFAULTS.AstryxLink.size,
+}: AstryxProps) {
+  // `children` is accepted as well as `label` because that is the convention the
+  // AI already follows for every other text-bearing component in the palette.
+  const text = String(label ?? children ?? NAV_DISPLAY_DEFAULTS.AstryxLink.label);
+  const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base", lg: "text-lg" }, size, "text-sm");
+  const underlineClass = underline === "always" ? "underline" : underline === "none" ? "no-underline" : "hover:underline";
+  return (
+    <span
+      className={`inline-flex max-w-full cursor-pointer items-center gap-1 text-blue-600 ${sizeClass} ${underlineClass}`}
+      style={navLabelStyle}
+      title={href ? String(href) : undefined}
+    >
+      <span className="min-w-0">{text}</span>
+      {external ? <span className="shrink-0 text-xs opacity-70">↗</span> : null}
+    </span>
+  );
+}
+
+// ── Display primitives ────────────────────────────────────────────────────────
+
+export function AstryxTimestamp({
+  value = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.value,
+  prefix = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.prefix,
+  showIcon = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.showIcon,
+  size = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.size,
+  muted = NAV_DISPLAY_DEFAULTS.AstryxTimestamp.muted,
+}: AstryxProps) {
+  const sizeClass = pick({ xs: "text-xs", sm: "text-sm", md: "text-base" }, size, "text-sm");
+  const display = formatRelativeTime(value);
+  const prefixText = String(prefix ?? "").trim();
+  return (
+    <span
+      className={`inline-flex max-w-full flex-wrap items-center gap-1.5 ${sizeClass} ${muted ? "text-gray-500" : "text-gray-900"}`}
+      style={navLabelStyle}
+    >
+      {showIcon ? <span className="shrink-0 opacity-70">◷</span> : null}
+      {prefixText ? <span className="min-w-0">{prefixText}</span> : null}
+      <span className="min-w-0 font-medium">{display || "—"}</span>
+    </span>
+  );
+}
+
+const INDICATOR_TONES: Record<string, { dot: string; pill: string }> = {
+  neutral: { dot: "bg-gray-400",   pill: "bg-gray-100 text-gray-700" },
+  info:    { dot: "bg-blue-500",   pill: "bg-blue-100 text-blue-800" },
+  success: { dot: "bg-green-500",  pill: "bg-green-100 text-green-800" },
+  warning: { dot: "bg-amber-500",  pill: "bg-amber-100 text-amber-800" },
+  danger:  { dot: "bg-red-500",    pill: "bg-red-100 text-red-800" },
+};
+
+export function AstryxIndicator({
+  variant = NAV_DISPLAY_DEFAULTS.AstryxIndicator.variant,
+  tone = NAV_DISPLAY_DEFAULTS.AstryxIndicator.tone,
+  count = NAV_DISPLAY_DEFAULTS.AstryxIndicator.count,
+  label = NAV_DISPLAY_DEFAULTS.AstryxIndicator.label,
+}: AstryxProps) {
+  const palette = pick(INDICATOR_TONES, tone, INDICATOR_TONES.neutral);
+  const labelText = String(label ?? "").trim();
+  if (variant === "count") {
+    const n = clampNumber(count, 0, 9999, 0);
+    return (
+      <span className="inline-flex max-w-full flex-wrap items-center gap-1.5" style={navLabelStyle}>
+        <span className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold ${palette.pill}`}>
+          {n > 99 ? "99+" : n}
+        </span>
+        {labelText ? <span className="min-w-0 text-sm text-gray-700">{labelText}</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-center gap-1.5" style={navLabelStyle}>
+      <span className="relative inline-flex h-2.5 w-2.5 shrink-0">
+        {variant === "pulse" ? (
+          <span className={`absolute inset-0 rounded-full opacity-60 animate-ping ${palette.dot}`} />
+        ) : null}
+        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${palette.dot}`} />
+      </span>
+      {labelText ? <span className="min-w-0 text-sm text-gray-700">{labelText}</span> : null}
+    </span>
+  );
+}
+
+const THUMBNAIL_RADII: Record<string, number> = { none: 0, sm: 4, md: 8, lg: 12, full: 9999 };
+
+export function AstryxThumbnail({
+  src = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.src,
+  label = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.label,
+  size = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.size,
+  radius = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.radius,
+  showLabel = NAV_DISPLAY_DEFAULTS.AstryxThumbnail.showLabel,
+}: AstryxProps) {
+  const px = clampNumber(size, 24, 320, 72);
+  const borderRadius = pick(THUMBNAIL_RADII, radius, 8);
+  const labelText = String(label ?? "").trim();
+  const srcText = String(src ?? "").trim();
+  return (
+    <span className="inline-flex max-w-full flex-col gap-1" style={{ width: px }}>
+      <span
+        className="flex items-center justify-center overflow-hidden border border-gray-200 bg-gray-100 text-gray-400"
+        style={{ width: px, height: px, maxWidth: "100%", borderRadius }}
+      >
+        {srcText
+          ? <img src={srcText} alt={labelText} className="h-full w-full object-cover" />
+          : <span className="text-lg">▣</span>}
+      </span>
+      {showLabel && labelText ? (
+        <span className="min-w-0 truncate text-[11px] text-gray-500" style={{ maxWidth: px }}>{labelText}</span>
+      ) : null}
+    </span>
+  );
+}
+
+const AVATAR_GROUP_SIZES: Record<string, number> = { xs: 24, sm: 32, md: 40, lg: 56 };
+
+export function AstryxAvatarGroup({
+  names = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.names,
+  max = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.max,
+  overflowCount = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.overflowCount,
+  size = NAV_DISPLAY_DEFAULTS.AstryxAvatarGroup.size,
+}: AstryxProps) {
+  const list = String(names ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const visibleMax = clampNumber(max, 1, 12, 3);
+  const shown = list.slice(0, visibleMax);
+  // An explicit overflow count wins so a design can show "+12" without listing
+  // twelve names; 0 means "derive it from the names that did not fit".
+  const explicit = clampNumber(overflowCount, 0, 999, 0);
+  const overflow = explicit > 0 ? explicit : Math.max(0, list.length - shown.length);
+  const dim = pick(AVATAR_GROUP_SIZES, size, 40);
+  const circle: CSSProperties = {
+    width: dim, height: dim, fontSize: Math.round(dim * 0.36),
+    boxShadow: "0 0 0 2px #ffffff",
+  };
+  const initials = (name: string) =>
+    name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <span className="inline-flex max-w-full items-center">
+      {shown.length === 0 ? (
+        <span className="text-xs text-gray-400">No people</span>
+      ) : shown.map((name, i) => (
+        <span
+          key={`${name}-${i}`}
+          title={name}
+          className={`inline-flex shrink-0 items-center justify-center rounded-full bg-blue-500 font-medium text-white ${i > 0 ? "-ml-2" : ""}`}
+          style={circle}
+        >
+          {initials(name) || "?"}
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span
+          className={`inline-flex shrink-0 items-center justify-center rounded-full bg-gray-200 font-medium text-gray-700 ${shown.length > 0 ? "-ml-2" : ""}`}
+          style={circle}
+        >
+          +{overflow}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// ── Selectable cards ──────────────────────────────────────────────────────────
+//
+// Both are containers: their content is craft children, not props. The
+// interactive and selected states are plain props so the selected variant can
+// be designed directly in the inspector rather than only appearing on hover.
+
+const CARD_VARIANT_CLASS: Record<string, string> = {
+  elevated: "bg-white shadow-md border border-gray-100",
+  outlined: "bg-white border border-gray-300",
+  ghost:    "bg-gray-50 border border-transparent",
+};
+
+export function AstryxClickableCard({
+  children = "Clickable card content",
+  variant = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.variant,
+  interactive = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.interactive,
+  hovered = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.hovered,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxClickableCard.padding,
+}: AstryxProps) {
+  const variantClass = pick(CARD_VARIANT_CLASS, variant, CARD_VARIANT_CLASS.elevated);
+  return (
+    <div
+      className={`w-full rounded-lg ${variantClass} ${interactive ? "cursor-pointer" : ""} ${
+        hovered ? "shadow-lg ring-1 ring-gray-300" : ""
+      }`}
+      style={{ padding: clampNumber(padding, 0, 96, 16) }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AstryxSelectableCard({
+  children = "Selectable card content",
+  variant = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.variant,
+  selected = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.selected,
+  indicator = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.indicator,
+  padding = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.padding,
+  disabled = NAV_DISPLAY_DEFAULTS.AstryxSelectableCard.disabled,
+}: AstryxProps) {
+  const variantClass = pick(CARD_VARIANT_CLASS, variant, CARD_VARIANT_CLASS.outlined);
+  return (
+    <div
+      className={`w-full rounded-lg ${variantClass} ${
+        selected ? "border-blue-500 bg-blue-50/40 ring-2 ring-blue-500" : ""
+      } ${disabled ? "opacity-50" : "cursor-pointer"}`}
+      style={{ padding: clampNumber(padding, 0, 96, 16) }}
+    >
+      {indicator !== "none" ? (
+        <div className="mb-2 flex w-full justify-end">{selectionMark(indicator, !!selected)}</div>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+/** The check or radio affordance, drawn inline so it never overhangs the card. */
+function selectionMark(indicator: any, selected: boolean) {
+  if (indicator === "radio") {
+    return (
+      <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border-2 ${selected ? "border-blue-600" : "border-gray-300"}`}>
+        {selected ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold ${
+      selected ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 text-transparent"
+    }`}>
+      ✓
+    </span>
+  );
+}
+
+export const COMPONENT_REGISTRY: Record<string, (props: AstryxProps) => JSX.Element> = {
+  Button:      AstryxButton,
+  Card:        AstryxCard,
+  Badge:       AstryxBadge,
+  Text:        AstryxText,
+  Heading:     AstryxHeading,
+  Avatar:      AstryxAvatar,
+  Spinner:     AstryxSpinner,
+  Divider:     AstryxDivider,
+  ProgressBar: AstryxProgressBar,
+  StatusDot:   AstryxStatusDot,
+  Skeleton:    AstryxSkeleton,
+  Banner:      AstryxBanner,
+  EmptyState:  AstryxEmptyState,
+  ChatMessage: AstryxChatMessage,
+  Token:       AstryxToken,
+  TextInput:   AstryxTextInput,
+  Stack:       AstryxStack,
+  HStack:      AstryxHStack,
+  VStack:      AstryxStack,
+  Icon:        AstryxIcon,
+  Table:       AstryxTable,
+  Tabs:        AstryxTabs,
+  Accordion:   AstryxAccordion,
+  Select:      AstryxSelect,
+  Checkbox:    AstryxCheckbox,
+  RadioGroup:  AstryxRadioGroup,
+  Slider:      AstryxSlider,
+  Calendar:    AstryxCalendar,
+  Command:     AstryxCommand,
+  Carousel:    AstryxCarousel,
+  Resizable:   AstryxResizable,
+  // Navigation
+  Navbar:      AstryxNavbar,
+  Sidebar:     AstryxSidebar,
+  Breadcrumb:  AstryxBreadcrumb,
+  // Overlays
+  Modal:       AstryxModal,
+  Drawer:      AstryxDrawer,
+  Sheet:       AstryxSheet,
+  // Anchored overlays
+  Popover:      AstryxPopover,
+  Tooltip:      AstryxTooltip,
+  HoverCard:    AstryxHoverCard,
+  // Menus
+  DropdownMenu: AstryxDropdownMenu,
+  ContextMenu:  AstryxContextMenu,
+  MoreMenu:     AstryxMoreMenu,
+  // Dialogs & surfaces
+  AlertDialog:  AstryxAlertDialog,
+  Toast:        AstryxToast,
+  Lightbox:     AstryxLightbox,
+  Overlay:      AstryxOverlay,
+  // Charts
+  BarChart:    AstryxBarChart,
+  LineChart:   AstryxLineChart,
+  PieChart:    AstryxPieChart,
+  // Media
+  VideoPlayer: AstryxVideoPlayer,
+  CodeBlock:   AstryxCodeBlock,
+  // List
+  List:        AstryxList,
+  ListItem:    AstryxListItem,
+  // Form structure
+  Field:            AstryxField,
+  FieldStatus:      AstryxFieldStatus,
+  FormLayout:       AstryxFormLayout,
+  InputGroup:       AstryxInputGroup,
+  Grid:             AstryxGrid,
+  // Form inputs
+  TextArea:         AstryxTextArea,
+  Switch:           AstryxSwitch,
+  NumberInput:      AstryxNumberInput,
+  ToggleButton:     AstryxToggleButton,
+  SegmentedControl: AstryxSegmentedControl,
+  CheckboxList:     AstryxCheckboxList,
+  IconButton:       AstryxIconButton,
+  // Date & time
+  DateInput:        AstryxDateInput,
+  TimeInput:        AstryxTimeInput,
+  DateTimeInput:    AstryxDateTimeInput,
+  DateRangeInput:   AstryxDateRangeInput,
+  // File
+  FileInput:        AstryxFileInput,
+  // Advanced selection & search
+  Typeahead:        AstryxTypeahead,
+  MultiSelector:    AstryxMultiSelector,
+  ComplexSelector:  AstryxComplexSelector,
+  PowerSearch:      AstryxPowerSearch,
+  Tokenizer:        AstryxTokenizer,
+  // Navigation
+  NavMenu:          AstryxNavMenu,
+  MobileNav:        AstryxMobileNav,
+  NavIcon:          AstryxNavIcon,
+  Pagination:       AstryxPagination,
+  Link:             AstryxLink,
+  // Display primitives
+  Timestamp:        AstryxTimestamp,
+  Indicator:        AstryxIndicator,
+  Thumbnail:        AstryxThumbnail,
+  AvatarGroup:      AstryxAvatarGroup,
+  // Selectable cards
+  ClickableCard:    AstryxClickableCard,
+  SelectableCard:   AstryxSelectableCard,
+};
