@@ -2367,18 +2367,6 @@ interface SelectedNode {
   isRoot: boolean;
 }
 
-const COLOR_SWATCHES_MAP: Record<string, string> = {
-  blue: "#3b82f6", green: "#10b981", amber: "#f59e0b",
-  red: "#ef4444", purple: "#8b5cf6", gray: "#6b7280",
-};
-
-const SPACING_PRESETS = [
-  { label: "Compact",     sub: "gap 4 · pad 8",   gap: 4,  padding: 8  },
-  { label: "Default",     sub: "gap 8 · pad 12",  gap: 8,  padding: 12 },
-  { label: "Comfortable", sub: "gap 12 · pad 16", gap: 12, padding: 16 },
-  { label: "Spacious",    sub: "gap 20 · pad 24", gap: 20, padding: 24 },
-];
-
 /** Boolean prop row with a Yes/No readout — the shape used throughout the inspector. */
 function BoolPropRow({ label, value, onChange }: { label: string; value: any; onChange: (v: boolean) => void }) {
   return (
@@ -2400,7 +2388,6 @@ const NAV_ITEMS_LABEL = 'Items ("---" = divider, "Label:12" = count badge)';
 
 const HAS_COLOR_PROP = new Set(["AstryxBadge","AstryxProgressBar"]);
 const HAS_VARIANT_DISPLAY = new Set(["AstryxButton","AstryxBanner"]);
-const HAS_SIZE_PROP = new Set(["AstryxButton","AstryxBadge","AstryxAvatar","AstryxText","AstryxHeading","AstryxSpinner","AstryxStatusDot","AstryxIcon","AstryxToken","AstryxSelect"]);
 const IS_CONTAINER = new Set(["AstryxSection","AstryxStack","AstryxHStack","AstryxArtboard"]);
 // Containers that accept backgroundColor/textColor — and so must trigger the
 // auto-contrast pass — but are not flex containers with align/justify controls.
@@ -2413,7 +2400,6 @@ const NO_RADIUS = new Set([
   "AstryxSwitch","AstryxCheckboxList",
   "AstryxField","AstryxFieldStatus","AstryxFormLayout","AstryxInputGroup","AstryxGrid",
 ]);
-const HAS_TYPOGRAPHY = new Set(["AstryxText","AstryxHeading","AstryxButton"]);
 
 const ALIGN_OPTIONS = {
   horizontal: [
@@ -2453,67 +2439,6 @@ const WRAP_OPTIONS: LayoutOption[] = [
   { value: "wrap-reverse", label: "Wrap reverse", icon: <WrapText className="w-3.5 h-3.5 -scale-y-100" /> },
 ];
 
-function DimensionControl({
-  label,
-  value,
-  autoDefault,
-  onChange,
-  min,
-}: {
-  label: string;
-  value: number | string | undefined | "mixed";
-  autoDefault: number | "auto";
-  onChange: (value: number | undefined) => void;
-  min?: number;
-}) {
-  const isMixed = value === "mixed";
-  const isAuto = value == null || value === "auto";
-  const [draft, setDraft] = useState<string | null>(null);
-  const inputValue = draft ?? (isMixed ? "Mixed" : isAuto ? "" : String(value));
-  return (
-    <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-2 py-1.5">
-      <span className="text-[9.5px] text-muted-foreground font-medium w-3">{label}</span>
-      <input
-        // Always type="text": switching between "number" and "text" mid-edit
-        // makes React recreate the DOM node, which resets the caret to
-        // position 0 and reverses typed digits (e.g. "400" became "004").
-        type="text"
-        inputMode="decimal"
-        value={inputValue}
-        onFocus={() => { if (isMixed) setDraft(""); }}
-        onChange={(e) => {
-          const raw = e.target.value;
-          setDraft(raw);
-          if (raw !== "") {
-            const next = Number(raw);
-            if (Number.isFinite(next) && (min == null || next >= min)) onChange(next);
-          }
-        }}
-        onBlur={(e) => {
-          if (e.target.value === "") onChange(undefined);
-          setDraft(null);
-        }}
-        placeholder={isMixed ? "Mixed" : "auto"}
-        aria-label={`${label} size`}
-        className="flex-1 min-w-0 text-[10px] font-mono bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/40"
-      />
-      <button
-        type="button"
-        onClick={() => onChange(undefined)}
-        aria-label={`${label} auto`}
-        aria-pressed={isAuto}
-        className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors flex-shrink-0 ${
-          isAuto
-            ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950 dark:text-blue-400"
-            : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
-        }`}
-      >
-        Auto
-      </button>
-    </div>
-  );
-}
-
 export function getSharedDimensionValue(
   propsList: Array<Record<string, any>>,
   key: "width" | "height",
@@ -2524,24 +2449,94 @@ export function getSharedDimensionValue(
   return normalized.every((value) => value === normalized[0]) ? values[0] : "mixed";
 }
 
-// ─── Inspect panel: node-kind → tabs, and named token scales ──────────────────
+// ─── Inspect panel: single-pane sections, node kinds, and named token scales ──
 
-type InspectTab = "style" | "layout" | "content";
 type NodeKind = "artboard" | "container" | "text" | "component";
 
-/** Which tabs a node kind gets. Artboards have no copy → no Content tab. */
-const TABS_BY_KIND: Record<NodeKind, InspectTab[]> = {
-  artboard: ["style", "layout"],
-  container: ["style", "layout", "content"],
-  text: ["style", "layout", "content"],
-  component: ["style", "layout", "content"],
-};
+/** The five single-pane sections, in fixed order. */
+type SectionId = "layout" | "stack" | "spacing" | "style" | "content";
 
-const TAB_LABEL: Record<InspectTab, string> = {
-  style: "Style",
+const SECTION_LABEL: Record<SectionId, string> = {
   layout: "Layout",
+  stack: "Stack",
+  spacing: "Spacing",
+  style: "Style",
   content: "Content",
 };
+
+/** localStorage key for per-node-kind section collapse memory. */
+const COLLAPSE_STORAGE_KEY = "kiteframe.inspect.collapse";
+
+type CollapsePrefs = Record<string, Partial<Record<SectionId, boolean>>>;
+
+function readCollapsePrefs(): CollapsePrefs {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeCollapsePrefs(prefs: CollapsePrefs) {
+  try {
+    localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(prefs));
+  } catch { /* private mode / quota — collapse memory is best-effort */ }
+}
+
+/**
+ * One collapsible section of the single-pane inspector.
+ * The toggle button shows a caret, the uppercase section label and — only when
+ * collapsed — a live one-line summary of the section's current values.
+ */
+function InspectSection({
+  id,
+  summary,
+  collapsed,
+  onToggle,
+  registerRef,
+  children,
+}: {
+  id: SectionId;
+  summary: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  registerRef: (el: HTMLElement | null) => void;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      data-section={id}
+      ref={registerRef}
+      className="border-b border-border-soft"
+      style={{ scrollMarginTop: 8 }}
+    >
+      <button
+        type="button"
+        aria-expanded={!collapsed}
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-[14px] py-[10px] text-left hover:bg-accent/40 transition-colors"
+      >
+        {collapsed
+          ? <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+          : <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />}
+        <span className="text-[10.5px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+          {SECTION_LABEL[id]}
+        </span>
+        {collapsed && summary && (
+          <span
+            className="ml-auto min-w-0 truncate text-[10.5px] font-mono text-muted-foreground"
+            data-testid={`section-summary-${id}`}
+          >
+            {summary}
+          </span>
+        )}
+      </button>
+      {!collapsed && <div className="pb-[6px]">{children}</div>}
+    </section>
+  );
+}
 
 /** Radius token → px. Mirrors RADIUS_TOKEN in resolver.tsx. */
 const RADIUS_PILLS: Array<{ token: string; label: string; px: number }> = [
@@ -2789,40 +2784,79 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
   const isArtboard = dn === "AstryxArtboard";
   const supportsDirection = dn === "AstryxSection" || isArtboard;
   const supportsPadding = supportsDirection;
-  const hasSizeProp = HAS_SIZE_PROP.has(dn);
-  const hasTypography = HAS_TYPOGRAPHY.has(dn);
   const isRoot = selected.isRoot;
   const direction = dn === "AstryxHStack" ? "row" : selected.props.direction ?? "column";
   const alignOptions = direction === "row" ? ALIGN_OPTIONS.vertical : ALIGN_OPTIONS.horizontal;
   const justifyOptions = direction === "row" ? JUSTIFY_OPTIONS.horizontal : JUSTIFY_OPTIONS.vertical;
-  const widthDefault = isArtboard ? 390 : dn === "AstryxSkeleton" ? 120 : 320;
-  const heightDefault = isArtboard ? 480 : dn === "AstryxSkeleton" ? 16 : 120;
 
-  // ── Tab model with per-node-kind memory (README §2) ───────────────────────
+  // ── Single-pane section model ──────────────────────────────────────────────
+  // Which sections exist for this selection. Order is fixed; sections with no
+  // applicable controls are omitted entirely (no empty shells, no dead chips).
   const kind = nodeKindOf(dn, isRoot);
-  const availableTabs = isMultiSelect
-    ? (artboardSelection.allArtboards ? TABS_BY_KIND.artboard : (["style", "layout"] as InspectTab[]))
-    : TABS_BY_KIND[kind];
-  const [tabByKind, setTabByKind] = useState<Record<string, InspectTab>>({});
-  const remembered = tabByKind[kind];
-  const activeTab: InspectTab = availableTabs.includes(remembered)
-    ? remembered
-    : availableTabs[0];
-  const setActiveTab = useCallback(
-    (t: InspectTab) => setTabByKind((prev) => ({ ...prev, [kind]: t })),
+  const availableSections = useMemo((): SectionId[] => {
+    if (isMultiSelect) return ["layout", "style"];
+    const list: SectionId[] = ["layout"];
+    if (isFlexContainer) list.push("stack", "spacing");
+    list.push("style");
+    // Artboards (and ROOT) have no copy → no Content section, no Content chip.
+    if (kind !== "artboard") list.push("content");
+    return list;
+  }, [isMultiSelect, isFlexContainer, kind]);
+
+  // Collapse memory — persisted per node kind under kiteframe.inspect.collapse.
+  const [collapsePrefs, setCollapsePrefs] = useState<CollapsePrefs>(() => readCollapsePrefs());
+  const isCollapsed = useCallback(
+    (sid: SectionId) => !!collapsePrefs[kind]?.[sid],
+    [collapsePrefs, kind],
+  );
+  const setSectionCollapsed = useCallback(
+    (sid: SectionId, value: boolean) => {
+      setCollapsePrefs((prev) => {
+        const next: CollapsePrefs = { ...prev, [kind]: { ...(prev[kind] ?? {}), [sid]: value } };
+        writeCollapsePrefs(next);
+        return next;
+      });
+    },
     [kind],
   );
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const onTabKeyDown = useCallback(
-    (e: React.KeyboardEvent, idx: number) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      e.preventDefault();
-      const dir = e.key === "ArrowRight" ? 1 : -1;
-      const next = (idx + dir + availableTabs.length) % availableTabs.length;
-      setActiveTab(availableTabs[next]);
-      tabRefs.current[next]?.focus();
+
+  // Scroll-position tracking for the section index chips.
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
+  const sectionsScrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>("layout");
+  const registerSectionRef = useCallback(
+    (sid: SectionId) => (el: HTMLElement | null) => { sectionRefs.current[sid] = el; },
+    [],
+  );
+  useEffect(() => {
+    const body = sectionsScrollRef.current;
+    if (!body) return;
+    const onScroll = () => {
+      // Current section = the last one whose top edge has scrolled past the
+      // 48px reading line under the sticky header.
+      const line = body.scrollTop + 48;
+      let current: SectionId = availableSections[0];
+      for (const sid of availableSections) {
+        const el = sectionRefs.current[sid];
+        if (el && el.offsetTop <= line) current = sid;
+      }
+      setActiveSection(current);
+    };
+    onScroll();
+    body.addEventListener("scroll", onScroll, { passive: true });
+    return () => body.removeEventListener("scroll", onScroll);
+  }, [availableSections]);
+
+  // Chip click: expand the section if collapsed, then scroll it into view.
+  const onChipClick = useCallback(
+    (sid: SectionId) => {
+      if (isCollapsed(sid)) setSectionCollapsed(sid, false);
+      setActiveSection(sid);
+      requestAnimationFrame(() => {
+        sectionRefs.current[sid]?.scrollIntoView({ block: "start", behavior: "smooth" });
+      });
     },
-    [availableTabs, setActiveTab],
+    [isCollapsed, setSectionCollapsed],
   );
 
   // Breadcrumb of ancestors (single-select only; root-first).
@@ -2867,6 +2901,51 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
     },
     [isMultiSelect, selectedNodes, selected.props],
   );
+
+  // ── Live collapsed summaries — one line of current values per section ─────
+  const sectionSummaries = useMemo((): Record<SectionId, string> => {
+    const fmtDim = (v: any) =>
+      v === "mixed" || v === MIXED ? "Mixed" : v == null || v === "auto" ? "auto" : String(v);
+    const w = fmtDim(sharedValue("width"));
+    const h = fmtDim(sharedValue("height"));
+
+    const align = selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch");
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    const gap = selected.props.gap ?? (isArtboard ? 16 : 8);
+    const pad = selected.props.padding ?? (isArtboard ? 24 : 16);
+
+    const bg = sharedProp("backgroundColor");
+    const fill =
+      bg === MIXED ? "Mixed"
+      : bg == null || bg === "transparent" ? "None"
+      : typeof bg === "string" ? bg.toUpperCase() : "None";
+    const radius = (() => {
+      const r = sharedProp("borderRadius");
+      return r === MIXED ? "Mixed" : String(r ?? "M");
+    })();
+    const shadow = (() => {
+      const s = sharedProp("shadow");
+      if (s === MIXED) return "Mixed";
+      return !s || s === "none" ? "None" : cap(String(s));
+    })();
+
+    const contentText = (() => {
+      const p = selected.props;
+      const primary = p.children ?? p.text ?? p.label ?? p.title ?? p.placeholder;
+      return typeof primary === "string" && primary.trim()
+        ? `“${primary.length > 14 ? `${primary.slice(0, 14)}…` : primary}”`
+        : "—";
+    })();
+
+    return {
+      layout: `${w} × ${h}`,
+      stack: `${direction === "row" ? "Row" : "Column"} · ${cap(String(align))}`,
+      spacing: `${gap} / ${pad}`,
+      style: NO_RADIUS.has(dn) ? fill : `${fill} · ${radius} · ${shadow}`,
+      content: contentText,
+    };
+  }, [dn, isArtboard, direction, selected.props, sharedProp, sharedValue]);
 
   return (
     <div className="flex flex-col h-full" onKeyDown={onPanelKeyDown}>
@@ -2925,39 +3004,32 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
           </button>
         </div>
 
-        {/* Tab bar */}
-        <div className="px-[14px] pb-[10px]">
-          <div
-            role="tablist"
-            aria-label="Inspector sections"
-            className="flex gap-[3px] p-[3px] rounded-[9px]"
-            style={{ background: "var(--accent)" }}
-          >
-            {availableTabs.map((t, i) => {
-              const isActive = t === activeTab;
-              return (
-                <button
-                  key={t}
-                  ref={(el) => (tabRefs.current[i] = el)}
-                  role="tab"
-                  aria-selected={isActive}
-                  tabIndex={isActive ? 0 : -1}
-                  onClick={() => setActiveTab(t)}
-                  onKeyDown={(e) => onTabKeyDown(e, i)}
-                  className="flex-1 text-[12px] font-medium rounded-[6px] transition-colors"
-                  style={{
-                    height: 28,
-                    background: isActive ? "var(--card)" : "transparent",
-                    color: isActive ? "var(--foreground)" : "var(--muted-foreground)",
-                    boxShadow: isActive ? "0 1px 2px rgba(20,20,24,.06)" : undefined,
-                    fontWeight: isActive ? 600 : 500,
-                  }}
-                >
-                  {TAB_LABEL[t]}
-                </button>
-              );
-            })}
-          </div>
+        {/* Section index chips — jump-to nav that tracks the scrolled section */}
+        <div
+          role="navigation"
+          aria-label="Inspector sections"
+          className="px-[14px] pb-[10px] flex flex-wrap gap-1"
+        >
+          {availableSections.map((sid) => {
+            const isCurrent = sid === activeSection;
+            return (
+              <button
+                key={sid}
+                type="button"
+                aria-current={isCurrent ? "true" : undefined}
+                data-testid={`section-chip-${sid}`}
+                onClick={() => onChipClick(sid)}
+                className={`px-2.5 py-1 rounded-full border text-[11px] transition-colors whitespace-nowrap ${
+                  isCurrent
+                    ? "border-input bg-accent font-semibold text-foreground"
+                    : "border-border-soft bg-transparent font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+                style={{ lineHeight: 1 }}
+              >
+                {SECTION_LABEL[sid]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -2968,40 +3040,21 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
         </div>
       )}
 
-      {/* ── Tab bodies ─────────────────────────────────────────────── */}
-      <div
-        className="flex-1 overflow-y-auto"
-        role="tabpanel"
-        aria-label={TAB_LABEL[activeTab]}
-      >
-        {activeTab === "style" && (
-          <StyleTab
-            dn={dn}
-            isArtboard={isArtboard}
-            isMultiSelect={isMultiSelect}
-            selected={selected}
-            sharedProp={sharedProp}
-            setProp={setProp}
-            setTextColor={setTextColor}
-          />
-        )}
-
-        {activeTab === "layout" && (
-          <LayoutTab
+      {/* ── Sections (single scrolling pane) ───────────────────────── */}
+      <div ref={sectionsScrollRef} className="flex-1 overflow-y-auto">
+        <InspectSection
+          id="layout"
+          summary={sectionSummaries.layout}
+          collapsed={isCollapsed("layout")}
+          onToggle={() => setSectionCollapsed("layout", !isCollapsed("layout"))}
+          registerRef={registerSectionRef("layout")}
+        >
+          <LayoutSection
             dn={dn}
             isArtboard={isArtboard}
             isRoot={isRoot}
-            isFlexContainer={isFlexContainer}
-            supportsDirection={supportsDirection}
-            supportsPadding={supportsPadding}
             isMultiSelect={isMultiSelect}
             selected={selected}
-            direction={direction}
-            alignOptions={alignOptions}
-            justifyOptions={justifyOptions}
-            widthDefault={widthDefault}
-            heightDefault={heightDefault}
-            activeSpacing={activeSpacing}
             sharedValue={sharedValue}
             sharedProp={sharedProp}
             setProp={setProp}
@@ -3013,20 +3066,85 @@ function InspectPanel({ selected, selectedIds, actions }: { selected: SelectedNo
             makeEqualWidths={makeEqualWidths}
             makeEqualHeights={makeEqualHeights}
           />
+        </InspectSection>
+
+        {availableSections.includes("stack") && (
+          <InspectSection
+            id="stack"
+            summary={sectionSummaries.stack}
+            collapsed={isCollapsed("stack")}
+            onToggle={() => setSectionCollapsed("stack", !isCollapsed("stack"))}
+            registerRef={registerSectionRef("stack")}
+          >
+            <StackSection
+              dn={dn}
+              isRoot={isRoot}
+              supportsDirection={supportsDirection}
+              selected={selected}
+              direction={direction}
+              alignOptions={alignOptions}
+              justifyOptions={justifyOptions}
+              setProp={setProp}
+            />
+          </InspectSection>
         )}
 
-        {activeTab === "content" && !isMultiSelect && (
-          <div className="px-[14px] py-[14px] flex flex-col gap-3">
-            <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
-          </div>
+        {availableSections.includes("spacing") && (
+          <InspectSection
+            id="spacing"
+            summary={sectionSummaries.spacing}
+            collapsed={isCollapsed("spacing")}
+            onToggle={() => setSectionCollapsed("spacing", !isCollapsed("spacing"))}
+            registerRef={registerSectionRef("spacing")}
+          >
+            <SpacingSection
+              isArtboard={isArtboard}
+              supportsPadding={supportsPadding}
+              selected={selected}
+              activeSpacing={activeSpacing}
+              setProp={setProp}
+            />
+          </InspectSection>
+        )}
+
+        <InspectSection
+          id="style"
+          summary={sectionSummaries.style}
+          collapsed={isCollapsed("style")}
+          onToggle={() => setSectionCollapsed("style", !isCollapsed("style"))}
+          registerRef={registerSectionRef("style")}
+        >
+          <StyleSection
+            dn={dn}
+            isArtboard={isArtboard}
+            isMultiSelect={isMultiSelect}
+            selected={selected}
+            sharedProp={sharedProp}
+            setProp={setProp}
+            setTextColor={setTextColor}
+          />
+        </InspectSection>
+
+        {availableSections.includes("content") && !isMultiSelect && (
+          <InspectSection
+            id="content"
+            summary={sectionSummaries.content}
+            collapsed={isCollapsed("content")}
+            onToggle={() => setSectionCollapsed("content", !isCollapsed("content"))}
+            registerRef={registerSectionRef("content")}
+          >
+            <div className="px-[14px] py-[8px] flex flex-col gap-3">
+              <ComponentProps displayName={dn} props={selected.props} setProp={setProp} />
+            </div>
+          </InspectSection>
         )}
       </div>
     </div>
   );
 }
 
-// ─── StyleTab ─────────────────────────────────────────────────────────────────
-function StyleTab({
+// ─── Style section ────────────────────────────────────────────────────────────
+function StyleSection({
   dn,
   isArtboard,
   isMultiSelect,
@@ -3144,22 +3262,13 @@ function StyleTab({
   );
 }
 
-// ─── LayoutTab ────────────────────────────────────────────────────────────────
-function LayoutTab({
+// ─── Layout section (size, position, multi-select geometry actions) ──────────
+function LayoutSection({
   dn,
   isArtboard,
   isRoot,
-  isFlexContainer,
-  supportsDirection,
-  supportsPadding,
   isMultiSelect,
   selected,
-  direction,
-  alignOptions,
-  justifyOptions,
-  widthDefault,
-  heightDefault,
-  activeSpacing,
   sharedValue,
   sharedProp,
   setProp,
@@ -3174,17 +3283,8 @@ function LayoutTab({
   dn: string;
   isArtboard: boolean;
   isRoot: boolean;
-  isFlexContainer: boolean;
-  supportsDirection: boolean;
-  supportsPadding: boolean;
   isMultiSelect: boolean;
   selected: SelectedNode;
-  direction: string;
-  alignOptions: LayoutOption[];
-  justifyOptions: LayoutOption[];
-  widthDefault: number | "auto";
-  heightDefault: number | "auto";
-  activeSpacing: { label: string; gap: number; padding: number } | undefined;
   sharedValue: (key: string) => any;
   sharedProp: (key: string) => any;
   setProp: (key: string, value: any) => void;
@@ -3255,103 +3355,6 @@ function LayoutTab({
           />
         )}
       </IpGroup>
-
-      {/* STACK (flex containers) */}
-      {!isMultiSelect && isFlexContainer && (
-        <IpGroup eyebrow="STACK">
-          {supportsDirection && (
-            <PillRow
-              label="Direction"
-              options={[
-                { value: "column", label: "Column" },
-                { value: "row", label: "Row" },
-              ]}
-              value={direction}
-              onChange={(v) => setProp("direction", v)}
-            />
-          )}
-          <PillRow
-            label="Align"
-            options={alignOptions.map((o) => ({
-              value: o.value,
-              label: o.value.charAt(0).toUpperCase() + o.value.slice(1),
-            }))}
-            value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
-            onChange={(v) => setProp("align", v)}
-          />
-          <SelectRow
-            label="Justify"
-            options={justifyOptions.map((o) => ({
-              value: o.value,
-              label:
-                o.value === "between"
-                  ? "Space between"
-                  : o.value === "around"
-                  ? "Space around"
-                  : o.value.charAt(0).toUpperCase() + o.value.slice(1),
-            }))}
-            value={selected.props.justify ?? "start"}
-            onChange={(v) => setProp("justify", v)}
-          />
-          {!isRoot && (
-            <PillRow
-              label="Wrap"
-              options={[
-                { value: "nowrap", label: "No wrap" },
-                { value: "wrap", label: "Wrap" },
-                { value: "wrap-reverse", label: "Reverse" },
-              ]}
-              value={selected.props.wrap ?? "nowrap"}
-              onChange={(v) => setProp("wrap", v)}
-            />
-          )}
-        </IpGroup>
-      )}
-
-      {/* SPACING */}
-      {!isMultiSelect && isFlexContainer && supportsPadding && (
-        <IpGroup eyebrow="SPACING" note="presets set gap + padding">
-          <PillRow
-            options={DENSITY_PRESETS.map((p) => ({ value: p.label, label: p.label }))}
-            value={activeSpacing?.label ?? MIXED}
-            onChange={(label) => {
-              const preset = DENSITY_PRESETS.find((p) => p.label === label);
-              if (preset) {
-                setProp("gap", preset.gap);
-                setProp("padding", preset.padding);
-              }
-            }}
-          />
-          <NumberPairRow
-            label="Gap/Pad"
-            a={{
-              prefix: "GAP",
-              value: selected.props.gap ?? (isArtboard ? 16 : 8),
-              onChange: (v) => setProp("gap", v ?? 0),
-              min: 0,
-            }}
-            b={{
-              prefix: "PAD",
-              value: selected.props.padding ?? (isArtboard ? 24 : 16),
-              onChange: (v) => setProp("padding", v ?? 0),
-              min: 0,
-            }}
-          />
-        </IpGroup>
-      )}
-
-      {/* Stack containers without padding (Stack/HStack) still expose gap */}
-      {!isMultiSelect && isFlexContainer && !supportsPadding && (
-        <IpGroup eyebrow="SPACING">
-          <NumberRow
-            label="Gap"
-            prefix="GAP"
-            value={selected.props.gap ?? 8}
-            min={0}
-            onChange={(v) => setProp("gap", v ?? 0)}
-          />
-        </IpGroup>
-      )}
 
       {/* SCREENS — all-artboard multi-select align/distribute */}
       {isMultiSelect && artboardSelection.allArtboards && (
@@ -3453,6 +3456,144 @@ function LayoutTab({
           )}
         </IpGroup>
       )}
+    </div>
+  );
+}
+
+// ─── Stack section (direction / align / justify / wrap for flex containers) ──
+function StackSection({
+  dn,
+  isRoot,
+  supportsDirection,
+  selected,
+  direction,
+  alignOptions,
+  justifyOptions,
+  setProp,
+}: {
+  dn: string;
+  isRoot: boolean;
+  supportsDirection: boolean;
+  selected: SelectedNode;
+  direction: string;
+  alignOptions: LayoutOption[];
+  justifyOptions: LayoutOption[];
+  setProp: (key: string, value: any) => void;
+}) {
+  return (
+    <div>
+      <IpGroup>
+        {supportsDirection && (
+          <PillRow
+            label="Direction"
+            options={[
+              { value: "column", label: "Column" },
+              { value: "row", label: "Row" },
+            ]}
+            value={direction}
+            onChange={(v) => setProp("direction", v)}
+          />
+        )}
+        <PillRow
+          label="Align"
+          options={alignOptions.map((o) => ({
+            value: o.value,
+            label: o.value.charAt(0).toUpperCase() + o.value.slice(1),
+          }))}
+          value={selected.props.align ?? (dn === "AstryxHStack" ? "center" : "stretch")}
+          onChange={(v) => setProp("align", v)}
+        />
+        <SelectRow
+          label="Justify"
+          options={justifyOptions.map((o) => ({
+            value: o.value,
+            label:
+              o.value === "between"
+                ? "Space between"
+                : o.value === "around"
+                ? "Space around"
+                : o.value.charAt(0).toUpperCase() + o.value.slice(1),
+          }))}
+          value={selected.props.justify ?? "start"}
+          onChange={(v) => setProp("justify", v)}
+        />
+        {!isRoot && (
+          <PillRow
+            label="Wrap"
+            options={[
+              { value: "nowrap", label: "No wrap" },
+              { value: "wrap", label: "Wrap" },
+              { value: "wrap-reverse", label: "Reverse" },
+            ]}
+            value={selected.props.wrap ?? "nowrap"}
+            onChange={(v) => setProp("wrap", v)}
+          />
+        )}
+      </IpGroup>
+    </div>
+  );
+}
+
+// ─── Spacing section (density presets + gap/pad) ─────────────────────────────
+function SpacingSection({
+  isArtboard,
+  supportsPadding,
+  selected,
+  activeSpacing,
+  setProp,
+}: {
+  isArtboard: boolean;
+  supportsPadding: boolean;
+  selected: SelectedNode;
+  activeSpacing: { label: string; gap: number; padding: number } | undefined;
+  setProp: (key: string, value: any) => void;
+}) {
+  if (!supportsPadding) {
+    // Stack/HStack have no padding prop — only gap.
+    return (
+      <div>
+        <IpGroup>
+          <NumberRow
+            label="Gap"
+            prefix="GAP"
+            value={selected.props.gap ?? 8}
+            min={0}
+            onChange={(v) => setProp("gap", v ?? 0)}
+          />
+        </IpGroup>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <IpGroup note="presets set gap + padding">
+        <PillRow
+          options={DENSITY_PRESETS.map((p) => ({ value: p.label, label: p.label }))}
+          value={activeSpacing?.label ?? MIXED}
+          onChange={(label) => {
+            const preset = DENSITY_PRESETS.find((p) => p.label === label);
+            if (preset) {
+              setProp("gap", preset.gap);
+              setProp("padding", preset.padding);
+            }
+          }}
+        />
+        <NumberPairRow
+          label="Gap/Pad"
+          a={{
+            prefix: "GAP",
+            value: selected.props.gap ?? (isArtboard ? 16 : 8),
+            onChange: (v) => setProp("gap", v ?? 0),
+            min: 0,
+          }}
+          b={{
+            prefix: "PAD",
+            value: selected.props.padding ?? (isArtboard ? 24 : 16),
+            onChange: (v) => setProp("padding", v ?? 0),
+            min: 0,
+          }}
+        />
+      </IpGroup>
     </div>
   );
 }

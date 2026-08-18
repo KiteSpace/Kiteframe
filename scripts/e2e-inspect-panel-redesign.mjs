@@ -1,6 +1,7 @@
-// Real-browser verification for the inspect-panel redesign (task #622):
-// tabbed Style / Layout / Content panel with a 56px label gutter, breadcrumb
-// header, per-kind tab memory, and progressive disclosure of X/Y.
+// Real-browser verification for the single-pane properties panel (task #626):
+// five collapsible sections (Layout / Stack / Spacing / Style / Content) with
+// section index chips, collapse memory in localStorage, live collapsed
+// summaries, breadcrumb header, and progressive disclosure of X/Y.
 //
 //   CHROME_BIN=$(which chromium) node scripts/e2e-inspect-panel-redesign.mjs
 import pg from "pg";
@@ -11,8 +12,8 @@ const { Client } = pg;
 const client = new Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 
-const USER_ID = "e2e-task622-user";
-const EMAIL = "e2e-task622@example.com";
+const USER_ID = "e2e-task626-user";
+const EMAIL = "e2e-task626@example.com";
 
 await client.query(
   `INSERT INTO users (id, email, first_name, is_beta) VALUES ($1, $2, 'E2E', true)
@@ -49,7 +50,7 @@ const craftState = {
 
 const res = await client.query(
   `INSERT INTO designs (claimed_by_user_id, craft_state, title, source)
-   VALUES ($1, $2, 'E2E Task 622', 'native') RETURNING id`,
+   VALUES ($1, $2, 'E2E Task 626', 'native') RETURNING id`,
   [USER_ID, JSON.stringify(craftState)],
 );
 const designId = res.rows[0].id;
@@ -88,23 +89,36 @@ try { await page.locator('button:has-text("Necessary Only")').click({ timeout: 3
 await page.locator('button:text-is("Target")').click();
 await page.waitForTimeout(600);
 
-// ── Tab bar present with three tabs, Layout default for a component ──────────
+// ── No tab bar; section chips instead ────────────────────────────────────────
 const tablist = page.locator('[role="tablist"][aria-label="Inspector sections"]');
-check("tab bar rendered", (await tablist.count()) === 1);
-const tabNames = await tablist.locator('[role="tab"]').allInnerTexts();
-check("Style / Layout / Content tabs present", JSON.stringify(tabNames) === JSON.stringify(["Style", "Layout", "Content"]), tabNames.join(","));
+check("no tab bar remains", (await tablist.count()) === 0);
 
-// ── Layout tab: W/H fields, no X/Y until Absolute ───────────────────────────
-await tablist.locator('[role="tab"]:has-text("Layout")').click();
-await page.waitForTimeout(300);
-const hasW = await page.locator('input').evaluateAll((els) =>
+const nav = page.locator('[role="navigation"][aria-label="Inspector sections"]');
+check("section chip nav rendered", (await nav.count()) === 1);
+const chipNames = await nav.locator("button").allInnerTexts();
+// Button is not a flex container → Layout, Style, Content chips only.
+check(
+  "component chips are Layout / Style / Content (no Stack/Spacing)",
+  JSON.stringify(chipNames) === JSON.stringify(["Layout", "Style", "Content"]),
+  chipNames.join(","),
+);
+
+// ── All sections visible at once (single pane) ───────────────────────────────
+const visibleHeadings = await page.locator("[data-section] > button[aria-expanded]").allInnerTexts();
+check(
+  "Layout, Style and Content sections all present simultaneously",
+  ["LAYOUT", "STYLE", "CONTENT"].every((h) => visibleHeadings.some((t) => t.toUpperCase().includes(h))),
+  visibleHeadings.join(","),
+);
+
+// ── Layout section: W/H fields, no X/Y until Absolute ────────────────────────
+const hasW = await page.locator("input").evaluateAll((els) =>
   els.some((e) => e.parentElement?.textContent?.startsWith("W")));
-check("W field visible in Layout tab", hasW);
+check("W field visible in Layout section", hasW);
 const xVisibleBefore = await page.getByText("Offset", { exact: true }).count();
 check("X/Y hidden while position is In flow", xVisibleBefore === 0);
 
-// Switch position to Absolute → X/Y appears.
-const positionSelect = page.locator('select').filter({ has: page.locator('option:has-text("Absolute")') }).first();
+const positionSelect = page.locator("select").filter({ has: page.locator('option:has-text("Absolute")') }).first();
 if (await positionSelect.count()) {
   await positionSelect.selectOption({ label: "Absolute" });
   await page.waitForTimeout(300);
@@ -112,33 +126,34 @@ if (await positionSelect.count()) {
   check("X/Y appears once position is Absolute", xVisibleAfter === 1);
 }
 
-// ── Style tab: Fill + Radius pills ──────────────────────────────────────────
-await tablist.locator('[role="tab"]:has-text("Style")').click();
-await page.waitForTimeout(300);
+// ── Style section: Fill + Radius pills, no tab switch needed ─────────────────
 const fillLabel = await page.getByText("Fill", { exact: true }).count();
-check("Style tab shows Fill row", fillLabel >= 1);
+check("Style section shows Fill row (no tab switch)", fillLabel >= 1);
 const radiusPills = await page.locator('[role="radiogroup"][aria-label="Radius"] [role="radio"]').count();
 check("Radius pill group has five options", radiusPills === 5, `count=${radiusPills}`);
 
-await page.screenshot({ path: "/tmp/e2e-622-inspect-style.png" });
-
-// ── Content tab: component props ────────────────────────────────────────────
-await tablist.locator('[role="tab"]:has-text("Content")').click();
+// ── Collapse: toggle Style closed → summary appears; persists in localStorage ─
+const styleToggle = page.locator('[data-section="style"] > button[aria-expanded]');
+await styleToggle.click();
 await page.waitForTimeout(300);
-await page.screenshot({ path: "/tmp/e2e-622-inspect-content.png" });
+check("Style section collapses", (await styleToggle.getAttribute("aria-expanded")) === "false");
+const summary = await page.locator('[data-testid="section-summary-style"]').count();
+check("collapsed Style shows a live summary", summary === 1);
+const stored = await page.evaluate(() => localStorage.getItem("kiteframe.inspect.collapse"));
+check("collapse state persisted to kiteframe.inspect.collapse", !!stored && stored.includes("style"), stored ?? "null");
 
-// ── Shadow + opacity actually render on the canvas ──────────────────────────
-// (Style tab is still active for the button from the earlier section.)
-await page.locator('button:text-is("Target")').click();
-await page.waitForTimeout(400);
-await tablist.locator('[role="tab"]:has-text("Style")').click();
-await page.waitForTimeout(300);
+// ── Chip click on collapsed section re-expands + scrolls ─────────────────────
+await page.locator('[data-testid="section-chip-style"]').click();
+await page.waitForTimeout(600);
+check("chip click re-expands the collapsed Style section", (await styleToggle.getAttribute("aria-expanded")) === "true");
+
+await page.screenshot({ path: "/tmp/e2e-626-inspect-sections.png" });
+
+// ── Shadow + opacity actually render on the canvas ───────────────────────────
 const shadowSelect = page.locator("select").filter({ has: page.locator('option:has-text("Raised")') }).first();
 await shadowSelect.selectOption({ label: "Raised" });
 await page.waitForTimeout(400);
 const btnShadow = await page.evaluate(() => {
-  // The shadow is applied on the craft wrapper (the connected element), an
-  // ancestor div that shrink-wraps the button — walk up until we find it.
   let el = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Target");
   for (let i = 0; el && i < 4; i++) {
     const s = getComputedStyle(el).boxShadow;
@@ -155,7 +170,6 @@ await opacityInput.press("Control+a");
 await opacityInput.pressSequentially("40", { delay: 60 });
 await page.waitForTimeout(400);
 const btnOpacity = await page.evaluate(() => {
-  // Opacity also lives on the craft wrapper; walk up to the first non-1 value.
   let el = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Target");
   for (let i = 0; el && i < 4; i++) {
     const o = getComputedStyle(el).opacity;
@@ -166,23 +180,49 @@ const btnOpacity = await page.evaluate(() => {
 });
 check("Opacity=40 renders at 0.4", Math.abs(Number(btnOpacity) - 0.4) < 0.01, `opacity=${btnOpacity}`);
 
-// ── Artboard selection: no Content tab, rename from inspector ───────────────
-await page.locator('text=Screen 1').first().click();
-await page.waitForTimeout(600);
-const artboardTabs = await page.locator('[role="tablist"][aria-label="Inspector sections"] [role="tab"]').allInnerTexts();
-check("artboard has Style + Layout only (no Content)", JSON.stringify(artboardTabs) === JSON.stringify(["Style", "Layout"]), artboardTabs.join(","));
+// ── Collapse memory is per node kind ─────────────────────────────────────────
+// Collapse the component's Layout section, then select the artboard: its
+// Layout section (kind=artboard) must stay expanded.
+const layoutToggle = page.locator('[data-section="layout"] > button[aria-expanded]');
+await layoutToggle.click();
+await page.waitForTimeout(300);
+check("component Layout collapses", (await layoutToggle.getAttribute("aria-expanded")) === "false");
 
-// Rename via the Style tab's Name field (artboards have no Content tab).
-const nameInput = page.locator('#ip-artboard-name');
-check("artboard Name field present in Style tab", (await nameInput.count()) === 1);
+// ── Artboard selection: no Content chip, Stack/Spacing present, rename ───────
+await page.locator("text=Screen 1").first().click();
+await page.waitForTimeout(600);
+const artboardChips = await nav.locator("button").allInnerTexts();
+check(
+  "artboard chips are Layout / Stack / Spacing / Style (no Content)",
+  JSON.stringify(artboardChips) === JSON.stringify(["Layout", "Stack", "Spacing", "Style"]),
+  artboardChips.join(","),
+);
+check(
+  "artboard Layout stays expanded (collapse memory is per kind)",
+  (await page.locator('[data-section="layout"] > button[aria-expanded]').getAttribute("aria-expanded")) === "true",
+);
+
+// Rename via the Style section's Name field (artboards have no Content section).
+const nameInput = page.locator("#ip-artboard-name");
+check("artboard Name field present in Style section", (await nameInput.count()) === 1);
 await nameInput.click();
 await nameInput.press("Control+a");
 await nameInput.pressSequentially("Login screen", { delay: 40 });
 await page.waitForTimeout(400);
-const renamed = await page.locator('text=Login screen').count();
+const renamed = await page.locator("text=Login screen").count();
 check("artboard label on canvas follows the Name field", renamed >= 1, `count=${renamed}`);
 
-await page.screenshot({ path: "/tmp/e2e-622-inspect-artboard.png" });
+await page.screenshot({ path: "/tmp/e2e-626-inspect-artboard.png" });
+
+// ── Reload: collapse memory survives ─────────────────────────────────────────
+await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+await page.waitForTimeout(1500);
+await page.locator('button:text-is("Target")').click();
+await page.waitForTimeout(600);
+check(
+  "component Layout still collapsed after reload",
+  (await page.locator('[data-section="layout"] > button[aria-expanded]').getAttribute("aria-expanded")) === "false",
+);
 
 await browser.close();
 const failed = results.filter((r) => !r.ok);

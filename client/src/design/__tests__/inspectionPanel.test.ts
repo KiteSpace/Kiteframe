@@ -1,11 +1,11 @@
 /**
- * Inspection-panel contract tests.
+ * Inspection-panel contract tests — single-pane edition.
  *
  * The panel is intentionally kept private to DesignEditor because it is only
  * rendered as part of the editor. These tests guard the user-facing structure
  * of that private panel at the source boundary so a redesign cannot quietly
- * drop the tab structure, break progressive disclosure, or reintroduce
- * duplicate controls.
+ * drop the section structure, break progressive disclosure, lose collapse
+ * memory, or reintroduce duplicate controls.
  */
 
 import fs from "fs";
@@ -22,10 +22,10 @@ const componentPropsSource = editorSource.slice(
   editorSource.indexOf("// ─── Inspect panel"),
 );
 
-// The inspect panel now spans its token/kind constants, InspectPanel, and the
-// StyleTab / LayoutTab sub-components, up to the node-icon mapping that follows.
+// The inspect panel spans its section/kind constants, InspectPanel, and the
+// section sub-components, up to the node-icon mapping that follows.
 const inspectPanelSource = editorSource.slice(
-  editorSource.indexOf("// ─── Inspect panel: node-kind → tabs"),
+  editorSource.indexOf("// ─── Inspect panel: single-pane sections"),
   editorSource.indexOf("// ─── Node type → display icon mapping"),
 );
 
@@ -34,49 +34,98 @@ const rowsSource = fs.readFileSync(
   "utf8",
 );
 
-describe("inspect panel tab structure", () => {
-  it("renders Style / Layout / Content tabs from a per-kind tab model", () => {
-    // The tab labels and the node-kind → tabs mapping both exist.
-    expect(inspectPanelSource).toContain("TABS_BY_KIND");
-    expect(inspectPanelSource).toContain('role="tablist"');
-    expect(inspectPanelSource).toContain('role="tab"');
-    expect(inspectPanelSource).toContain("aria-selected={isActive}");
-    // Style, Layout, Content labels.
-    expect(inspectPanelSource).toContain("style: \"Style\"");
-    expect(inspectPanelSource).toContain("layout: \"Layout\"");
-    expect(inspectPanelSource).toContain("content: \"Content\"");
-  });
-
-  it("remembers the active tab per node kind and falls back to the first available", () => {
-    expect(inspectPanelSource).toContain("tabByKind");
-    // Fall back to the first available tab when the remembered one is gone.
-    expect(inspectPanelSource).toContain("availableTabs.includes(remembered)");
-    expect(inspectPanelSource).toContain("availableTabs[0]");
-  });
-
-  it("gives artboards Style + Layout only — no Content tab", () => {
-    expect(inspectPanelSource).toContain('artboard: ["style", "layout"]');
-  });
-
-  it("supports arrow-key navigation between tabs", () => {
-    expect(inspectPanelSource).toContain('"ArrowRight"');
-    expect(inspectPanelSource).toContain('"ArrowLeft"');
-    expect(inspectPanelSource).toContain("onTabKeyDown");
-  });
-
-  it("routes each tab to its dedicated sub-component", () => {
-    expect(inspectPanelSource).toContain('activeTab === "style"');
-    expect(inspectPanelSource).toContain('activeTab === "layout"');
-    expect(inspectPanelSource).toContain('activeTab === "content"');
-    expect(inspectPanelSource).toContain("<StyleTab");
-    expect(inspectPanelSource).toContain("<LayoutTab");
-  });
-
-  it("renders the Content tab from the existing ComponentProps dispatcher", () => {
-    // The Content tab wraps ComponentProps rather than re-implementing it.
-    expect(inspectPanelSource).toMatch(
-      /activeTab === "content"[\s\S]{0,300}<ComponentProps/,
+describe("single-pane section structure", () => {
+  it("declares the five sections in fixed order", () => {
+    expect(inspectPanelSource).toContain(
+      'type SectionId = "layout" | "stack" | "spacing" | "style" | "content"',
     );
+    expect(inspectPanelSource).toContain('layout: "Layout"');
+    expect(inspectPanelSource).toContain('stack: "Stack"');
+    expect(inspectPanelSource).toContain('spacing: "Spacing"');
+    expect(inspectPanelSource).toContain('style: "Style"');
+    expect(inspectPanelSource).toContain('content: "Content"');
+  });
+
+  it("renders every section through the shared InspectSection collapsible", () => {
+    expect(inspectPanelSource).toContain("function InspectSection");
+    // Toggle exposes its state accessibly.
+    expect(inspectPanelSource).toContain("aria-expanded={!collapsed}");
+    // Each of the five sections is mounted through it.
+    for (const sid of ["layout", "stack", "spacing", "style", "content"]) {
+      expect(inspectPanelSource, `section ${sid}`).toContain(`id="${sid}"`);
+    }
+    expect(inspectPanelSource).toContain("<LayoutSection");
+    expect(inspectPanelSource).toContain("<StackSection");
+    expect(inspectPanelSource).toContain("<SpacingSection");
+    expect(inspectPanelSource).toContain("<StyleSection");
+  });
+
+  it("no longer renders a tab model", () => {
+    expect(inspectPanelSource).not.toContain("TABS_BY_KIND");
+    expect(inspectPanelSource).not.toContain('role="tablist"');
+    expect(inspectPanelSource).not.toContain("activeTab");
+  });
+
+  it("gives artboards no Content section and no Content chip", () => {
+    // Content is appended only for non-artboard kinds.
+    expect(inspectPanelSource).toMatch(
+      /if \(kind !== "artboard"\) list\.push\("content"\)/,
+    );
+  });
+
+  it("shows stack/spacing sections only for flex containers", () => {
+    expect(inspectPanelSource).toMatch(
+      /if \(isFlexContainer\) list\.push\("stack", "spacing"\)/,
+    );
+  });
+
+  it("renders the Content section from the existing ComponentProps dispatcher", () => {
+    expect(inspectPanelSource).toMatch(
+      /id="content"[\s\S]{0,700}<ComponentProps/,
+    );
+  });
+});
+
+describe("collapse memory", () => {
+  it("persists collapse state per node kind under kiteframe.inspect.collapse", () => {
+    expect(inspectPanelSource).toContain('"kiteframe.inspect.collapse"');
+    expect(inspectPanelSource).toContain("readCollapsePrefs");
+    expect(inspectPanelSource).toContain("writeCollapsePrefs");
+    // Keyed by node kind, then section.
+    expect(inspectPanelSource).toContain("collapsePrefs[kind]?.[sid]");
+  });
+
+  it("survives corrupt localStorage without crashing", () => {
+    expect(inspectPanelSource).toMatch(/function readCollapsePrefs[\s\S]{0,300}catch/);
+  });
+
+  it("shows a live one-line summary only while collapsed", () => {
+    expect(inspectPanelSource).toContain("{collapsed && summary && (");
+    expect(inspectPanelSource).toContain("sectionSummaries");
+    // Summaries cover the collapsible value groups.
+    expect(inspectPanelSource).toContain("layout: `${w} × ${h}`");
+    expect(inspectPanelSource).toContain("spacing: `${gap} / ${pad}`");
+  });
+});
+
+describe("section index chips", () => {
+  it("renders one chip per available section and marks the current one", () => {
+    expect(inspectPanelSource).toContain('aria-label="Inspector sections"');
+    expect(inspectPanelSource).toContain("availableSections.map((sid)");
+    expect(inspectPanelSource).toContain('aria-current={isCurrent ? "true" : undefined}');
+    expect(inspectPanelSource).toContain("section-chip-");
+  });
+
+  it("expands a collapsed section before scrolling to it on chip click", () => {
+    expect(inspectPanelSource).toMatch(
+      /onChipClick[\s\S]{0,300}if \(isCollapsed\(sid\)\) setSectionCollapsed\(sid, false\)/,
+    );
+    expect(inspectPanelSource).toContain("scrollIntoView");
+  });
+
+  it("tracks the scrolled-to section to highlight the current chip", () => {
+    expect(inspectPanelSource).toContain("setActiveSection(current)");
+    expect(inspectPanelSource).toMatch(/addEventListener\("scroll", onScroll/);
   });
 });
 
@@ -101,7 +150,7 @@ describe("inspect panel header", () => {
   });
 });
 
-describe("layout tab controls", () => {
+describe("layout section controls", () => {
   it("keeps W/H editing wired to width/height props via a paired number row", () => {
     expect(inspectPanelSource).toContain('setProp("width", v)');
     expect(inspectPanelSource).toContain('setProp("height", v)');
@@ -117,6 +166,21 @@ describe("layout tab controls", () => {
     expect(inspectPanelSource).toMatch(/isAbsolute &&[\s\S]{0,200}prefix: "X"/);
   });
 
+  it("keeps artboard align + distribute actions in the SCREENS group", () => {
+    expect(inspectPanelSource).toContain('eyebrow="SCREENS"');
+    expect(inspectPanelSource).toContain("applyArtboardAlign");
+    expect(inspectPanelSource).toContain("applyArtboardDistribute");
+    expect(inspectPanelSource).toContain('data-testid="artboard-align-panel"');
+    expect(inspectPanelSource).toContain('data-testid="artboard-distribute-horizontal"');
+  });
+
+  it("keeps equal-width / equal-height actions for element multi-select", () => {
+    expect(inspectPanelSource).toContain("makeEqualWidths");
+    expect(inspectPanelSource).toContain("makeEqualHeights");
+  });
+});
+
+describe("stack + spacing section controls", () => {
   it("uses word-label pills for Direction, Align and Wrap and a select for Justify", () => {
     expect(inspectPanelSource).toContain('label="Direction"');
     expect(inspectPanelSource).toContain('label="Align"');
@@ -135,21 +199,12 @@ describe("layout tab controls", () => {
     expect(inspectPanelSource).toContain('setProp("padding", preset.padding)');
   });
 
-  it("keeps artboard align + distribute actions in the SCREENS group", () => {
-    expect(inspectPanelSource).toContain('eyebrow="SCREENS"');
-    expect(inspectPanelSource).toContain("applyArtboardAlign");
-    expect(inspectPanelSource).toContain("applyArtboardDistribute");
-    expect(inspectPanelSource).toContain('data-testid="artboard-align-panel"');
-    expect(inspectPanelSource).toContain('data-testid="artboard-distribute-horizontal"');
-  });
-
-  it("keeps equal-width / equal-height actions for element multi-select", () => {
-    expect(inspectPanelSource).toContain("makeEqualWidths");
-    expect(inspectPanelSource).toContain("makeEqualHeights");
+  it("still exposes gap alone for padding-less stacks", () => {
+    expect(inspectPanelSource).toMatch(/if \(!supportsPadding\)[\s\S]{0,500}label="Gap"/);
   });
 });
 
-describe("style tab controls", () => {
+describe("style section controls", () => {
   it("presents Fill and Text colour through ColorRow + a curated SwatchRow", () => {
     expect(inspectPanelSource).toContain("<ColorRow");
     expect(inspectPanelSource).toContain("<SwatchRow");
@@ -183,11 +238,24 @@ describe("style tab controls", () => {
     expect(inspectPanelSource).toContain("ArtboardBackgroundPicker");
   });
 
-  it("lets artboards be renamed from Style (they have no Content tab)", () => {
+  it("lets artboards be renamed from Style (they have no Content section)", () => {
     expect(inspectPanelSource).toContain('setProp("label", e.target.value)');
     expect(inspectPanelSource).toContain('aria-label="Artboard name"');
     // Empty names fall back to the default instead of persisting "".
     expect(inspectPanelSource).toContain('setProp("label", "Artboard")');
+  });
+});
+
+describe("multi-select behavior", () => {
+  it("limits multi-select to Layout + Style sections", () => {
+    expect(inspectPanelSource).toMatch(
+      /if \(isMultiSelect\) return \["layout", "style"\]/,
+    );
+  });
+
+  it("writes absolute values to every selected node in one history entry", () => {
+    expect(inspectPanelSource).toContain("actions.history.throttle(0)");
+    expect(inspectPanelSource).toContain("targetIds.forEach");
   });
 });
 
