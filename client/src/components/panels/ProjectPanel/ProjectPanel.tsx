@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearch } from 'wouter';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, StickyNote, AlertTriangle, MessageCircle } from 'lucide-react';
+import { ListTree, ClipboardList, ChevronLeft, ChevronRight, Sparkles, AlertTriangle, MessageCircle } from 'lucide-react';
 import { KiteAITab } from './KiteAITab';
 import { ProjectDocTab } from './ProjectDocTab';
 import { LayersTab } from './LayersTab';
-import { NotesTab } from './NotesTab';
 import { DiagnosticsTab } from './DiagnosticsTab';
 import { CommentsTab } from './CommentsTab';
 import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
@@ -15,11 +15,14 @@ import type { SketchStroke } from '@/components/SketchCanvas';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
 
-export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'comments' | 'diagnostics';
+export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'comments' | 'diagnostics';
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
 const PANEL_WIDTH_KEY = 'kiteframe-project-panel-width';
+
+/** Query parameter that makes a panel directly linkable. */
+const PANEL_QUERY_PARAM = 'panel';
 
 const MIN_PANEL_WIDTH = 400;
 const MAX_PANEL_WIDTH = 800;
@@ -28,6 +31,12 @@ const DEFAULT_PANEL_WIDTH = 600;
 // the rail is only clamped against constants, so a stored 800px width on a
 // narrow window pushes the rail's right edge past the viewport.
 const MIN_CANVAS_WIDTH = 320;
+
+// Above this rail width every tab shows its label; below it only the active tab
+// is labelled and the rest fall back to icons with tooltips. Measured against
+// the rail itself rather than the window, because the rail is user-resizable
+// and a media query would describe the wrong element entirely.
+const WIDE_RAIL_BREAKPOINT = 480;
 
 function clampPanelWidth(width: number): number {
   const fallback = Number.isFinite(width) ? width : DEFAULT_PANEL_WIDTH;
@@ -92,14 +101,30 @@ interface ProjectPanelProps {
   generationMode?: 'workflow' | 'design';
 }
 
-const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string }[] = [
-  { id: 'kite-ai', icon: Sparkles, label: 'KiteAI' },
-  { id: 'project', icon: ClipboardList, label: 'Project' },
-  { id: 'layers', icon: ListTree, label: 'Layers' },
-  { id: 'notes', icon: StickyNote, label: 'Notes' },
-  { id: 'comments', icon: MessageCircle, label: 'Comments' },
-  { id: 'diagnostics', icon: AlertTriangle, label: 'Insights' }
+const tabConfig: { id: ProjectPanelTab; icon: typeof Sparkles; label: string; testId: string }[] = [
+  { id: 'kite-ai', icon: Sparkles, label: 'KiteAI', testId: 'tab-kite-ai' },
+  { id: 'project', icon: ClipboardList, label: 'Project', testId: 'tab-project' },
+  { id: 'layers', icon: ListTree, label: 'Layers', testId: 'tab-layers' },
+  { id: 'comments', icon: MessageCircle, label: 'Comments', testId: 'tab-comments' },
+  { id: 'diagnostics', icon: AlertTriangle, label: 'Insights', testId: 'tab-insights' },
 ];
+
+const DEFAULT_TAB: ProjectPanelTab = 'kite-ai';
+
+function isPanelTab(value: string | null | undefined): value is ProjectPanelTab {
+  return !!value && tabConfig.some(t => t.id === value);
+}
+
+/**
+ * Notes used to be its own tab; it is now a section of the Project tab. Anyone
+ * whose last session ended on Notes has 'notes' in localStorage, and an
+ * unrecognised value would silently bounce them to KiteAI — so translate it to
+ * where the content actually lives now.
+ */
+function migrateStoredTab(stored: string | null): ProjectPanelTab | null {
+  if (stored === 'notes') return 'project';
+  return isPanelTab(stored) ? stored : null;
+}
 
 export function ProjectPanel({ 
   nodes, 
@@ -147,19 +172,24 @@ export function ProjectPanel({
 }: ProjectPanelProps) {
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  
-  const getStoredTab = (): ProjectPanelTab => {
-    if (typeof window === 'undefined') return 'kite-ai';
+  const search = useSearch();
+
+  // A ?panel= link is an explicit instruction and outranks the tab the user
+  // happened to leave open last time.
+  const getInitialTab = (): ProjectPanelTab => {
+    if (typeof window === 'undefined') return DEFAULT_TAB;
     try {
-      const saved = localStorage.getItem(PANEL_ACTIVE_TAB_KEY);
-      if (saved && tabConfig.some(t => t.id === saved)) {
-        return saved as ProjectPanelTab;
-      }
+      const fromUrl = new URLSearchParams(search || window.location.search).get(PANEL_QUERY_PARAM);
+      if (isPanelTab(fromUrl)) return fromUrl;
     } catch {}
-    return 'kite-ai';
+    try {
+      const stored = migrateStoredTab(localStorage.getItem(PANEL_ACTIVE_TAB_KEY));
+      if (stored) return stored;
+    } catch {}
+    return DEFAULT_TAB;
   };
 
-  const [activeTab, setActiveTab] = useState<ProjectPanelTab>(() => getStoredTab());
+  const [activeTab, setActiveTab] = useState<ProjectPanelTab>(getInitialTab);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem(PANEL_COLLAPSED_KEY);
@@ -176,6 +206,27 @@ export function ProjectPanel({
     }
   });
   const [isResizing, setIsResizing] = useState(false);
+  const [isWide, setIsWide] = useState(() => DEFAULT_PANEL_WIDTH >= WIDE_RAIL_BREAKPOINT);
+
+  /**
+   * Panes stay mounted once visited, so returning to a tab restores its scroll
+   * position and any half-typed message instead of rebuilding it from scratch.
+   *
+   * They are mounted lazily rather than all at once: Comments opens a websocket
+   * and Layers spawns a worker on mount, and a pane mounted while hidden also
+   * measures itself as zero-sized. Mounting on first visit avoids paying either
+   * cost for tabs the user never opens.
+   *
+   * Project is seeded because it was already permanently mounted before this
+   * rewrite (the view-only viewer seeds its storage and expects it present).
+   */
+  const [mountedTabs, setMountedTabs] = useState<Set<ProjectPanelTab>>(
+    () => new Set<ProjectPanelTab>(['project', getInitialTab()]),
+  );
+
+  useEffect(() => {
+    setMountedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
+  }, [activeTab]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -187,6 +238,30 @@ export function ProjectPanel({
     if (!activeTab) return;
     try {
       localStorage.setItem(PANEL_ACTIVE_TAB_KEY, activeTab);
+    } catch {}
+  }, [activeTab]);
+
+  /**
+   * Mirror the open tab into ?panel= so the view can be linked and survives a
+   * reload.
+   *
+   * The first render is deliberately skipped: the tab has not changed yet, and
+   * writing on mount would race the editor's own startup replaceState (it
+   * strips ?fromChat there). Existing parameters are preserved by rebuilding
+   * from the live URL on every write rather than from a captured copy.
+   */
+  const hasSyncedUrl = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!hasSyncedUrl.current) {
+      hasSyncedUrl.current = true;
+      return;
+    }
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(PANEL_QUERY_PARAM) === activeTab) return;
+      url.searchParams.set(PANEL_QUERY_PARAM, activeTab);
+      window.history.replaceState(window.history.state, '', url.toString());
     } catch {}
   }, [activeTab]);
 
@@ -240,6 +315,26 @@ export function ProjectPanel({
     };
   }, []);
 
+  /**
+   * Decide label visibility from the rail's own measured width. Reading the
+   * width state instead would miss the collapsed/expanded transition and any
+   * width the rail takes from its container rather than from the drag handle.
+   */
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(entries => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      // A collapsed rail reports ~0 and must not flip the tab row to narrow
+      // mode, or the labels visibly re-flow on every expand.
+      if (width === 0) return;
+      setIsWide(width >= WIDE_RAIL_BREAKPOINT);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isCollapsed]);
+
   useEffect(() => {
     if (forceTab) {
       setActiveTab(forceTab);
@@ -249,7 +344,8 @@ export function ProjectPanel({
     }
   }, [forceTab]);
 
-  const activeInsightCount = insights.filter(i => i.status !== 'dismissed').length;
+  const selectTab = useCallback((tab: ProjectPanelTab) => setActiveTab(tab), []);
+
   const newInsightCount = insights.filter(i => i.status === 'new').length;
 
   return (
@@ -286,7 +382,7 @@ export function ProjectPanel({
                       size="icon"
                       className={`h-8 w-8 ${id === 'kite-ai' ? 'text-purple-500' : ''}`}
                       onClick={() => {
-                        setActiveTab(id);
+                        selectTab(id);
                         setIsCollapsed(false);
                       }}
                       data-testid={`collapsed-tab-${id}`}
@@ -303,9 +399,10 @@ export function ProjectPanel({
       )}
     <div 
       ref={panelRef}
-      className={`h-full border-l border-border bg-card flex flex-col flex-shrink-0 relative ${isCollapsed ? 'hidden' : ''}`}
+      className={`kf-project-panel h-full border-l border-border bg-card flex flex-col flex-shrink-0 relative ${isWide ? 'is-wide' : ''} ${isCollapsed ? 'hidden' : ''}`}
       style={{ width: `${panelWidth}px` }}
       data-testid="project-panel"
+      data-rail-wide={isWide ? 'true' : 'false'}
     >
       <div
         ref={resizeRef}
@@ -316,7 +413,7 @@ export function ProjectPanel({
       >
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-border group-hover:bg-primary transition-colors" />
       </div>
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectPanelTab)} className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={(v) => selectTab(v as ProjectPanelTab)} className="flex flex-col h-full">
         <div className="border-b border-border flex items-center">
           <Button 
             variant="ghost" 
@@ -328,66 +425,55 @@ export function ProjectPanel({
             <ChevronRight size={16} />
           </Button>
           <ScrollArea className="flex-1">
-            <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1 bg-transparent">
-              <TabsTrigger 
-                value="kite-ai" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background data-[state=active]:text-purple-500" 
-                data-testid="tab-kite-ai"
-              >
-                <Sparkles size={14} className="text-purple-500" />
-                KiteAI
-              </TabsTrigger>
-              <TabsTrigger 
-                value="project" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-project"
-              >
-                <ClipboardList size={14} />
-                Project
-              </TabsTrigger>
-              <TabsTrigger 
-                value="layers" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-layers"
-              >
-                <ListTree size={14} />
-                Layers
-              </TabsTrigger>
-              <TabsTrigger 
-                value="notes" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-notes"
-              >
-                <StickyNote size={14} />
-                Notes
-              </TabsTrigger>
-              <TabsTrigger 
-                value="comments" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background" 
-                data-testid="tab-comments"
-              >
-                <MessageCircle size={14} />
-                Comments
-              </TabsTrigger>
-              <TabsTrigger 
-                value="diagnostics" 
-                className="text-xs px-3 gap-1.5 data-[state=active]:bg-background relative" 
-                data-testid="tab-insights"
-              >
-                <AlertTriangle size={14} className={newInsightCount > 0 ? 'text-purple-500' : ''} />
-                Insights
-                {newInsightCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-purple-500 text-white flex items-center justify-center">
-                    {newInsightCount > 9 ? '9+' : newInsightCount}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
+            <TooltipProvider delayDuration={100}>
+              <TabsList className="inline-flex h-10 w-max min-w-full p-1 gap-1 bg-transparent">
+                {tabConfig.map(({ id, icon: Icon, label, testId }) => {
+                  const isActive = activeTab === id;
+                  // The active tab always keeps its label so the rail never
+                  // becomes an unlabelled row of icons at minimum width.
+                  const showLabel = isWide || isActive;
+                  const trigger = (
+                    <TabsTrigger
+                      value={id}
+                      // Grey pill, never brand colour — the violet is reserved
+                      // for the KiteAI icon so it reads as one accent, not as
+                      // "this tab is selected".
+                      className={`text-xs gap-1.5 relative data-[state=active]:bg-accent data-[state=active]:text-accent-foreground ${showLabel ? 'px-3' : 'px-2'}`}
+                      data-testid={testId}
+                      data-tip={showLabel ? undefined : label}
+                      aria-label={label}
+                    >
+                      <Icon size={14} className={id === 'kite-ai' ? 'text-purple-500' : ''} />
+                      {showLabel && label}
+                      {id === 'diagnostics' && newInsightCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                          {newInsightCount > 9 ? '9+' : newInsightCount}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  );
+
+                  // Only unlabelled tabs need a tooltip to stay identifiable.
+                  return showLabel ? (
+                    <span key={id} className="contents">{trigger}</span>
+                  ) : (
+                    <Tooltip key={id}>
+                      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+                      <TooltipContent side="bottom">{label}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </TabsList>
+            </TooltipProvider>
             <ScrollBar orientation="horizontal" className="h-1.5" />
           </ScrollArea>
         </div>
-        
-        <TabsContent value="kite-ai" className="flex-1 m-0 overflow-hidden">
+
+        <TabsContent
+          value="kite-ai"
+          forceMount={mountedTabs.has('kite-ai') ? true : undefined}
+          className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden"
+        >
           <KiteAITab
             key={projectId || 'default'}
             projectId={projectId || 'default'}
@@ -424,7 +510,11 @@ export function ProjectPanel({
           />
         </TabsContent>
         
-        <TabsContent value="layers" className="flex-1 m-0 overflow-hidden">
+        <TabsContent
+          value="layers"
+          forceMount={mountedTabs.has('layers') ? true : undefined}
+          className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden"
+        >
           <LayersTab
             key={projectId || 'default'}
             nodes={nodes} 
@@ -438,15 +528,11 @@ export function ProjectPanel({
           />
         </TabsContent>
         
-        <TabsContent value="notes" className="flex-1 m-0 overflow-hidden">
-          <NotesTab
-            key={projectId || 'default'}
-            projectId={projectId}
-            isReadOnly={isReadOnly}
-          />
-        </TabsContent>
-        
-        <TabsContent value="comments" className="flex-1 m-0 overflow-hidden">
+        <TabsContent
+          value="comments"
+          forceMount={mountedTabs.has('comments') ? true : undefined}
+          className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden"
+        >
           <CommentsTab
             key={commentWorkflowId || 'default'}
             workflowId={commentWorkflowId}
@@ -454,7 +540,11 @@ export function ProjectPanel({
           />
         </TabsContent>
 
-        <TabsContent value="diagnostics" className="flex-1 m-0 overflow-hidden">
+        <TabsContent
+          value="diagnostics"
+          forceMount={mountedTabs.has('diagnostics') ? true : undefined}
+          className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden"
+        >
           <DiagnosticsTab
             key={projectId || 'default'}
             insights={insights}

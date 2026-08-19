@@ -579,7 +579,7 @@ export default function ViewOnlyViewer() {
           </div>
 
           {/* Project Panel - docked right side. Only mount after localStorage is seeded
-              so NotesTab/ProjectDocTab read the correct PRD/notes data on first render. */}
+              so ProjectDocTab reads the correct PRD/notes data on first render. */}
           {panelStorageSeeded && (
             <ProjectPanel
               nodes={nodes}

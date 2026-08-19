@@ -391,3 +391,13 @@
 .dark .kf-palette-scroller::-webkit-scrollbar-thumb {
   background: var(--border);
 }
+
+/* ─── Right rail: keep-alive panes ─────────────────────────────────────────
+   Visited panes stay mounted so scroll position and half-typed messages
+   survive a tab switch. A forceMount'ed Radix tab panel counts as "present",
+   so Radix leaves it visible and never sets [hidden] — without this rule every
+   pane the user has opened renders stacked on top of the active one. The
+   inactive ones are identified by data-state, which Radix does set. */
+.kf-project-panel [role="tabpanel"][data-state="inactive"] {
+  display: none !important;
+}

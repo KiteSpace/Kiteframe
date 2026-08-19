@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileText, Save, CheckCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,12 @@ import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
 
 interface ProjectNotesSectionProps {
   projectId?: string;
+  /**
+   * Viewers of a shared link get the notes read-only. Without this they would
+   * appear to be authoring notes that only ever reach their own browser, since
+   * notes are stored per-browser under the project id.
+   */
+  isReadOnly?: boolean;
 }
 
 interface Message {
@@ -23,7 +29,7 @@ function getPromptTranscriptKey(projectId?: string): string {
   return `kiteframe-prompt-transcript-${projectId || 'default'}`;
 }
 
-export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
+export function ProjectNotesSection({ projectId, isReadOnly = false }: ProjectNotesSectionProps) {
   const [notes, setNotes] = useState('');
   const [savedNotes, setSavedNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -33,7 +39,7 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
   const [promptTranscript, setPromptTranscript] = useState<Message[]>([]);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
 
-  useEffect(() => {
+  const loadFromStorage = useCallback(() => {
     const key = getNotesStorageKey(projectId);
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -66,6 +72,35 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
     }
   }, [projectId]);
 
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+
+  /**
+   * Anything that rewrites the stored docs announces it on this event — most
+   * importantly the shared viewer, which writes the author's latest notes to
+   * localStorage when its websocket delivers an update.
+   *
+   * This pane is kept mounted across tab switches, so it will never re-read
+   * storage on its own; without this subscription an already-open shared
+   * viewer shows the author's notes frozen at the moment it loaded.
+   */
+  const hasUnsavedEditsRef = useRef(false);
+  hasUnsavedEditsRef.current = !isReadOnly && (isEditingNotes || notes !== savedNotes);
+
+  useEffect(() => {
+    const handlePanelRefresh = (e: Event) => {
+      const detail = (e as CustomEvent<{ projectId?: string }>).detail;
+      if (detail?.projectId && detail.projectId !== (projectId || '')) return;
+      // Our own save triggers this event too; reloading mid-edit would throw
+      // away whatever the author has typed since the last autosave.
+      if (hasUnsavedEditsRef.current) return;
+      loadFromStorage();
+    };
+    window.addEventListener('kiteframe:panelDataRefresh', handlePanelRefresh);
+    return () => window.removeEventListener('kiteframe:panelDataRefresh', handlePanelRefresh);
+  }, [loadFromStorage, projectId]);
+
   const saveNotes = useCallback(() => {
     setIsSaving(true);
     const key = getNotesStorageKey(projectId);
@@ -82,6 +117,8 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
   }, [notes, projectId]);
 
   useEffect(() => {
+    if (isReadOnly) return;
+
     const timer = setTimeout(() => {
       if (notes !== savedNotes && notes.length > 0) {
         saveNotes();
@@ -89,7 +126,7 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [notes, savedNotes, saveNotes]);
+  }, [notes, savedNotes, saveNotes, isReadOnly]);
 
   const hasUnsavedChanges = notes !== savedNotes;
 
@@ -125,7 +162,7 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
                 {formatLastSaved(lastSaved)}
               </span>
             )}
-            {hasUnsavedChanges && (
+            {hasUnsavedChanges && !isReadOnly && (
               <Button 
                 size="sm" 
                 variant="ghost" 
@@ -145,13 +182,13 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
           <div
             className={cn(
               "rounded-md transition-colors duration-100 -mx-1 px-1",
-              "hover:bg-accent/30",
-              !isEditingNotes && "cursor-text"
+              !isReadOnly && "hover:bg-accent/30",
+              !isEditingNotes && !isReadOnly && "cursor-text"
             )}
-            onClick={() => setIsEditingNotes(true)}
+            onClick={() => !isReadOnly && setIsEditingNotes(true)}
             data-testid="notes-field"
           >
-            {isEditingNotes ? (
+            {isEditingNotes && !isReadOnly ? (
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -162,8 +199,8 @@ export function ProjectNotesSection({ projectId }: ProjectNotesSectionProps) {
                 data-testid="input-notes"
               />
             ) : (
-              <div className={cn("text-sm min-h-[100px] py-2", !notes && "italic text-muted-foreground")}>
-                {notes || "Add notes about your project..."}
+              <div className={cn("text-sm min-h-[100px] py-2 whitespace-pre-wrap", !notes && "italic text-muted-foreground")}>
+                {notes || (isReadOnly ? "No notes available" : "Add notes about your project...")}
               </div>
             )}
           </div>

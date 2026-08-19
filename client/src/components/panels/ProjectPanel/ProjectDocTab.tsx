@@ -11,6 +11,7 @@ import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import { FlowDetection } from '@/lib/kiteframe/utils/FlowDetection';
 import { 
   ProjectOverviewSection, 
+  ProjectNotesSection,
   ProjectSourcesSection,
   WorkflowPRDSection,
   ProjectPRDSection,
@@ -471,6 +472,7 @@ export function ProjectDocTab({
                 nodes={nodes}
                 edges={edges}
               />
+              <ProjectNotesSection projectId={projectId} isReadOnly={isReadOnly} />
               <ProjectSourcesSection projectId={projectId} />
             </>
           )}
