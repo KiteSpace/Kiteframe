@@ -131,9 +131,6 @@ export default function LandingPage() {
             <span className="text-[17px] font-bold text-gray-900 tracking-tight" data-testid="text-logo">
               Kiteframe
             </span>
-            <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wide bg-violet-100 text-violet-700 rounded-full uppercase" data-testid="badge-beta">
-              Early Access
-            </span>
           </div>
           <div className="flex items-center gap-1">
             <Button
