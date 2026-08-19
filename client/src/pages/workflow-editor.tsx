@@ -7,6 +7,7 @@ import "../lib/export/printStyles.css";
 import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
 import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
+import { ReaderPane } from "@/components/reader/ReaderPane";
 import { CommentsOverlay } from "@/components/comments/CommentsOverlay";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -14168,6 +14169,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 />
               )}
             </div>
+
+            {/* Reader pane — sits between the canvas and the rail so it can
+                either compress the canvas or overlay it, depending on how much
+                room the rail has left. Renders nothing when closed. */}
+            {openTabs.length > 0 && !isPhoneViewOnly && (
+              <ReaderPane
+                projectId={
+                  activeTab?.projectUuid ||
+                  activeTab?.cloudProjectId?.toString() ||
+                  activeTabId
+                }
+                projectName={activeTab?.name}
+                nodes={nodes}
+                edges={edges}
+                isReadOnly={effectiveReadOnly}
+              />
+            )}
 
             {/* Project Panel - docked right side */}
             {openTabs.length > 0 && !isPhoneViewOnly && (

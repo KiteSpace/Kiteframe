@@ -9,13 +9,20 @@ import { useToast } from '@/hooks/use-toast';
 import type { PRDNodeLink, PRDLinkTargetType } from '@/stores/prdNodeLinkStore';
 import { type AIInsight, getChipTypeColor, type InsightChipType } from '@/ai/insights';
 import type { PRDSuggestion } from '@/ai/prdSteward';
+import { docSectionDomId, type ConfidenceLevel, type DocDensity } from './types';
 
-export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type { ConfidenceLevel, DocDensity };
 
 interface DocSectionProps {
   title: string;
   content: string;
   sectionKey: string;
+  /**
+   * Rail (default) keeps the compact sizing the right panel has always used.
+   * Reader steps the whole section up to reading type — 18px headings, 15px
+   * body on a 1.7 leading — without forking the component.
+   */
+  density?: DocDensity;
   manuallyEdited?: boolean;
   isStale?: boolean;
   confidence?: ConfidenceLevel;
@@ -201,7 +208,7 @@ function ReviewSuggestionCard({
   );
 }
 
-const markdownComponents = {
+const railMarkdownComponents = {
   h1: ({ children }: { children: ReactNode }) => <h1 className="text-base font-bold mt-3 mb-1 text-foreground">{children}</h1>,
   h2: ({ children }: { children: ReactNode }) => <h2 className="text-sm font-semibold mt-2.5 mb-1 text-foreground">{children}</h2>,
   h3: ({ children }: { children: ReactNode }) => <h3 className="text-sm font-medium mt-2 mb-0.5 text-foreground">{children}</h3>,
@@ -218,10 +225,32 @@ const markdownComponents = {
   hr: () => <hr className="my-2 border-border" />,
 };
 
+/**
+ * Reader typography. Sizes are literal px rather than Tailwind's scale because
+ * the handoff specifies them exactly and 15px/1.7 has no `text-*` equivalent.
+ */
+const readerMarkdownComponents = {
+  h1: ({ children }: { children: ReactNode }) => <h1 className="text-[17px] font-semibold mt-6 mb-2 text-foreground">{children}</h1>,
+  h2: ({ children }: { children: ReactNode }) => <h2 className="text-[16px] font-semibold mt-5 mb-2 text-foreground">{children}</h2>,
+  h3: ({ children }: { children: ReactNode }) => <h3 className="text-[15px] font-semibold mt-4 mb-1.5 text-foreground">{children}</h3>,
+  p:  ({ children }: { children: ReactNode }) => <p className="text-[15px] leading-[1.7] mb-3">{children}</p>,
+  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-outside pl-5 space-y-1.5 my-3 text-[15px] leading-[1.7]">{children}</ul>,
+  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-[15px] leading-[1.7]">{children}</ol>,
+  li: ({ children }: { children: ReactNode }) => <li className="leading-[1.7] [&>p]:my-0">{children}</li>,
+  strong: ({ children }: { children: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  em: ({ children }: { children: ReactNode }) => <em className="italic">{children}</em>,
+  hr: () => <hr className="my-5 border-border" />,
+};
+
+function markdownComponentsFor(density: DocDensity) {
+  return density === 'reader' ? readerMarkdownComponents : railMarkdownComponents;
+}
+
 export function DocSection({
   title,
   content,
   sectionKey,
+  density = 'rail',
   manuallyEdited = false,
   isStale = false,
   confidence,
@@ -253,6 +282,8 @@ export function DocSection({
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+  const isReader = density === 'reader';
+  const markdownComponents = markdownComponentsFor(density);
 
   useEffect(() => {
     setEditValue(content);
@@ -369,15 +400,21 @@ export function DocSection({
 
   return (
     <section
-      id={`prd-section-${sectionKey}`}
+      id={docSectionDomId(sectionKey, density)}
       className="group relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`doc-section-${sectionKey}`}
+      data-density={density}
     >
-      <div className="flex items-start justify-between mb-2">
+      <div className={cn('flex items-start justify-between', isReader ? 'mb-3' : 'mb-2')}>
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">
+          <h3
+            className={cn(
+              'font-semibold text-foreground tracking-tight',
+              isReader ? 'text-[18px] leading-snug' : 'text-sm',
+            )}
+          >
             {title}
           </h3>
           {confidence && <ConfidenceBadge level={confidence} />}
@@ -557,7 +594,15 @@ export function DocSection({
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="min-h-[100px] text-sm leading-relaxed resize-none border-primary/20 focus:border-primary/40"
+            className={cn(
+              'resize-none border-primary/20 focus:border-primary/40',
+              // The Textarea base sets `md:text-sm`, and a responsive variant
+              // beats an unprefixed class at that breakpoint — so the reader
+              // size has to be stated at the same specificity to take effect.
+              isReader
+                ? 'min-h-[160px] text-[15px] md:text-[15px] leading-[1.7]'
+                : 'min-h-[100px] text-sm leading-relaxed',
+            )}
             placeholder="Enter content..."
             data-testid={`textarea-${sectionKey}`}
           />
@@ -575,7 +620,7 @@ export function DocSection({
               "text-muted-foreground",
               !isReadOnly && "cursor-text hover:bg-accent/30",
               "rounded-md transition-colors duration-100 -mx-2 px-2 py-1",
-              !content && "italic text-sm"
+              !content && (isReader ? "italic text-[15px]" : "italic text-sm")
             )}
             data-testid={`content-${sectionKey}`}
           >

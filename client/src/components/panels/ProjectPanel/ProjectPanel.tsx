@@ -14,6 +14,7 @@ import type { Node, Edge, CanvasObject } from '@/lib/kiteframe/types';
 import type { SketchStroke } from '@/components/SketchCanvas';
 import type { Insight } from '@/lib/kiteframe/utils/insights/types';
 import type { ApplyWorkflowPayload, ReplaceWorkflowPayload } from '@/components/KiteAIChat';
+import { notifyRailGeometryChanged } from '@/stores/readerStore';
 
 export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'comments' | 'diagnostics';
 
@@ -314,6 +315,13 @@ export function ProjectPanel({
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  // The reader pane shares the row with the rail and the canvas, and decides
+  // whether to compress the canvas or overlay it from how much room is left.
+  // A flex sibling resizing is not observable from the outside, so say it.
+  useEffect(() => {
+    notifyRailGeometryChanged();
+  }, [panelWidth, isCollapsed]);
 
   /**
    * Decide label visibility from the rail's own measured width. Reading the

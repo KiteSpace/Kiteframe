@@ -37,4 +37,8 @@
 - [Partial writes to a shared JSONB blob](jsonb-blob-partial-writes.md) — per-key updates of an aggregate column need a DB row lock (an in-process queue is a false green); debounced client saves need per-doc ordering + cancel-on-immediate.
 - [Radix forceMount is never [hidden]](radix-forcemount-not-hidden.md) — keep-alive panes must be hidden via data-state="inactive"; a `[hidden]` rule matches nothing and stacks every visited pane on the active one.
 - [Editor won't reopen a routed project](editor-routed-project-cold-load.md) — /project/:uuid cold-loads to the start screen; click the Recent Projects card, and use /view/:shareId for mount-time assertions.
+- [Drag-handle gestures](drag-handle-gestures.md) — preventDefault on mousedown (or a native text-drag kills mousemove) and listen on document in capture phase (the canvas stops propagation).
+- [Scroll-spy over long documents](scroll-spy-tall-sections.md) — IntersectionObserver thresholds are ratios of the target, so tall sections silently stop reporting; measure rect tops on scroll.
+- [Side pane sharing the canvas](side-pane-shares-the-canvas.md) — measure the canvas's own interval (the sidebar is a flex sibling) and clamp the width during render, not on window resize.
+- [Tailwind responsive variants beat plain ones](tailwind-responsive-variant-override.md) — a base `md:text-sm` survives tailwind-merge against your `text-[15px]`; restate the override at the same breakpoint.
 - [Single-pane inspector decisions](inspector-tabbed-contract.md) — no tabs: five collapsible sections, collapse memory per node kind in localStorage; inapplicable sections omitted; every Style prop must be consumed by the renderer.

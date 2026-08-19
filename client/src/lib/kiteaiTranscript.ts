@@ -51,6 +51,35 @@ export interface DesignPreview {
 }
 
 /**
+ * A document the assistant produced, rendered in the chat as a card instead of
+ * as its full text.
+ *
+ * A generated spec is thousands of words. Pasted into the thread it buries
+ * every other message, cannot be edited in place, and has to be re-read in full
+ * to find the one paragraph that matters. The card is the handle: it says what
+ * was produced and opens the real, editable document in the reader.
+ *
+ * Every field is a plain serializable value — this is written to localStorage
+ * and read back on the next load, so nothing here may be a live object.
+ */
+export interface ChatArtifact {
+  /** Stable document id, e.g. `project-prd` or `workflow-prd:<workflowId>`. */
+  docId: string;
+  docKind: 'project-prd' | 'workflow-prd';
+  /** Required for `workflow-prd`. */
+  workflowId?: string;
+  title: string;
+  /** Short kind label for the card's metadata line, e.g. "Project spec". */
+  kindLabel: string;
+  sectionCount: number;
+  wordCount: number;
+  /** First lines of the document, as plain text. */
+  excerpt?: string;
+  /** ISO timestamp of when the document was produced. */
+  createdAt?: string;
+}
+
+/**
  * Structural subset of KiteAIChat's ChatMessage. Anything written here must
  * stay assignable to that type.
  */
@@ -61,6 +90,7 @@ export interface TranscriptEntry {
   content: string;
   timestamp: Date;
   designPreview?: DesignPreview;
+  artifact?: ChatArtifact;
   [key: string]: unknown;
 }
 

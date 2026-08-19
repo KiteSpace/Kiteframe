@@ -89,6 +89,7 @@ import {
   readStoredMessages,
   saveStoredMessages,
   type DesignPreview,
+  type ChatArtifact,
   type TranscriptEntry,
 } from '@/lib/kiteaiTranscript';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
@@ -157,6 +158,11 @@ export interface ChatMessage {
    * the canvas.
    */
   designPreview?: DesignPreview;
+  /**
+   * A document this message produced. Rendered as a card that opens the
+   * reader, instead of pasting thousands of words into the thread.
+   */
+  artifact?: ChatArtifact;
   meta?: {
     kiteRole?: KiteRole;
     confidence?: number;

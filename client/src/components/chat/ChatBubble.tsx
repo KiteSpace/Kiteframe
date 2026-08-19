@@ -1,11 +1,24 @@
-import { FileText, Pencil } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';
 import { WorkflowThumbnail } from './WorkflowThumbnail';
+import { ArtifactCard } from './ArtifactCard';
 import { useOpenDesign } from '@/design/DesignTabHost';
 import type { DesignPreview } from '@/lib/kiteaiTranscript';
+
+/**
+ * Length past which an assistant reply is collapsed behind "Show more".
+ *
+ * Documents get an artifact card instead of being pasted into the thread, but
+ * plenty of ordinary answers are still long enough to push everything before
+ * them off screen. Clamping keeps the thread scannable; the full text is one
+ * click away and never truncated.
+ */
+const LONG_RESPONSE_CHARS = 900;
+const CLAMPED_MAX_HEIGHT = 260;
 
 /**
  * Inline card showing the screens a generation produced, so the result is
@@ -119,6 +132,12 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const [isExpanded, setIsExpanded] = useState(false);
+  // A document already collapses to a card, so clamping its one-line preamble
+  // as well would only add a "Show more" that reveals nothing.
+  const isLongResponse =
+    !isUser && !isSystem && !message.artifact && (message.content?.length ?? 0) > LONG_RESPONSE_CHARS;
+  const isClamped = isLongResponse && !isExpanded;
   
   if (isSystem) {
     if (message.type === 'edge_case_selector') {
@@ -227,7 +246,12 @@ export function ChatBubble({
       data-testid={testId || `message-assistant-${message.id}`}
     >
       <div className="max-w-[65ch]">
-        <div className="text-sm leading-[1.6] prose prose-sm dark:prose-invert max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2">
+        <div
+          className={`relative text-sm leading-[1.6] prose prose-sm dark:prose-invert max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 ${isClamped ? 'overflow-hidden' : ''}`}
+          style={isClamped ? { maxHeight: CLAMPED_MAX_HEIGHT } : undefined}
+          data-testid={isLongResponse ? `message-body-${message.id}` : undefined}
+          data-clamped={isLongResponse ? (isClamped ? 'true' : 'false') : undefined}
+        >
           <ReactMarkdown
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -247,7 +271,24 @@ export function ChatBubble({
           >
             {sanitizeAssistantContent(message.content)}
           </ReactMarkdown>
+          {isClamped && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-background to-transparent" />
+          )}
         </div>
+
+        {isLongResponse && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(v => !v)}
+            className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            data-testid={`button-show-more-${message.id}`}
+          >
+            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {isExpanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+
+        {message.artifact && <ArtifactCard artifact={message.artifact} />}
         
         {message.followUps && message.followUps.length > 0 && (
           <div className="mt-3 space-y-2">
