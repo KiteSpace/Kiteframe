@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<!--
+  Kiteframe — RIGHT RAIL + READER PANE + CHAT ARTIFACT CARD
+  Reference implementation. Opens directly in a browser; everything here works.
+
+  Spec: Right-Rail-Implementation-Spec.md (canonical for behavior and phasing)
+  Color: THEME.md §2–4 (canonical for color — this file's tokens are a mirror)
+
+  ─────────────────────────────────────────────────────────────────────────────
+  PRECEDENCE — settle before writing code
+    THEME.md is authoritative for COLOR.
+    This file is authoritative for GEOMETRY, STRUCTURE and BEHAVIOR.
+  Every --rr-* token below maps 1:1 to a THEME.md variable (table at the end of
+  the token block). The port is a rename, not a judgement call.
+  ─────────────────────────────────────────────────────────────────────────────
+
+  What this file demonstrates, and where the spec covers it
+
+    1. RAIL SHELL (§4) — 46px tab row using the bare-pill primitive. Five tabs:
+       KiteAI · Project · Layers · Comments · Insights. Notes is GONE (§4).
+       Collapse to a 48px icon strip. Resizable 400–800px, viewport-clamped.
+       Labels are PROGRESSIVE: five labelled tabs need 466px and the floor is
+       400px, so below 480px only the active tab is labelled and the rest are
+       icon + badge with tooltips. Drag the rail past 480px to see them return.
+
+    2. KEEP-ALIVE (§4) — switch tabs and come back: scroll position and the
+       chat draft survive. Today only `project` is forceMount, which is why
+       every other tab resets. Scroll a pane, switch away, switch back.
+
+    3. ARTIFACT CARD (§6) — a generated PRD arrives as a card, not 800 words of
+       markdown. Click it to open the reader; the card then shows its
+       open-in-reader state so the conversation↔document link is never lost.
+
+    4. CLAMP (§6) — the safety net for long responses that are NOT artifacts:
+       ~12 lines then "Show more". Note that `max-w-[65ch]` at 13px in a 400px
+       rail never engages, which is why this is needed at all.
+
+    5. READER PANE (§5) — inboard of the rail, canvas compresses. 52px header,
+       162px contents nav with amber dots on sections needing attention, body
+       at 15/1.7 on a 400px measure. Resizable 516–800px, default 660; THE
+       MEASURE STAYS 400px AT EVERY WIDTH — the CONTENTS NAV yields instead,
+       collapsing to a 40px numeral strip below 638px of reader. Every width
+       here is derived from the measure, not declared: 162+64+12+400 = 638 is
+       the full-nav threshold, 40+64+12+400 = 516 is the floor.
+       Below ~1150px total it switches to OVERLAY mode and floats over the
+       canvas, because the rail must never be pushed off screen. One layout()
+       function owns that decision and every clamp — see the note above it.
+
+    6. PER-SECTION AI (§5) — Suggest · Refine · Elaborate · Add examples.
+       Reset is deliberately absent: it is undo wearing a different hat, and
+       version recovery (⟲ v3) in the header already does that job.
+
+  The point of the reader, stated once
+    DocSection's inline AI suggestion and prdSteward's ReviewSuggestionCard both
+    render full-section replacements — 150+ words — into a 400px rail column
+    with a max-h-24 scroller. Accepting prose you cannot read is a coin flip.
+    Same suggestion at a 400px measure with real leading is a decision. That is
+    the entire justification for a separate pane; if the reader ever renders at
+    rail typography, it has no reason to exist.
+
+  Two things that will get ported wrong
+    • GREEN IS GONE FROM ACTIONS (THEME.md §7). Create / Add are ink. Green is
+      success only. There is no green button anywhere in this file, on purpose.
+    • VIOLET IS IDENTITY AND SELECTION, NEVER TAB STATE. Active tab is #EEEEF1
+      grey fill. Violet marks the AI tab's icon, the current reader section, and
+      the open artifact card. An active tab pill in violet is a defect.
+
+  The invariant to assert in review
+    rail.getBoundingClientRect().right <= window.innerWidth
+  with the reader open or closed, at every window width. Opening the reader is
+  the common path into an over-committed layout — clamping only on drag and
+  window-resize is what produces a rail you cannot reach on a 13" laptop.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiteframe — right rail · reader pane · chat</title>
+<style>
+/* ─── Tokens (Graphite · Light — THEME.md §2–4 owns these values) ────────── */
+:root {
+  --rr-chrome:      #FBFBFC;   /* → --background        */
+  --rr-raised:      #ffffff;   /* → --card              */
+  --rr-subtle:      #f3f3f5;   /* → --muted             */
+  --rr-track:       #eeeef1;   /* → --accent  (ACTIVE TAB FILL) */
+
+  --rr-line:        #e4e4e8;   /* → --border            */
+  --rr-line-soft:   #eeeef1;   /* → --border-soft       */
+  --rr-line-strong: #d6d6dc;   /* → --input             */
+
+  --rr-fg:          #1e1e21;   /* → --foreground        */
+  --rr-fg-muted:    #54545c;   /* → --muted-foreground  */
+  --rr-fg-subtle:   #77777f;
+  --rr-fg-faint:    #9a9aa3;   /* icon default          */
+
+  --rr-ink:         #131316;   /* → --primary  (ALL PRIMARY ACTIONS) */
+  --rr-ink-hover:   #24242a;   /* → --primary-hover     */
+  --rr-ink-fg:      #ffffff;   /* → --primary-foreground */
+
+  --rr-brand:       #9B6BFF;   /* → --brand             */
+  --rr-brand-soft:  #f2effa;   /* → --brand-soft        */
+  --rr-brand-fg:    #6D3FD6;   /* → --brand-strong      */
+  --rr-brand-wash:  #FAF8FF;   /* artifact-open footer  */
+
+  --rr-info:        #189FDB;   /* → --info              */
+  --rr-info-soft:   #E6F6FD;   /* → --info-soft  (BADGES) */
+
+  --rr-warn:        #FFC24B;   /* → --warning           */
+  --rr-warn-soft:   #FFF1D0;   /* → --warning-soft      */
+  --rr-warn-fg:     #8A5A00;   /* → --warning-foreground */
+
+  --rr-ok:          #0F9D6B;   /* → --success   (OUTCOMES ONLY) */
+  --rr-ok-soft:     #DEF7EC;   /* → --success-soft      */
+  --rr-ok-fg:       #0F5C42;   /* → --success-foreground */
+
+  --rr-danger:      #E5484D;   /* → --destructive       */
+
+  --rr-canvas:      #E9E9EC;   /* → --kf-canvas — NEVER inverts */
+  --rr-canvas-dot:  #dedee2;   /* → --kf-canvas-dot     */
+  --rr-artboard:    #ffffff;   /* → --kf-artboard — content, never themed */
+
+  --rr-r-sm: 6px;
+  --rr-r:    8px;
+  --rr-r-lg: 10px;
+
+  --rr-tabrow-h: 46px;
+  --rr-header-h: 52px;
+  --rr-collapsed: 48px;
+  --rr-nav-w: 162px;      /* contents nav, full */
+  --rr-nav-strip: 40px;   /* contents nav, numerals only (see §4.2) */
+  --rr-measure: 400px;   /* reader text measure — FIXED at every pane width */
+
+  --rr-sans: Inter, system-ui, -apple-system, sans-serif;
+  --rr-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* flex outranks the UA rule — see HANDOFF.md */
+
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--rr-sans);
+  color: var(--rr-fg);
+  background: var(--rr-canvas);
+  -webkit-font-smoothing: antialiased;
+  font-size: 13px;
+}
+button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #d4d4da; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #bcbcc4; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ─── Editor shell ───────────────────────────────────────────────────────── */
+.shell { display: flex; height: 100vh; overflow: hidden; position: relative; }
+
+.canvas {
+  flex: 1 1 0; min-width: 320px; position: relative;
+  background:
+    radial-gradient(circle at 1px 1px, var(--rr-canvas-dot) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--rr-canvas);
+  display: grid; place-items: center;
+}
+.artboard {
+  width: min(520px, 82%); aspect-ratio: 4 / 3;
+  background: var(--rr-artboard);
+  border: 1px solid #dcdce1;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(20,20,18,.07);
+  display: grid; place-items: center;
+}
+.artboard-note {
+  font-size: 11px; color: #a8a8b0; text-align: center; line-height: 1.6; padding: 0 32px;
+}
+.artboard-note b { color: #8a8a93; font-weight: 600; }
+
+/* ─── Resize handles ─────────────────────────────────────────────────────── */
+.grip {
+  flex: none; width: 5px; cursor: col-resize; position: relative; z-index: 5;
+  background: transparent;
+}
+.grip::after {
+  content: ""; position: absolute; inset: 0 2px; background: var(--rr-line);
+  opacity: 0; transition: opacity .12s;
+}
+.grip:hover::after, .grip.dragging::after { opacity: 1; background: var(--rr-brand); }
+
+/* ─── READER PANE (§5) ───────────────────────────────────────────────────── */
+.reader {
+  flex: none; width: 660px; min-width: 516px; max-width: 800px;
+  background: var(--rr-raised);
+  border-left: 1px solid var(--rr-line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* OVERLAY MODE (§4) — below ~1150px total there is not enough room to compress
+   the canvas AND keep the rail on screen, so the reader floats over the canvas
+   instead of taking a column. The RAIL IS NEVER PUSHED OFF SCREEN; that is the
+   invariant. Without this the reader reproduces the A4 clipped-bubble bug it
+   exists to fix. */
+.reader.is-overlay {
+  position: absolute; top: 0; bottom: 0;
+  right: var(--rr-overlay-right, 400px);
+  min-width: 0; max-width: none; z-index: 10;
+  border-left: 1px solid var(--rr-line);
+  box-shadow: -10px 0 30px rgba(20,20,18,.14);
+}
+.reader-header {
+  flex: none; height: var(--rr-header-h);
+  padding: 0 12px 0 16px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--rr-line);
+}
+.reader-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 7px; border-radius: 99px;
+  font-size: 10px; font-weight: 700; letter-spacing: .02em;
+}
+.chip--ok   { background: var(--rr-ok-soft);   color: var(--rr-ok-fg); }
+.chip--warn { background: var(--rr-warn-soft); color: var(--rr-warn-fg); }
+.reader-ver { font-family: var(--rr-mono); font-size: 10.5px; color: var(--rr-fg-faint); white-space: nowrap; }
+.reader-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.iconbtn {
+  width: 28px; height: 28px; border-radius: var(--rr-r-sm);
+  display: grid; place-items: center;
+  font-size: 13px; color: var(--rr-fg-muted);
+}
+.iconbtn:hover { background: var(--rr-subtle); color: var(--rr-fg); }
+
+/* NARROW MODE (§4.2) — the nav yields, never the measure.
+   A 400px measure needs 162 (nav) + 64 (doc padding) + 12 (scrollbar) + 400 =
+   638px of reader. Below that the contents nav collapses to a 40px numeral
+   strip, which buys back exactly the 122px required and puts the real floor at
+   516px. Amber dots stay: they are the reason to look at the nav at all. */
+.reader.is-narrow .toc { width: var(--rr-nav-strip); }
+.reader.is-narrow .toc-eyebrow { display: none; }
+.reader.is-narrow .toc-item { padding: 7px 0; justify-content: center; gap: 0; position: relative; }
+.reader.is-narrow .toc-label { display: none; }
+.reader.is-narrow .toc-num { width: auto; font-size: 10.5px; }
+.reader.is-narrow .toc-dot { position: absolute; top: 5px; right: 5px; margin: 0; }
+.reader.is-narrow .toc-item[data-label]:hover::after {
+  content: attr(data-label); position: absolute; left: calc(100% + 6px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--rr-ink); color: var(--rr-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rr-r-sm);
+  white-space: nowrap; z-index: 30; pointer-events: none;
+}
+
+.reader-body { flex: 1 1 auto; display: flex; min-height: 0; }
+
+/* contents nav */
+.toc {
+  flex: none; width: var(--rr-nav-w);
+  border-right: 1px solid var(--rr-line-soft);
+  padding: 14px 0 24px; overflow-y: auto;
+  background: #FCFCFD;
+}
+.toc-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--rr-fg-faint); padding: 0 14px 8px;
+}
+.toc-item {
+  display: flex; align-items: baseline; gap: 7px; width: 100%;
+  padding: 6px 12px 6px 14px; text-align: left;
+  font-size: 11.5px; line-height: 1.35; color: var(--rr-fg-muted);
+  border-left: 2px solid transparent;
+}
+.toc-item:hover { background: var(--rr-subtle); color: var(--rr-fg); }
+.toc-item.is-current {
+  color: var(--rr-brand-fg); font-weight: 600;
+  background: var(--rr-brand-soft); border-left-color: var(--rr-brand);
+}
+.toc-num { font-family: var(--rr-mono); font-size: 9.5px; color: var(--rr-fg-faint); flex: none; width: 12px; }
+.toc-item.is-current .toc-num { color: var(--rr-brand-fg); }
+.toc-label { flex: 1 1 auto; }
+.toc-dot { flex: none; width: 5px; height: 5px; border-radius: 99px; background: var(--rr-warn); margin-top: 5px; }
+
+/* the document */
+.doc {
+  flex: 1 1 auto; overflow-y: auto;
+  padding: 28px 32px 56px;
+}
+.doc-inner { max-width: var(--rr-measure); }   /* the whole point (§5) */
+
+.doc-title { font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -.015em; margin: 0 0 6px; }
+.doc-meta { font-family: var(--rr-mono); font-size: 11px; color: var(--rr-fg-faint); margin: 0 0 30px; }
+
+.sec { padding-bottom: 34px; scroll-margin-top: 8px; }
+.sec-head { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.sec-h { font-size: 18px; line-height: 1.3; font-weight: 600; margin: 0; }
+.sec-n { font-family: var(--rr-mono); font-size: 11px; color: var(--rr-fg-faint); }
+
+/* BODY TYPE — 15 / 1.7 / 400. The reason the pane exists. */
+.doc p { font-size: 15px; line-height: 1.7; margin: 0 0 15px; color: #33333a; text-wrap: pretty; }
+.doc ul { font-size: 15px; line-height: 1.7; margin: 0 0 15px; padding-left: 20px; list-style: disc outside; }
+.doc li { margin-bottom: 5px; color: #33333a; }
+.doc li > p { margin: 0; }        /* Phase A1 — loose-list fix, do not drop */
+.doc strong { font-weight: 600; color: var(--rr-fg); }
+.doc code { font-family: var(--rr-mono); font-size: 13px; background: var(--rr-subtle); padding: 1px 5px; border-radius: 4px; }
+
+.callout {
+  border: 1px solid var(--rr-line); border-radius: var(--rr-r);
+  background: var(--rr-raised);
+  padding: 12px 14px; margin: 0 0 15px;
+}
+.callout-h {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rr-warn-fg); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.callout p { font-size: 14px; line-height: 1.6; margin: 0; }
+
+/* per-section AI — four actions (§5) */
+.sec-ai { display: flex; gap: 4px; padding-top: 4px; opacity: 0; transition: opacity .12s; }
+.sec:hover .sec-ai, .sec:focus-within .sec-ai { opacity: 1; }
+.ai-btn {
+  height: 26px; padding: 0 9px; border-radius: var(--rr-r-sm);
+  border: 1px solid var(--rr-line); background: var(--rr-raised);
+  font-size: 11px; font-weight: 500; color: var(--rr-fg-muted);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.ai-btn:hover { border-color: var(--rr-brand); color: var(--rr-brand-fg); background: var(--rr-brand-soft); }
+.ai-btn .g { color: var(--rr-brand); font-size: 10px; }
+
+/* suggestion — at reader width it is a decision, not a coin flip (§5) */
+.sugg { border: 1px solid var(--rr-brand); border-radius: var(--rr-r); overflow: hidden; margin: 14px 0 0; }
+.sugg-h {
+  background: var(--rr-brand-soft); padding: 7px 12px;
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rr-brand-fg); display: flex; align-items: center; gap: 6px;
+}
+.sugg-b { padding: 14px 14px 4px; }
+.sugg-f { display: flex; gap: 6px; padding: 0 14px 14px; }
+.btn {
+  height: 30px; padding: 0 12px; border-radius: var(--rr-r-sm);
+  font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn--ink { background: var(--rr-ink); color: var(--rr-ink-fg); }      /* was green (THEME.md §7) */
+.btn--ink:hover { background: var(--rr-ink-hover); }
+.btn--quiet { border: 1px solid var(--rr-line); color: var(--rr-fg-muted); background: var(--rr-raised); }
+.btn--quiet:hover { background: var(--rr-subtle); color: var(--rr-fg); }
+
+/* ─── RIGHT RAIL (§4) ────────────────────────────────────────────────────── */
+.rail {
+  flex: none; width: 400px; min-width: 400px; max-width: 800px;
+  background: var(--rr-chrome);
+  border-left: 1px solid var(--rr-line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.rail.is-collapsed { width: var(--rr-collapsed); min-width: var(--rr-collapsed); }
+
+/* tab row — the primitive. Unify every tab row in the app against this. */
+.tabrow {
+  flex: none; height: var(--rr-tabrow-h);
+  padding: 0 8px; display: flex; align-items: center; gap: 3px;
+  border-bottom: 1px solid var(--rr-line);
+}
+.chev {
+  flex: none; width: 22px; height: 22px; display: grid; place-items: center;
+  font-size: 13px; color: var(--rr-fg-muted); border-radius: var(--rr-r-sm);
+}
+.chev:hover { background: var(--rr-subtle); color: var(--rr-fg); }
+.tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 7px;
+  font-size: 12px; font-weight: 500; color: var(--rr-fg-muted);
+  background: transparent; white-space: nowrap;
+}
+.tab:hover { background: var(--rr-line-soft); color: var(--rr-fg); }
+.tab.is-active { background: var(--rr-track); color: var(--rr-fg); font-weight: 600; }
+.tab .g { font-size: 11px; color: var(--rr-fg-faint); }
+.tab.is-ai .g { color: var(--rr-brand); }     /* the ONE violet icon (§4) */
+
+/* PROGRESSIVE LABELS (§2) — five labelled tabs need 466px and the rail floor is
+   400px. Below the threshold only the ACTIVE tab is labelled; inactive tabs are
+   icon + badge with a tooltip. The rail adds .is-wide at >=480px and all five
+   labels return. Never let a tab clip: a tab you cannot see is a tab you cannot
+   reach, and an overflow-scrolling row hides them with no affordance at all. */
+.tab .lbl { display: none; }
+.tab.is-active .lbl { display: inline; }
+.rail.is-wide .tab .lbl { display: inline; }
+.tab:not(.is-active) { position: relative; }
+.tab:not(.is-active)[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--rr-ink); color: var(--rr-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rr-r-sm);
+  white-space: nowrap; z-index: 30; pointer-events: none;
+}
+.rail.is-wide .tab[data-tip]:hover::after { display: none; }
+.badge {
+  font-size: 9px; font-weight: 700; line-height: 1;
+  border-radius: 99px; padding: 3px 5px;
+  background: var(--rr-info-soft); color: var(--rr-info);
+}
+
+/* panes — ALL forceMount + hidden. This is the keep-alive (§4). */
+.panes { flex: 1 1 auto; position: relative; min-height: 0; }
+.pane {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.pane-scroll { flex: 1 1 auto; overflow-y: auto; padding: 14px; }
+
+/* collapsed icon strip */
+.strip { flex: 1 1 auto; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.strip-btn {
+  width: 32px; height: 32px; border-radius: var(--rr-r-sm);
+  display: grid; place-items: center; font-size: 13px; color: var(--rr-fg-muted);
+  position: relative;
+}
+.strip-btn:hover { background: var(--rr-subtle); color: var(--rr-fg); }
+.strip-btn.is-active { background: var(--rr-track); color: var(--rr-fg); }
+.strip-btn.is-ai { color: var(--rr-brand); }
+.strip-btn[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; right: calc(100% + 8px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--rr-ink); color: var(--rr-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rr-r-sm);
+  white-space: nowrap; z-index: 20;
+}
+
+/* ─── CHAT (§6) ──────────────────────────────────────────────────────────── */
+.thread {
+  flex: 1 1 auto; overflow-y: auto;
+  padding: 16px 14px 8px;
+  display: flex; flex-direction: column; gap: 14px;
+  justify-content: flex-end;   /* Phase A2 — replaces pb-96 (§2) */
+}
+.msg { display: flex; flex-direction: column; max-width: 85%; }
+.msg--me { align-self: flex-end; align-items: flex-end; }
+.msg--ai { align-self: flex-start; }
+.bubble {
+  padding: 9px 12px; border-radius: var(--rr-r-lg);
+  font-size: 13px; line-height: 1.55;
+}
+.msg--me .bubble { background: var(--rr-ink); color: var(--rr-ink-fg); border-bottom-right-radius: 4px; }
+.msg--ai .bubble { background: var(--rr-raised); border: 1px solid var(--rr-line); border-bottom-left-radius: 4px; }
+.msg--ai .bubble p { margin: 0 0 8px; }
+.msg--ai .bubble p:last-child { margin: 0; }
+
+/* clamp — the safety net for non-artifact long responses (§6) */
+.clamp { max-height: 15.5em; overflow: hidden; position: relative; }
+.clamp::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--rr-raised));
+}
+.showmore {
+  font-size: 11.5px; font-weight: 600; color: var(--rr-brand-fg);
+  padding: 6px 2px 0;
+}
+.showmore:hover { text-decoration: underline; }
+
+/* ARTIFACT CARD (§6) */
+.artifact {
+  border: 1px solid var(--rr-line); border-radius: var(--rr-r-lg);
+  background: var(--rr-raised); overflow: hidden;
+  text-align: left; width: 100%;
+  transition: border-color .14s, box-shadow .14s;
+}
+.artifact:hover { border-color: var(--rr-line-strong); }
+.artifact.is-open {
+  border-color: var(--rr-brand);
+  box-shadow: 0 0 0 3px rgba(155,107,255,.14);
+}
+.artifact-b { display: flex; gap: 10px; padding: 12px; }
+.artifact-tile {
+  flex: none; width: 26px; height: 26px; border-radius: var(--rr-r-sm);
+  background: var(--rr-brand-soft); color: var(--rr-brand-fg);
+  display: grid; place-items: center; font-size: 12px;
+}
+.artifact-t { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 3px; }
+.artifact-m { font-family: var(--rr-mono); font-size: 10.5px; color: var(--rr-fg-faint); }
+.artifact-x { font-size: 11.5px; line-height: 1.5; color: var(--rr-fg-muted); margin: 7px 0 0; }
+.artifact-f {
+  border-top: 1px solid var(--rr-line-soft); padding: 7px 12px;
+  font-size: 11px; font-weight: 600; color: var(--rr-fg-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.artifact.is-open .artifact-f { background: var(--rr-brand-wash); color: var(--rr-brand-fg); }
+.artifact.is-open .artifact-f .live { color: var(--rr-brand); }
+
+/* composer */
+.composer { flex: none; border-top: 1px solid var(--rr-line); padding: 10px 12px 12px; background: var(--rr-chrome); }
+.composer-box {
+  border: 1px solid var(--rr-line-strong); border-radius: var(--rr-r);
+  background: var(--rr-raised); padding: 8px 10px;
+}
+.composer-box:focus-within { border-color: var(--rr-brand); box-shadow: 0 0 0 3px rgba(155,107,255,.14); }
+.composer textarea {
+  width: 100%; border: 0; resize: none; outline: none;
+  font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--rr-fg);
+  background: none; min-height: 38px;
+}
+.composer-row { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
+.composer-hint { font-size: 10.5px; color: var(--rr-fg-faint); margin-right: auto; }
+.send { width: 30px; height: 30px; border-radius: var(--rr-r-sm); background: var(--rr-ink); color: var(--rr-ink-fg); display: grid; place-items: center; font-size: 13px; }
+.send:hover { background: var(--rr-ink-hover); }
+
+/* ─── Rail content primitives ────────────────────────────────────────────── */
+.eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--rr-fg-faint); margin: 0 0 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.eyebrow .n { font-family: var(--rr-mono); letter-spacing: 0; color: #b4b4bc; }
+.group + .group { margin-top: 22px; }
+
+.card {
+  border: 1px solid var(--rr-line); border-radius: var(--rr-r);
+  background: var(--rr-raised); padding: 10px 11px;
+  display: block; width: 100%; text-align: left;
+}
+.card + .card { margin-top: 6px; }
+.card:hover { border-color: var(--rr-line-strong); }
+.card.is-open { border-color: var(--rr-brand); background: var(--rr-brand-wash); }
+.card-t { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+.card-m { font-family: var(--rr-mono); font-size: 10px; color: var(--rr-fg-faint); margin-top: 3px; }
+.card-row { display: flex; align-items: center; gap: 8px; }
+.card-row .grow { flex: 1 1 auto; min-width: 0; }
+.open-link { font-size: 11px; font-weight: 600; color: var(--rr-brand-fg); flex: none; }
+
+.row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: var(--rr-r-sm);
+  font-size: 12.5px;
+}
+.row:hover { background: var(--rr-subtle); }
+.row .g { font-size: 11px; color: var(--rr-fg-faint); flex: none; width: 14px; text-align: center; }
+.row .grow { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .val { font-family: var(--rr-mono); font-size: 10.5px; color: var(--rr-fg-faint); }
+.row.is-sel { background: var(--rr-brand-soft); color: var(--rr-brand-fg); font-weight: 600; }
+.row.is-sel .g { color: var(--rr-brand); }
+
+.subtabs { display: flex; gap: 3px; margin: 0 0 14px; }
+.subtab {
+  padding: 4px 9px; border-radius: 7px;
+  font-size: 11.5px; font-weight: 500; color: var(--rr-fg-muted);
+}
+.subtab:hover { background: var(--rr-line-soft); }
+.subtab.is-active { background: var(--rr-track); color: var(--rr-fg); font-weight: 600; }
+
+.field {
+  width: 100%; height: 32px; padding: 0 10px;
+  border: 1px solid var(--rr-line-strong); border-radius: var(--rr-r-sm);
+  background: var(--rr-raised); font-family: inherit; font-size: 14px; color: var(--rr-fg);
+}
+.field:focus { outline: none; border-color: var(--rr-brand); box-shadow: 0 0 0 3px rgba(155,107,255,.14); }
+textarea.field { height: auto; min-height: 76px; padding: 8px 10px; line-height: 1.55; font-size: 13px; resize: vertical; }
+
+.empty { padding: 22px 12px; text-align: center; color: var(--rr-fg-faint); font-size: 11.5px; line-height: 1.6; }
+
+.insight { border: 1px solid var(--rr-line); border-radius: var(--rr-r); background: var(--rr-raised); padding: 10px 11px; }
+.insight + .insight { margin-top: 6px; }
+.insight-h { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.insight-t { font-size: 12px; font-weight: 600; }
+.insight-p { font-size: 11.5px; line-height: 1.55; color: var(--rr-fg-muted); margin: 0; }
+.dot { width: 6px; height: 6px; border-radius: 99px; flex: none; }
+.dot--warn { background: var(--rr-warn); }
+.dot--ok { background: var(--rr-ok); }
+.dot--info { background: var(--rr-info); }
+
+/* demo scaffolding — NOT part of the design, delete on port */
+.demo {
+  position: fixed; left: 12px; bottom: 12px; z-index: 60;
+  background: rgba(19,19,22,.9); color: #fff;
+  border-radius: var(--rr-r); padding: 9px 11px;
+  font-size: 10.5px; line-height: 1.7; max-width: 260px;
+  backdrop-filter: blur(6px);
+}
+.demo b { color: var(--rr-brand); font-weight: 600; }
+.demo kbd {
+  font-family: var(--rr-mono); font-size: 9.5px;
+  background: rgba(255,255,255,.14); padding: 1px 4px; border-radius: 3px;
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── canvas ─────────────────────────────────────────────────────────── -->
+  <div class="canvas">
+    <div class="artboard">
+      <p class="artboard-note">
+        <b>Canvas compresses; it does not get covered.</b><br>
+        The reader sits inboard of the rail (§5). Below ~1150px total it overlays
+        the canvas instead. Artboards never theme — this stays white in dark mode.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── reader pane ────────────────────────────────────────────────────── -->
+  <div class="grip" id="readerGrip" hidden></div>
+  <aside class="reader" id="reader" hidden>
+    <header class="reader-header">
+      <span class="reader-title">Onboarding flow — PRD</span>
+      <span class="chip chip--warn">2 open</span>
+      <span class="reader-ver">v3 · Aug 18</span>
+      <div class="reader-tools">
+        <button class="iconbtn" title="Version history">⟲</button>
+        <button class="iconbtn" title="Copy">⧉</button>
+        <button class="iconbtn" title="Export">↓</button>
+        <button class="iconbtn" id="readerClose" title="Close">✕</button>
+      </div>
+    </header>
+
+    <div class="reader-body">
+      <nav class="toc" id="toc">
+        <div class="toc-eyebrow">Contents</div>
+        <button class="toc-item is-current" data-goto="s1" data-label="Summary"><span class="toc-num">01</span><span class="toc-label">Summary</span></button>
+        <button class="toc-item" data-goto="s2" data-label="Problem"><span class="toc-num">02</span><span class="toc-label">Problem</span></button>
+        <button class="toc-item" data-goto="s3" data-label="Goals · open questions"><span class="toc-num">03</span><span class="toc-label">Goals</span><span class="toc-dot" title="Open questions"></span></button>
+        <button class="toc-item" data-goto="s4" data-label="Requirements"><span class="toc-num">04</span><span class="toc-label">Requirements</span></button>
+        <button class="toc-item" data-goto="s5" data-label="Edge cases · needs content"><span class="toc-num">05</span><span class="toc-label">Edge cases</span><span class="toc-dot" title="Missing content"></span></button>
+        <button class="toc-item" data-goto="s6" data-label="Out of scope"><span class="toc-num">06</span><span class="toc-label">Out of scope</span></button>
+      </nav>
+
+      <div class="doc" id="doc">
+        <div class="doc-inner">
+          <h1 class="doc-title">Onboarding flow</h1>
+          <p class="doc-meta">12 sections · 1,840 words · draft · updated Aug 18, 2:14 PM</p>
+
+          <section class="sec" id="s1">
+            <div class="sec-head"><span class="sec-n">01</span><h2 class="sec-h">Summary</h2></div>
+            <p>New accounts reach an empty workspace with no obvious first action. <strong>Roughly 40% never create a first project</strong>, and of those who do, most arrive via the sample template rather than the create flow.</p>
+            <p>This document proposes a three-step guided start that produces a real project rather than a tour, on the argument that the fastest route to retention is owning something.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s2">
+            <div class="sec-head"><span class="sec-n">02</span><h2 class="sec-h">Problem</h2></div>
+            <p>The empty state is honest but inert. It describes what a project is without giving a reason to make one, and the primary action competes with four secondary ones of equal visual weight.</p>
+            <ul>
+              <li><p>No default path — every option is presented as equally likely.</p></li>
+              <li><p>The sample template is the most-clicked element, which suggests people want <em>something</em> populated, not instruction.</p></li>
+              <li><p>Invited users see the same empty state as solo signups, despite arriving with a project already in hand.</p></li>
+            </ul>
+            <p>This list renders correctly because of <code>list-outside</code> plus <code>li &gt; p { margin: 0 }</code> — the Phase A1 fix. In production today these markers sit on their own line above the text.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s3">
+            <div class="sec-head"><span class="sec-n">03</span><h2 class="sec-h">Goals</h2></div>
+            <p>Move first-project creation from 60% to 80% of new accounts within the first session, without adding a modal tour.</p>
+            <div class="callout">
+              <div class="callout-h"><span class="dot dot--warn"></span>Open question</div>
+              <p>Is "first project created" the right success metric, or is it "returned on day two"? These pull in different directions — a guided start optimises the first, a populated sample optimises the second.</p>
+            </div>
+
+            <div class="sugg">
+              <div class="sugg-h"><span>✦</span>Suggested rewrite</div>
+              <div class="sugg-b">
+                <p>Move first-project creation from 60% to 80% of new accounts within the first session, measured on projects that still exist at day seven — so the metric cannot be satisfied by a project created and abandoned inside the flow itself.</p>
+                <p>Secondary: invited users skip the guided start entirely and land in the project they were invited to, which should raise their day-two return independently.</p>
+              </div>
+              <div class="sugg-f">
+                <button class="btn btn--ink">Accept</button>
+                <button class="btn btn--quiet">Reject</button>
+                <button class="btn btn--quiet">Refine again</button>
+              </div>
+            </div>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s4">
+            <div class="sec-head"><span class="sec-n">04</span><h2 class="sec-h">Requirements</h2></div>
+            <p>Three steps, each producing a durable artifact rather than a dismissible overlay.</p>
+            <ul>
+              <li><p><strong>Name the work.</strong> One field, prefilled from the signup context where one exists.</p></li>
+              <li><p><strong>Pick a shape.</strong> Three starting structures, not a blank canvas and not a gallery of twenty.</p></li>
+              <li><p><strong>Land in it.</strong> The flow ends inside the created project with the first node selected.</p></li>
+            </ul>
+            <p>Each step is skippable, and skipping all three produces the same empty workspace that exists today — the flow is additive, so it cannot regress the current path.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s5">
+            <div class="sec-head"><span class="sec-n">05</span><h2 class="sec-h">Edge cases</h2></div>
+            <div class="callout">
+              <div class="callout-h"><span class="dot dot--warn"></span>Needs content</div>
+              <p>Invited users, SSO signups where the org already has projects, and accounts that abandon mid-flow are all unaddressed. The amber dot in the contents nav marks sections in this state.</p>
+            </div>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s6">
+            <div class="sec-head"><span class="sec-n">06</span><h2 class="sec-h">Out of scope</h2></div>
+            <p>Team invitations, billing, and the template gallery. Each is a plausible next step and none of them is required to test whether a guided start moves the number.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── right rail ─────────────────────────────────────────────────────── -->
+  <div class="grip" id="railGrip"></div>
+  <aside class="rail" id="rail">
+
+    <div class="tabrow" id="tabrow">
+      <button class="chev" id="collapse" title="Collapse rail">›</button>
+      <button class="tab is-ai is-active" data-tab="ai" data-tip="KiteAI"><span class="g">✦</span><span class="lbl">KiteAI</span></button>
+      <button class="tab" data-tab="project" data-tip="Project"><span class="g">▤</span><span class="lbl">Project</span></button>
+      <button class="tab" data-tab="layers" data-tip="Layers"><span class="g">☰</span><span class="lbl">Layers</span></button>
+      <button class="tab" data-tab="comments" data-tip="Comments · 3"><span class="g">◌</span><span class="lbl">Comments</span><span class="badge">3</span></button>
+      <button class="tab" data-tab="insights" data-tip="Insights"><span class="g">⚠</span><span class="lbl">Insights</span></button>
+    </div>
+
+    <div class="strip" id="strip" hidden>
+      <button class="strip-btn is-ai is-active" data-tab="ai" data-tip="KiteAI">✦</button>
+      <button class="strip-btn" data-tab="project" data-tip="Project">▤</button>
+      <button class="strip-btn" data-tab="layers" data-tip="Layers">☰</button>
+      <button class="strip-btn" data-tab="comments" data-tip="Comments · 3">◌</button>
+      <button class="strip-btn" data-tab="insights" data-tip="Insights">⚠</button>
+    </div>
+
+    <div class="panes" id="panes">
+
+      <!-- KiteAI -->
+      <section class="pane" data-pane="ai">
+        <div class="thread" id="thread">
+          <div class="msg msg--me"><div class="bubble">Can you draft a PRD for the onboarding flow?</div></div>
+
+          <div class="msg msg--ai">
+            <div class="bubble">
+              <p>Drafted it from the three onboarding screens on the canvas and the notes in the project. Two sections need your input — I've flagged them.</p>
+            </div>
+          </div>
+
+          <div class="msg msg--ai" style="max-width:100%">
+            <button class="artifact" id="artifact">
+              <div class="artifact-b">
+                <span class="artifact-tile">▤</span>
+                <span class="grow">
+                  <div class="artifact-t">Onboarding flow — PRD</div>
+                  <div class="artifact-m">12 sections · 1,840 words · draft</div>
+                  <p class="artifact-x">New accounts reach an empty workspace with no obvious first action. Roughly 40% never create a first project…</p>
+                </span>
+              </div>
+              <div class="artifact-f" id="artifactFoot"><span>Open in the reader</span><span style="margin-left:auto">→</span></div>
+            </button>
+          </div>
+
+          <div class="msg msg--me"><div class="bubble">yes</div></div>
+
+          <div class="msg msg--ai">
+            <div class="bubble">
+              <div class="clamp" id="clampBody">
+                <p>Here's the reasoning behind the three-step structure, since you asked me to explain rather than just write it.</p>
+                <p>The dominant failure in the current empty state isn't that people don't understand what a project is — it's that nothing in the interface expresses a preference. Five actions of equal weight is the same as no recommendation, and a new user with no recommendation defaults to the lowest-commitment option, which is the sample template.</p>
+                <p>A guided start works by removing that symmetry. One path is obviously the path, and the others remain available but visually subordinate. That's the whole mechanism — it isn't education, it's a default.</p>
+                <p>The reason each step must produce a durable artifact is retention: a tour can be dismissed and leaves nothing behind, so a user who abandons it is exactly where they started. A flow that has already named the project and picked a structure has produced something the user now owns, and ownership is what brings people back on day two.</p>
+                <p>The risk is that three steps is two too many for someone who knows what they want, which is why every step skips and skipping all three lands you in today's empty workspace.</p>
+              </div>
+              <button class="showmore" id="showmore">Show more</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="composer-box">
+            <textarea id="draft" placeholder="Ask KiteAI…" rows="2">This draft survives a tab switch — </textarea>
+            <div class="composer-row">
+              <span class="composer-hint">⏎ to send · ⇧⏎ newline</span>
+              <button class="send" title="Send">↑</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Project -->
+      <section class="pane" data-pane="project" hidden>
+        <div class="pane-scroll">
+          <div class="subtabs">
+            <button class="subtab is-active">Overview</button>
+            <button class="subtab">Project PRD</button>
+            <button class="subtab">Workflow PRD</button>
+          </div>
+
+          <div class="group">
+            <p class="eyebrow">Documents <span class="n">2</span></p>
+            <button class="card" data-opens-reader="1">
+              <div class="card-row">
+                <span class="grow">
+                  <div class="card-t">Onboarding flow — PRD</div>
+                  <div class="card-m">12 sections · draft · Aug 18</div>
+                </span>
+                <span class="open-link">Open →</span>
+              </div>
+            </button>
+            <button class="card">
+              <div class="card-row">
+                <span class="grow">
+                  <div class="card-t">Project overview</div>
+                  <div class="card-m">6 sections · Aug 12</div>
+                </span>
+                <span class="open-link">Open →</span>
+              </div>
+            </button>
+            <p style="font-size:11px;line-height:1.6;color:var(--rr-fg-faint);margin:8px 2px 0">
+              The rail lists documents. It is not where you read 2,000 words — that's the reader (§5).
+            </p>
+          </div>
+
+          <div class="group">
+            <p class="eyebrow">Workflows <span class="n">3</span></p>
+            <div class="row"><span class="g">◇</span><span class="grow">Signup → first project</span><span class="val">8</span></div>
+            <div class="row"><span class="g">◇</span><span class="grow">Invited user</span><span class="val">5</span></div>
+            <div class="row"><span class="g">◇</span><span class="grow">SSO</span><span class="val">4</span></div>
+          </div>
+
+          <div class="group">
+            <p class="eyebrow">Notes</p>
+            <textarea class="field" placeholder="Free-form project notes…">ProjectNotesSection lives here — the migration NotesTab's deletion depends on. Same kiteframe-notes-${projectId} key, so share, export and view-only keep working untouched.</textarea>
+          </div>
+
+          <div class="group">
+            <p class="eyebrow">Sources <span class="n">2</span></p>
+            <div class="row"><span class="g">◗</span><span class="grow">Q3 retention analysis.pdf</span></div>
+            <div class="row"><span class="g">◗</span><span class="grow">support-tickets-onboarding</span></div>
+            <button class="btn btn--ink" style="margin-top:8px">＋ Add source</button>
+            <p style="font-size:11px;line-height:1.6;color:var(--rr-fg-faint);margin:8px 2px 0">
+              Add is <b style="color:var(--rr-fg-muted)">ink</b>, not green. Green is success only (THEME.md §7).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Layers -->
+      <section class="pane" data-pane="layers" hidden>
+        <div class="pane-scroll">
+          <div class="group">
+            <p class="eyebrow">Canvas <span class="n">14</span></p>
+            <div class="row is-sel"><span class="g" style="color:var(--rr-brand)">▣</span><span class="grow">Welcome screen</span><span class="val">3</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Header frame</span><span class="val">2</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Title text</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Subtitle</span></div>
+            <div class="row"><span class="g" style="color:var(--rr-info)">◉</span><span class="grow">Primary button</span></div>
+            <div class="row"><span class="g" style="color:#A06520">▨</span><span class="grow">Illustration</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Step indicator</span><span class="val">3</span></div>
+            <div class="row"><span class="g" style="color:var(--rr-warn)">◆</span><span class="grow">Has account?</span></div>
+            <div class="row"><span class="g" style="color:var(--rr-fg-faint)">⚙</span><span class="grow">Create project</span></div>
+            <div class="row"><span class="g" style="color:#2B7A6B">▤</span><span class="grow">Project list</span><span class="val">6</span></div>
+            <div class="row"><span class="g" style="color:#A33B52">◭</span><span class="grow">Error state</span></div>
+            <div class="row"><span class="g" style="color:var(--rr-danger)">←</span><span class="grow">Exit</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Footer</span><span class="val">2</span></div>
+            <div class="row"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Legal copy</span></div>
+            <p style="font-size:11px;line-height:1.6;color:var(--rr-fg-faint);margin:10px 2px 0">
+              Scroll this, switch tabs, come back — position holds. Markers use the one
+              shared category set (THEME.md §4), not the second icon system.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comments -->
+      <section class="pane" data-pane="comments" hidden>
+        <div class="pane-scroll">
+          <div class="group">
+            <p class="eyebrow">Open <span class="n">3</span></p>
+            <div class="card">
+              <div class="card-t">Step indicator placement</div>
+              <p class="artifact-x">Should this sit above the title or below it? Above reads as progress, below reads as decoration.</p>
+              <div class="card-m">Welcome screen · 2d</div>
+            </div>
+            <div class="card">
+              <div class="card-t">Skip affordance</div>
+              <p class="artifact-x">"Skip" is too quiet here — people who know what they want can't find it.</p>
+              <div class="card-m">Pick a shape · 1d</div>
+            </div>
+            <div class="card">
+              <div class="card-t">Goals §3</div>
+              <p class="artifact-x">Metric question — anchored to the section, opens in the reader.</p>
+              <div class="card-m">Onboarding PRD · 4h</div>
+            </div>
+          </div>
+          <div class="group">
+            <p class="eyebrow">Resolved <span class="n">1</span></p>
+            <div class="row"><span class="g" style="color:var(--rr-ok)">✓</span><span class="grow" style="color:var(--rr-fg-muted)">Copy on the empty state</span></div>
+            <p style="font-size:11px;line-height:1.6;color:var(--rr-fg-faint);margin:8px 2px 0">
+              A resolved ✓ is green — an <b style="color:var(--rr-fg-muted)">outcome</b>. That's the legal use.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Insights -->
+      <section class="pane" data-pane="insights" hidden>
+        <div class="pane-scroll">
+          <div class="group">
+            <p class="eyebrow">Needs attention <span class="n">2</span></p>
+            <div class="insight">
+              <div class="insight-h"><span class="dot dot--warn"></span><span class="insight-t">2 sections incomplete</span></div>
+              <p class="insight-p">Goals and Edge cases have open questions. Amber dots mark them in the reader's contents nav.</p>
+            </div>
+            <div class="insight">
+              <div class="insight-h"><span class="dot dot--warn"></span><span class="insight-t">Unreachable node</span></div>
+              <p class="insight-p">"Error state" has no inbound edge from any step in the signup workflow.</p>
+            </div>
+          </div>
+          <div class="group">
+            <p class="eyebrow">Healthy <span class="n">2</span></p>
+            <div class="insight">
+              <div class="insight-h"><span class="dot dot--ok"></span><span class="insight-t">All exits terminate</span></div>
+              <p class="insight-p">Every path reaches an exit or a durable state.</p>
+            </div>
+            <div class="insight">
+              <div class="insight-h"><span class="dot dot--info"></span><span class="insight-t">3 workflows linked</span></div>
+              <p class="insight-p">Signup, invited user and SSO all reference the shared create step.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+</div>
+
+<div class="demo">
+  <b>Try:</b> click the artifact card · switch tabs and return (scroll + draft
+  survive) · <kbd>›</kbd> collapses the rail · drag either edge to resize.
+  This panel is demo scaffolding — delete on port.
+</div>
+
+<script>
+/* Reference behavior. Ports to React as noted; nothing here is load-bearing CSS. */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const rail   = $('#rail');
+const reader = $('#reader');
+const readerGrip = $('#readerGrip');
+const railGrip   = $('#railGrip');
+
+/* ── tabs: keep-alive via hidden, never unmount (§4) ────────────────────── */
+function selectTab(name) {
+  $$('.tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
+  $$('.strip-btn').forEach(b => b.classList.toggle('is-active', b.dataset.tab === name));
+  $$('.pane').forEach(p => { p.hidden = p.dataset.pane !== name; });
+  history.replaceState(null, '', '?panel=' + name);   /* URL-addressable (§4) */
+}
+$$('.tab, .strip-btn').forEach(b => b.addEventListener('click', () => {
+  if (rail.classList.contains('is-collapsed')) setCollapsed(false);
+  selectTab(b.dataset.tab);
+}));
+
+/* ── collapse ───────────────────────────────────────────────────────────── */
+function setCollapsed(on) {
+  rail.classList.toggle('is-collapsed', on);
+  $('#tabrow').hidden = on;
+  $('#panes').hidden  = on;
+  $('#strip').hidden  = !on;
+  if (on) rail.style.width = '';
+  layout();
+}
+$('#collapse').addEventListener('click', () => setCollapsed(true));
+
+/* ── reader open / close ────────────────────────────────────────────────── */
+const artifact = $('#artifact');
+function setReader(open) {
+  reader.hidden = !open;
+  artifact.classList.toggle('is-open', open);
+  $('#artifactFoot').innerHTML = open
+    ? '<span class="live">●</span><span>Open in the reader</span>'
+    : '<span>Open in the reader</span><span style="margin-left:auto">→</span>';
+  $$('.card[data-opens-reader]').forEach(c => c.classList.toggle('is-open', open));
+  layout();
+}
+artifact.addEventListener('click', () => setReader(reader.hidden));
+$('#readerClose').addEventListener('click', () => setReader(false));
+$$('.card[data-opens-reader]').forEach(c => c.addEventListener('click', () => setReader(true)));
+
+/* ── clamp ──────────────────────────────────────────────────────────────── */
+$('#showmore').addEventListener('click', e => {
+  const body = $('#clampBody'), on = body.classList.toggle('clamp');
+  e.target.textContent = on ? 'Show more' : 'Show less';
+});
+
+/* ── contents nav + scroll spy ──────────────────────────────────────────── */
+const doc = $('#doc');
+$$('.toc-item').forEach(b => b.addEventListener('click', () => {
+  const t = $('#' + b.dataset.goto);
+  doc.scrollTo({ top: t.offsetTop - doc.firstElementChild.offsetTop - 8, behavior: 'smooth' });
+}));
+doc.addEventListener('scroll', () => {
+  const line = doc.scrollTop + 60;
+  let cur = null;
+  $$('.sec', doc).forEach(s => { if (s.offsetTop - doc.firstElementChild.offsetTop <= line) cur = s.id; });
+  $$('.toc-item').forEach(b => b.classList.toggle('is-current', b.dataset.goto === cur));
+});
+
+/* ── layout: ONE function owns compress-vs-overlay and every clamp ───────── */
+/* Phase A4 lives here. The invariant, assert it in review:
+      rail.getBoundingClientRect().right <= window.innerWidth
+   at EVERY window width, with the reader open or closed. Opening the reader is
+   the common path into an over-committed layout, so it must clamp — not just
+   drag and window-resize. */
+const MIN_CANVAS   = 320;
+/* Reader geometry is DERIVED from the measure, never guessed (§4.2):
+     nav 162 + padding 64 + measure 400 + scrollbar 12 = 638 → full-nav threshold
+     nav  40 + padding 64 + measure 400 + scrollbar 12 = 516 → absolute floor
+   Declaring a 520 floor with a 162px nav is what made the measure unreachable
+   at the minimum and default widths. Derive, don't declare — and do not forget
+   the scrollbar gutter: .doc is overflow-y:auto, so it costs ~11-12px and its
+   omission put the measure 11px short at exactly the threshold widths. */
+const MEASURE      = 400;
+const DOC_PAD      = 64;
+const SCROLLBAR    = 12;
+const NAV_FULL     = 162;
+const NAV_STRIP    = 40;
+const NARROW_AT    = NAV_FULL  + DOC_PAD + MEASURE + SCROLLBAR;   /* 638 */
+const READER_MIN   = NAV_STRIP + DOC_PAD + MEASURE + SCROLLBAR;   /* 516 */
+const READER_MAX   = 800;
+const RAIL_MIN     = 400;
+const RAIL_MAX     = 800;
+
+let readerWanted = 660;    /* default — full nav AND a true 400px measure */
+
+function layout() {
+  /* 1. rail always fits the window, reader or no reader */
+  const railCeil = Math.min(RAIL_MAX, window.innerWidth - MIN_CANVAS);
+  const railW = Math.max(RAIL_MIN, Math.min(railCeil, rail.getBoundingClientRect().width));
+  if (!rail.classList.contains('is-collapsed')) rail.style.width = railW + 'px';
+
+  if (reader.hidden) {
+    reader.classList.remove('is-overlay', 'is-narrow');
+    readerGrip.hidden = true;
+    return;
+  }
+
+  /* 2. can the canvas still hold its floor with the reader in the flex row? */
+  const room = window.innerWidth - railW - MIN_CANVAS;
+  let w;
+
+  if (room >= READER_MIN) {
+    /* compress mode — reader takes a column, clamped into the room available */
+    reader.classList.remove('is-overlay');
+    w = Math.min(readerWanted, READER_MAX, room);
+    readerGrip.hidden = false;
+  } else {
+    /* overlay mode — reader floats over the canvas, rail untouched.
+       No canvas peek: the measure outranks a sliver of visible canvas, and the
+       rail is what must stay reachable. */
+    reader.classList.add('is-overlay');
+    reader.style.setProperty('--rr-overlay-right', railW + 'px');
+    w = Math.min(readerWanted, READER_MAX, window.innerWidth - railW);
+    readerGrip.hidden = true;
+  }
+
+  reader.style.width = w + 'px';
+  /* 3. the nav yields so the measure does not */
+  reader.classList.toggle('is-narrow', w < NARROW_AT);
+}
+
+/* ── resize handles ─────────────────────────────────────────────────────── */
+function drag(grip, el, min, max, onMove) {
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    grip.classList.add('dragging');
+    const x0 = e.clientX, w0 = el.getBoundingClientRect().width;
+    const move = ev => {
+      const others = [rail, reader].filter(o => o !== el && !o.hidden && !o.classList.contains('is-overlay'))
+        .reduce((n, o) => n + o.getBoundingClientRect().width, 0);
+      const ceiling = Math.min(max, window.innerWidth - MIN_CANVAS - others);
+      const w = Math.max(min, Math.min(ceiling, w0 + (x0 - ev.clientX)));
+      el.style.width = w + 'px';
+      onMove && onMove(w);
+      layout();
+    };
+    const up = () => {
+      grip.classList.remove('dragging');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+drag(railGrip, rail, RAIL_MIN, RAIL_MAX);
+drag(readerGrip, reader, READER_MIN, READER_MAX, w => { readerWanted = w; });
+addEventListener('resize', layout);
+layout();
+
+/* ── progressive tab labels (§2) ─────────────────────────────────────────── */
+/* Five labelled tabs intrinsically need 466px; the rail floor is 400px. Rather
+   than clip the fifth tab, drop inactive labels below the threshold. Port note:
+   a ResizeObserver on the rail, or a container query — NOT a window media query,
+   since the rail is resizable independently of the window. */
+const LABEL_THRESHOLD = 480;
+const railFit = new ResizeObserver(([e]) => {
+  rail.classList.toggle('is-wide', e.contentRect.width >= LABEL_THRESHOLD);
+});
+railFit.observe(rail);
+
+/* deep link: ?panel=layers */
+const p = new URLSearchParams(location.search).get('panel');
+if (p && $(`.tab[data-tab="${p}"]`)) selectTab(p);
+</script>
+</body>
+</html>
