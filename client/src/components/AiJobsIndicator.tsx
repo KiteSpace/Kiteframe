@@ -3,13 +3,18 @@ import { useLocation } from 'wouter';
 import { useAiJobs } from '@/contexts/AiJobsContext';
 
 export function AiJobsIndicator() {
-  const { pendingJobs } = useAiJobs();
+  const { pendingJobs, isJobClaimedInline } = useAiJobs();
   const [, setLocation] = useLocation();
 
-  if (pendingJobs.length === 0) return null;
+  // Drop only the jobs a visible thread already reports with its own inline
+  // "Thinking…" row — showing those here would announce one operation twice.
+  // Anything unclaimed (a PRD generation running in the background, say) still
+  // gets a pill, so the user never loses sight of it.
+  const visibleJobs = pendingJobs.filter(job => !isJobClaimedInline(job));
+  if (visibleJobs.length === 0) return null;
 
-  const primary = pendingJobs[0];
-  const extra = pendingJobs.length - 1;
+  const primary = visibleJobs[0];
+  const extra = visibleJobs.length - 1;
   const text = extra > 0 ? `${primary.label} (+${extra} more)` : primary.label;
 
   // Click navigates back to the surface that started the first pending job, if

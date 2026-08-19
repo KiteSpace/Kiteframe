@@ -3287,7 +3287,7 @@ ${workflowContext}`;
         </p>
         <div className="bg-muted/50 rounded-lg p-4 text-xs text-muted-foreground max-w-[280px]">
           <p className="font-medium mb-1">To enable AI features:</p>
-          <ol className="list-decimal list-inside space-y-1 text-left">
+          <ol className="list-decimal list-outside pl-5 space-y-1 text-left">
             <li>Open the KiteFrame editor</li>
             <li>Go to KiteAI settings</li>
             <li>Add your API key</li>

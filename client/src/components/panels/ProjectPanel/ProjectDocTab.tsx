@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -123,6 +124,33 @@ export function ProjectDocTab({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const { isGenerating, updateKey: generationUpdateKey } = usePRDGenerationState(projectId);
+
+  // Server-side last-modified time, used as the fallback for the "Updated:"
+  // metadata line when this browser has no local details record.
+  //
+  // `enabled: false` is deliberate: this reads whatever the projects list query
+  // has already cached and never issues a request of its own. The endpoint is
+  // authenticated, so fetching here would 403 on anonymous shared-link views
+  // for a purely cosmetic timestamp.
+  const { data: projectsData } = useQuery<{ projects: Array<Record<string, any>> }>({
+    queryKey: ['/api/projects'],
+    enabled: false,
+  });
+
+  const serverUpdatedAt = useMemo(() => {
+    const projects = projectsData?.projects;
+    if (!Array.isArray(projects)) return null;
+    // UUID first, and only fall back to the cloud id when no UUID matches.
+    // A single OR'd find lets an earlier row whose id happens to match a stale
+    // cloudProjectId win over the row that actually is this project.
+    const byUuid = projectId ? projects.find(p => p.projectUuid === projectId) : undefined;
+    const match =
+      byUuid ??
+      (cloudProjectId != null
+        ? projects.find(p => String(p.id) === String(cloudProjectId))
+        : undefined);
+    return match?.updatedAt ?? null;
+  }, [projectsData, projectId, cloudProjectId]);
 
   const projectDescription = useMemo(() => {
     if (!projectId) return undefined;
@@ -316,6 +344,7 @@ export function ProjectDocTab({
                 nodes={nodes}
                 edges={edges}
                 isReadOnly={isReadOnly}
+                serverUpdatedAt={serverUpdatedAt}
               />
 
               {(workflowSummaries.length > 0 || standaloneNodes.length > 0) && (

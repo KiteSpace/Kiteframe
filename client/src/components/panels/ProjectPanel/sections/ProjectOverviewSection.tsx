@@ -29,6 +29,13 @@ interface ProjectOverviewSectionProps {
   nodes?: Node[];
   edges?: Edge[];
   isReadOnly?: boolean;
+  /**
+   * Server-side last-modified time for the cloud project, used when this
+   * browser has never written the local details record (which is the only
+   * thing that sets `details.updatedAt`). Without it the metadata line reads
+   * "Updated: Unknown" for every project saved on another device.
+   */
+  serverUpdatedAt?: Date | string | number | null;
 }
 
 const DEFAULT_DETAILS: ProjectDetails = {
@@ -258,7 +265,7 @@ function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButto
   );
 }
 
-export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [], isReadOnly = false }: ProjectOverviewSectionProps) {
+export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [], isReadOnly = false, serverUpdatedAt }: ProjectOverviewSectionProps) {
   const [details, setDetails] = useState<ProjectDetails>(DEFAULT_DETAILS);
   const [newCategory, setNewCategory] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -367,7 +374,7 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     setDetails(prev => ({ ...prev, categories: prev.categories.filter(c => c !== category) }));
   };
 
-  const formatDate = (timestamp?: number) =>
+  const formatDate = (timestamp?: Date | string | number | null) =>
     sharedFormatDate(timestamp, { fallback: 'Unknown' });
 
   const buildWorkflowContext = useCallback(() => {
@@ -757,7 +764,7 @@ Return ONLY valid JSON:
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar size={10} />
-                  Updated: {formatDate(details.updatedAt)}
+                  Updated: {formatDate(details.updatedAt ?? serverUpdatedAt)}
                 </span>
               </div>
             </>

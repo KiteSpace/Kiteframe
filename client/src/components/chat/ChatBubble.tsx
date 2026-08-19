@@ -232,9 +232,11 @@ export function ChatBubble({
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
               strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-              ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>,
-              li: ({ children }) => <li className="my-0.5">{children}</li>,
+              // list-outside + padding: with list-inside, a loose list (items
+              // wrapped in <p>) orphans the marker onto its own line.
+              ul: ({ children }) => <ul className="list-disc list-outside pl-5 my-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-outside pl-5 my-2 space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="my-0.5 [&>p]:my-0">{children}</li>,
               code: ({ children, className }) => {
                 return <code className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">{children}</code>;
               },

@@ -19,6 +19,29 @@ export type ProjectPanelTab = 'kite-ai' | 'project' | 'layers' | 'notes' | 'comm
 
 const PANEL_COLLAPSED_KEY = 'kiteframe-project-panel-collapsed';
 const PANEL_ACTIVE_TAB_KEY = 'kiteframe-project-panel-active-tab';
+const PANEL_WIDTH_KEY = 'kiteframe-project-panel-width';
+
+const MIN_PANEL_WIDTH = 400;
+const MAX_PANEL_WIDTH = 800;
+const DEFAULT_PANEL_WIDTH = 600;
+// Minimum canvas the rail must always leave visible to its left. Without this
+// the rail is only clamped against constants, so a stored 800px width on a
+// narrow window pushes the rail's right edge past the viewport.
+const MIN_CANVAS_WIDTH = 320;
+
+function clampPanelWidth(width: number): number {
+  const fallback = Number.isFinite(width) ? width : DEFAULT_PANEL_WIDTH;
+  const viewportCap =
+    typeof window === 'undefined'
+      ? MAX_PANEL_WIDTH
+      : Math.max(MIN_PANEL_WIDTH, window.innerWidth - MIN_CANVAS_WIDTH);
+  // MIN_PANEL_WIDTH is applied last so an extremely narrow window still yields
+  // a usable rail rather than collapsing it to nothing.
+  return Math.max(
+    MIN_PANEL_WIDTH,
+    Math.min(MAX_PANEL_WIDTH, Math.min(viewportCap, fallback)),
+  );
+}
 
 interface ProjectPanelProps {
   nodes: Node[];
@@ -143,13 +166,13 @@ export function ProjectPanel({
     return saved === 'true';
   });
   const [panelWidth, setPanelWidth] = useState(() => {
-    if (typeof window === 'undefined') return 600;
+    if (typeof window === 'undefined') return DEFAULT_PANEL_WIDTH;
     try {
-      const saved = localStorage.getItem('kiteframe-project-panel-width');
-      const width = saved ? parseInt(saved) : 600;
-      return Math.max(400, Math.min(800, width));
+      const saved = localStorage.getItem(PANEL_WIDTH_KEY);
+      const width = saved ? parseInt(saved) : DEFAULT_PANEL_WIDTH;
+      return clampPanelWidth(width);
     } catch {
-      return 600;
+      return DEFAULT_PANEL_WIDTH;
     }
   });
   const [isResizing, setIsResizing] = useState(false);
@@ -173,10 +196,10 @@ export function ProjectPanel({
       if (!panelRef.current) return;
       const rect = panelRef.current.getBoundingClientRect();
       const newWidth = rect.left + rect.width - e.clientX;
-      const clampedWidth = Math.max(400, Math.min(800, newWidth));
+      const clampedWidth = clampPanelWidth(newWidth);
       setPanelWidth(clampedWidth);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('kiteframe-project-panel-width', String(clampedWidth));
+        localStorage.setItem(PANEL_WIDTH_KEY, String(clampedWidth));
       }
     };
     const handleMouseUp = () => setIsResizing(false);
@@ -187,6 +210,35 @@ export function ProjectPanel({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing]);
+
+  // Re-clamp on window resize. Clamping only on read and on drag leaves a
+  // stored-wide rail hanging off the right edge as soon as the window narrows.
+  //
+  // The width itself is updated on every resize event so the rail tracks the
+  // viewport, but the localStorage write is debounced to the end of the drag —
+  // a continuous window resize fires this handler dozens of times a second and
+  // a synchronous write per event is pure thrash.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let persistHandle: number | undefined;
+    const handleResize = () => {
+      setPanelWidth(prev => clampPanelWidth(prev));
+      window.clearTimeout(persistHandle);
+      persistHandle = window.setTimeout(() => {
+        setPanelWidth(current => {
+          try {
+            localStorage.setItem(PANEL_WIDTH_KEY, String(current));
+          } catch {}
+          return current;
+        });
+      }, 200);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.clearTimeout(persistHandle);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (forceTab) {

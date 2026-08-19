@@ -206,9 +206,13 @@ const markdownComponents = {
   h2: ({ children }: { children: ReactNode }) => <h2 className="text-sm font-semibold mt-2.5 mb-1 text-foreground">{children}</h2>,
   h3: ({ children }: { children: ReactNode }) => <h3 className="text-sm font-medium mt-2 mb-0.5 text-foreground">{children}</h3>,
   p:  ({ children }: { children: ReactNode }) => <p className="text-sm leading-relaxed mb-1.5">{children}</p>,
-  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-inside space-y-0.5 my-1.5 text-sm">{children}</ul>,
-  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-inside space-y-0.5 my-1.5 text-sm">{children}</ol>,
-  li: ({ children }: { children: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  // list-outside + explicit padding keeps the marker on the first line of the
+  // item. With list-inside a loose list (whose items are wrapped in <p>) puts
+  // the marker on its own line above the text, because the block-level <p>
+  // breaks immediately after the inline marker.
+  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-outside pl-5 space-y-0.5 my-1.5 text-sm">{children}</ul>,
+  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-outside pl-5 space-y-0.5 my-1.5 text-sm">{children}</ol>,
+  li: ({ children }: { children: ReactNode }) => <li className="leading-relaxed [&>p]:my-0">{children}</li>,
   strong: ({ children }: { children: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }: { children: ReactNode }) => <em className="italic">{children}</em>,
   hr: () => <hr className="my-2 border-border" />,

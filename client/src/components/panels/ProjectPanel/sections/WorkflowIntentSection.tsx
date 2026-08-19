@@ -402,7 +402,7 @@ Be specific and actionable. Return ONLY valid JSON.`;
                     <AlertTriangle size={10} />
                     Failure Modes
                   </label>
-                  <ul className="text-sm mt-0.5 list-disc list-inside">
+                  <ul className="text-sm mt-0.5 list-disc list-outside pl-5 [&>li>p]:my-0">
                     {intent.failureModes.map((mode, idx) => (
                       <li key={idx} className="text-gray-700 dark:text-gray-300">{mode}</li>
                     ))}
