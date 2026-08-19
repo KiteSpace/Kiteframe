@@ -54,6 +54,8 @@ import {
   downloadKiteframePRDJson
 } from '@/lib/export';
 import { usePRDGenerationState } from '@/stores/prdGenerationBus';
+import { useServerDocument } from '@/lib/documents/useServerDocument';
+import { formatDate } from '@/lib/utils/formatDate';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -268,6 +270,32 @@ export function WorkflowPRDSection({
     }
   }, [projectId, workflowId, nodes, edges]);
 
+  // Server is the system of record; localStorage above is the offline cache.
+  const { updatedAt, persist } = useServerDocument<WorkflowPRD>({
+    projectId,
+    docKind: 'workflow-prd',
+    workflowId,
+    readLocal: () => loadWorkflowPRD(projectId, workflowId),
+    writeLocal: (content) => saveWorkflowPRD(projectId, workflowId, content),
+    // Re-read through the normal path so staleness and history are recomputed
+    // against the adopted copy rather than the one it replaced.
+    onAdoptRemote: () => loadFromStorage(),
+  });
+
+  /**
+   * Single write path for the document: update the cache, then the server.
+   * Every mutation below goes through here so no edit can reach localStorage
+   * without also being scheduled for the server.
+   */
+  const persistPrd = useCallback(
+    (next: WorkflowPRD, opts?: { immediate?: boolean }) => {
+      if (!projectId || !workflowId) return;
+      saveWorkflowPRD(projectId, workflowId, next);
+      persist(next, opts);
+    },
+    [projectId, workflowId, persist],
+  );
+
   useEffect(() => {
     loadFromStorage();
   }, [loadFromStorage]);
@@ -321,7 +349,7 @@ export function WorkflowPRDSection({
       storeHash(projectId, workflowId, hash);
       
       const sectionHashes = computeAllSectionHashes(nodes, edges);
-      saveWorkflowPRD(projectId, workflowId, { ...newPrd, hash, sectionHashes });
+      persistPrd({ ...newPrd, hash, sectionHashes }, { immediate: true });
       saveSectionHashes(projectId, workflowId, sectionHashes);
       setPrd({ ...newPrd, hash, sectionHashes });
       setIsStale(false);
@@ -358,16 +386,16 @@ export function WorkflowPRDSection({
 
     const updated = updatePRDSection(prd, sectionKey, content, true) as WorkflowPRD;
     setPrd(updated);
-    saveWorkflowPRD(projectId, workflowId, updated);
-  }, [prd, projectId, workflowId]);
+    persistPrd(updated);
+  }, [prd, projectId, workflowId, persistPrd]);
 
   const handleResetSection = useCallback((sectionKey: string) => {
     if (!prd || !projectId || !workflowId) return;
 
     const updated = clearManualEdit(prd, sectionKey) as WorkflowPRD;
     setPrd(updated);
-    saveWorkflowPRD(projectId, workflowId, updated);
-  }, [prd, projectId, workflowId]);
+    persistPrd(updated);
+  }, [prd, projectId, workflowId, persistPrd]);
 
   const handleLinkNode = useCallback((sectionId: string) => {
     setLinkingSectionId(sectionId);
@@ -458,6 +486,9 @@ export function WorkflowPRDSection({
     const restored = restoreWorkflowPRDVersion(projectId, workflowId, version);
     if (restored) {
       setPrd(restored);
+      // Restoring is a deliberate act the user may navigate away from — push it
+      // up without waiting for the edit debounce.
+      persistPrd(restored, { immediate: true });
       const updatedHistory = loadWorkflowPRDHistory(projectId, workflowId);
       setHistory(updatedHistory);
       toast({ title: 'Version restored', description: `Restored to version ${version}.` });
@@ -515,7 +546,7 @@ export function WorkflowPRDSection({
 
       const updated = updatePRDSection(prd, suggestion.sectionId, newContent, true) as WorkflowPRD;
       setPrd(updated);
-      saveWorkflowPRD(projectId, workflowId, updated);
+      persistPrd(updated);
 
       setReviewResult(prev => prev ? {
         ...prev,
@@ -536,7 +567,7 @@ export function WorkflowPRDSection({
       if (suggestion.suggestedContent) {
         const updated = updatePRDSection(prd, suggestion.sectionId, suggestion.suggestedContent, true) as WorkflowPRD;
         setPrd(updated);
-        saveWorkflowPRD(projectId, workflowId, updated);
+        persistPrd(updated);
         setReviewResult(prev => prev ? {
           ...prev,
           suggestions: prev.suggestions.filter(s => 
@@ -622,7 +653,7 @@ export function WorkflowPRDSection({
       saveWorkflowPRDBackup(projectId, workflowId, prd);
     }
     
-    saveWorkflowPRD(projectId, workflowId, importedPrd);
+    persistPrd(importedPrd, { immediate: true });
     setPrd(importedPrd);
     setIsImportModalOpen(false);
     
@@ -676,7 +707,7 @@ export function WorkflowPRDSection({
           sectionHashes: currentHashes
         };
         
-        saveWorkflowPRD(projectId, workflowId, updatedPrd);
+        persistPrd(updatedPrd);
         saveSectionHashes(projectId, workflowId, currentHashes);
         setPrd(updatedPrd);
         setStaleSections(prev => ({ ...prev, [sectionId]: false }));
@@ -773,6 +804,11 @@ export function WorkflowPRDSection({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold">{workflowName} Spec</h2>
+              {updatedAt && (
+                <span className="text-[11px] text-muted-foreground" data-testid="workflow-prd-updated-at">
+                  Updated {formatDate(updatedAt, { includeTime: true })}
+                </span>
+              )}
               {prd.autoGenerated && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded" data-testid="ai-draft-label">
                   <Sparkles size={10} />
