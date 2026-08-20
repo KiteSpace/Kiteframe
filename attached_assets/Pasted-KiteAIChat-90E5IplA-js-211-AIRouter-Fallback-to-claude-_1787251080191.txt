@@ -1,0 +1,67 @@
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: 
+{requestId: 'req_1787250969982_1638l7', taskType: 'prd_generation', originalModel: 'claude-sonnet-4-5-20250929', fallbackModel: 'claude-haiku-4-5-20251001', durationMs: 459, …}
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request completed: 
+{requestId: 'req_1787250969412_9s7rrh', taskType: 'prd_generation', model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', success: true, …}
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] inputs-outputs: **Inputs:**
+
+- Program manager authentication credentials
+- Selected asset ID fr...
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request completed: 
+{requestId: 'req_1787250969415_1h96us', taskType: 'prd_generation', model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', success: true, …}
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] recovery-fallback: - **Asset Unavailable (Disconnected/Error)**: System displays current status mes...
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request completed: 
+{requestId: 'req_1787250969409_1xmf4k', taskType: 'prd_generation', model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', success: true, …}
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] overview: - **Purpose**: Enable program managers to reserve and check out test assets from...
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] requirements failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 1)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] user-flow failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 2)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] failure-scenarios failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 4)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] operational-risks failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 6)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] acceptance-criteria failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 7)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] 
+{projectId: 'project-1786468593413-db9aw7twn', workflowId: 'workflow-1', key: 'prd-workflow-project-1786468593413-db9aw7twn-workflow-1'}
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] 
+{found: true, length: 8}
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] 
+{projectId: 'project-1786468593413-db9aw7twn', workflowId: 'workflow-1', key: 'prd-workflow-project-1786468593413-db9aw7twn-workflow-1'}
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] 
+{found: true, length: 8}
