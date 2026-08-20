@@ -18,6 +18,11 @@ function hasImageContent(messages: AiMessage[]): boolean {
   });
 }
 
+function isPrdCapacityError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /AI error:\s*429|too many (concurrent )?AI (operations|requests)/i.test(error.message);
+}
+
 function getUserSettings(): { provider: string; model: string } | null {
   try {
     const saved = localStorage.getItem('ai_settings');
@@ -78,7 +83,8 @@ function resolveModel(
 
 export function createAiRouter(baseClient: AiClient) {
   async function chat(request: RouterRequest): Promise<RouterResponse> {
-    const { taskType, messages, sessionId, temperature, maxTokens, metadata, optimizationSessionId, signal } = request;
+    const { taskType: requestedTaskType, messages, sessionId, temperature, maxTokens, metadata, optimizationSessionId, signal } = request;
+    const taskType = requestedTaskType ?? 'general_chat';
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
@@ -217,6 +223,15 @@ export function createAiRouter(baseClient: AiClient) {
       if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
         throw error;
       }
+
+      // PRD generation owns capacity retries inside its shared section queue.
+      // Retrying or falling back here starts another immediate job and worsens
+      // the same 429 the queue is meant to relieve.
+      if (taskType === 'prd_generation' && isPrdCapacityError(error)) {
+        console.warn('[AIRouter] PRD request was rejected for capacity; deferring retry to the PRD scheduler.');
+        throw error;
+      }
+
       const policy = TASK_TYPE_POLICIES[taskType];
       const currentRetry = metadata?.retryCount ?? 0;
       const alreadyUsedFallback = metadata?.usedFallback ?? false;

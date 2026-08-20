@@ -46,6 +46,139 @@ function isRouter(client: AiClientOrRouter): client is AiRouter {
   return 'chat' in client && !('stream' in client);
 }
 
+const PRD_SECTION_CONCURRENCY = 2;
+const PRD_CAPACITY_RETRY_LIMIT = 3;
+const PRD_CAPACITY_RETRY_BASE_DELAY_MS = 250;
+
+type PrdWorkItem = {
+  run: () => Promise<unknown>;
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+  signal?: AbortSignal;
+  abortHandler?: () => void;
+  state: 'queued' | 'running' | 'settled';
+};
+
+const prdWorkQueue: PrdWorkItem[] = [];
+let activePrdWorkCount = 0;
+
+function createAbortError(): DOMException {
+  return new DOMException('Aborted', 'AbortError');
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+}
+
+function removeQueuedWork(item: PrdWorkItem): void {
+  const index = prdWorkQueue.indexOf(item);
+  if (index !== -1) {
+    prdWorkQueue.splice(index, 1);
+  }
+}
+
+function releaseAbortHandler(item: PrdWorkItem): void {
+  if (item.signal && item.abortHandler) {
+    item.signal.removeEventListener('abort', item.abortHandler);
+  }
+  item.abortHandler = undefined;
+}
+
+function drainPrdWorkQueue(): void {
+  while (activePrdWorkCount < PRD_SECTION_CONCURRENCY && prdWorkQueue.length > 0) {
+    const item = prdWorkQueue.shift()!;
+
+    if (item.state !== 'queued') {
+      continue;
+    }
+
+    if (item.signal?.aborted) {
+      item.state = 'settled';
+      releaseAbortHandler(item);
+      item.reject(createAbortError());
+      continue;
+    }
+
+    item.state = 'running';
+    releaseAbortHandler(item);
+    activePrdWorkCount += 1;
+
+    void Promise.resolve()
+      .then(item.run)
+      .then(item.resolve, item.reject)
+      .finally(() => {
+        item.state = 'settled';
+        activePrdWorkCount -= 1;
+        drainPrdWorkQueue();
+      });
+  }
+}
+
+/**
+ * All project and workflow PRD sections share this queue. Leaving one service
+ * slot free avoids colliding with a user's separate KiteAI request while still
+ * generating sections in parallel.
+ */
+function queuePrdWork<T>(run: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) {
+    return Promise.reject(createAbortError());
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const item: PrdWorkItem = {
+      run,
+      resolve: (value) => resolve(value as T),
+      reject,
+      signal,
+      state: 'queued',
+    };
+
+    if (signal) {
+      item.abortHandler = () => {
+        if (item.state !== 'queued') return;
+        item.state = 'settled';
+        removeQueuedWork(item);
+        releaseAbortHandler(item);
+        reject(createAbortError());
+      };
+      signal.addEventListener('abort', item.abortHandler, { once: true });
+    }
+
+    prdWorkQueue.push(item);
+    drainPrdWorkQueue();
+  });
+}
+
+function isCapacityError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /AI error:\s*429|too many (concurrent )?AI (operations|requests)/i.test(error.message);
+}
+
+function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timeout);
+      reject(createAbortError());
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 async function callAi(
   client: AiClientOrRouter,
   messages: AiMessage[],
@@ -68,6 +201,42 @@ async function callAi(
     signal: options.signal,
   });
   return response.text;
+}
+
+async function generateSectionWithRetry(
+  client: AiClientOrRouter,
+  context: string,
+  sectionTitle: string,
+  hint: string,
+  signal?: AbortSignal
+): Promise<string> {
+  let retryCount = 0;
+
+  while (true) {
+    throwIfAborted(signal);
+    try {
+      const content = await generateSectionText(client, context, sectionTitle, hint, signal);
+      if (!content) {
+        throw new Error(`PRD section "${sectionTitle}" returned no content`);
+      }
+      return content;
+    } catch (error) {
+      if (signal?.aborted || isAbortError(error)) {
+        throw createAbortError();
+      }
+
+      if (!isCapacityError(error) || retryCount >= PRD_CAPACITY_RETRY_LIMIT) {
+        throw error;
+      }
+
+      const delayMs = PRD_CAPACITY_RETRY_BASE_DELAY_MS * (2 ** retryCount);
+      retryCount += 1;
+      console.warn(
+        `[PRD][SECTION] ${sectionTitle} was delayed by AI capacity; retrying in ${delayMs}ms (${retryCount}/${PRD_CAPACITY_RETRY_LIMIT})`
+      );
+      await waitForRetry(delayMs, signal);
+    }
+  }
 }
 
 const DEFAULT_WORKFLOW_SECTIONS = [
@@ -162,6 +331,71 @@ async function generateSectionText(
   return text.trim();
 }
 
+type PrdSectionDefinition = {
+  id: string;
+  title: string;
+};
+
+type ExistingPrd = {
+  sections: PRDSection[];
+  manualEditedAt: Record<string, number>;
+};
+
+/**
+ * Generates a document as an all-or-nothing batch. If a section cannot be
+ * generated, abort the rest of the batch instead of returning a document with
+ * silent empty gaps that a caller could save as successful.
+ */
+async function generatePrdSections(
+  client: AiClientOrRouter,
+  context: string,
+  definitions: readonly PrdSectionDefinition[],
+  hints: Record<string, string>,
+  existingPrd: ExistingPrd | undefined,
+  parentSignal?: AbortSignal
+): Promise<PRDSection[]> {
+  const batchController = new AbortController();
+  const abortBatch = () => batchController.abort();
+
+  if (parentSignal?.aborted) {
+    batchController.abort();
+  } else {
+    parentSignal?.addEventListener('abort', abortBatch, { once: true });
+  }
+
+  const signal = batchController.signal;
+  const sectionPromises = definitions.map(async (definition) => {
+    const existing = existingPrd?.sections.find(section => section.id === definition.id);
+    if (existingPrd?.manualEditedAt[definition.id] && existing) {
+      return existing;
+    }
+
+    const content = await queuePrdWork(
+      () => generateSectionWithRetry(
+        client,
+        context,
+        definition.title,
+        hints[definition.id] || '',
+        signal
+      ),
+      signal
+    );
+
+    console.log(`[PRD][SECTION] ${definition.id}: ${content.slice(0, 80)}...`);
+    return { id: definition.id, title: definition.title, content };
+  });
+
+  try {
+    return await Promise.all(sectionPromises);
+  } catch (error) {
+    batchController.abort();
+    await Promise.allSettled(sectionPromises);
+    throw error;
+  } finally {
+    parentSignal?.removeEventListener('abort', abortBatch);
+  }
+}
+
 export async function generateWorkflowPRD(
   aiClient: AiClientOrRouter,
   model: SemanticWorkflowModel,
@@ -169,34 +403,14 @@ export async function generateWorkflowPRD(
   signal?: AbortSignal
 ): Promise<WorkflowPRD> {
   const context = buildWorkflowContext(model);
-
-  const settled = await Promise.allSettled(
-    DEFAULT_WORKFLOW_SECTIONS.map(async (s) => {
-      if (existingPRD?.manualEditedAt[s.id]) {
-        const existing = existingPRD.sections.find(es => es.id === s.id);
-        if (existing) return existing;
-      }
-
-      const content = await generateSectionText(
-        aiClient,
-        context,
-        s.title,
-        WORKFLOW_SECTION_HINTS[s.id] || '',
-        signal
-      );
-
-      console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
-
-      return { id: s.id, title: s.title, content };
-    })
+  const sections = await generatePrdSections(
+    aiClient,
+    context,
+    DEFAULT_WORKFLOW_SECTIONS,
+    WORKFLOW_SECTION_HINTS,
+    existingPRD,
+    signal
   );
-
-  const sections: PRDSection[] = DEFAULT_WORKFLOW_SECTIONS.map((s, i) => {
-    const result = settled[i];
-    if (result.status === 'fulfilled') return result.value;
-    console.warn(`[PRD][SECTION] ${s.id} failed, leaving empty:`, result.reason);
-    return { id: s.id, title: s.title, content: '' };
-  });
 
   return {
     workflowId: model.workflowId,
@@ -218,34 +432,14 @@ export async function generateProjectPRD(
   signal?: AbortSignal
 ): Promise<ProjectPRD> {
   const context = buildProjectContext(projectName, workflowModels);
-
-  const settled = await Promise.allSettled(
-    DEFAULT_PROJECT_SECTIONS.map(async (s) => {
-      if (existingPRD?.manualEditedAt[s.id]) {
-        const existing = existingPRD.sections.find(es => es.id === s.id);
-        if (existing) return existing;
-      }
-
-      const content = await generateSectionText(
-        aiClient,
-        context,
-        s.title,
-        PROJECT_SECTION_HINTS[s.id] || '',
-        signal
-      );
-
-      console.log(`[PRD][SECTION] ${s.id}: ${content.slice(0, 80)}...`);
-
-      return { id: s.id, title: s.title, content };
-    })
+  const sections = await generatePrdSections(
+    aiClient,
+    context,
+    DEFAULT_PROJECT_SECTIONS,
+    PROJECT_SECTION_HINTS,
+    existingPRD,
+    signal
   );
-
-  const sections: PRDSection[] = DEFAULT_PROJECT_SECTIONS.map((s, i) => {
-    const result = settled[i];
-    if (result.status === 'fulfilled') return result.value;
-    console.warn(`[PRD][SECTION] ${s.id} failed, leaving empty:`, result.reason);
-    return { id: s.id, title: s.title, content: '' };
-  });
 
   return {
     projectId,
