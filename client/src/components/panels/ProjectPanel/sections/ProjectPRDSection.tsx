@@ -18,7 +18,7 @@ import {
   saveProjectPRDVersion, loadProjectPRDHistory, restoreProjectPRDVersion,
   type PRDVersion
 } from '@/lib/kiteframe/utils/prdStorage';
-import { type ProjectPRD, generateProjectPRD } from '@/ai/prdEngine';
+import { type ProjectPRD, type PRDGenerationStatus, generateProjectPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
 import { DocSection, WorkflowDocument, overallConfidence, type DocDensity, type ReaderDocMeta } from '@/components/docs';
@@ -52,6 +52,7 @@ export function ProjectPRDSection({
 }: ProjectPRDSectionProps) {
   const [prd, setPrd] = useState<ProjectPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWaitingForCapacity, setIsWaitingForCapacity] = useState(false);
   const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
   const prevUpdateKeyRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -132,6 +133,7 @@ export function ProjectPRDSection({
     const signal = abortControllerRef.current?.signal;
 
     setIsGenerating(true);
+    setIsWaitingForCapacity(false);
 
     try {
       const isFirstGeneration = !prd;
@@ -151,7 +153,15 @@ export function ProjectPRDSection({
           flow.edges
         ));
 
-      const newPrd = await generateProjectPRD(ai, projectId, projectName, workflowModels, prd || undefined, signal);
+      const newPrd = await generateProjectPRD(
+        ai,
+        projectId,
+        projectName,
+        workflowModels,
+        prd || undefined,
+        signal,
+        (status: PRDGenerationStatus) => setIsWaitingForCapacity(status === 'waiting-for-capacity')
+      );
 
       if (signal?.aborted || requestProjectId !== currentProjectIdRef.current) {
         console.log('[ProjectPRDSection] Project changed during generation — discarding result');
@@ -189,6 +199,7 @@ export function ProjectPRDSection({
         variant: 'destructive',
       });
     } finally {
+      setIsWaitingForCapacity(false);
       setIsGenerating(false);
     }
   }, [projectId, projectName, nodes, edges, prd, ai, toast, onPRDGenerated]);
@@ -267,7 +278,11 @@ export function ProjectPRDSection({
       {isGenerating && (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Generating project spec...</span>
+          <span className="ml-2 text-sm text-muted-foreground">
+            {isWaitingForCapacity
+              ? 'AI is busy. Waiting to continue automatically...'
+              : 'Generating project spec...'}
+          </span>
         </div>
       )}
 

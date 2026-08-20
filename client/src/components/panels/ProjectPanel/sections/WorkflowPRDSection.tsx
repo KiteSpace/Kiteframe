@@ -33,7 +33,7 @@ import {
   downloadMarkdownFile, 
   generatePRDFilename 
 } from '@/lib/kiteframe/utils/prdExport';
-import { type WorkflowPRD } from '@/ai/prdEngine';
+import { type PRDGenerationStatus, type WorkflowPRD } from '@/ai/prdEngine';
 import { getRouter } from '@/ai/router';
 import { generateWorkflowPRD, generateSingleSection, elaborateSection } from '@/ai/prdEngine';
 import { reviewPRD, type PRDReviewResult, type PRDSuggestion } from '@/ai/prdSteward';
@@ -187,6 +187,7 @@ export function WorkflowPRDSection({
   const [prd, setPrd] = useState<WorkflowPRD | null>(null);
   const [history, setHistory] = useState<PRDVersion<WorkflowPRD>[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWaitingForCapacity, setIsWaitingForCapacity] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [reviewResult, setReviewResult] = useState<PRDReviewResult | null>(null);
   const [isStale, setIsStale] = useState(false);
@@ -350,6 +351,7 @@ export function WorkflowPRDSection({
     const signal = abortControllerRef.current?.signal;
 
     setIsGenerating(true);
+    setIsWaitingForCapacity(false);
 
     try {
       if (prd) {
@@ -366,7 +368,13 @@ export function WorkflowPRDSection({
       );
 
       const router = getRouter();
-      const newPrd = await generateWorkflowPRD(router, model, prd || undefined, signal);
+      const newPrd = await generateWorkflowPRD(
+        router,
+        model,
+        prd || undefined,
+        signal,
+        (status: PRDGenerationStatus) => setIsWaitingForCapacity(status === 'waiting-for-capacity')
+      );
 
       if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
         console.log('[WorkflowPRDSection] Project/workflow changed during generation — discarding result');
@@ -415,6 +423,7 @@ export function WorkflowPRDSection({
       });
     } finally {
       setIsGenerating(false);
+      setIsWaitingForCapacity(false);
     }
   }, [workflowId, projectId, workflowName, nodes, edges, prd, toast]);
 
@@ -825,7 +834,11 @@ export function WorkflowPRDSection({
       {isGenerating && (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Generating spec...</span>
+          <span className="ml-2 text-sm text-muted-foreground">
+            {isWaitingForCapacity
+              ? 'AI is busy. Waiting to continue automatically...'
+              : 'Generating spec...'}
+          </span>
         </div>
       )}
 

@@ -24,6 +24,7 @@ export interface SessionModelLock {
 export interface RouterMetadata {
   taskType?: TaskType;
   sessionId?: string;
+  sessionModelLock?: SessionModelLock;
   requestId?: string;
   providerUsed?: string;
   modelUsed?: string;

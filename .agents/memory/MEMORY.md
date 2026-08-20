@@ -43,3 +43,4 @@
 - [Tailwind responsive variants beat plain ones](tailwind-responsive-variant-override.md) — a base `md:text-sm` survives tailwind-merge against your `text-[15px]`; restate the override at the same breakpoint.
 - [Single-pane inspector decisions](inspector-tabbed-contract.md) — no tabs: five collapsible sections, collapse memory per node kind in localStorage; inapplicable sections omitted; every Style prop must be consumed by the renderer.
 - [GitHub connector staged writes](github-connector-staged-writes.md) — when a multi-request GitHub connector call hits PTC replay errors, run one API request per CodeExecution block and pass only serializable state forward.
+- [PRD generation capacity](prd-generation-capacity.md) — section fan-out must share a conservative queue; treat 429s as backpressure and never save incomplete generated specs.
