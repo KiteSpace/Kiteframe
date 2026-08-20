@@ -70,6 +70,30 @@ describe('PRD generation reliability', () => {
     expect(prd.sections.every(section => section.content)).toBe(true);
   });
 
+  it('reports capacity waits and resumes while retrying', async () => {
+    let calls = 0;
+    const statuses: string[] = [];
+    const client = clientFrom(async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error('AI error: 429 - Too many concurrent AI operations (3/3)');
+      }
+      return { text: 'Generated after capacity cleared' };
+    });
+
+    await generateProjectPRD(
+      client,
+      'project-1',
+      'Asset reservations',
+      [workflowModel],
+      undefined,
+      undefined,
+      status => statuses.push(status)
+    );
+
+    expect(statuses).toEqual(['waiting-for-capacity', 'running']);
+  });
+
   it('preserves manual sections while regenerating every remaining section', async () => {
     const existing: WorkflowPRD = {
       workflowId: workflowModel.workflowId,

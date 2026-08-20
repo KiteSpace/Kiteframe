@@ -42,6 +42,8 @@ export interface ProjectPRD {
 
 type AiClientOrRouter = AiClient | AiRouter;
 
+export type PRDGenerationStatus = 'waiting-for-capacity' | 'running';
+
 function isRouter(client: AiClientOrRouter): client is AiRouter {
   return 'chat' in client && !('stream' in client);
 }
@@ -208,7 +210,8 @@ async function generateSectionWithRetry(
   context: string,
   sectionTitle: string,
   hint: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatusChange?: (status: PRDGenerationStatus) => void
 ): Promise<string> {
   let retryCount = 0;
 
@@ -234,7 +237,12 @@ async function generateSectionWithRetry(
       console.warn(
         `[PRD][SECTION] ${sectionTitle} was delayed by AI capacity; retrying in ${delayMs}ms (${retryCount}/${PRD_CAPACITY_RETRY_LIMIT})`
       );
-      await waitForRetry(delayMs, signal);
+      onStatusChange?.('waiting-for-capacity');
+      try {
+        await waitForRetry(delayMs, signal);
+      } finally {
+        onStatusChange?.('running');
+      }
     }
   }
 }
@@ -352,10 +360,25 @@ async function generatePrdSections(
   definitions: readonly PrdSectionDefinition[],
   hints: Record<string, string>,
   existingPrd: ExistingPrd | undefined,
-  parentSignal?: AbortSignal
+  parentSignal?: AbortSignal,
+  onStatusChange?: (status: PRDGenerationStatus) => void
 ): Promise<PRDSection[]> {
   const batchController = new AbortController();
   const abortBatch = () => batchController.abort();
+  let waitingSectionCount = 0;
+  const updateStatus = (status: PRDGenerationStatus) => {
+    if (status === 'waiting-for-capacity') {
+      waitingSectionCount += 1;
+      if (waitingSectionCount === 1) {
+        onStatusChange?.(status);
+      }
+    } else {
+      waitingSectionCount = Math.max(0, waitingSectionCount - 1);
+      if (waitingSectionCount === 0) {
+        onStatusChange?.(status);
+      }
+    }
+  };
 
   if (parentSignal?.aborted) {
     batchController.abort();
@@ -376,7 +399,8 @@ async function generatePrdSections(
         context,
         definition.title,
         hints[definition.id] || '',
-        signal
+        signal,
+        updateStatus
       ),
       signal
     );
@@ -400,7 +424,8 @@ export async function generateWorkflowPRD(
   aiClient: AiClientOrRouter,
   model: SemanticWorkflowModel,
   existingPRD?: WorkflowPRD,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatusChange?: (status: PRDGenerationStatus) => void
 ): Promise<WorkflowPRD> {
   const context = buildWorkflowContext(model);
   const sections = await generatePrdSections(
@@ -409,7 +434,8 @@ export async function generateWorkflowPRD(
     DEFAULT_WORKFLOW_SECTIONS,
     WORKFLOW_SECTION_HINTS,
     existingPRD,
-    signal
+    signal,
+    onStatusChange
   );
 
   return {
@@ -429,7 +455,8 @@ export async function generateProjectPRD(
   projectName: string,
   workflowModels: SemanticWorkflowModel[],
   existingPRD?: ProjectPRD,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onStatusChange?: (status: PRDGenerationStatus) => void
 ): Promise<ProjectPRD> {
   const context = buildProjectContext(projectName, workflowModels);
   const sections = await generatePrdSections(
@@ -438,7 +465,8 @@ export async function generateProjectPRD(
     DEFAULT_PROJECT_SECTIONS,
     PROJECT_SECTION_HINTS,
     existingPRD,
-    signal
+    signal,
+    onStatusChange
   );
 
   return {
