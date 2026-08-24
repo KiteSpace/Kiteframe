@@ -10,6 +10,7 @@ import {
   saveProjectNotes,
   type ProjectNote,
 } from '@/lib/projectNotes';
+import { schedulePanelDocsSave } from '@/lib/documents/panelDocsClient';
 import { openInReader, useIsOpenInReader } from '@/stores/readerStore';
 
 interface ProjectNotesSectionProps {

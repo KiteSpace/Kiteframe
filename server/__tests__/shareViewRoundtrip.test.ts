@@ -150,6 +150,7 @@ async function loadApp() {
     disableProjectShareHandler,
     viewSharedProjectHandler,
   } = await import('../shareHandlers');
+  const { mergeWorkflowDataPreservingPanelDocs } = await import('@shared/panelDocs');
 
   const app = express();
   app.use(express.json());
@@ -170,10 +171,20 @@ async function loadApp() {
     const userId = req.user.claims.sub;
     const { id } = req.params;
     const { name, description, workflowData } = req.body;
+    let nextWorkflowData = workflowData;
+    if (workflowData) {
+      const existing = await storage.getSavedProject(id, userId);
+      if (existing?.workflowData) {
+        nextWorkflowData = mergeWorkflowDataPreservingPanelDocs(
+          existing.workflowData,
+          workflowData,
+        );
+      }
+    }
     const project = await storage.updateSavedProject(id, userId, {
       name,
       description,
-      workflowData,
+      workflowData: nextWorkflowData,
     });
     if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json({ project });
@@ -406,5 +417,126 @@ describe('Project Overview round-trips through cloud share links (real handlers)
 
     const viewRes = await request(app).get(`/api/view/${shareUuid}`);
     expect(viewRes.status).toBe(404);
+  });
+
+  it('returns project PRD, workflow PRDs, and notes on first share open (no extra save)', async () => {
+    const app = await loadApp();
+    const overview: OverviewBlob = {
+      name: 'Specced Project',
+      description: 'full docs',
+      categories: ['prd'],
+      createdAt: Date.UTC(2026, 2, 1),
+      updatedAt: Date.UTC(2026, 2, 2),
+    };
+    const prdData = {
+      projectName: 'Specced Project',
+      sections: [{ id: 'overview', title: 'Overview', content: 'Goals' }],
+      version: 1,
+      generatedAt: 1,
+    };
+    const workflowPRDs = [
+      {
+        workflowId: 'wf-alpha',
+        workflowName: 'Alpha',
+        sections: [{ id: 'goals', title: 'Goals', content: 'Ship' }],
+        version: 1,
+        generatedAt: 1,
+      },
+      {
+        workflowId: 'wf-beta',
+        workflowName: 'Beta',
+        sections: [{ id: 'goals', title: 'Goals', content: 'Learn' }],
+        version: 1,
+        generatedAt: 1,
+      },
+    ];
+    const notesData = JSON.stringify({
+      notes: [{ id: 'note-1', title: 'Kickoff', content: 'Remember constraints', author: 'You', version: 1, createdAt: '2026-03-01T00:00:00.000Z', updatedAt: '2026-03-01T00:00:00.000Z' }],
+    });
+
+    const createRes = await request(app)
+      .post('/api/projects')
+      .set('x-test-user', 'alice')
+      .send({
+        name: overview.name,
+        description: overview.description,
+        workflowData: {
+          ...buildWorkflowData(overview),
+          prdData,
+          workflowPRDs,
+          notesData,
+        },
+      });
+    const projectId = createRes.body.project.id;
+
+    const shareRes = await request(app)
+      .post(`/api/projects/${projectId}/share`)
+      .set('x-test-user', 'alice')
+      .send({});
+    const shareUuid: string = shareRes.body.shareUuid;
+
+    // First open of the share link — no further author save.
+    const viewRes = await request(app).get(`/api/view/${shareUuid}`);
+    expect(viewRes.status).toBe(200);
+    expect(viewRes.body.projectUuid).toBeTruthy();
+    expect(viewRes.body.shareUuid).toBe(shareUuid);
+    expect(viewRes.body.projectUuid).not.toBe(shareUuid);
+    expect(viewRes.body.prdData.sections[0].content).toBe('Goals');
+    expect(viewRes.body.workflowPRDs).toHaveLength(2);
+    expect(viewRes.body.workflowPRDs.map((w: any) => w.workflowId).sort()).toEqual([
+      'wf-alpha',
+      'wf-beta',
+    ]);
+    expect(JSON.parse(viewRes.body.notesData).notes[0].content).toContain('constraints');
+    expect(JSON.parse(viewRes.body.detailsData).categories).toEqual(['prd']);
+  });
+
+  it('keeps documentation after a canvas-only update that omits panel docs', async () => {
+    const app = await loadApp();
+    const overview: OverviewBlob = {
+      name: 'Durable Docs',
+      description: 'must survive',
+      categories: ['keep'],
+      createdAt: 1,
+      updatedAt: 2,
+    };
+    const createRes = await request(app)
+      .post('/api/projects')
+      .set('x-test-user', 'alice')
+      .send({
+        name: overview.name,
+        description: overview.description,
+        workflowData: {
+          ...buildWorkflowData(overview),
+          prdData: { projectName: 'Durable Docs', sections: [{ id: 'o', title: 'O', content: 'alive' }] },
+          notesData: '{"notes":[{"id":"1","content":"alive"}]}',
+        },
+      });
+    const projectId = createRes.body.project.id;
+    const shareRes = await request(app)
+      .post(`/api/projects/${projectId}/share`)
+      .set('x-test-user', 'alice')
+      .send({});
+    const shareUuid: string = shareRes.body.shareUuid;
+
+    // Canvas save that forgets to include documentation fields.
+    const updateRes = await request(app)
+      .put(`/api/projects/${projectId}`)
+      .set('x-test-user', 'alice')
+      .send({
+        name: overview.name,
+        workflowData: {
+          nodes: [{ id: 'n1' }, { id: 'n2' }],
+          edges: [],
+        },
+      });
+    expect(updateRes.status).toBe(200);
+
+    const viewRes = await request(app).get(`/api/view/${shareUuid}`);
+    expect(viewRes.status).toBe(200);
+    expect(viewRes.body.nodes).toHaveLength(2);
+    expect(viewRes.body.prdData.sections[0].content).toBe('alive');
+    expect(viewRes.body.notesData).toContain('alive');
+    expect(JSON.parse(viewRes.body.detailsData).categories).toEqual(['keep']);
   });
 });

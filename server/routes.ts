@@ -16,6 +16,10 @@ import {
   setProjectShareLockHandler,
   viewSharedProjectHandler,
 } from "./shareHandlers";
+import {
+  mergeWorkflowDataPreservingPanelDocs,
+  shareUpdateDocsFromWorkflowData,
+} from "@shared/panelDocs";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { db } from "./db";
 import { 
@@ -1432,8 +1436,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sanitize all input data
       const sanitizedName = name ? sanitizeNodeLabel(name) : undefined;
       const sanitizedDescription = description ? sanitizeText(description) : undefined;
-      const sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
       const sanitizedTags = tags ? (tags as string[]).map((t: string) => sanitizeText(t)).filter(Boolean) : undefined;
+
+      let sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
+      // Canvas / partial saves must not erase existing Project panel docs when
+      // the client omitted those keys (empty localStorage, docs-only race, etc).
+      if (sanitizedWorkflowData) {
+        const existing = await storage.getSavedProject(id, userId);
+        if (existing?.workflowData) {
+          sanitizedWorkflowData = mergeWorkflowDataPreservingPanelDocs(
+            existing.workflowData,
+            sanitizedWorkflowData,
+          );
+        }
+      }
 
       const project = await storage.updateSavedProject(id, userId, {
         name: sanitizedName,
@@ -1449,12 +1465,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      // If sharing is enabled, broadcast update to viewers
+      // If sharing is enabled, broadcast update to viewers — always from the
+      // persisted blob so preserved docs are included even when the request
+      // omitted them.
       if (project.isShareEnabled && project.shareUuid) {
         const broadcastFn = (req.app as any).broadcastShareUpdate;
-        if (broadcastFn && sanitizedWorkflowData) {
-          const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
-          broadcastFn(project.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
+        if (broadcastFn) {
+          const wf = (project.workflowData ?? {}) as any;
+          const docs = shareUpdateDocsFromWorkflowData(wf);
+          broadcastFn(project.shareUuid, {
+            nodes: wf.nodes,
+            edges: wf.edges,
+            canvasObjects: wf.canvasObjects,
+            viewport: wf.viewport,
+            flowSettings: wf.flowSettings,
+            ...docs,
+          });
         }
       }
 
@@ -1783,8 +1809,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sanitize all input data
       const sanitizedName = name ? sanitizeNodeLabel(name) : undefined;
       const sanitizedDescription = description ? sanitizeText(description) : undefined;
-      const sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
       const sanitizedTags = tags ? (tags as string[]).map((t: string) => sanitizeText(t)).filter(Boolean) : undefined;
+
+      let sanitizedWorkflowData = workflowData ? sanitizeWorkflowContent(workflowData) : undefined;
+      if (sanitizedWorkflowData) {
+        sanitizedWorkflowData = mergeWorkflowDataPreservingPanelDocs(
+          project.workflowData,
+          sanitizedWorkflowData,
+        );
+      }
 
       const updated = await storage.updateSavedProject(project.id, userId, {
         name: sanitizedName,
@@ -1803,9 +1836,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If sharing is enabled, broadcast update to viewers
       if (updated.isShareEnabled && updated.shareUuid) {
         const broadcastFn = (req.app as any).broadcastShareUpdate;
-        if (broadcastFn && sanitizedWorkflowData) {
-          const { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData } = sanitizedWorkflowData as any;
-          broadcastFn(updated.shareUuid, { nodes, edges, canvasObjects, viewport, flowSettings, prdData, workflowPRDs, notesData, detailsData });
+        if (broadcastFn) {
+          const wf = (updated.workflowData ?? {}) as any;
+          const docs = shareUpdateDocsFromWorkflowData(wf);
+          broadcastFn(updated.shareUuid, {
+            nodes: wf.nodes,
+            edges: wf.edges,
+            canvasObjects: wf.canvasObjects,
+            viewport: wf.viewport,
+            flowSettings: wf.flowSettings,
+            ...docs,
+          });
         }
       }
 

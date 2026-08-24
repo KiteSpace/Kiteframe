@@ -137,9 +137,72 @@ describe('ViewOnlyViewer Project Overview rendering (after share payload seeding
     seedFromShareResponse(shareId, null);
 
     renderWithProviders(
-      <ProjectOverviewSection projectId={shareId} projectName="" />,
+      <ProjectOverviewSection projectId={shareId} projectName="" isReadOnly />,
     );
 
     expect(screen.queryByText('stale-cat')).not.toBeInTheDocument();
+  });
+
+  it('does not leak overview from a previous share link when opening a different one', () => {
+    const firstShare = 'share-uuid-first';
+    const secondShare = 'share-uuid-second';
+
+    seedFromShareResponse(
+      firstShare,
+      JSON.stringify({
+        name: 'First Project',
+        description: 'should not appear',
+        categories: ['first-only'],
+        createdAt: 1,
+        updatedAt: 1,
+      } satisfies OverviewBlob),
+    );
+
+    // Opening a different share clears/reseeds under its own key — first
+    // project's categories must not surface under the second shareId.
+    seedFromShareResponse(
+      secondShare,
+      JSON.stringify({
+        name: 'Second Project',
+        description: 'different project',
+        categories: ['second-only'],
+        createdAt: 2,
+        updatedAt: 2,
+      } satisfies OverviewBlob),
+    );
+
+    renderWithProviders(
+      <ProjectOverviewSection
+        projectId={secondShare}
+        projectName="Second Project"
+        isReadOnly
+      />,
+    );
+
+    expect(screen.getByText('second-only')).toBeInTheDocument();
+    expect(screen.queryByText('first-only')).not.toBeInTheDocument();
+    expect(screen.queryByText('should not appear')).not.toBeInTheDocument();
+  });
+
+  it('keeps the overview read-only — no refine / edit affordances for shared viewers', () => {
+    const shareId = 'share-uuid-readonly';
+    seedFromShareResponse(
+      shareId,
+      JSON.stringify({
+        name: 'RO',
+        description: 'read only',
+        categories: [],
+        createdAt: 1,
+        updatedAt: 1,
+      } satisfies OverviewBlob),
+    );
+
+    renderWithProviders(
+      <ProjectOverviewSection projectId={shareId} projectName="RO" isReadOnly />,
+    );
+
+    expect(screen.queryByTestId('project-name-refine-btn')).not.toBeInTheDocument();
+    expect(screen.queryByText('Click to add categories...')).not.toBeInTheDocument();
+    expect(screen.getByText('No categories')).toBeInTheDocument();
   });
 });

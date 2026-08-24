@@ -1,5 +1,5 @@
 /**
- * Addressable project documents (PRDs).
+ * Addressable project documents (PRDs) and panel documentation (notes / overview).
  *
  * These endpoints give a document a stable server-side address —
  * `/api/project/:projectUuid/documents/:docId` — so a reader pane or a chat
@@ -12,6 +12,10 @@
  * viewer all already read. See `shared/documents.ts` for why a second store was
  * deliberately avoided. These routes are a read/write *address* over that
  * single source of truth, not a copy of it.
+ *
+ * Panel docs (notes + overview details) use
+ * `PUT /api/project/:projectUuid/panel-docs` so author-side typing can persist
+ * independently of a full canvas save, while still merging into the same blob.
  */
 
 import type { Express, Response } from 'express';
@@ -29,6 +33,7 @@ import {
   writeDocumentContent,
   type DocKind,
 } from '@shared/documents';
+import { shareUpdateDocsFromWorkflowData } from '@shared/panelDocs';
 
 function getUserIdFromRequest(user: any): string {
   if (user?.claims?.sub) return user.claims.sub;
@@ -75,6 +80,27 @@ const documentContentSchema = z
 const saveDocumentSchema = z.object({
   content: documentContentSchema,
 });
+
+/**
+ * Notes + overview/details (+ optional project name/description columns).
+ * Each field is optional so a notes-only edit does not have to re-send
+ * overview, and vice versa. Explicit `null` clears that field.
+ */
+const savePanelDocsSchema = z
+  .object({
+    notesData: z.string().nullable().optional(),
+    detailsData: z.string().nullable().optional(),
+    name: z.string().max(200).optional(),
+    description: z.string().max(5000).nullable().optional(),
+  })
+  .refine(
+    (body) =>
+      body.notesData !== undefined ||
+      body.detailsData !== undefined ||
+      body.name !== undefined ||
+      body.description !== undefined,
+    { message: 'At least one panel-docs field is required' },
+  );
 
 interface ResolvedDoc {
   docKind: DocKind;
@@ -214,16 +240,14 @@ export function registerDocumentRoutes(app: Express) {
         const broadcastFn = (req.app as any).broadcastShareUpdate;
         if (broadcastFn) {
           const wf = saved.workflowData as any;
+          const docs = shareUpdateDocsFromWorkflowData(wf);
           broadcastFn(saved.shareUuid, {
             nodes: wf?.nodes,
             edges: wf?.edges,
             canvasObjects: wf?.canvasObjects,
             viewport: wf?.viewport,
             flowSettings: wf?.flowSettings,
-            prdData: wf?.prdData,
-            workflowPRDs: wf?.workflowPRDs,
-            notesData: wf?.notesData,
-            detailsData: wf?.detailsData,
+            ...docs,
           });
         }
       }
@@ -240,6 +264,81 @@ export function registerDocumentRoutes(app: Express) {
     } catch (error) {
       console.error('Error saving project document:', error);
       res.status(500).json({ error: 'Failed to save document' });
+    }
+  });
+
+  // Persist Project panel notes / overview without a canvas save. Merges into
+  // workflowData under the same row lock as document PUT so a concurrent full
+  // project save cannot lose the canvas (or the other docs).
+  app.put('/api/project/:projectUuid/panel-docs', isAuthenticated, async (req: any, res) => {
+    try {
+      const parseResult = savePanelDocsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({
+          error: 'Invalid panel documentation',
+          details: parseResult.error.errors,
+        });
+      }
+
+      const userId = getUserIdFromRequest(req.user);
+      const { notesData, detailsData, name, description } = parseResult.data;
+
+      const result = await storage.mutateProjectWorkflowData(
+        req.params.projectUuid,
+        userId,
+        (workflowData) => {
+          const base =
+            workflowData && typeof workflowData === 'object' ? { ...workflowData } : {};
+          if (notesData !== undefined) base.notesData = notesData;
+          if (detailsData !== undefined) base.detailsData = detailsData;
+          return base;
+        },
+      );
+
+      if (result.status === 'notFound') return res.status(404).json({ error: 'Project not found' });
+      if (result.status === 'forbidden') {
+        return res.status(403).json({ error: 'Not authorized to access this project' });
+      }
+
+      let saved = result.project;
+
+      // Project name/description live on the row, not inside workflowData.
+      if (name !== undefined || description !== undefined) {
+        const patched = await storage.updateSavedProject(saved.id, userId, {
+          ...(name !== undefined ? { name } : {}),
+          ...(description !== undefined ? { description } : {}),
+        });
+        if (patched) saved = patched;
+      }
+
+      if (saved.isShareEnabled && saved.shareUuid) {
+        const broadcastFn = (req.app as any).broadcastShareUpdate;
+        if (broadcastFn) {
+          const wf = saved.workflowData as any;
+          const docs = shareUpdateDocsFromWorkflowData(wf);
+          broadcastFn(saved.shareUuid, {
+            nodes: wf?.nodes,
+            edges: wf?.edges,
+            canvasObjects: wf?.canvasObjects,
+            viewport: wf?.viewport,
+            flowSettings: wf?.flowSettings,
+            ...docs,
+          });
+        }
+      }
+
+      const docs = shareUpdateDocsFromWorkflowData(saved.workflowData);
+      res.json({
+        projectUuid: saved.projectUuid,
+        name: saved.name,
+        description: saved.description,
+        notesData: docs.notesData,
+        detailsData: docs.detailsData,
+        updatedAt: saved.updatedAt,
+      });
+    } catch (error) {
+      console.error('Error saving panel documentation:', error);
+      res.status(500).json({ error: 'Failed to save panel documentation' });
     }
   });
 }

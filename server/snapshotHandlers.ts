@@ -19,8 +19,13 @@
  *   - POST /api/snapshots/:id/restore returns 404 if the snapshot is not
  *     owned by the requesting user.
  */
-import type { Request, Response } from 'express';
+import type { Express, Request, Response } from 'express';
 import { and, desc, eq, inArray } from 'drizzle-orm';
+import {
+  mergeWorkflowDataPreservingPanelDocs,
+  pickPresentPanelDocs,
+  shareUpdateDocsFromWorkflowData,
+} from '@shared/panelDocs';
 import { db } from './db';
 import { storage } from './storage';
 import { workflowSnapshots } from '../shared/schema';
@@ -53,8 +58,42 @@ export type WorkflowDocument = {
   viewport?: unknown;
   flowSettings?: unknown;
   workflowId?: string;
+  prdData?: unknown;
+  workflowPRDs?: unknown;
+  notesData?: unknown;
+  detailsData?: unknown;
   [k: string]: unknown;
 };
+
+/** Notify live share viewers after a canvas mirror that may carry docs. */
+function broadcastMirroredProject(
+  req: Request,
+  project: {
+    isShareEnabled?: boolean | null;
+    shareUuid?: string | null;
+    workflowData?: unknown;
+  },
+) {
+  if (!project.isShareEnabled || !project.shareUuid) return;
+  const appWithBroadcast = req.app as Express & {
+    broadcastShareUpdate?: (
+      shareId: string,
+      data: Record<string, unknown>,
+    ) => void;
+  };
+  const broadcastFn = appWithBroadcast.broadcastShareUpdate;
+  if (!broadcastFn) return;
+  const wf = (project.workflowData ?? {}) as WorkflowDocument;
+  const docs = shareUpdateDocsFromWorkflowData(wf);
+  broadcastFn(project.shareUuid, {
+    nodes: wf.nodes,
+    edges: wf.edges,
+    canvasObjects: wf.canvasObjects,
+    viewport: wf.viewport,
+    flowSettings: wf.flowSettings,
+    ...docs,
+  });
+}
 
 export async function createSnapshotHandler(req: Request, res: Response) {
   try {
@@ -68,7 +107,20 @@ export async function createSnapshotHandler(req: Request, res: Response) {
       metadata,
       isAutoSave,
       cloudProjectId,
+      // Optional panel docs — used when auto-creating a cloud row so the first
+      // canvas snapshot does not leave shared viewers without documentation.
+      prdData,
+      workflowPRDs,
+      notesData,
+      detailsData,
     } = req.body;
+
+    const optionalPanelDocs = pickPresentPanelDocs({
+      prdData,
+      workflowPRDs,
+      notesData,
+      detailsData,
+    });
 
     if (!workflowId || !name) {
       return res
@@ -158,15 +210,24 @@ export async function createSnapshotHandler(req: Request, res: Response) {
             project.workflowData && typeof project.workflowData === 'object'
               ? (project.workflowData as WorkflowDocument)
               : {};
-          const merged: WorkflowDocument = {
-            ...existing,
-            workflowId,
-            nodes: parsedNodes,
-            edges: parsedEdges,
-          };
-          await storage.updateSavedProject(resolvedCloudProjectId, userId, {
-            workflowData: merged,
-          });
+          // Canvas-only merge: never replace documentation the author already
+          // persisted. Optional docs from the client are applied only when
+          // present so an empty localStorage cannot wipe the cloud copy.
+          const merged: WorkflowDocument = mergeWorkflowDataPreservingPanelDocs(
+            existing,
+            {
+              workflowId,
+              nodes: parsedNodes,
+              edges: parsedEdges,
+              ...optionalPanelDocs,
+            },
+          );
+          const updated = await storage.updateSavedProject(
+            resolvedCloudProjectId,
+            userId,
+            { workflowData: merged },
+          );
+          if (updated) broadcastMirroredProject(req, updated);
         } else {
           resolvedCloudProjectId = undefined;
         }
@@ -195,14 +256,16 @@ export async function createSnapshotHandler(req: Request, res: Response) {
             existing.workflowData && typeof existing.workflowData === 'object'
               ? (existing.workflowData as WorkflowDocument)
               : {};
-          await storage.updateSavedProject(existing.id, userId, {
-            workflowData: {
-              ...existingDoc,
-              workflowId,
-              nodes: parsedNodes,
-              edges: parsedEdges,
-            },
+          const merged = mergeWorkflowDataPreservingPanelDocs(existingDoc, {
+            workflowId,
+            nodes: parsedNodes,
+            edges: parsedEdges,
+            ...optionalPanelDocs,
           });
+          const updated = await storage.updateSavedProject(existing.id, userId, {
+            workflowData: merged,
+          });
+          if (updated) broadcastMirroredProject(req, updated);
         } else {
           // Prefer the real workflow name the client sent so the auto-created
           // row matches the user's project. Only fall back to a dated
@@ -218,6 +281,7 @@ export async function createSnapshotHandler(req: Request, res: Response) {
               workflowId,
               nodes: parsedNodes,
               edges: parsedEdges,
+              ...optionalPanelDocs,
             },
           });
           resolvedCloudProjectId = created.id;

@@ -1,4 +1,5 @@
 import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
+import { schedulePanelDocsSave } from '@/lib/documents/panelDocsClient';
 
 export interface ProjectNote {
   id: string;
@@ -126,8 +127,11 @@ export function saveProjectNotes(projectId: string | undefined, data: ProjectNot
     lastSaved: now,
   };
   try {
-    localStorage.setItem(getNotesStorageKey(projectId), JSON.stringify(normalized));
+    const notesData = JSON.stringify(normalized);
+    localStorage.setItem(getNotesStorageKey(projectId), notesData);
     notifyPanelDocsChanged(projectId || '');
+    // First-class server persistence for shared viewers — independent of canvas.
+    schedulePanelDocsSave(projectId, { notesData });
   } catch (error) {
     console.error('Failed to save project notes:', error);
   }
