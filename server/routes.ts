@@ -76,6 +76,7 @@ import { registerFigmaRoutes } from "./figmaRoutes";
 import { createOptimizationSession, invalidateOptimizationSession, getOptimizationSessionOwner } from "./optimizationSession";
 import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { registerExternalWorkflowRoutes } from "./externalWorkflowRoutes";
+import { registerDocumentRoutes } from "./documentRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
 
 // Initialize Firebase Admin on module load
@@ -581,6 +582,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup External Workflow API routes (Claude Code skill, etc.)
   registerExternalWorkflowRoutes(app);
 
+  // Addressable project documents (PRDs) — see server/documentRoutes.ts
+  registerDocumentRoutes(app);
+
   // Firebase auth sync endpoint - syncs Firebase auth to backend session
   app.post('/api/auth/firebase-sync', authRateLimiter, async (req: any, res) => {
     try {
@@ -916,6 +920,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? 'This account is not managed through Stripe.'
             : 'No billing account found. Please choose a plan to set up billing.',
         });
+      }
+      if (!user.stripeCustomerId) {
+        return res.status(400).json({ error: 'No billing account found. Please choose a plan to set up billing.' });
       }
 
       try {
@@ -4077,6 +4084,37 @@ Respond with only the corrected JSON data:`;
     }
   });
 
+  app.patch('/api/comments/:id/position', csrfProtection, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const positionX = req.body?.positionX;
+      const positionY = req.body?.positionY;
+      if (!Number.isInteger(positionX) || !Number.isInteger(positionY)) {
+        return res.status(400).json({ error: 'Comment position must use integer coordinates' });
+      }
+
+      const existing = await storage.getCommentById(id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+      if (existing.parentCommentId) {
+        return res.status(400).json({ error: 'Replies cannot be positioned on the canvas' });
+      }
+
+      const auth = await resolveCommentAuth(req, existing.workflowId);
+      if (!auth.authorized) {
+        return res.status(403).json({ error: 'Not allowed to update this comment' });
+      }
+
+      const updated = await storage.setCommentPosition(id, positionX, positionY);
+      (app as any).broadcastCommentEvent?.(existing.workflowId, 'move', updated);
+      res.json(updated);
+    } catch (error) {
+      console.error('Comment position update error:', error);
+      res.status(500).json({ error: 'Failed to update comment position' });
+    }
+  });
+
   app.delete('/api/comments/:id', csrfProtection, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -4199,7 +4237,7 @@ Respond with only the corrected JSON data:`;
       // Get country from geolocation service
       let country = null;
       try {
-        const geoData = await geolocationService.getLocation(ip);
+        const geoData = await geolocationService.getCountryCode(req);
         country = geoData.country || null;
       } catch {
         // Geolocation failed, continue without country
@@ -4254,7 +4292,8 @@ Respond with only the corrected JSON data:`;
       // (honeypot already handles most bots; hard-blocking missing tokens locks out
       // legitimate users with ad blockers that prevent the reCAPTCHA script from loading)
       if (process.env.RECAPTCHA_SECRET_KEY && recaptchaToken) {
-        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress;
+        const forwardedFor = req.headers['x-forwarded-for'];
+        const clientIp = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor)?.split(',')[0]?.trim() || req.socket?.remoteAddress;
         const isValid = await verifyRecaptchaToken(recaptchaToken, 'contact', clientIp);
         if (!isValid) {
           return res.status(400).json({ error: 'Security check failed. Please try again.' });

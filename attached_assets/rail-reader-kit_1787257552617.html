@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<!--
+  RAIL + READER KIT — portable reference implementation
+  A resizable right rail with tabbed panes, an assistant thread that emits
+  document "artifact" cards, and a reader panel that opens inboard of the rail.
+
+  Derived from a production spec, stripped of product specifics. Opens directly
+  in a browser; every interaction works. MIT-ish: take it and change it.
+
+  ───────────────────────────────────────────────────────────────────────────
+  WHAT THIS PATTERN IS FOR
+
+  An assistant that generates long-form documents inside a tool that already
+  has a canvas or main work area. Three surfaces, one problem:
+
+    the rail      is 400px wide — fine for lists, hostile to prose
+    the thread    is where documents get generated
+    the reader    is where documents are actually readable
+
+  A 2,000-word document rendered into a 400px chat column is unreadable, and a
+  suggested rewrite you cannot read is a coin flip, not a decision. So long
+  output collapses to a CARD in the thread, and the card opens a READER with
+  real typography. That is the whole idea.
+
+  ───────────────────────────────────────────────────────────────────────────
+  TO REPURPOSE — the five things to change
+
+  1. COLOR      → the token block below. Swap --rk-accent* for your brand and
+                  --rk-ink* for your primary action color. Everything else is
+                  neutral gray and will survive.
+  2. TAB NAMES  → the .tabrow markup + the matching .strip markup + .pane
+                  data-pane values. Five is not magic; three or six work.
+  3. CONTENT    → every pane's inner markup. The primitives (.card .row
+                  .eyebrow .insight .subtabs .field) are meant to be reused.
+  4. DOCUMENT   → the .doc markup in the reader. Sections are <section
+                  class="sec" id="sN">; the contents nav is generated from
+                  matching .toc-item buttons.
+  5. PERSISTENCE→ search "PERSIST" for the three places to read/write storage.
+
+  ───────────────────────────────────────────────────────────────────────────
+  THE FOUR RULES THAT MAKE IT WORK — see README for the reasoning
+
+  A. READER GEOMETRY IS DERIVED, NEVER DECLARED.
+     A 400px text measure needs nav + padding + scrollbar + 400 of pane. Pick
+     the measure first, compute the widths from it. Declaring "min-width 520"
+     next to a 162px nav silently ships a 283px measure.
+  B. THE NAV YIELDS; THE MEASURE NEVER DOES.
+     Below the threshold the contents nav collapses to a numeral strip.
+  C. THE RAIL IS NEVER PUSHED OFF SCREEN.
+     Invariant: rail.getBoundingClientRect().right <= window.innerWidth, with
+     the reader open or closed, at every width. Below the breakpoint the reader
+     overlays the canvas instead of taking a column.
+  D. PANES STAY MOUNTED.
+     [hidden], never conditional unmount — scroll position and drafts survive
+     a tab switch. Note [hidden] is a no-op on a flex container; the root rule
+     below fixes that.
+
+  All layout decisions live in ONE layout() function. Every state change calls
+  it. Clamping on drag but not on open is the classic way to break rule C.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rail + reader kit</title>
+<style>
+/* ═══ TOKENS ═══════════════════════════════════════════════════════════════
+   Neutral by design. Swap the accent and ink ramps for your brand; leave the
+   grays unless your product is already warm- or blue-tinted.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* surfaces */
+  --rk-chrome:      #FBFBFC;   /* rail background            */
+  --rk-raised:      #ffffff;   /* cards, reader, inputs      */
+  --rk-subtle:      #f3f3f5;   /* hover fill                 */
+  --rk-track:       #eeeef1;   /* ACTIVE TAB FILL            */
+
+  /* lines */
+  --rk-line:        #e4e4e8;
+  --rk-line-soft:   #eeeef1;
+  --rk-line-strong: #d6d6dc;   /* input borders              */
+
+  /* text */
+  --rk-fg:          #1e1e21;
+  --rk-fg-muted:    #54545c;
+  --rk-fg-faint:    #9a9aa3;   /* icons, meta                */
+
+  /* primary action — deliberately ink, not the accent hue.
+     Keep semantic colors OUT of buttons; see README §1.2. */
+  --rk-ink:         #131316;
+  --rk-ink-hover:   #24242a;
+  --rk-ink-fg:      #ffffff;
+
+  /* accent — IDENTITY AND SELECTION ONLY, never tab state */
+  --rk-accent:      #9B6BFF;
+  --rk-accent-soft: #f2effa;
+  --rk-accent-fg:   #6D3FD6;
+  --rk-accent-wash: #FAF8FF;
+
+  /* status */
+  --rk-info:        #189FDB;   --rk-info-soft:  #E6F6FD;
+  --rk-warn:        #FFC24B;   --rk-warn-soft:  #FFF1D0;  --rk-warn-fg: #8A5A00;
+  --rk-ok:          #0F9D6B;   --rk-ok-soft:    #DEF7EC;  --rk-ok-fg:   #0F5C42;
+  --rk-danger:      #E5484D;
+
+  /* the main work area — often should NOT follow your dark theme */
+  --rk-canvas:      #E9E9EC;
+  --rk-canvas-dot:  #dedee2;
+  --rk-artboard:    #ffffff;
+
+  --rk-r-sm: 6px;
+  --rk-r:    8px;
+  --rk-r-lg: 10px;
+
+  --rk-tabrow-h:  46px;
+  --rk-header-h:  52px;
+  --rk-collapsed: 48px;
+  --rk-nav-w:     162px;   /* contents nav, full    */
+  --rk-nav-strip: 40px;    /* contents nav, numerals */
+  --rk-measure:   400px;   /* THE MEASURE — pick this first, derive the rest */
+
+  --rk-sans: Inter, system-ui, -apple-system, sans-serif;
+  --rk-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+/* RULE D — [hidden] loses to display:flex without this. */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--rk-sans); font-size: 13px;
+  color: var(--rk-fg); background: var(--rk-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #d4d4da; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #bcbcc4; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ═══ SHELL ════════════════════════════════════════════════════════════════ */
+.shell { display: flex; height: 100vh; overflow: hidden; position: relative; }
+
+/* Replace this whole block with your canvas / editor / main view. */
+.canvas {
+  flex: 1 1 0; min-width: 320px; position: relative;
+  background:
+    radial-gradient(circle at 1px 1px, var(--rk-canvas-dot) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--rk-canvas);
+  display: grid; place-items: center;
+}
+.artboard {
+  width: min(520px, 82%); aspect-ratio: 4 / 3;
+  background: var(--rk-artboard);
+  border: 1px solid #dcdce1; border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(20,20,18,.07);
+  display: grid; place-items: center;
+}
+.artboard-note { font-size: 11px; color: #a8a8b0; text-align: center; line-height: 1.6; padding: 0 32px; }
+.artboard-note b { color: #8a8a93; font-weight: 600; }
+
+/* ═══ RESIZE HANDLES ══════════════════════════════════════════════════════ */
+.grip { flex: none; width: 5px; cursor: col-resize; position: relative; z-index: 5; }
+.grip::after {
+  content: ""; position: absolute; inset: 0 2px;
+  background: var(--rk-line); opacity: 0; transition: opacity .12s;
+}
+.grip:hover::after, .grip.dragging::after { opacity: 1; background: var(--rk-accent); }
+
+/* ═══ READER ═══════════════════════════════════════════════════════════════
+   Widths are set by layout() from the measure. The values here are only the
+   pre-script paint. */
+.reader {
+  flex: none; width: 660px; min-width: 516px; max-width: 800px;
+  background: var(--rk-raised);
+  border-left: 1px solid var(--rk-line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* RULE C — overlay mode. Below the breakpoint there is not enough width to
+   compress the canvas AND keep the rail on screen, so the reader floats. */
+.reader.is-overlay {
+  position: absolute; top: 0; bottom: 0;
+  right: var(--rk-overlay-right, 400px);
+  min-width: 0; max-width: none; z-index: 10;
+  box-shadow: -10px 0 30px rgba(20,20,18,.14);
+}
+
+/* RULE B — narrow mode: the nav yields so the measure survives. */
+.reader.is-narrow .toc { width: var(--rk-nav-strip); }
+.reader.is-narrow .toc-eyebrow { display: none; }
+.reader.is-narrow .toc-item { padding: 7px 0; justify-content: center; gap: 0; position: relative; }
+.reader.is-narrow .toc-label { display: none; }
+.reader.is-narrow .toc-num { width: auto; font-size: 10.5px; }
+.reader.is-narrow .toc-dot { position: absolute; top: 5px; right: 5px; margin: 0; }
+.reader.is-narrow .toc-item[data-label]:hover::after {
+  content: attr(data-label); position: absolute; left: calc(100% + 6px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--rk-ink); color: var(--rk-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rk-r-sm);
+  white-space: nowrap; z-index: 30; pointer-events: none;
+}
+
+.reader-header {
+  flex: none; height: var(--rk-header-h); padding: 0 12px 0 16px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--rk-line);
+}
+.reader-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reader-ver { font-family: var(--rk-mono); font-size: 10.5px; color: var(--rk-fg-faint); white-space: nowrap; }
+.reader-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.iconbtn {
+  width: 28px; height: 28px; border-radius: var(--rk-r-sm);
+  display: grid; place-items: center; font-size: 13px; color: var(--rk-fg-muted);
+}
+.iconbtn:hover { background: var(--rk-subtle); color: var(--rk-fg); }
+
+.reader-body { flex: 1 1 auto; display: flex; min-height: 0; }
+
+.toc {
+  flex: none; width: var(--rk-nav-w);
+  border-right: 1px solid var(--rk-line-soft);
+  padding: 14px 0 24px; overflow-y: auto; background: #FCFCFD;
+}
+.toc-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--rk-fg-faint); padding: 0 14px 8px;
+}
+.toc-item {
+  display: flex; align-items: baseline; gap: 7px; width: 100%;
+  padding: 6px 12px 6px 14px; text-align: left;
+  font-size: 11.5px; line-height: 1.35; color: var(--rk-fg-muted);
+  border-left: 2px solid transparent;
+}
+.toc-item:hover { background: var(--rk-subtle); color: var(--rk-fg); }
+.toc-item.is-current {
+  color: var(--rk-accent-fg); font-weight: 600;
+  background: var(--rk-accent-soft); border-left-color: var(--rk-accent);
+}
+.toc-num { font-family: var(--rk-mono); font-size: 9.5px; color: var(--rk-fg-faint); flex: none; width: 12px; }
+.toc-item.is-current .toc-num { color: var(--rk-accent-fg); }
+.toc-label { flex: 1 1 auto; }
+.toc-dot { flex: none; width: 5px; height: 5px; border-radius: 99px; background: var(--rk-warn); margin-top: 5px; }
+
+.doc { flex: 1 1 auto; overflow-y: auto; padding: 28px 32px 56px; }
+.doc-inner { max-width: var(--rk-measure); }   /* RULE A — the whole point */
+
+.doc-title { font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -.015em; margin: 0 0 6px; }
+.doc-meta { font-family: var(--rk-mono); font-size: 9.5px; letter-spacing: .03em; color: var(--rk-fg-faint); margin: 0 0 30px; }
+
+.sec { padding-bottom: 34px; scroll-margin-top: 8px; }
+.sec-head { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.sec-h { font-size: 18px; line-height: 1.3; font-weight: 600; margin: 0; }
+.sec-n { font-family: var(--rk-mono); font-size: 11px; color: var(--rk-fg-faint); }
+
+/* READER BODY TYPE — 15 / 1.7 on a 400px measure. If this ends up at rail
+   sizes, the reader has no reason to exist. */
+.doc p  { font-size: 15px; line-height: 1.7; margin: 0 0 15px; color: #33333a; text-wrap: pretty; }
+.doc ul { font-size: 15px; line-height: 1.7; margin: 0 0 15px; padding-left: 20px; list-style: disc outside; }
+.doc li { margin-bottom: 5px; color: #33333a; }
+.doc li > p { margin: 0; }   /* loose-list fix — generated markdown wraps <li> content in <p> */
+.doc p.doc-meta { font-size: 9.5px; }
+.doc strong { font-weight: 600; color: var(--rk-fg); }
+.doc code { font-family: var(--rk-mono); font-size: 13px; background: var(--rk-subtle); padding: 1px 5px; border-radius: 4px; }
+
+.callout {
+  border: 1px solid var(--rk-line); border-radius: var(--rk-r);
+  background: var(--rk-raised); padding: 12px 14px; margin: 0 0 15px;
+}
+.callout-h {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rk-warn-fg); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.callout p { font-size: 14px; line-height: 1.6; margin: 0; }
+
+/* per-section actions — revealed on hover/focus */
+.sec-ai { display: flex; gap: 4px; padding-top: 4px; opacity: 0; transition: opacity .12s; }
+.sec:hover .sec-ai, .sec:focus-within .sec-ai { opacity: 1; }
+.ai-btn {
+  height: 26px; padding: 0 9px; border-radius: var(--rk-r-sm);
+  border: 1px solid var(--rk-line); background: var(--rk-raised);
+  font-size: 11px; font-weight: 500; color: var(--rk-fg-muted);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.ai-btn:hover { border-color: var(--rk-accent); color: var(--rk-accent-fg); background: var(--rk-accent-soft); }
+.ai-btn .g { color: var(--rk-accent); font-size: 10px; }
+
+/* suggestion block — at reader width, reviewing it is a decision */
+.sugg { border: 1px solid var(--rk-accent); border-radius: var(--rk-r); overflow: hidden; margin: 14px 0 0; }
+.sugg-h {
+  background: var(--rk-accent-soft); padding: 7px 12px;
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--rk-accent-fg); display: flex; align-items: center; gap: 6px;
+}
+.sugg-b { padding: 14px 14px 4px; }
+.sugg-f { display: flex; gap: 6px; padding: 0 14px 14px; }
+
+.btn { height: 30px; padding: 0 12px; border-radius: var(--rk-r-sm); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.btn--ink { background: var(--rk-ink); color: var(--rk-ink-fg); }
+.btn--ink:hover { background: var(--rk-ink-hover); }
+.btn--quiet { border: 1px solid var(--rk-line); color: var(--rk-fg-muted); background: var(--rk-raised); }
+.btn--quiet:hover { background: var(--rk-subtle); color: var(--rk-fg); }
+
+/* ═══ RAIL ═════════════════════════════════════════════════════════════════ */
+.rail {
+  flex: none; width: 540px; min-width: 400px; max-width: 800px;
+  background: var(--rk-chrome);
+  border-left: 1px solid var(--rk-line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.rail.is-collapsed { width: var(--rk-collapsed); min-width: var(--rk-collapsed); }
+
+.tabrow {
+  flex: none; height: var(--rk-tabrow-h); padding: 0 8px;
+  display: flex; align-items: center; gap: 3px;
+  border-bottom: 1px solid var(--rk-line);
+}
+.chev { flex: none; width: 22px; height: 22px; display: grid; place-items: center; font-size: 13px; color: var(--rk-fg-muted); border-radius: var(--rk-r-sm); }
+.chev:hover { background: var(--rk-subtle); color: var(--rk-fg); }
+
+.tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 7px;
+  font-size: 12px; font-weight: 500; color: var(--rk-fg-muted);
+  background: transparent; white-space: nowrap;
+}
+.tab:hover { background: var(--rk-line-soft); color: var(--rk-fg); }
+/* ACTIVE TAB IS NEUTRAL FILL, NOT THE ACCENT. See README §1.1. */
+.tab.is-active { background: var(--rk-track); color: var(--rk-fg); font-weight: 600; }
+.tab .g { font-size: 11px; color: var(--rk-fg-faint); }
+.tab.is-primary .g { color: var(--rk-accent); }   /* the one accented icon */
+
+/* PROGRESSIVE LABELS — five labelled tabs need ~466px; the rail floor is 400.
+   Below the threshold only the active tab is labelled. Never clip a tab: one
+   you cannot see is one you cannot reach, and an overflow-scrolling tab row
+   hides them with no affordance at all. */
+.tab .lbl { display: none; }
+.tab.is-active .lbl { display: inline; }
+.rail.is-wide .tab .lbl { display: inline; }
+.tab:not(.is-active) { position: relative; }
+.tab:not(.is-active)[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--rk-ink); color: var(--rk-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rk-r-sm);
+  white-space: nowrap; z-index: 30; pointer-events: none;
+}
+.rail.is-wide .tab[data-tip]:hover::after { display: none; }
+
+.badge { font-size: 9px; font-weight: 700; line-height: 1; border-radius: 99px; padding: 3px 5px; background: var(--rk-info-soft); color: var(--rk-info); }
+
+/* RULE D — all panes absolute + always mounted */
+.panes { flex: 1 1 auto; position: relative; min-height: 0; }
+.pane { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
+.pane-scroll { flex: 1 1 auto; overflow-y: auto; padding: 14px; }
+
+.strip { flex: 1 1 auto; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.strip-btn { width: 32px; height: 32px; border-radius: var(--rk-r-sm); display: grid; place-items: center; font-size: 13px; color: var(--rk-fg-muted); position: relative; }
+.strip-btn:hover { background: var(--rk-subtle); color: var(--rk-fg); }
+.strip-btn.is-active { background: var(--rk-track); color: var(--rk-fg); }
+.strip-btn.is-primary { color: var(--rk-accent); }
+.strip-btn[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; right: calc(100% + 8px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--rk-ink); color: var(--rk-ink-fg);
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: var(--rk-r-sm);
+  white-space: nowrap; z-index: 20;
+}
+
+/* ═══ THREAD ═══════════════════════════════════════════════════════════════ */
+.thread {
+  flex: 1 1 auto; overflow-y: auto; padding: 16px 14px 8px;
+  display: flex; flex-direction: column; gap: 14px;
+  justify-content: flex-end;   /* short threads sit above the composer */
+}
+.msg { display: flex; flex-direction: column; max-width: 85%; }
+.msg--me { align-self: flex-end; align-items: flex-end; }
+.msg--ai { align-self: flex-start; }
+.bubble { padding: 9px 12px; border-radius: var(--rk-r-lg); font-size: 13px; line-height: 1.55; }
+.msg--me .bubble { background: var(--rk-ink); color: var(--rk-ink-fg); border-bottom-right-radius: 4px; }
+.msg--ai .bubble { background: var(--rk-raised); border: 1px solid var(--rk-line); border-bottom-left-radius: 4px; }
+.msg--ai .bubble p { margin: 0 0 8px; }
+.msg--ai .bubble p:last-child { margin: 0; }
+
+/* CLAMP — safety net for long responses that are NOT artifacts. Do not rely on
+   a ch-based max-width: at 13px in a 400px column it never engages. */
+.clamp { max-height: 15.5em; overflow: hidden; position: relative; }
+.clamp::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--rk-raised));
+}
+.showmore { font-size: 11.5px; font-weight: 600; color: var(--rk-accent-fg); padding: 6px 2px 0; }
+.showmore:hover { text-decoration: underline; }
+
+/* ARTIFACT CARD — long document output, collapsed */
+.artifact {
+  border: 1px solid var(--rk-line); border-radius: var(--rk-r-lg);
+  background: var(--rk-raised); overflow: hidden;
+  text-align: left; width: 100%;
+  transition: border-color .14s, box-shadow .14s;
+}
+.artifact:hover { border-color: var(--rk-line-strong); }
+/* OPEN STATE — the link between thread and reader must never be ambiguous */
+.artifact.is-open { border-color: var(--rk-accent); box-shadow: 0 0 0 3px rgba(155,107,255,.14); }
+.artifact-b { display: flex; gap: 10px; padding: 12px; }
+.artifact-tile { flex: none; width: 26px; height: 26px; border-radius: var(--rk-r-sm); background: var(--rk-accent-soft); color: var(--rk-accent-fg); display: grid; place-items: center; font-size: 12px; }
+.artifact-t { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 3px; }
+.artifact-m { font-family: var(--rk-mono); font-size: 10.5px; color: var(--rk-fg-faint); }
+.artifact-x { font-size: 11.5px; line-height: 1.5; color: var(--rk-fg-muted); margin: 7px 0 0; }
+.artifact-f {
+  border-top: 1px solid var(--rk-line-soft); padding: 7px 12px;
+  font-size: 11px; font-weight: 600; color: var(--rk-fg-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.artifact.is-open .artifact-f { background: var(--rk-accent-wash); color: var(--rk-accent-fg); }
+.artifact.is-open .artifact-f .live { color: var(--rk-accent); }
+
+.composer { flex: none; border-top: 1px solid var(--rk-line); padding: 10px 12px 12px; background: var(--rk-chrome); }
+.composer-box { border: 1px solid var(--rk-line-strong); border-radius: var(--rk-r); background: var(--rk-raised); padding: 8px 10px; }
+.composer-box:focus-within { border-color: var(--rk-accent); box-shadow: 0 0 0 3px rgba(155,107,255,.14); }
+.composer textarea {
+  width: 100%; border: 0; resize: none; outline: none;
+  font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--rk-fg);
+  background: none; min-height: 38px;
+}
+.composer-row { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
+.composer-hint { font-size: 10.5px; color: var(--rk-fg-faint); margin-right: auto; }
+.send { width: 30px; height: 30px; border-radius: var(--rk-r-sm); background: var(--rk-ink); color: var(--rk-ink-fg); display: grid; place-items: center; font-size: 13px; }
+.send:hover { background: var(--rk-ink-hover); }
+
+/* ═══ RAIL CONTENT PRIMITIVES — reuse these for your own panes ════════════ */
+.eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--rk-fg-faint); margin: 0 0 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.eyebrow .n { font-family: var(--rk-mono); letter-spacing: 0; color: #b4b4bc; }
+.group + .group { margin-top: 22px; }
+
+.card { border: 1px solid var(--rk-line); border-radius: var(--rk-r); background: var(--rk-raised); padding: 10px 11px; display: block; width: 100%; text-align: left; }
+.card + .card { margin-top: 6px; }
+.card:hover { border-color: var(--rk-line-strong); }
+.card.is-open { border-color: var(--rk-accent); background: var(--rk-accent-wash); }
+.card-t { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+.card-m { font-family: var(--rk-mono); font-size: 10px; color: var(--rk-fg-faint); margin-top: 3px; }
+.card-row { display: flex; align-items: center; gap: 8px; }
+.card-row .grow { flex: 1 1 auto; min-width: 0; }
+.open-link { font-size: 11px; font-weight: 600; color: var(--rk-accent-fg); flex: none; }
+
+.row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--rk-r-sm); font-size: 12.5px; }
+.row:hover { background: var(--rk-subtle); }
+.row .g { font-size: 11px; color: var(--rk-fg-faint); flex: none; width: 14px; text-align: center; }
+.row .grow { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .val { font-family: var(--rk-mono); font-size: 10.5px; color: var(--rk-fg-faint); }
+.row.is-sel { background: var(--rk-accent-soft); color: var(--rk-accent-fg); font-weight: 600; }
+.row.is-sel .g { color: var(--rk-accent); }
+
+.subtabs { display: flex; gap: 3px; margin: 0 0 14px; }
+.subtab { padding: 4px 9px; border-radius: 7px; font-size: 11.5px; font-weight: 500; color: var(--rk-fg-muted); }
+.subtab:hover { background: var(--rk-line-soft); }
+.subtab.is-active { background: var(--rk-track); color: var(--rk-fg); font-weight: 600; }
+
+.field { width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--rk-line-strong); border-radius: var(--rk-r-sm); background: var(--rk-raised); font-family: inherit; font-size: 14px; color: var(--rk-fg); }
+.field:focus { outline: none; border-color: var(--rk-accent); box-shadow: 0 0 0 3px rgba(155,107,255,.14); }
+textarea.field { height: auto; min-height: 76px; padding: 8px 10px; line-height: 1.55; font-size: 13px; resize: vertical; }
+
+.insight { border: 1px solid var(--rk-line); border-radius: var(--rk-r); background: var(--rk-raised); padding: 10px 11px; }
+.insight + .insight { margin-top: 6px; }
+.insight-h { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.insight-t { font-size: 12px; font-weight: 600; }
+.insight-p { font-size: 11.5px; line-height: 1.55; color: var(--rk-fg-muted); margin: 0; }
+
+/* spec sheet: label left, value right, monospace values so they align by eye */
+.kv { display: flex; align-items: baseline; gap: 10px; padding: 7px 8px; border-radius: var(--rk-r-sm); font-size: 12.5px; }
+.kv:hover { background: var(--rk-subtle); }
+.kv-k { flex: none; width: 88px; color: var(--rk-fg-muted); }
+.kv-v { flex: 1 1 auto; min-width: 0; font-weight: 500; }
+.kv-v--mono { font-family: var(--rk-mono); font-size: 11px; font-weight: 400; color: var(--rk-fg-muted); }
+
+.check { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; font-size: 12.5px; line-height: 1.45; border-radius: var(--rk-r-sm); }
+.check:hover { background: var(--rk-subtle); }
+.check .bx { flex: none; font-size: 11px; color: var(--rk-fg-faint); width: 14px; text-align: center; }
+.check.is-done .bx { color: var(--rk-ok, var(--rk-accent)); }
+.check.is-done .grow { color: var(--rk-fg-muted); }
+
+/* history timeline: one rail, one dot per event */
+.tl { position: relative; padding-left: 18px; }
+.tl::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 1px; background: var(--rk-line); }
+.tl-item { position: relative; padding-bottom: 14px; }
+.tl-item:last-child { padding-bottom: 0; }
+.tl-item::before {
+  content: ''; position: absolute; left: -18px; top: 4px; width: 7px; height: 7px;
+  border-radius: 99px; background: var(--rk-line); box-shadow: 0 0 0 3px var(--rk-raised);
+}
+.tl-item.is-now::before { background: var(--rk-accent); }
+.tl-h { display: flex; align-items: baseline; gap: 8px; }
+.tl-t { font-size: 12.5px; font-weight: 600; }
+.tl-m { font-family: var(--rk-mono); font-size: 10px; color: var(--rk-fg-faint); margin-left: auto; flex: none; }
+.tl-p { font-size: 11.5px; line-height: 1.55; color: var(--rk-fg-muted); margin: 3px 0 0; }
+.tl-who { font-family: var(--rk-mono); font-size: 10px; color: var(--rk-fg-faint); }
+
+/* issues: empty state before a test flight, bar + results after */
+.issues-bar { flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--rk-line); }
+.issues-bar-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.issues-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 40px 20px 24px; }
+.issues-empty-icon { width: 40px; height: 40px; border-radius: 99px; background: var(--rk-accent-soft); color: var(--rk-accent-fg); display: grid; place-items: center; }
+.issues-empty-t { font-size: 13px; font-weight: 600; }
+.issues-empty-p { font-size: 12px; line-height: 1.55; color: var(--rk-fg-muted); max-width: 220px; margin: 0; }
+.dot { width: 6px; height: 6px; border-radius: 99px; flex: none; }
+.dot--warn { background: var(--rk-warn); }
+.dot--ok   { background: var(--rk-ok); }
+.dot--info { background: var(--rk-info); }
+
+.hint { font-size: 11px; line-height: 1.6; color: var(--rk-fg-faint); margin: 8px 2px 0; }
+.hint b { color: var(--rk-fg-muted); font-weight: 600; }
+
+.mini-btn { flex: none; font-size: 11px; font-weight: 600; color: var(--rk-fg-muted); padding: 4px 9px; border-radius: 99px; border: 1px solid var(--rk-line-strong); background: var(--rk-raised); }
+.mini-btn:hover { border-color: var(--rk-accent); color: var(--rk-accent-fg); background: var(--rk-accent-soft); }
+.doc-inner.is-editing { outline: 2px dashed var(--rk-accent); outline-offset: 8px; border-radius: 6px; cursor: text; }
+
+/* demo scaffolding — delete when you port */
+.demo {
+  position: fixed; left: 12px; bottom: 12px; z-index: 60;
+  background: rgba(19,19,22,.9); color: #fff;
+  border-radius: var(--rk-r); padding: 9px 11px;
+  font-size: 10.5px; line-height: 1.7; max-width: 262px; backdrop-filter: blur(6px);
+}
+.demo b { color: var(--rk-accent); font-weight: 600; }
+.demo kbd { font-family: var(--rk-mono); font-size: 9.5px; background: rgba(255,255,255,.14); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ─── your main work area goes here ─────────────────────────────────── -->
+  <div class="canvas">
+    <div class="artboard">
+      <p class="artboard-note">
+        <b>Your canvas / editor / main view.</b><br>
+        The reader sits inboard of the rail and compresses this area. Below the
+        breakpoint it overlays instead, so the rail is never pushed off screen.
+      </p>
+    </div>
+  </div>
+
+  <!-- ─── reader ────────────────────────────────────────────────────────── -->
+  <div class="grip" id="readerGrip" hidden></div>
+  <aside class="reader" id="reader" hidden>
+    <header class="reader-header">
+      <span class="reader-title" id="readerTitle">Document title</span>
+      <span class="reader-ver" id="readerVer">v3 · Aug 18</span>
+      <div class="reader-tools">
+        <div id="readerToolsDefault" style="display:flex;align-items:center;gap:2px">
+          <button class="iconbtn" title="Version history">⟲</button>
+          <button class="iconbtn" title="Copy">⧉</button>
+          <button class="iconbtn" title="Export">↓</button>
+          <button class="iconbtn" id="readerClose" title="Close">✕</button>
+        </div>
+        <div id="readerToolsEdit" hidden style="display:flex;align-items:center;gap:6px">
+          <button class="btn btn--quiet" id="noteDiscard" style="height:28px;padding:0 10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg><span>Discard</span></button>
+          <button class="btn btn--ink" id="noteSave" style="height:28px;padding:0 10px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Save changes</span></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="reader-body">
+      <!-- contents nav — one .toc-item per .sec, data-goto matches the id -->
+      <nav class="toc" id="toc">
+        <div class="toc-eyebrow">Contents</div>
+        <button class="toc-item is-current" data-goto="s1" data-label="Summary"><span class="toc-num">01</span><span class="toc-label">Summary</span></button>
+        <button class="toc-item" data-goto="s2" data-label="Background"><span class="toc-num">02</span><span class="toc-label">Background</span></button>
+        <button class="toc-item" data-goto="s3" data-label="Goals · open questions"><span class="toc-num">03</span><span class="toc-label">Goals</span><span class="toc-dot" title="Open questions"></span></button>
+        <button class="toc-item" data-goto="s4" data-label="Requirements"><span class="toc-num">04</span><span class="toc-label">Requirements</span></button>
+        <button class="toc-item" data-goto="s5" data-label="Open items · needs content"><span class="toc-num">05</span><span class="toc-label">Open items</span><span class="toc-dot" title="Needs content"></span></button>
+        <button class="toc-item" data-goto="s6" data-label="Out of scope"><span class="toc-num">06</span><span class="toc-label">Out of scope</span></button>
+      </nav>
+
+      <div class="doc" id="doc">
+        <div class="doc-inner">
+          <h1 class="doc-title">Document title</h1>
+          <p class="doc-meta">M. Lund · Created Aug 11 · Updated Aug 18 · v3</p>
+
+          <section class="sec" id="s1">
+            <div class="sec-head"><span class="sec-n">01</span><h2 class="sec-h">Summary</h2></div>
+            <p>This is what the reader is for: body copy at <strong>15px on a 400px measure with 1.7 leading</strong>, which is roughly 60–70 characters per line. Long-form text is legible here in a way it never is in a 400px rail column at 13px.</p>
+            <p>Everything in this pane — the measure, the nav, the resize behavior — exists to protect that one property. If you port this and the body ends up at rail typography, delete the pane and save the work.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s2">
+            <div class="sec-head"><span class="sec-n">02</span><h2 class="sec-h">Background</h2></div>
+            <p>Lists are the most common thing generated markdown gets wrong, so they are worth checking explicitly:</p>
+            <ul>
+              <li><p>Generated markdown produces <strong>loose</strong> lists, meaning each item's content is wrapped in a paragraph tag.</p></li>
+              <li><p>With <code>list-style-position: inside</code> the marker renders on its own line and the text drops beneath it.</p></li>
+              <li><p><code>list-outside</code> plus <code>li &gt; p { margin: 0 }</code> is the two-line fix. Both are in this file.</p></li>
+            </ul>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s3">
+            <div class="sec-head"><span class="sec-n">03</span><h2 class="sec-h">Goals</h2></div>
+            <p>Sections can carry state. An amber dot in the contents nav marks anything with open questions or missing content, so the nav doubles as a progress read.</p>
+            <div class="callout">
+              <div class="callout-h"><span class="dot dot--warn"></span>Open question</div>
+              <p>Callouts inherit the document measure rather than breaking out of it. A question you can read is a question you can answer.</p>
+            </div>
+
+            <div class="sugg">
+              <div class="sugg-h"><span>✦</span>Suggested rewrite</div>
+              <div class="sugg-b">
+                <p>This is a full-section replacement rendered at reader width. Roughly 150 words of prose, which is typical for a generated rewrite, and entirely reviewable at this measure.</p>
+                <p>The same block in a 400px rail column inside a short fixed-height scroller is the failure this pattern was built to fix: accepting prose you cannot read is a coin flip, not a decision.</p>
+              </div>
+              <div class="sugg-f">
+                <button class="btn btn--ink">Accept</button>
+                <button class="btn btn--quiet">Reject</button>
+                <button class="btn btn--quiet">Refine again</button>
+              </div>
+            </div>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s4">
+            <div class="sec-head"><span class="sec-n">04</span><h2 class="sec-h">Requirements</h2></div>
+            <p>Per-section actions appear on hover or keyboard focus, so they never compete with the text at rest.</p>
+            <ul>
+              <li><p><strong>Four actions, not six.</strong> Suggest · Refine · Elaborate · Add examples fit the width and cover the real cases.</p></li>
+              <li><p><strong>No Reset.</strong> It is undo wearing a different hat — version recovery in the header already does that job.</p></li>
+              <li><p><strong>Autosave, no Save button.</strong> The header shows state; every regenerate snapshots the prior version.</p></li>
+            </ul>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s5">
+            <div class="sec-head"><span class="sec-n">05</span><h2 class="sec-h">Open items</h2></div>
+            <div class="callout">
+              <div class="callout-h"><span class="dot dot--warn"></span>Needs content</div>
+              <p>An empty section is a legitimate state for generated documents. Marking it beats hiding it — the dot in the nav is what makes the gap findable.</p>
+            </div>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+
+          <section class="sec" id="s6">
+            <div class="sec-head"><span class="sec-n">06</span><h2 class="sec-h">Out of scope</h2></div>
+            <p>One continuous document — the nav scrolls it, it does not page. Scroll-spy keeps the current section marked so position is never ambiguous.</p>
+            <div class="sec-ai">
+              <button class="ai-btn"><span class="g">✦</span>Suggest</button>
+              <button class="ai-btn"><span class="g">✦</span>Refine</button>
+              <button class="ai-btn"><span class="g">✦</span>Elaborate</button>
+              <button class="ai-btn"><span class="g">✦</span>Add examples</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- notes mode: swapped in for the doc toc/doc pair via JS -->
+      <nav class="toc" id="tocNotes" hidden>
+        <div class="toc-eyebrow">Notes</div>
+      </nav>
+      <div class="doc" id="docNotes" hidden>
+        <div class="doc-inner" id="docNotesInner"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── rail ──────────────────────────────────────────────────────────── -->
+  <div class="grip" id="railGrip"></div>
+  <aside class="rail is-wide" id="rail">
+
+    <!-- rename these five freely; keep data-tab in sync with .pane data-pane -->
+    <div class="tabrow" id="tabrow">
+      <button class="chev" id="collapse" title="Collapse">›</button>
+      <button class="tab is-primary is-active" data-tab="assistant" data-tip="Assistant"><span class="g">✦</span><span class="lbl">Assistant</span></button>
+      <button class="tab" data-tab="project" data-tip="Project"><span class="g">▤</span><span class="lbl">Project</span></button>
+      <button class="tab" data-tab="layers" data-tip="Layers"><span class="g">☰</span><span class="lbl">Layers</span></button>
+      <button class="tab" data-tab="comments" data-tip="Comments · 3"><span class="g">◌</span><span class="lbl">Comments</span><span class="badge">3</span></button>
+      <button class="tab" data-tab="issues" data-tip="Issues"><span class="g">⚠</span><span class="lbl">Issues</span></button>
+    </div>
+
+    <div class="strip" id="strip" hidden>
+      <button class="strip-btn is-primary is-active" data-tab="assistant" data-tip="Assistant">✦</button>
+      <button class="strip-btn" data-tab="project" data-tip="Project">▤</button>
+      <button class="strip-btn" data-tab="layers" data-tip="Layers">☰</button>
+      <button class="strip-btn" data-tab="comments" data-tip="Comments · 3">◌</button>
+      <button class="strip-btn" data-tab="issues" data-tip="Issues">⚠</button>
+    </div>
+
+    <div class="panes" id="panes">
+
+      <!-- ASSISTANT -->
+      <section class="pane" data-pane="assistant">
+        <div class="thread" id="thread">
+          <div class="msg msg--me"><div class="bubble">Draft the spec for this.</div></div>
+
+          <div class="msg msg--ai">
+            <div class="bubble"><p>Drafted it. Two sections need your input — I've flagged them in the document.</p></div>
+          </div>
+
+          <!-- ARTIFACT CARD — long document output collapses to this -->
+          <div class="msg msg--ai" style="max-width:100%">
+            <button class="artifact" id="artifact">
+              <div class="artifact-b">
+                <span class="artifact-tile">▤</span>
+                <span class="grow">
+                  <div class="artifact-t">Document title</div>
+                  <div class="artifact-m">6 sections · 1,840 words · draft</div>
+                  <p class="artifact-x">This is what the reader is for: body copy at 15px on a 400px measure with 1.7 leading…</p>
+                </span>
+              </div>
+              <div class="artifact-f" id="artifactFoot"><span>Open in the reader</span></div>
+            </button>
+          </div>
+
+          <div class="msg msg--me"><div class="bubble">why three steps?</div></div>
+
+          <!-- CLAMP — long response that is NOT a document -->
+          <div class="msg msg--ai">
+            <div class="bubble">
+              <div class="clamp" id="clampBody">
+                <p>Not every long response is a document, so not every long response should become a card. This is the other case: reasoning, explanation, an answer that belongs in the conversation.</p>
+                <p>Those get clamped instead — about twelve lines, a fade, and a toggle. The thread stays scannable, and nothing is hidden behind a click you didn't expect.</p>
+                <p>The distinction should be driven by the task that produced the response, not by counting words. A document-generating task always yields a card; ordinary conversation never does. Word-count and heading-count heuristics both sound reasonable and are untestable in practice — you end up with a card for a long answer and a wall of text for a short document.</p>
+                <p>Deciding by task type also means the card's metadata is real. You know the section count and the title because the generator produced them, rather than inferring them from the rendered markdown after the fact.</p>
+              </div>
+              <button class="showmore" id="showmore">Show more</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="composer-box">
+            <textarea id="draft" placeholder="Ask…" rows="2">This draft survives a tab switch — </textarea>
+            <div class="composer-row">
+              <span class="composer-hint">⏎ to send · ⇧⏎ newline</span>
+              <button class="send" title="Send">↑</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PROJECT -->
+      <section class="pane" data-pane="project" hidden>
+        <div class="pane-scroll">
+          <div class="subtabs" id="subtabs">
+            <button class="subtab is-active" data-sub="overview">Overview</button>
+            <button class="subtab" data-sub="spec">Spec</button>
+            <button class="subtab" data-sub="history">History</button>
+          </div>
+
+          <div class="subview" data-subview="overview">
+          <div class="group">
+            <p class="eyebrow">Documents <span class="n">2</span></p>
+            <button class="card" data-opens-reader="1">
+              <div class="card-row">
+                <span class="grow">
+                  <div class="card-t">Document title</div>
+                  <div class="card-m">PRD · Aug 18</div>
+                  <p class="artifact-x">Scope and rationale for the rail + reader pattern: the panes, the collapse rule, and two open questions.</p>
+                </span>
+                <span class="open-link">Open</span>
+              </div>
+            </button>
+            <button class="card">
+              <div class="card-row">
+                <span class="grow">
+                  <div class="card-t">Second document</div>
+                  <div class="card-m">Workflow spec · Aug 12</div>
+                  <p class="artifact-x">Step-by-step flow for the checkout redesign, from cart through confirmation.</p>
+                </span>
+                <span class="open-link">Open</span>
+              </div>
+            </button>
+            <p class="hint">The rail <b>lists</b> documents. It is not where you read 2,000 words — that is the reader.</p>
+          </div>
+
+          <div class="group">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <p class="eyebrow" style="margin:0;flex:1 1 auto">Notes <span class="n" id="notesCount">2</span></p>
+              <button class="mini-btn" id="newNoteBtn">+ New</button>
+            </div>
+            <textarea class="field" id="notesDraft" placeholder="Free-form notes…"></textarea>
+            <div id="notesList" style="margin-top:8px"></div>
+            <p class="hint">Click a note's title or text in the reader to edit it in place.</p>
+          </div>
+
+          <div class="group">
+            <p class="eyebrow">Attachments <span class="n">2</span></p>
+            <div class="row"><span class="g">◗</span><span class="grow">reference-document.pdf</span></div>
+            <div class="row"><span class="g">◗</span><span class="grow">source-data.csv</span></div>
+            <button class="btn btn--ink" style="margin-top:8px">＋ Add</button>
+            <p class="hint">Primary actions are <b>ink</b>, not a semantic color. Green means an outcome; a green Add button means nothing.</p>
+          </div>
+          </div><!-- /overview -->
+
+          <div class="subview" data-subview="spec" hidden>
+            <div class="group">
+              <p class="eyebrow">Project PRD <span class="n">1</span></p>
+              <button class="card" data-opens-reader="1">
+                <div class="card-row">
+                  <span class="grow">
+                    <div class="card-t">Product requirements</div>
+                    <div class="card-m">PRD · Aug 18</div>
+                    <p class="artifact-x">Scope and rationale for the rail + reader pattern: the panes, the collapse rule, and two open questions.</p>
+                  </span>
+                  <span class="open-link">Open</span>
+                </div>
+              </button>
+              <p class="hint">The PRD is the source of truth for scope. One per project.</p>
+            </div>
+
+            <div class="group">
+              <p class="eyebrow">Workflow specs <span class="n">3</span></p>
+              <button class="card">
+                <div class="card-row">
+                  <span class="grow">
+                    <div class="card-t">Onboarding flow</div>
+                    <div class="card-m">Workflow spec · Aug 16</div>
+                    <p class="artifact-x">First-run steps from signup through the empty-state canvas, with drop-off points called out.</p>
+                  </span>
+                  <span class="open-link">Open</span>
+                </div>
+              </button>
+              <button class="card">
+                <div class="card-row">
+                  <span class="grow">
+                    <div class="card-t">Checkout flow</div>
+                    <div class="card-m">Workflow spec · Aug 14</div>
+                    <p class="artifact-x">Cart, payment, and confirmation states, including retry behavior on failed payment.</p>
+                  </span>
+                  <span class="open-link">Open</span>
+                </div>
+              </button>
+              <button class="card">
+                <div class="card-row">
+                  <span class="grow">
+                    <div class="card-t">Notifications flow</div>
+                    <div class="card-m">Workflow spec · Aug 9</div>
+                    <p class="artifact-x">Triggers and channels for each notification type, and the digest rules that batch them.</p>
+                  </span>
+                  <span class="open-link">Open</span>
+                </div>
+              </button>
+              <button class="btn btn--ink" style="margin-top:8px">＋ Add workflow spec</button>
+            </div>
+          </div><!-- /spec -->
+
+          <div class="subview" data-subview="history" hidden>
+            <div class="group">
+              <p class="eyebrow">Activity <span class="n">6</span></p>
+              <div class="tl">
+                <div class="tl-item is-now">
+                  <div class="tl-h"><span class="tl-t">v3 · Sections reordered</span><span class="tl-m">Aug 18</span></div>
+                  <p class="tl-p">Requirements moved above Open items. Two sections still flagged.</p>
+                  <span class="tl-who">you · current</span>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-h"><span class="tl-t">Comment resolved</span><span class="tl-m">Aug 17</span></div>
+                  <p class="tl-p">"Is the measure a hard floor?" — answered in Goals.</p>
+                  <span class="tl-who">R. Okafor</span>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-h"><span class="tl-t">v2 · Requirements expanded</span><span class="tl-m">Aug 15</span></div>
+                  <p class="tl-p">Four requirements added; scope note attached.</p>
+                  <span class="tl-who">M. Lund</span>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-h"><span class="tl-t">Attachment added</span><span class="tl-m">Aug 14</span></div>
+                  <p class="tl-p">source-data.csv linked to Background.</p>
+                  <span class="tl-who">M. Lund</span>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-h"><span class="tl-t">Second document linked</span><span class="tl-m">Aug 12</span></div>
+                  <p class="tl-p">Shares three references with this one.</p>
+                  <span class="tl-who">you</span>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-h"><span class="tl-t">v1 · Draft created</span><span class="tl-m">Aug 11</span></div>
+                  <p class="tl-p">Six empty sections from the outline.</p>
+                  <span class="tl-who">assistant</span>
+                </div>
+              </div>
+            </div>
+          </div><!-- /history -->
+        </div>
+      </section>
+
+      <!-- LAYERS -->
+      <section class="pane" data-pane="layers" hidden>
+        <div class="pane-scroll">
+          <div class="group">
+            <p class="eyebrow">All layers <span class="n">30</span></p>
+            <div class="row is-sel"><span class="g" style="color:var(--rk-accent)">▣</span><span class="grow">Selected item</span><span class="val">3</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Container</span><span class="val">2</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Child item</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Child item</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-info)">◉</span><span class="grow">Interactive element</span></div>
+            <div class="row"><span class="g" style="color:#A06520">▨</span><span class="grow">Media</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Container</span><span class="val">3</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-warn)">◆</span><span class="grow">Decision point</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-fg-faint)">⚙</span><span class="grow">Process</span></div>
+            <div class="row"><span class="g" style="color:#2B7A6B">▤</span><span class="grow">Data table</span><span class="val">6</span></div>
+            <div class="row"><span class="g" style="color:#A33B52">◭</span><span class="grow">Error state</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-danger)">←</span><span class="grow">Exit</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Footer</span><span class="val">2</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Caption</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:var(--rk-info)">◉</span><span class="grow">Secondary action</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Sidebar</span><span class="val">4</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Section label</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#2B7A6B">▤</span><span class="grow">Summary list</span><span class="val">3</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#A06520">▨</span><span class="grow">Thumbnail</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:var(--rk-fg-faint)">⚙</span><span class="grow">Refresh handler</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-warn)">◆</span><span class="grow">Validation branch</span></div>
+            <div class="row"><span class="g" style="color:#A33B52">◭</span><span class="grow">Empty state</span></div>
+            <div class="row"><span class="g" style="color:#A33B52">◭</span><span class="grow">Timeout state</span></div>
+            <div class="row"><span class="g" style="color:#5B6B8C">▢</span><span class="grow">Confirmation panel</span><span class="val">3</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:#6D5AA8">T</span><span class="grow">Confirmation copy</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:var(--rk-info)">◉</span><span class="grow">Confirm</span></div>
+            <div class="row" style="padding-left:24px"><span class="g" style="color:var(--rk-fg-faint)">◉</span><span class="grow">Cancel</span></div>
+            <div class="row"><span class="g" style="color:#2B7A6B">▤</span><span class="grow">Audit log</span><span class="val">12</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-fg-faint)">⚙</span><span class="grow">Cleanup task</span></div>
+            <div class="row"><span class="g" style="color:var(--rk-danger)">←</span><span class="grow">Return to start</span></div>
+            <p class="hint">Scroll this, switch tabs, come back — <b>position holds</b>. That is the keep-alive rule, not a browser default.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMMENTS -->
+      <section class="pane" data-pane="comments" hidden>
+        <div class="pane-scroll">
+          <div class="group">
+            <p class="eyebrow">Open <span class="n">3</span></p>
+            <div class="card">
+              <div class="card-t">First comment</div>
+              <p class="artifact-x">Comments anchored to an item or a document section, opening the relevant surface on click.</p>
+              <div class="card-m">Selected item · 2d</div>
+            </div>
+            <div class="card">
+              <div class="card-t">Second comment</div>
+              <p class="artifact-x">Short enough to read in the rail — which is what the rail is good at.</p>
+              <div class="card-m">Container · 1d</div>
+            </div>
+            <div class="card">
+              <div class="card-t">Goals §3</div>
+              <p class="artifact-x">Anchored to a document section, so it opens in the reader at that section.</p>
+              <div class="card-m">Document title · 4h</div>
+            </div>
+          </div>
+          <div class="group">
+            <p class="eyebrow">Resolved <span class="n">1</span></p>
+            <div class="row"><span class="g" style="color:var(--rk-ok)">✓</span><span class="grow" style="color:var(--rk-fg-muted)">Resolved comment</span></div>
+            <p class="hint">A resolved ✓ is green — an <b>outcome</b>. That is the legal use of green.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ISSUES -->
+      <section class="pane" data-pane="issues" hidden>
+        <div class="issues-bar">
+          <span class="eyebrow" style="margin:0">Issues <span class="n" id="issuesBadge" hidden>4</span></span>
+          <div class="issues-bar-actions" id="issuesActions" hidden>
+            <button class="iconbtn" id="issuesRerun" title="Run test flight again"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></button>
+            <button class="iconbtn" id="issuesFilter" title="Filter"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></button>
+            <button class="iconbtn" id="issuesClear" title="Clear all">✕</button>
+          </div>
+        </div>
+        <div class="pane-scroll">
+          <div class="issues-empty" id="issuesEmpty">
+            <div class="issues-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></div>
+            <p class="issues-empty-t">No test flight yet</p>
+            <p class="issues-empty-p">Run a test flight to catch dead ends, unreachable nodes, and other structural issues before you ship.</p>
+            <button class="btn btn--ink" id="runTestFlight"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg><span>Run test flight</span></button>
+          </div>
+          <div class="issues-results" id="issuesResults" hidden>
+            <div class="group">
+              <p class="eyebrow">Needs attention <span class="n">2</span></p>
+              <div class="insight">
+                <div class="insight-h"><span class="dot dot--warn"></span><span class="insight-t">2 sections incomplete</span></div>
+                <p class="insight-p">Goals and Open items have unanswered questions. Amber dots mark them in the reader's contents nav.</p>
+              </div>
+              <div class="insight">
+                <div class="insight-h"><span class="dot dot--warn"></span><span class="insight-t">Unreachable item</span></div>
+                <p class="insight-p">"Error state" has no inbound reference from anything else.</p>
+              </div>
+            </div>
+            <div class="group">
+              <p class="eyebrow">Healthy <span class="n">2</span></p>
+              <div class="insight">
+                <div class="insight-h"><span class="dot dot--ok"></span><span class="insight-t">All paths terminate</span></div>
+                <p class="insight-p">Every route reaches an exit or a durable state.</p>
+              </div>
+              <div class="insight">
+                <div class="insight-h"><span class="dot dot--info"></span><span class="insight-t">3 items linked</span></div>
+                <p class="insight-p">Three references share a common target.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+</div>
+
+<div class="demo">
+  <b>Try:</b> scroll Layers, switch tabs and return (scroll + draft survive) ·
+  click the artifact card · <kbd>›</kbd> collapses · drag either edge · narrow
+  the window with the reader open. Demo panel — delete on port.
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   All of this ports to React/Vue/Svelte directly. The only non-obvious parts
+   are layout() and the ResizeObserver; everything else is event wiring.
+   ════════════════════════════════════════════════════════════════════════════ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+const rail       = $('#rail');
+const reader     = $('#reader');
+const railGrip   = $('#railGrip');
+const readerGrip = $('#readerGrip');
+
+/* ─── GEOMETRY — derived from the measure, never declared ─────────────────
+   Pick MEASURE first. Everything else follows. Do not hand-pick a min-width:
+   a declared floor next to a 162px nav is how you ship a 283px measure.
+   And do not forget SCROLLBAR — .doc is overflow-y:auto, so it costs ~12px,
+   and omitting it lands the measure ~11px short at exactly the threshold. */
+const MEASURE   = 400;
+const DOC_PAD   = 64;    /* .doc left+right padding */
+const SCROLLBAR = 12;
+const NAV_FULL  = 162;
+const NAV_STRIP = 40;
+
+const NARROW_AT  = NAV_FULL  + DOC_PAD + MEASURE + SCROLLBAR;   /* 638 */
+const READER_MIN = NAV_STRIP + DOC_PAD + MEASURE + SCROLLBAR;   /* 516 */
+const READER_MAX = 800;
+const READER_DEF = 660;   /* full nav AND a true measure on first open */
+
+const RAIL_DEF   = 540;   /* wide enough for every tab label on first open */
+const RAIL_MIN   = 400;
+const RAIL_MAX   = 800;
+const MIN_CANVAS = 320;
+
+const LABEL_AT   = 520;   /* rail width at which all five tab labels fit */
+
+/* PERSIST (1/3) — read remembered widths here, clamped to the legal range. */
+let readerWanted = READER_DEF;
+
+/* ─── layout(): the single source of truth for width and mode ─────────────
+   Called on open, close, collapse, both drags, and window resize. If you take
+   one thing from this file, take the fact that this is ONE function. */
+function layout() {
+  /* 1. the rail fits the window first, unconditionally */
+  const railCeil = Math.min(RAIL_MAX, window.innerWidth - MIN_CANVAS);
+  const railW = Math.max(RAIL_MIN, Math.min(railCeil, rail.getBoundingClientRect().width));
+  if (!rail.classList.contains('is-collapsed')) rail.style.width = railW + 'px';
+
+  if (reader.hidden) {
+    reader.classList.remove('is-overlay', 'is-narrow');
+    readerGrip.hidden = true;
+    return;
+  }
+
+  /* 2. compress if the canvas can still hold its floor; overlay if not */
+  const room = window.innerWidth - railW - MIN_CANVAS;
+  let w;
+
+  if (room >= READER_MIN) {
+    reader.classList.remove('is-overlay');
+    w = Math.min(readerWanted, READER_MAX, room);
+    readerGrip.hidden = false;
+  } else {
+    /* overlay — no canvas peek: the measure outranks a sliver of visible
+       canvas, and at ~950px that difference is what makes 400px possible */
+    reader.classList.add('is-overlay');
+    reader.style.setProperty('--rk-overlay-right', railW + 'px');
+    w = Math.min(readerWanted, READER_MAX, window.innerWidth - railW);
+    readerGrip.hidden = true;
+  }
+
+  reader.style.width = w + 'px';
+  /* 3. the nav yields so the measure does not */
+  reader.classList.toggle('is-narrow', w < NARROW_AT);
+}
+
+/* ─── tabs — keep-alive via [hidden], never unmount ───────────────────────── */
+function selectTab(name) {
+  $$('.tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
+  $$('.strip-btn').forEach(b => b.classList.toggle('is-active', b.dataset.tab === name));
+  $$('.pane').forEach(p => { p.hidden = p.dataset.pane !== name; });
+  /* PERSIST (2/3) — and/or sync to the URL so panes are linkable */
+  history.replaceState(null, '', '?panel=' + name);
+}
+$$('.tab, .strip-btn').forEach(b => b.addEventListener('click', () => {
+  if (rail.classList.contains('is-collapsed')) setCollapsed(false);
+  selectTab(b.dataset.tab);
+}));
+
+/* ─── collapse ───────────────────────────────────────────────────────────── */
+function setCollapsed(on) {
+  rail.classList.toggle('is-collapsed', on);
+  $('#tabrow').hidden = on;
+  $('#panes').hidden  = on;
+  $('#strip').hidden  = !on;
+  if (on) rail.style.width = '';
+  layout();
+}
+$('#collapse').addEventListener('click', () => setCollapsed(true));
+
+/* ─── reader open / close ─────────────────────────────────────────────────
+   Note this calls layout(). Clamping on drag and resize but NOT on open is
+   the classic way to push the rail off screen. */
+const artifact = $('#artifact');
+function setReader(open) {
+  reader.hidden = !open;
+  artifact.classList.toggle('is-open', open);
+  $('#artifactFoot').innerHTML = open
+    ? '<span class="live">●</span><span>Open in the reader</span>'
+    : '<span>Open in the reader</span>';
+  $$('.card[data-opens-reader]').forEach(c => c.classList.toggle('is-open', open));
+  layout();
+}
+
+/* --- notes: multiple note "docs", each opened in the reader like a Document.
+   Same keep-alive spirit as tabs/subtabs -- the reader just swaps which
+   toc/doc pair is visible instead of unmounting either one. */
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+let notes = [
+  { id: 'n1', title: 'Kickoff call recap', meta: 'Aug 12 · 3 lines', author: 'You', created: 'Aug 12', body: 'Talked through scope with the team.\n\nAgreed to cut the export flow from v1 and revisit after launch.' },
+  { id: 'n2', title: 'Naming ideas for the rail tabs', meta: 'Aug 15 · 2 lines', author: 'You', created: 'Aug 15', body: 'Project vs Details -- Project reads clearer once Spec/History live under it.\n\nLayers over Items -- matches how people already talk about it.' },
+];
+let noteSeq = notes.length;
+let activeNoteId = null;
+let readerMode = 'doc';
+let noteEditing = false;
+let noteEditSnapshot = '';
+
+function renderNotesList() {
+  $('#notesCount').textContent = notes.length;
+  $('#notesList').innerHTML = notes.map(function (n) {
+    return '<button class="card" data-note-id="' + n.id + '">'
+      + '<div class="card-row"><span class="grow">'
+      + '<div class="card-t">' + esc(n.title) + '</div>'
+      + '<div class="card-m">' + esc(n.meta) + '</div>'
+      + '</span><span class="open-link">Open</span></div></button>';
+  }).join('');
+  $$('#notesList .card').forEach(c => c.addEventListener('click', () => openReader('notes', c.dataset.noteId)));
+}
+
+function renderNotesToc() {
+  const items = notes.map(function (n, i) {
+    return '<button class="toc-item" data-note-id="' + n.id + '">'
+      + '<span class="toc-num">' + String(i + 1).padStart(2, '0') + '</span>'
+      + '<span class="toc-label">' + esc(n.title) + '</span></button>';
+  }).join('');
+  $('#tocNotes').innerHTML = '<div class="toc-eyebrow">Notes</div>' + items;
+  $$('#tocNotes .toc-item').forEach(b => b.addEventListener('click', () => showNote(b.dataset.noteId)));
+}
+
+function showNote(id) {
+  if (noteEditing) discardNoteEdit();
+  activeNoteId = id;
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  $('#readerTitle').textContent = note.title;
+  $('#readerVer').textContent = note.meta;
+  const caption = esc(note.author) + ' · Created ' + esc(note.created);
+  const paras = note.body.split('\n\n').map(p => '<p>' + esc(p) + '</p>').join('');
+  $('#docNotesInner').innerHTML = '<h1 class="doc-title">' + esc(note.title) + '</h1><p class="doc-meta">' + caption + '</p><section class="sec">' + paras + '</section>';
+  $$('#tocNotes .toc-item').forEach(b => b.classList.toggle('is-current', b.dataset.noteId === id));
+  $('#docNotes').scrollTop = 0;
+}
+
+/* --- reader open, aware of mode: 'doc' (the PRD) or 'notes' (a note doc) --- */
+function openReader(mode, noteId) {
+  if (noteEditing) discardNoteEdit();
+  readerMode = mode;
+  const notesOn = mode === 'notes';
+  $('#toc').hidden = notesOn; $('#doc').hidden = notesOn;
+  $('#tocNotes').hidden = !notesOn; $('#docNotes').hidden = !notesOn;
+  if (notesOn) {
+    showNote(noteId || activeNoteId || notes[0].id);
+  } else {
+    $('#readerTitle').textContent = 'Document title';
+    $('#readerVer').textContent = 'v3 · Aug 18';
+  }
+  setReader(true);
+}
+/* --- note editing: click into the reader body, edit in place, Save/Discard
+   swap in for the header's default tools while active. --- */
+function enterNoteEdit() {
+  if (readerMode !== 'notes' || noteEditing) return;
+  noteEditing = true;
+  const inner = $('#docNotesInner');
+  noteEditSnapshot = inner.innerHTML;
+  inner.contentEditable = 'true';
+  inner.classList.add('is-editing');
+  $('#readerToolsDefault').hidden = true;
+  $('#readerToolsEdit').hidden = false;
+}
+function exitNoteEdit() {
+  noteEditing = false;
+  const inner = $('#docNotesInner');
+  inner.contentEditable = 'false';
+  inner.classList.remove('is-editing');
+  $('#readerToolsDefault').hidden = false;
+  $('#readerToolsEdit').hidden = true;
+}
+function saveNoteEdit() {
+  const note = notes.find(n => n.id === activeNoteId);
+  const inner = $('#docNotesInner');
+  if (note) {
+    const h1 = inner.querySelector('.doc-title');
+    const paras = $$('p', inner.querySelector('.sec'));
+    note.title = (h1 ? h1.textContent.trim() : note.title) || 'Untitled note';
+    note.body = paras.map(p => p.textContent).join('\n\n');
+    note.meta = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · edited';
+  }
+  exitNoteEdit();
+  renderNotesList();
+  renderNotesToc();
+  if (note) showNote(note.id);
+}
+function discardNoteEdit() {
+  $('#docNotesInner').innerHTML = noteEditSnapshot;
+  exitNoteEdit();
+}
+$('#docNotesInner').addEventListener('click', () => enterNoteEdit());
+$('#noteSave').addEventListener('click', () => saveNoteEdit());
+$('#noteDiscard').addEventListener('click', () => discardNoteEdit());
+$('#newNoteBtn').addEventListener('click', () => {
+  const text = $('#notesDraft').value.trim();
+  if (!text) return;
+  const id = 'n' + (++noteSeq);
+  const title = text.split('\n')[0].slice(0, 40) || 'Untitled note';
+  const meta = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + text.length + ' chars';
+  notes.push({ id, title, meta, author: 'You', created: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), body: text });
+  $('#notesDraft').value = '';
+  renderNotesList();
+  renderNotesToc();
+});
+renderNotesList();
+renderNotesToc();
+
+artifact.addEventListener('click', () => reader.hidden ? openReader('doc') : setReader(false));
+$('#readerClose').addEventListener('click', () => { if (noteEditing) discardNoteEdit(); setReader(false); });
+$$('.card[data-opens-reader]').forEach(c => c.addEventListener('click', () => openReader('doc')));
+
+/* --- issues: empty state until a test flight runs ------------------------ */
+$('#runTestFlight').addEventListener('click', () => {
+  $('#issuesEmpty').hidden = true;
+  $('#issuesResults').hidden = false;
+  $('#issuesActions').hidden = false;
+  $('#issuesBadge').hidden = false;
+});
+$('#issuesClear').addEventListener('click', () => {
+  $('#issuesResults').hidden = true;
+  $('#issuesEmpty').hidden = false;
+  $('#issuesActions').hidden = true;
+  $('#issuesBadge').hidden = true;
+});
+$('#issuesRerun').addEventListener('click', () => {});
+$('#issuesFilter').addEventListener('click', () => {});
+
+/* ─── clamp toggle ───────────────────────────────────────────────────────── */
+$('#showmore').addEventListener('click', e => {
+  const on = $('#clampBody').classList.toggle('clamp');
+  e.target.textContent = on ? 'Show more' : 'Show less';
+});
+
+/* ─── contents nav + scroll spy ──────────────────────────────────────────── */
+const doc = $('#doc');
+$$('.toc-item').forEach(b => b.addEventListener('click', () => {
+  const t = $('#' + b.dataset.goto);
+  /* offsetTop is relative to .doc-inner; never use scrollIntoView in an app
+     shell — it scrolls the nearest scrollable ancestor, which may be the page */
+  doc.scrollTo({ top: t.offsetTop - doc.firstElementChild.offsetTop - 8, behavior: 'smooth' });
+}));
+doc.addEventListener('scroll', () => {
+  const line = doc.scrollTop + 60;
+  let cur = null;
+  $$('.sec', doc).forEach(s => { if (s.offsetTop - doc.firstElementChild.offsetTop <= line) cur = s.id; });
+  $$('.toc-item').forEach(b => b.classList.toggle('is-current', b.dataset.goto === cur));
+});
+
+/* ─── resize handles ─────────────────────────────────────────────────────── */
+function drag(grip, el, min, max, onMove) {
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    grip.classList.add('dragging');
+    const x0 = e.clientX, w0 = el.getBoundingClientRect().width;
+    const move = ev => {
+      const others = [rail, reader]
+        .filter(o => o !== el && !o.hidden && !o.classList.contains('is-overlay'))
+        .reduce((n, o) => n + o.getBoundingClientRect().width, 0);
+      const ceiling = Math.min(max, window.innerWidth - MIN_CANVAS - others);
+      const w = Math.max(min, Math.min(ceiling, w0 + (x0 - ev.clientX)));
+      el.style.width = w + 'px';
+      onMove && onMove(w);
+      layout();
+    };
+    const up = () => {
+      grip.classList.remove('dragging');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      /* PERSIST (3/3) — write the remembered width here */
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+drag(railGrip, rail, RAIL_MIN, RAIL_MAX);
+drag(readerGrip, reader, READER_MIN, READER_MAX, w => { readerWanted = w; });
+
+/* ─── progressive tab labels ──────────────────────────────────────────────
+   ResizeObserver on the RAIL, not a window media query: the rail resizes
+   independently of the window, so a media query is wrong at every width but one. */
+new ResizeObserver(([e]) => {
+  rail.classList.toggle('is-wide', e.contentRect.width >= LABEL_AT);
+}).observe(rail);
+
+addEventListener('resize', layout);
+
+/* ─── subtabs: same keep-alive rule as the panes — hide, never unmount, so
+   each subview keeps its own scroll position and any typed input. */
+$$('#subtabs .subtab').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.sub;
+  $$('#subtabs .subtab').forEach(o => o.classList.toggle('is-active', o === b));
+  $$('.subview').forEach(v => { v.hidden = v.dataset.subview !== k; });
+}));
+
+/* deep link: ?panel=layers */
+const p = new URLSearchParams(location.search).get('panel');
+if (p && $(`.tab[data-tab="${p}"]`)) selectTab(p);
+
+layout();
+</script>
+</body>
+</html>

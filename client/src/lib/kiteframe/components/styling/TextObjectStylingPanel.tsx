@@ -32,7 +32,7 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
 
   // Handle font family change with weight fallback
   const handleFontFamilyChange = (newFontFamily: string) => {
-    const fallbackWeight = findFallbackWeight(data.fontWeight || 'normal', newFontFamily);
+    const fallbackWeight = findFallbackWeight(String(data.fontWeight || 'normal'), newFontFamily);
     const updates: Partial<TextNodeData> = { fontFamily: newFontFamily as any };
     
     // Update weight if it changed due to fallback
@@ -116,7 +116,7 @@ export const TextObjectStylingPanel: React.FC<TextObjectStylingPanelProps> = ({
 
         <DropdownControl
           label="Font Weight"
-          value={data.fontWeight || 'normal'}
+          value={String(data.fontWeight || 'normal')}
           options={availableWeights}
           onChange={(value) => onUpdate({ fontWeight: value as any })}
           data-testid="text-font-weight"

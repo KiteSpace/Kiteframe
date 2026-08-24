@@ -3,13 +3,25 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { ChatBubble } from './ChatBubble';
 import { Button } from '@/components/ui/button';
+import { useAiJobs } from '@/contexts/AiJobsContext';
 import type { ChatMessage } from '../KiteAIChat';
+
+// Task types a chat thread reports with its own inline "Thinking…" row. Kept
+// deliberately narrow — 'prd_generation' is excluded because PRD work is driven
+// from the document sections, not the thread, and must keep its global pill.
+const CHAT_INLINE_TASK_TYPES = [
+  'general_chat',
+  'workflow_reasoning',
+  'workflow_experiments',
+  'vision_ingestion',
+];
 
 export interface ChatMessageListProps {
   messages: ChatMessage[];
   isLoading?: boolean;
   mode: 'panel' | 'floating' | 'fullscreen' | 'discussion';
   onFollowUpClick?: (question: string) => void;
+  onQuickActionClick?: (prompt: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
   onEdgeCaseSubmit?: (messageId: string, selectedIds: string[], edgeCases: import('../EdgeCaseSelector').EdgeCase[]) => void;
   onModifyEdgeCaseSelection?: (messageId: string) => void;
@@ -33,6 +45,7 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   isLoading = false,
   mode,
   onFollowUpClick,
+  onQuickActionClick,
   onWorkflowChipSelect,
   onEdgeCaseSubmit,
   onModifyEdgeCaseSelection,
@@ -47,8 +60,31 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   const wasNearBottomRef = useRef(true);
   const prevLoadingRef = useRef(isLoading);
 
+  // Claim the progress indicator while this thread renders its own inline
+  // "Thinking…" row, so the global floating pill stands down for this operation
+  // and the user sees exactly one indicator for it. The claim is scoped to this
+  // surface's path and to chat-shaped work: a PRD generation running at the
+  // same time is not ours to report, so it keeps its own pill.
+  const { claimInlineIndicator, releaseInlineIndicator } = useAiJobs();
+  useEffect(() => {
+    if (!isLoading) return;
+    const claimId = claimInlineIndicator({
+      originPath: window.location.pathname,
+      taskTypes: CHAT_INLINE_TASK_TYPES,
+    });
+    return () => releaseInlineIndicator(claimId);
+  }, [isLoading, claimInlineIndicator, releaseInlineIndicator]);
+
+  // Scroll the thread viewport directly rather than calling scrollIntoView on a
+  // sentinel. scrollIntoView walks up and scrolls every scrollable ancestor,
+  // which drags the whole editor shell when the panel is embedded in it.
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const viewport = viewportRef.current;
+    if (viewport) {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior, block: 'nearest' });
+    }
     setHasNewMessages(false);
   }, []);
 
@@ -141,7 +177,10 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden">
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className={`flex flex-col p-4 ${mode === 'fullscreen' ? 'pb-96' : ''}`}>
+        {/* Fullscreen anchors the thread to the bottom so a short conversation
+            sits just above the composer. It previously used pb-96, which left
+            a 384px dead band below the last message at every thread length. */}
+        <div className={`flex flex-col p-4 ${mode === 'fullscreen' ? 'min-h-full justify-end' : ''}`}>
           {messages.map((message) => {
             const groupInfo = messageGroupInfo.get(message.id);
             const marginClass = groupInfo?.isRoleChange ? 'mt-4 first:mt-0' : 'mt-1.5';
@@ -151,6 +190,7 @@ export const ChatMessageList = forwardRef<ChatMessageListRef, ChatMessageListPro
                 key={message.id}
                 message={message}
                 onFollowUpClick={onFollowUpClick}
+                onQuickActionClick={onQuickActionClick}
                 onWorkflowChipSelect={onWorkflowChipSelect}
                 onEdgeCaseSubmit={onEdgeCaseSubmit}
                 onModifyEdgeCaseSelection={onModifyEdgeCaseSelection}

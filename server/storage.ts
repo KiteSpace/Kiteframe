@@ -57,6 +57,11 @@ export interface IStorage {
   setProjectShareLock(id: string, userId: string, locked: boolean): Promise<SavedProject | undefined>;
   createSavedProject(project: InsertSavedProject): Promise<SavedProject>;
   updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined>;
+  mutateProjectWorkflowData(
+    projectUuid: string,
+    userId: string,
+    mutate: (workflowData: any) => any,
+  ): Promise<{ status: 'ok'; project: SavedProject } | { status: 'notFound' } | { status: 'forbidden' }>;
   deleteSavedProject(id: string, userId: string): Promise<void>;
   deleteAllUserProjects(userId: string): Promise<void>;
   getProjectFolders(userId: string): Promise<ProjectFolder[]>;
@@ -76,6 +81,7 @@ export interface IStorage {
   getCommentsByWorkflow(workflowId: string): Promise<CommentWithAuthor[]>;
   getCommentById(id: string): Promise<WorkflowComment | undefined>;
   setCommentResolved(id: string, isResolved: boolean): Promise<WorkflowComment | undefined>;
+  setCommentPosition(id: string, positionX: number, positionY: number): Promise<WorkflowComment | undefined>;
   deleteComment(id: string): Promise<void>;
   // Ban management
   getBannedEmail(email: string): Promise<BannedEmail | undefined>;
@@ -280,6 +286,43 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
       .returning();
     return updated;
+  }
+
+  /**
+   * Read-modify-write `workflowData` atomically.
+   *
+   * A partial update of this column (saving one PRD, say) has to read the whole
+   * JSONB blob, change one key and write it back. Without a lock, a full-project
+   * save landing between the read and the write is silently reverted — the
+   * caller writes back the canvas it read a moment ago. Taking `FOR UPDATE` on
+   * the row makes the whole sequence atomic across concurrent requests *and*
+   * across server instances, which an in-process queue cannot do.
+   *
+   * Ownership is checked inside the same transaction so it cannot go stale.
+   */
+  async mutateProjectWorkflowData(
+    projectUuid: string,
+    userId: string,
+    mutate: (workflowData: any) => any,
+  ): Promise<{ status: 'ok'; project: SavedProject } | { status: 'notFound' } | { status: 'forbidden' }> {
+    return db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select()
+        .from(savedProjects)
+        .where(eq(savedProjects.projectUuid, projectUuid))
+        .for('update');
+
+      if (!locked) return { status: 'notFound' as const };
+      if (locked.userId !== userId) return { status: 'forbidden' as const };
+
+      const [updated] = await tx
+        .update(savedProjects)
+        .set({ workflowData: mutate(locked.workflowData), updatedAt: new Date() })
+        .where(eq(savedProjects.id, locked.id))
+        .returning();
+
+      return { status: 'ok' as const, project: updated };
+    });
   }
 
   async deleteSavedProject(id: string, userId: string): Promise<void> {
@@ -523,6 +566,15 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db
       .update(workflowComments)
       .set({ isResolved, updatedAt: new Date() })
+      .where(eq(workflowComments.id, id))
+      .returning();
+    return row;
+  }
+
+  async setCommentPosition(id: string, positionX: number, positionY: number): Promise<WorkflowComment | undefined> {
+    const [row] = await db
+      .update(workflowComments)
+      .set({ positionX, positionY, updatedAt: new Date() })
       .where(eq(workflowComments.id, id))
       .returning();
     return row;

@@ -132,9 +132,9 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, icon, iconClassName, variant, ...props }) {
-        const derived = inferIcon(variant, title, icon, iconClassName)
+        const derived = inferIcon(variant ?? undefined, title, icon, iconClassName)
         return (
-          <Toast key={id} variant={variant} {...props}>
+          <Toast key={id} variant={variant ?? undefined} {...props}>
             <div
               className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",

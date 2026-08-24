@@ -7,6 +7,7 @@ import {
   subscribeTranscript,
   buildGenerationExchange,
   extractScreenLabels,
+  findPromptConversation,
   transcriptStorageKey,
   type TranscriptEntry,
 } from '../kiteaiTranscript';
@@ -227,5 +228,41 @@ describe('buildGenerationExchange', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(a[0].timestamp.getTime()).toBeLessThanOrEqual(a[1].timestamp.getTime());
     expect(a[1].timestamp.getTime()).toBeLessThanOrEqual(a[2].timestamp.getTime());
+  });
+});
+
+describe('findPromptConversation', () => {
+  it('returns the anchored prompt and response, excluding its card and later chat', () => {
+    const at = new Date('2026-01-01T00:00:00Z');
+    const conversationId = 'prompt-1';
+    const entries: TranscriptEntry[] = [
+      { id: 'prompt', role: 'user', content: 'Build an approval flow', timestamp: at, conversationId },
+      { id: 'reply', role: 'assistant', content: 'Here is a first draft.', timestamp: at },
+      {
+        id: 'card',
+        role: 'assistant',
+        content: '',
+        timestamp: at,
+        artifact: {
+          docId: `prompt-conversation:${conversationId}`,
+          docKind: 'prompt-conversation',
+          conversationId,
+          title: 'View Prompt',
+          kindLabel: 'Prompt conversation',
+          sectionCount: 0,
+          wordCount: 4,
+        },
+      },
+      { id: 'later', role: 'user', content: 'Add a reminder', timestamp: at },
+    ];
+
+    expect(findPromptConversation(entries, conversationId).map((entry) => entry.id)).toEqual([
+      'prompt',
+      'reply',
+    ]);
+  });
+
+  it('does not match a prompt card without its anchored user message', () => {
+    expect(findPromptConversation([entry('unrelated')], 'missing')).toEqual([]);
   });
 });

@@ -18,11 +18,14 @@ import {
   saveProjectPRDVersion, loadProjectPRDHistory, restoreProjectPRDVersion,
   type PRDVersion
 } from '@/lib/kiteframe/utils/prdStorage';
-import { type ProjectPRD, generateProjectPRD } from '@/ai/prdEngine';
+import { type ProjectPRD, type PRDGenerationStatus, generateProjectPRD } from '@/ai/prdEngine';
 import { useAi } from '@/ai/AiProvider';
 import { useToast } from '@/hooks/use-toast';
-import { DocSection, WorkflowDocument } from '@/components/docs';
-import { usePRDGenerationState } from '@/stores/prdGenerationBus';
+import { DocSection, WorkflowDocument, overallConfidence, type DocDensity, type ReaderDocMeta } from '@/components/docs';
+import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
+import { useServerDocument } from '@/lib/documents/useServerDocument';
+import { formatDate } from '@/lib/utils/formatDate';
+import { announceDocumentArtifact } from '@/lib/chatArtifacts';
 
 interface ProjectPRDSectionProps {
   projectId: string;
@@ -31,6 +34,10 @@ interface ProjectPRDSectionProps {
   edges: Edge[];
   onPRDGenerated?: () => void;
   isReadOnly?: boolean;
+  /** `reader` steps up to reading typography and hands the title to the pane. */
+  density?: DocDensity;
+  /** Reports the loaded document upward so a container can render its chrome. */
+  onDocMeta?: (meta: ReaderDocMeta | null) => void;
 }
 
 export function ProjectPRDSection({ 
@@ -39,10 +46,13 @@ export function ProjectPRDSection({
   nodes,
   edges,
   onPRDGenerated,
-  isReadOnly = false
+  isReadOnly = false,
+  density = 'rail',
+  onDocMeta
 }: ProjectPRDSectionProps) {
   const [prd, setPrd] = useState<ProjectPRD | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWaitingForCapacity, setIsWaitingForCapacity] = useState(false);
   const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
   const prevUpdateKeyRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -78,6 +88,33 @@ export function ProjectPRDSection({
     }
   }, [projectId]);
 
+  // Server is the system of record; localStorage above is the offline cache.
+  const { updatedAt, persist } = useServerDocument<ProjectPRD>({
+    projectId,
+    docKind: 'project-prd',
+    readLocal: () => loadProjectPRD(projectId),
+    writeLocal: (content) => saveProjectPRD(projectId, content),
+    onAdoptRemote: () => loadFromStorage(),
+  });
+
+  /**
+   * Single write path for the document: cache first, then the server. Every
+   * mutation goes through here so no edit can reach localStorage without also
+   * being scheduled for the server.
+   */
+  const persistPrd = useCallback(
+    (next: ProjectPRD, opts?: { immediate?: boolean }) => {
+      if (!projectId) return;
+      saveProjectPRD(projectId, next);
+      persist(next, opts);
+      // The rail and the reader can be showing this document at the same time.
+      // Without this, the one that did not make the edit keeps its stale copy
+      // and the next edit there silently reverts this one.
+      prdGenerationBus.notifyPRDUpdated(projectId);
+    },
+    [projectId, persist],
+  );
+
   useEffect(() => {
     loadFromStorage();
   }, [loadFromStorage]);
@@ -96,6 +133,7 @@ export function ProjectPRDSection({
     const signal = abortControllerRef.current?.signal;
 
     setIsGenerating(true);
+    setIsWaitingForCapacity(false);
 
     try {
       const isFirstGeneration = !prd;
@@ -115,7 +153,15 @@ export function ProjectPRDSection({
           flow.edges
         ));
 
-      const newPrd = await generateProjectPRD(ai, projectId, projectName, workflowModels, prd || undefined, signal);
+      const newPrd = await generateProjectPRD(
+        ai,
+        projectId,
+        projectName,
+        workflowModels,
+        prd || undefined,
+        signal,
+        (status: PRDGenerationStatus) => setIsWaitingForCapacity(status === 'waiting-for-capacity')
+      );
 
       if (signal?.aborted || requestProjectId !== currentProjectIdRef.current) {
         console.log('[ProjectPRDSection] Project changed during generation — discarding result');
@@ -126,9 +172,17 @@ export function ProjectPRDSection({
         saveProjectPRDVersion(projectId, newPrd, 'ai-generate');
       }
       
-      saveProjectPRD(projectId, newPrd);
+      persistPrd(newPrd, { immediate: true });
       setPrd(newPrd);
       onPRDGenerated?.();
+
+      // Record it in the conversation as a card, not as its full text.
+      announceDocumentArtifact(projectId, {
+        docKind: 'project-prd',
+        title: `${projectName} Spec`,
+        kindLabel: 'Project spec',
+        sections: newPrd.sections,
+      });
 
       const updatedHistory = loadProjectPRDHistory(projectId);
       setHistory(updatedHistory);
@@ -145,6 +199,7 @@ export function ProjectPRDSection({
         variant: 'destructive',
       });
     } finally {
+      setIsWaitingForCapacity(false);
       setIsGenerating(false);
     }
   }, [projectId, projectName, nodes, edges, prd, ai, toast, onPRDGenerated]);
@@ -155,6 +210,8 @@ export function ProjectPRDSection({
     const restored = restoreProjectPRDVersion(projectId, version);
     if (restored) {
       setPrd(restored);
+      // Deliberate act the user may navigate away from — skip the edit debounce.
+      persistPrd(restored, { immediate: true });
       onPRDGenerated?.();
       const updatedHistory = loadProjectPRDHistory(projectId);
       setHistory(updatedHistory);
@@ -169,16 +226,34 @@ export function ProjectPRDSection({
 
     const updated = updatePRDSection(prd, sectionKey, content, true) as ProjectPRD;
     setPrd(updated);
-    saveProjectPRD(projectId, updated);
-  }, [prd, projectId]);
+    persistPrd(updated);
+  }, [prd, projectId, persistPrd]);
 
   const handleResetSection = useCallback((sectionKey: string) => {
     if (!prd || !projectId) return;
 
     const updated = clearManualEdit(prd, sectionKey) as ProjectPRD;
     setPrd(updated);
-    saveProjectPRD(projectId, updated);
-  }, [prd, projectId]);
+    persistPrd(updated);
+  }, [prd, projectId, persistPrd]);
+
+  const isReader = density === 'reader';
+
+  useEffect(() => {
+    if (!onDocMeta) return;
+    if (!prd) {
+      onDocMeta(null);
+      return;
+    }
+    onDocMeta({
+      title: `${projectName} Spec`,
+      updatedAt: updatedAt ?? null,
+      version: prd.version,
+      autoGenerated: prd.autoGenerated,
+      confidence: overallConfidence(prd.sections),
+      sections: prd.sections.map(s => ({ id: s.id, title: s.title })),
+    });
+  }, [onDocMeta, prd, projectName, updatedAt]);
 
   return (
     <div data-testid="project-prd-section">
@@ -203,20 +278,36 @@ export function ProjectPRDSection({
       {isGenerating && (
         <div className="flex items-center justify-center py-8">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Generating project spec...</span>
+          <span className="ml-2 text-sm text-muted-foreground">
+            {isWaitingForCapacity
+              ? 'AI is busy. Waiting to continue automatically...'
+              : 'Generating project spec...'}
+          </span>
         </div>
       )}
 
       {prd && !isGenerating && (
-        <WorkflowDocument>
+        <WorkflowDocument density={density}>
           <div className="flex items-center justify-between mb-4">
+            {/* In the reader the pane's own header carries the title, timestamp
+                and draft badge, so repeating them here would be two headers for
+                one document. The actions stay: they belong to the document. */}
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold">{projectName} Spec</h2>
-              {prd.autoGenerated && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded" data-testid="ai-draft-label">
-                  <Sparkles size={10} />
-                  AI Draft
-                </span>
+              {!isReader && (
+                <>
+                  <h2 className="text-base font-semibold">{projectName} Spec</h2>
+                  {updatedAt && (
+                    <span className="text-[11px] text-muted-foreground" data-testid="project-prd-updated-at">
+                      Updated {formatDate(updatedAt, { includeTime: true })}
+                    </span>
+                  )}
+                  {prd.autoGenerated && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded" data-testid="ai-draft-label">
+                      <Sparkles size={10} />
+                      AI Draft
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <div className="flex items-center gap-1">
@@ -276,6 +367,7 @@ export function ProjectPRDSection({
               title={section.title}
               content={section.content}
               sectionKey={section.id}
+              density={density}
               manuallyEdited={!!prd.manualEditedAt[section.id]}
               onSave={handleSectionSave}
               onResetToAI={handleResetSection}

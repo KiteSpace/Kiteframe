@@ -31,6 +31,7 @@
   --brand:                 hsl(262, 100%, 71%);  /* #9B6BFF */
   --brand-foreground:      hsl(258, 55%, 12%);   /* #1A1030 */
   --brand-soft:            hsl(255, 50%, 96%);   /* #F2EFFA */
+  --brand-wash:            hsl(255, 100%, 99%);  /* #FAF8FF */
   --brand-strong:          hsl(259, 66%, 55%);   /* #6D3FD6 */
   --info:                  hsl(197, 80%, 47%);   /* #189FDB */
   --info-soft:             hsl(197, 88%, 95%);   /* #E6F6FD */
@@ -113,6 +114,7 @@
   --brand:                 hsl(262, 100%, 71%);  /* identity does NOT shift */
   --brand-foreground:      hsl(255, 20%, 9%);
   --brand-soft:            hsl(252, 28%, 20%);   /* #2B2542 */
+  --brand-wash:            hsl(252, 20%, 17%);
   --brand-strong:          hsl(258, 100%, 79%);  /* #B392FF */
   --info:                  hsl(197, 100%, 65%);  /* #4CC9FF */
   --info-soft:             hsl(197, 46%, 16%);
@@ -390,4 +392,14 @@
 }
 .dark .kf-palette-scroller::-webkit-scrollbar-thumb {
   background: var(--border);
+}
+
+/* ─── Right rail: keep-alive panes ─────────────────────────────────────────
+   Visited panes stay mounted so scroll position and half-typed messages
+   survive a tab switch. A forceMount'ed Radix tab panel counts as "present",
+   so Radix leaves it visible and never sets [hidden] — without this rule every
+   pane the user has opened renders stacked on top of the active one. The
+   inactive ones are identified by data-state, which Radix does set. */
+.kf-project-panel [role="tabpanel"][data-state="inactive"] {
+  display: none !important;
 }

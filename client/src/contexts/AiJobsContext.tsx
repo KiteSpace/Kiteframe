@@ -41,6 +41,22 @@ interface AiJobsContextValue {
   takeCompletedJob: (jobId: string) => CompletedAiJob | null;
   takeCompletedJobsForOrigin: (originPath: string) => CompletedAiJob[];
   peekCompletedJobsForOrigin: (originPath: string) => CompletedAiJob[];
+  // A mounted surface that renders its own in-thread progress row claims the
+  // jobs it already reports, so the global floating pill can stand down for
+  // those without going silent about unrelated work.
+  claimInlineIndicator: (claim: InlineIndicatorClaim) => number;
+  releaseInlineIndicator: (claimId: number) => void;
+  // True when some mounted surface already reports this job inline.
+  isJobClaimedInline: (job: PendingAiJob) => boolean;
+}
+
+// A claim is deliberately narrow: it covers only jobs started from the same
+// path AND (when given) of the listed task types. A blanket claim would hide
+// e.g. a PRD generation running alongside a chat request, leaving the user
+// with no progress signal for it at all.
+export interface InlineIndicatorClaim {
+  originPath: string;
+  taskTypes?: string[];
 }
 
 const AiJobsContext = createContext<AiJobsContextValue | null>(null);
@@ -224,10 +240,45 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
     return completedJobs.filter(j => j.originPath === originPath);
   }, [completedJobs]);
 
+  // Keyed by an opaque incrementing id rather than refcounted per shape, so a
+  // StrictMode setup/cleanup/setup cycle or two chat surfaces mounted at once
+  // (panel + fullscreen) each release exactly their own claim.
+  const [inlineClaims, setInlineClaims] = useState<Map<number, InlineIndicatorClaim>>(() => new Map());
+  const nextClaimIdRef = useRef(1);
+
+  const claimInlineIndicator = useCallback((claim: InlineIndicatorClaim) => {
+    const id = nextClaimIdRef.current++;
+    setInlineClaims(prev => {
+      const next = new Map(prev);
+      next.set(id, claim);
+      return next;
+    });
+    return id;
+  }, []);
+
+  const releaseInlineIndicator = useCallback((claimId: number) => {
+    setInlineClaims(prev => {
+      if (!prev.has(claimId)) return prev;
+      const next = new Map(prev);
+      next.delete(claimId);
+      return next;
+    });
+  }, []);
+
+  const isJobClaimedInline = useCallback((job: PendingAiJob) => {
+    // Array.from rather than iterating the Map directly — this project's TS
+    // target predates downlevel iteration of map iterators.
+    return Array.from(inlineClaims.values()).some(claim =>
+      job.originPath === claim.originPath &&
+      (!claim.taskTypes || claim.taskTypes.includes(job.taskType ?? ''))
+    );
+  }, [inlineClaims]);
+
   return (
     <AiJobsContext.Provider value={{
       pendingJobs, registerJob, clearJob, markConsumed,
       takeCompletedJob, takeCompletedJobsForOrigin, peekCompletedJobsForOrigin,
+      claimInlineIndicator, releaseInlineIndicator, isJobClaimedInline,
     }}>
       {children}
     </AiJobsContext.Provider>
@@ -245,6 +296,9 @@ export function useAiJobs(): AiJobsContextValue {
       takeCompletedJob: () => null,
       takeCompletedJobsForOrigin: () => [],
       peekCompletedJobsForOrigin: () => [],
+      claimInlineIndicator: () => 0,
+      releaseInlineIndicator: () => {},
+      isJobClaimedInline: () => false,
     };
   }
   return ctx;

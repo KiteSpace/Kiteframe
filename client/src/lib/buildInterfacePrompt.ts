@@ -186,7 +186,7 @@ export function buildInterfacePromptFromWorkflow(
   // Resolve clusters: explicit override → auto-detect → null (single-screen)
   const detectedClusters = detectScreenClusters(nodes, edges);
   const clusters =
-    selectedClusters !== undefined
+    selectedClusters != null
       ? selectedClusters.slice(0, MAX_GENERATED_SCREENS)
       : detectedClusters?.slice(0, MAX_GENERATED_SCREENS) ?? null;
 

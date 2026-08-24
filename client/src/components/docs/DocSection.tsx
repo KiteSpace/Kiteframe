@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect, useCallback, KeyboardEvent, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Edit3, RotateCcw, Sparkles, Loader2, Check, X, Link2, Unlink, RefreshCw, AlertCircle, Shield, Lightbulb, Clock, ArrowRight, AlignLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getRouter } from '@/ai/router';
@@ -9,13 +8,21 @@ import { useToast } from '@/hooks/use-toast';
 import type { PRDNodeLink, PRDLinkTargetType } from '@/stores/prdNodeLinkStore';
 import { type AIInsight, getChipTypeColor, type InsightChipType } from '@/ai/insights';
 import type { PRDSuggestion } from '@/ai/prdSteward';
+import { docSectionDomId, type ConfidenceLevel, type DocDensity } from './types';
+import { MarkdownRichEditor } from './MarkdownRichEditor';
 
-export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type { ConfidenceLevel, DocDensity };
 
 interface DocSectionProps {
   title: string;
   content: string;
   sectionKey: string;
+  /**
+   * Rail (default) keeps the compact sizing the right panel has always used.
+   * Reader steps the whole section up to reading type — 18px headings, 15px
+   * body on a 1.7 leading — without forking the component.
+   */
+  density?: DocDensity;
   manuallyEdited?: boolean;
   isStale?: boolean;
   confidence?: ConfidenceLevel;
@@ -201,23 +208,57 @@ function ReviewSuggestionCard({
   );
 }
 
-const markdownComponents = {
+const railMarkdownComponents = {
   h1: ({ children }: { children: ReactNode }) => <h1 className="text-base font-bold mt-3 mb-1 text-foreground">{children}</h1>,
   h2: ({ children }: { children: ReactNode }) => <h2 className="text-sm font-semibold mt-2.5 mb-1 text-foreground">{children}</h2>,
   h3: ({ children }: { children: ReactNode }) => <h3 className="text-sm font-medium mt-2 mb-0.5 text-foreground">{children}</h3>,
   p:  ({ children }: { children: ReactNode }) => <p className="text-sm leading-relaxed mb-1.5">{children}</p>,
-  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-inside space-y-0.5 my-1.5 text-sm">{children}</ul>,
-  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-inside space-y-0.5 my-1.5 text-sm">{children}</ol>,
-  li: ({ children }: { children: ReactNode }) => <li className="leading-relaxed">{children}</li>,
+  // list-outside + explicit padding keeps the marker on the first line of the
+  // item. With list-inside a loose list (whose items are wrapped in <p>) puts
+  // the marker on its own line above the text, because the block-level <p>
+  // breaks immediately after the inline marker.
+  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-outside pl-5 space-y-0.5 my-1.5 text-sm">{children}</ul>,
+  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-outside pl-5 space-y-0.5 my-1.5 text-sm">{children}</ol>,
+  li: ({ children }: { children: ReactNode }) => <li className="leading-relaxed [&>p]:my-0">{children}</li>,
   strong: ({ children }: { children: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }: { children: ReactNode }) => <em className="italic">{children}</em>,
+  a: ({ children, href }: { children: ReactNode; href?: string }) => <a href={href} className="text-primary underline underline-offset-2">{children}</a>,
+  blockquote: ({ children }: { children: ReactNode }) => <blockquote className="my-2 border-l-2 border-primary/40 pl-3 italic">{children}</blockquote>,
+  code: ({ children }: { children: ReactNode }) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{children}</code>,
+  pre: ({ children }: { children: ReactNode }) => <pre className="my-2 overflow-x-auto rounded bg-muted p-2 text-xs">{children}</pre>,
   hr: () => <hr className="my-2 border-border" />,
 };
+
+/**
+ * Reader typography. Sizes are literal px rather than Tailwind's scale because
+ * the handoff specifies them exactly and 15px/1.7 has no `text-*` equivalent.
+ */
+const readerMarkdownComponents = {
+  h1: ({ children }: { children: ReactNode }) => <h1 className="text-[17px] font-semibold mt-6 mb-2 text-foreground">{children}</h1>,
+  h2: ({ children }: { children: ReactNode }) => <h2 className="text-[16px] font-semibold mt-5 mb-2 text-foreground">{children}</h2>,
+  h3: ({ children }: { children: ReactNode }) => <h3 className="text-[15px] font-semibold mt-4 mb-1.5 text-foreground">{children}</h3>,
+  p:  ({ children }: { children: ReactNode }) => <p className="text-[15px] leading-[1.7] mb-3">{children}</p>,
+  ul: ({ children }: { children: ReactNode }) => <ul className="list-disc list-outside pl-5 space-y-1.5 my-3 text-[15px] leading-[1.7]">{children}</ul>,
+  ol: ({ children }: { children: ReactNode }) => <ol className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-[15px] leading-[1.7]">{children}</ol>,
+  li: ({ children }: { children: ReactNode }) => <li className="leading-[1.7] [&>p]:my-0">{children}</li>,
+  strong: ({ children }: { children: ReactNode }) => <strong className="font-semibold text-foreground">{children}</strong>,
+  em: ({ children }: { children: ReactNode }) => <em className="italic">{children}</em>,
+  a: ({ children, href }: { children: ReactNode; href?: string }) => <a href={href} className="text-primary underline underline-offset-2">{children}</a>,
+  blockquote: ({ children }: { children: ReactNode }) => <blockquote className="my-3 border-l-2 border-primary/40 pl-3 italic">{children}</blockquote>,
+  code: ({ children }: { children: ReactNode }) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{children}</code>,
+  pre: ({ children }: { children: ReactNode }) => <pre className="my-3 overflow-x-auto rounded bg-muted p-3 text-xs">{children}</pre>,
+  hr: () => <hr className="my-5 border-border" />,
+};
+
+function markdownComponentsFor(density: DocDensity) {
+  return density === 'reader' ? readerMarkdownComponents : railMarkdownComponents;
+}
 
 export function DocSection({
   title,
   content,
   sectionKey,
+  density = 'rail',
   manuallyEdited = false,
   isStale = false,
   confidence,
@@ -247,22 +288,13 @@ export function DocSection({
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
   const [isElaborating, setIsElaborating] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+  const isReader = density === 'reader';
+  const markdownComponents = markdownComponentsFor(density);
 
   useEffect(() => {
     setEditValue(content);
   }, [content]);
-
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(
-        textareaRef.current.value.length,
-        textareaRef.current.value.length
-      );
-    }
-  }, [isEditing]);
 
   const handleSave = useCallback(() => {
     if (editValue !== content) {
@@ -275,14 +307,6 @@ export function DocSection({
     setEditValue(content);
     setIsEditing(false);
   }, [content]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') {
-      handleCancel();
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      handleSave();
-    }
-  }, [handleCancel, handleSave]);
 
   const handleContentClick = useCallback(() => {
     if (!isEditing && !isReadOnly) {
@@ -365,15 +389,21 @@ export function DocSection({
 
   return (
     <section
-      id={`prd-section-${sectionKey}`}
+      id={docSectionDomId(sectionKey, density)}
       className="group relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`doc-section-${sectionKey}`}
+      data-density={density}
     >
-      <div className="flex items-start justify-between mb-2">
+      <div className={cn('flex items-start justify-between', isReader ? 'mb-3' : 'mb-2')}>
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-sm font-semibold text-foreground tracking-tight">
+          <h3
+            className={cn(
+              'font-semibold text-foreground tracking-tight',
+              isReader ? 'text-[18px] leading-snug' : 'text-sm',
+            )}
+          >
             {title}
           </h3>
           {confidence && <ConfidenceBadge level={confidence} />}
@@ -546,23 +576,14 @@ export function DocSection({
       )}
 
       {isEditing ? (
-        <div className="space-y-2">
-          <Textarea
-            ref={textareaRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={handleKeyDown}
-            className="min-h-[100px] text-sm leading-relaxed resize-none border-primary/20 focus:border-primary/40"
-            placeholder="Enter content..."
-            data-testid={`textarea-${sectionKey}`}
-          />
-          <div className="flex justify-end gap-2 text-[10px] text-muted-foreground">
-            <span>Esc to cancel</span>
-            <span>·</span>
-            <span>⌘+Enter to save</span>
-          </div>
-        </div>
+        <MarkdownRichEditor
+          value={editValue}
+          density={density}
+          sectionKey={sectionKey}
+          onChange={setEditValue}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
       ) : (
         <>
           <div
@@ -571,7 +592,7 @@ export function DocSection({
               "text-muted-foreground",
               !isReadOnly && "cursor-text hover:bg-accent/30",
               "rounded-md transition-colors duration-100 -mx-2 px-2 py-1",
-              !content && "italic text-sm"
+              !content && (isReader ? "italic text-[15px]" : "italic text-sm")
             )}
             data-testid={`content-${sectionKey}`}
           >

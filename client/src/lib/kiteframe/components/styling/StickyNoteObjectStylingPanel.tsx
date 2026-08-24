@@ -32,7 +32,7 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
 
   // Handle font family change with weight fallback
   const handleFontFamilyChange = (newFontFamily: string) => {
-    const fallbackWeight = findFallbackWeight(data.fontWeight || 'normal', newFontFamily);
+    const fallbackWeight = findFallbackWeight(String(data.fontWeight || 'normal'), newFontFamily);
     const updates: Partial<StickyNoteData> = { fontFamily: newFontFamily as any };
     
     // Update weight if it changed due to fallback
@@ -159,7 +159,7 @@ export const StickyNoteObjectStylingPanel: React.FC<StickyNoteObjectStylingPanel
 
         <DropdownControl
           label="Font Weight"
-          value={data.fontWeight || 'normal'}
+          value={String(data.fontWeight || 'normal')}
           options={availableWeights}
           onChange={(value) => onUpdate({ fontWeight: value as any })}
           data-testid="sticky-font-weight"

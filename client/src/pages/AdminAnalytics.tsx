@@ -1041,7 +1041,6 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
                               hover: { outline: 'none', fill: '#6366F1' },
                               pressed: { outline: 'none' },
                             }}
-                            title={activity ? `${countryCode}: ${activity.aiRequests} requests` : countryCode}
                             data-testid={`map-country-${countryCode}`}
                           />
                         );

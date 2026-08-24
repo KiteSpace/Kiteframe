@@ -257,12 +257,12 @@ function getStylingProperties<T extends TextNodeData | StickyNoteData | ShapeNod
   data: T,
   objectType: 'text' | 'sticky' | 'shape'
 ): Partial<T> {
-  const preservedKeys = PRESERVED_PROPERTIES[objectType];
+  const preservedKeys: readonly string[] = PRESERVED_PROPERTIES[objectType];
   const result: Partial<T> = {};
   
   for (const key in data) {
-    if (!preservedKeys.includes(key as any)) {
-      result[key] = data[key];
+    if (!preservedKeys.includes(key)) {
+      (result as Record<string, unknown>)[key] = data[key];
     }
   }
   
@@ -281,7 +281,7 @@ export function createPartialReset<T extends TextNodeData | StickyNoteData | Sha
   const stylingDefaults = getStylingProperties(defaults, objectType);
   
   // Return only the styling properties from defaults, preserving current identity/content
-  return stylingDefaults;
+  return stylingDefaults as Partial<T>;
 }
 
 /**

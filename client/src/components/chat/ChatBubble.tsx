@@ -1,11 +1,24 @@
-import { FileText, Pencil } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, FileText, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import type { ChatMessage } from '../KiteAIChat';
 import { EdgeCaseSelector } from '../EdgeCaseSelector';
 import { WorkflowThumbnail } from './WorkflowThumbnail';
+import { ArtifactCard } from './ArtifactCard';
 import { useOpenDesign } from '@/design/DesignTabHost';
 import type { DesignPreview } from '@/lib/kiteaiTranscript';
+
+/**
+ * Length past which an assistant reply is collapsed behind "Show more".
+ *
+ * Documents get an artifact card instead of being pasted into the thread, but
+ * plenty of ordinary answers are still long enough to push everything before
+ * them off screen. Clamping keeps the thread scannable; the full text is one
+ * click away and never truncated.
+ */
+const LONG_RESPONSE_CHARS = 900;
+const CLAMPED_MAX_HEIGHT = 260;
 
 /**
  * Inline card showing the screens a generation produced, so the result is
@@ -83,6 +96,7 @@ function sanitizeAssistantContent(content: string): string {
 interface ChatBubbleProps {
   message: ChatMessage;
   onFollowUpClick?: (question: string) => void;
+  onQuickActionClick?: (prompt: string) => void;
   onWorkflowChipSelect?: (chipId: string) => void;
   onEdgeCaseSubmit?: (messageId: string, selectedIds: string[], edgeCases: import('../EdgeCaseSelector').EdgeCase[]) => void;
   onModifyEdgeCaseSelection?: (messageId: string) => void;
@@ -107,6 +121,7 @@ const getRoleLabel = (role: string): { label: string; emoji: string } => {
 export function ChatBubble({ 
   message,
   onFollowUpClick,
+  onQuickActionClick,
   onWorkflowChipSelect,
   onEdgeCaseSubmit,
   onModifyEdgeCaseSelection,
@@ -119,6 +134,12 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const [isExpanded, setIsExpanded] = useState(false);
+  // A document already collapses to a card, so clamping its one-line preamble
+  // as well would only add a "Show more" that reveals nothing.
+  const isLongResponse =
+    !isUser && !isSystem && !message.artifact && (message.content?.length ?? 0) > LONG_RESPONSE_CHARS;
+  const isClamped = isLongResponse && !isExpanded;
   
   if (isSystem) {
     if (message.type === 'edge_case_selector') {
@@ -207,7 +228,7 @@ export function ChatBubble({
             </div>
           )}
           
-          <div className="bg-neutral-200 dark:bg-neutral-800 px-4 py-2.5 rounded-2xl rounded-br-sm text-sm">
+          <div className="bg-primary px-3 py-[9px] rounded-[10px] rounded-br-sm text-[13px] leading-[1.55] text-primary-foreground">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
           
@@ -226,15 +247,23 @@ export function ChatBubble({
       className={`${className}`}
       data-testid={testId || `message-assistant-${message.id}`}
     >
-      <div className="max-w-[65ch]">
-        <div className="text-sm leading-[1.6] prose prose-sm dark:prose-invert max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2">
+      <div className="max-w-[85%] rounded-[10px] rounded-bl-sm border border-border bg-card px-3 py-[9px]">
+        {message.content && (
+        <div
+           className={`relative text-[13px] leading-[1.55] prose prose-sm dark:prose-invert max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 ${isClamped ? 'overflow-hidden' : ''}`}
+          style={isClamped ? { maxHeight: CLAMPED_MAX_HEIGHT } : undefined}
+          data-testid={isLongResponse ? `message-body-${message.id}` : undefined}
+          data-clamped={isLongResponse ? (isClamped ? 'true' : 'false') : undefined}
+        >
           <ReactMarkdown
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
               strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-              ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>,
-              li: ({ children }) => <li className="my-0.5">{children}</li>,
+              // list-outside + padding: with list-inside, a loose list (items
+              // wrapped in <p>) orphans the marker onto its own line.
+              ul: ({ children }) => <ul className="list-disc list-outside pl-5 my-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal list-outside pl-5 my-2 space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="my-0.5 [&>p]:my-0">{children}</li>,
               code: ({ children, className }) => {
                 return <code className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">{children}</code>;
               },
@@ -245,7 +274,42 @@ export function ChatBubble({
           >
             {sanitizeAssistantContent(message.content)}
           </ReactMarkdown>
+          {isClamped && (
+             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent" />
+          )}
         </div>
+        )}
+
+        {isLongResponse && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(v => !v)}
+             className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-semibold text-[color:var(--brand-strong)] hover:text-[color:var(--brand)] transition-colors"
+            data-testid={`button-show-more-${message.id}`}
+          >
+            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {isExpanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+
+        {message.artifact && <ArtifactCard artifact={message.artifact} />}
+
+        {message.quickActions && message.quickActions.length > 0 && (
+          <div className="mt-3 grid gap-2">
+            {message.quickActions.map((action) => (
+              <button
+                key={action.prompt}
+                type="button"
+                onClick={() => onQuickActionClick?.(action.prompt)}
+                disabled={isLoading}
+                className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:border-primary/50 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                data-testid={`button-quick-action-${message.id}-${action.id}`}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
         
         {message.followUps && message.followUps.length > 0 && (
           <div className="mt-3 space-y-2">

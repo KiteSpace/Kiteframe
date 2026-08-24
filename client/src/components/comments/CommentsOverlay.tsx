@@ -69,7 +69,7 @@ export function CommentsOverlay({
   onViewportChange,
   containerRef,
 }: CommentsOverlayProps) {
-  const { threads, createComment, resolveComment, deleteComment } = useComments({
+  const { threads, createComment, resolveComment, updateCommentPosition, deleteComment } = useComments({
     workflowId,
     shareId,
   });
@@ -84,6 +84,17 @@ export function CommentsOverlay({
   const [draftSubmitting, setDraftSubmitting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    id: string;
+    pointerId: number;
+    moved: boolean;
+    startClientX: number;
+    startClientY: number;
+    position: { x: number; y: number };
+  } | null>(null);
+  const suppressPinClickRef = useRef(false);
 
   // Convert a world coordinate to a screen position within the canvas container.
   const toScreen = useCallback(
@@ -122,18 +133,107 @@ export function CommentsOverlay({
     return () => window.removeEventListener('kiteframe:focusComment', handler);
   }, [centerOn]);
 
-  const handlePlaceClick = (e: React.MouseEvent) => {
-    if (!placing) return;
+  const placeAtClientPoint = useCallback((clientX: number, clientY: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const wx = (e.clientX - rect.left - viewport.x) / viewport.zoom;
-    const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+    const wx = (clientX - rect.left - viewport.x) / viewport.zoom;
+    const wy = (clientY - rect.top - viewport.y) / viewport.zoom;
     setDraft({ x: wx, y: wy });
     setDraftText('');
     setDraftError(null);
     setPlacing(false);
     setSelectedId(null);
-  };
+  }, [containerRef, setPlacing, viewport]);
+
+  // Placement intentionally observes clicks on the underlying canvas instead
+  // of using a full-size hit target. This preserves every toolbar, menu, input,
+  // and button while still allowing empty canvas clicks to open a draft.
+  useEffect(() => {
+    if (!placing) return;
+
+    const canvas = containerRef.current?.querySelector('.kiteframe-canvas');
+    if (!canvas) return;
+    const previousCursor = (canvas as HTMLElement).style.cursor;
+    (canvas as HTMLElement).style.cursor = 'crosshair';
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || !canvas.contains(target)) return;
+      if (target.closest(
+        '[data-node-id], [data-canvas-object-id], .kiteframe-canvas-object, button, input, textarea, select, a, [role="button"], [role="menu"], [role="menuitem"], [role="menuitemcheckbox"], [role="option"], [contenteditable="true"]',
+      )) {
+        return;
+      }
+      placeAtClientPoint(event.clientX, event.clientY);
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      (canvas as HTMLElement).style.cursor = previousCursor;
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  }, [containerRef, placeAtClientPoint, placing]);
+
+  // Clicking elsewhere closes either comment popover. The overlay itself is
+  // pointer-transparent, so this also covers clicks on the real canvas.
+  useEffect(() => {
+    const dismissWhenOutside = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+      if (target && overlayRef.current?.contains(target)) return;
+      setDraft(null);
+      setSelectedId(null);
+    };
+    document.addEventListener('pointerdown', dismissWhenOutside, true);
+    return () => document.removeEventListener('pointerdown', dismissWhenOutside, true);
+  }, []);
+
+  useEffect(() => {
+    const movePin = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!drag || event.pointerId !== drag.pointerId || !rect) return;
+      const distance = Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
+      if (distance > 4) drag.moved = true;
+      if (!drag.moved) return;
+
+      const position = {
+        x: (event.clientX - rect.left - viewport.x) / viewport.zoom,
+        y: (event.clientY - rect.top - viewport.y) / viewport.zoom,
+      };
+      drag.position = position;
+      setDragPositions((current) => ({ ...current, [drag.id]: position }));
+    };
+
+    const finishPinDrag = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      dragRef.current = null;
+      if (!drag.moved) return;
+
+      suppressPinClickRef.current = true;
+      const positionX = Math.round(drag.position.x);
+      const positionY = Math.round(drag.position.y);
+      void updateCommentPosition({ id: drag.id, positionX, positionY })
+        .catch(() => {
+          // Refetch restores the server position if the caller loses access.
+        })
+        .finally(() => {
+          setDragPositions((current) => {
+            const { [drag.id]: _, ...remaining } = current;
+            return remaining;
+          });
+        });
+    };
+
+    document.addEventListener('pointermove', movePin);
+    document.addEventListener('pointerup', finishPinDrag);
+    document.addEventListener('pointercancel', finishPinDrag);
+    return () => {
+      document.removeEventListener('pointermove', movePin);
+      document.removeEventListener('pointerup', finishPinDrag);
+      document.removeEventListener('pointercancel', finishPinDrag);
+    };
+  }, [containerRef, updateCommentPosition, viewport]);
 
   const submitDraft = async () => {
     if (!draft || !draftText.trim()) return;
@@ -170,15 +270,17 @@ export function CommentsOverlay({
 
   return (
     <div
+      ref={overlayRef}
       className="absolute inset-0 overflow-hidden z-[80]"
-      style={{ pointerEvents: placing ? 'auto' : 'none', cursor: placing ? 'crosshair' : 'default' }}
-      onClick={handlePlaceClick}
+      style={{ pointerEvents: 'none' }}
       data-testid="comments-overlay"
     >
       {/* Comment pins */}
       {threads.map(({ root, replies }) => {
         if (root.positionX == null || root.positionY == null) return null;
-        const pos = toScreen(root.positionX, root.positionY);
+        const draggedPosition = dragPositions[root.id];
+        const position = draggedPosition ?? { x: root.positionX, y: root.positionY };
+        const pos = toScreen(position.x, position.y);
         if (pos.x < -40 || pos.y < -40 || pos.x > containerW + 40 || pos.y > containerH + 40) {
           return null;
         }
@@ -199,8 +301,25 @@ export function CommentsOverlay({
               transform: 'translate(-2px, -28px)',
               pointerEvents: 'auto',
             }}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              e.stopPropagation();
+              dragRef.current = {
+                id: root.id,
+                pointerId: e.pointerId,
+                moved: false,
+                startClientX: e.clientX,
+                startClientY: e.clientY,
+                position,
+              };
+            }}
             onClick={(e) => {
               e.stopPropagation();
+              if (suppressPinClickRef.current) {
+                suppressPinClickRef.current = false;
+                return;
+              }
               setSelectedId(isSelected ? null : root.id);
               setDraft(null);
             }}

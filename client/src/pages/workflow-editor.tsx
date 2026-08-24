@@ -7,6 +7,7 @@ import "../lib/export/printStyles.css";
 import { usePluginSystem } from "@/lib/kiteframe/core/PluginProvider";
 import { WorkflowCanvas } from "@/components/WorkflowCanvas";
 import { ProjectPanel } from "@/components/panels/ProjectPanel";
+import { ReaderPane } from "@/components/reader/ReaderPane";
 import { CommentsOverlay } from "@/components/comments/CommentsOverlay";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -5229,7 +5230,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Subscribe to VLStore changes so sketch hide/lock toggles re-render the canvas
   const [vlVersion, bumpVL] = useState(0);
   useEffect(() => {
-    return VLStore.subscribe(() => bumpVL(v => v + 1));
+    const unsubscribe = VLStore.subscribe(() => bumpVL(v => v + 1));
+    return () => {
+      unsubscribe();
+    };
   }, []);
   const { hiddenStrokeIndices, lockedStrokeIndices } = useMemo(() => {
     const flags = VLStore.get();
@@ -8116,10 +8120,30 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }];
         newTab.historyIndex = 0;
         
-        // Restore transcript from the draft if present
+        // Restore the home prompt exchange into the same transcript the right
+        // rail reads. The previous legacy key was never hydrated by KiteAI, so
+        // a user could create a workflow and immediately lose that conversation.
         if (draft.transcript && draft.transcript.length > 0) {
-          const transcriptKey = `kiteframe-prompt-transcript-${newTab.projectUuid}`;
-          localStorage.setItem(transcriptKey, JSON.stringify(draft.transcript));
+          appendTranscript(
+            newTab.projectUuid || newTab.id,
+            draft.transcript.map((message: {
+              id?: string;
+              role: 'user' | 'assistant';
+              content: string;
+              type?: string;
+              timestamp?: string;
+              conversationId?: string;
+              artifact?: unknown;
+            }, index: number) => ({
+              id: message.id ?? `home-handoff-${Date.now()}-${index}`,
+              role: message.role,
+              type: message.type,
+              content: message.content,
+              timestamp: message.timestamp ? new Date(message.timestamp) : new Date(Date.now() + index),
+              conversationId: message.conversationId,
+              artifact: message.artifact,
+            })),
+          );
         }
         
         // Clear the homepage prompt input to avoid showing stale data
@@ -14169,6 +14193,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               )}
             </div>
 
+            {/* Reader pane — sits between the canvas and the rail so it can
+                either compress the canvas or overlay it, depending on how much
+                room the rail has left. Renders nothing when closed. */}
+            {openTabs.length > 0 && !isPhoneViewOnly && (
+              <ReaderPane
+                projectId={
+                  activeTab?.projectUuid ||
+                  activeTab?.cloudProjectId?.toString() ||
+                  activeTabId
+                }
+                projectName={activeTab?.name}
+                nodes={nodes}
+                edges={edges}
+                isReadOnly={effectiveReadOnly}
+              />
+            )}
+
             {/* Project Panel - docked right side */}
             {openTabs.length > 0 && !isPhoneViewOnly && (
               <DesignTabHostProvider host={designTabHost}>
@@ -14184,7 +14225,13 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   activeTabId
                 }
                 projectName={activeTab?.name}
-                commentWorkflowId={activeTab?.projectUuid}
+                onOpenWorkflowImport={() => setShowImportModal(true)}
+                commentWorkflowId={
+                  activeTab?.cloudProjectId
+                    ? (cloudProjects.find((p) => p.id === activeTab.cloudProjectId)?.projectUuid
+                        ?? activeTab?.projectUuid)
+                    : activeTab?.projectUuid
+                }
                 commentShareId={activeShareId ?? undefined}
                 onProjectNameChange={(name) => updateActiveTab({ name })}
                 onStrokeSelect={(idx) => {
@@ -15307,7 +15354,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         onConfirm={(selected) => {
           setScreenPickerOpen(false);
           if (screenPickerSourceTab) {
-            generateInterfaceFromWorkflow(screenPickerSourceTab, selected);
+            generateInterfaceFromWorkflow(screenPickerSourceTab, selected.map((cluster) => ({
+              ...cluster,
+              nodes: cluster.nodes.map((node) => ({
+                ...node,
+                type: 'process',
+                data: node.data ?? {},
+                position: { x: 0, y: 0 },
+              })),
+            })));
           }
         }}
       />

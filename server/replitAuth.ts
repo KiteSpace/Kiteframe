@@ -345,7 +345,9 @@ async function findOrCreateUser(profile: OAuthProfile): Promise<{ user: any; isN
     if (autoApprove) {
       console.log(`[BETA] Auto-approved new user ${profile.email} (${betaSlots.count + 1}/${betaSlots.cap ?? '∞'})`);
     } else {
-      sendWaitlistConfirmationEmail(profile.email, profile.firstName).catch(console.error);
+    if (profile.email) {
+      sendWaitlistConfirmationEmail(profile.email, profile.firstName ?? '').catch(console.error);
+    }
     }
     user = newUser;
     isNewUser = true;
@@ -374,6 +376,9 @@ export async function setupAuth(app: Express) {
     verified: passport.AuthenticateCallback
   ) => {
     const claims = tokens.claims();
+    if (!claims) {
+      return verified(new Error('OIDC claims were not provided'));
+    }
     // Ban check BEFORE user creation — blocked emails never get a users row
     const claimEmail = claims.email as string | undefined;
     if (claimEmail && await isBannedEmail(claimEmail)) {

@@ -232,9 +232,9 @@ Be specific and actionable. Return ONLY valid JSON.`;
           <TooltipProvider>
             {!intent.confirmed && (
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
-                className="h-6 text-xs text-green-600 border-green-300 hover:bg-green-50"
+                className="h-6 text-xs"
                 onClick={handleConfirm}
                 data-testid="confirm-intent-btn"
               >
@@ -246,9 +246,9 @@ Be specific and actionable. Return ONLY valid JSON.`;
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="h-6 text-xs text-green-600 border-green-300 hover:bg-green-50 dark:border-green-700 dark:text-green-400"
+                    className="h-6 text-xs"
                     onClick={handlePromoteToStable}
                     disabled={isStale || !hasFailurePath}
                     data-testid="promote-stable-btn"
@@ -402,7 +402,7 @@ Be specific and actionable. Return ONLY valid JSON.`;
                     <AlertTriangle size={10} />
                     Failure Modes
                   </label>
-                  <ul className="text-sm mt-0.5 list-disc list-inside">
+                  <ul className="text-sm mt-0.5 list-disc list-outside pl-5 [&>li>p]:my-0">
                     {intent.failureModes.map((mode, idx) => (
                       <li key={idx} className="text-gray-700 dark:text-gray-300">{mode}</li>
                     ))}
