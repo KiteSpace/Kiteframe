@@ -107,6 +107,8 @@ import {
   AstryxClickableCard,
   AstryxSelectableCard,
   createEmptyCraftState,
+  DEFAULT_ARTBOARD_WIDTH,
+  DEFAULT_ARTBOARD_HEIGHT,
   sanitizeCraftState,
   validateCraftState,
   CanvasZoomContext,
@@ -152,6 +154,14 @@ import {
   type ComponentCategory,
   type PanelView,
 } from "./builderRegistry";
+import {
+  getContainerRecommendations,
+  getRecommendationComponent,
+  getSelectionAssistantVisibility,
+  isRecommendableContainer,
+  type ContainerRecommendation,
+  type RecommendationPatternNode,
+} from "./containerRecommendations";
 import { ImportDesignModal } from "./ImportDesignModal";
 import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
@@ -4956,9 +4966,10 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onZoomTo, onFitView }: { zoo
         return;
       }
 
-      const artboards = Object.values(state).filter(
-        (n: any) => n?.type?.resolvedName === "AstryxArtboard"
-      ) as any[];
+      const artboardIds = (Array.isArray(state["ROOT"].nodes) ? state["ROOT"].nodes : [])
+        .filter((id: unknown) => typeof id === "string" && state[id]?.type?.resolvedName === "AstryxArtboard");
+      const artboards = artboardIds.map((id: string) => state[id]).filter(Boolean) as any[];
+      const { width: newWidth, height: newHeight } = getNewArtboardDimensions(state);
 
       let newX = 64;
       let newY = 64;
@@ -4967,7 +4978,7 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onZoomTo, onFitView }: { zoo
         let yAtMax = 64;
         for (const ab of artboards) {
           const abX = Number(ab.props?.x) || 64;
-          const abW = Number(ab.props?.width) || 390;
+           const abW = Number(ab.props?.width) || 390;
           const edge = abX + abW;
           if (edge > maxRight) {
             maxRight = edge;
@@ -4991,6 +5002,8 @@ function CanvasToolbar({ zoom, onZoomIn, onZoomOut, onZoomTo, onFitView }: { zoo
           padding: 24,
           x: newX,
           y: newY,
+           width: newWidth,
+           height: newHeight,
         },
         displayName: "AstryxArtboard",
         custom: {},
@@ -6220,26 +6233,50 @@ function SelectionPinButton() {
   // latest DOM ref without re-running the effect on every re-render.
   const craftQueryRef = useRef<any>(null);
 
-  const { selectedInfo } = useEditor((state, query) => {
+  const { selectedInfo, actions } = useEditor((state, query) => {
     craftQueryRef.current = query;
     const sel = state.events.selected;
-    const id = sel && sel.size > 0 ? Array.from(sel)[0] : null;
+    const id = sel && sel.size === 1 ? Array.from(sel)[0] : null;
     if (!id || id === "ROOT") return { selectedInfo: null };
     const node = state.nodes[id];
     if (!node) return { selectedInfo: null };
     const dn = node.data.displayName as string;
-    if (dn === "AstryxArtboard") return { selectedInfo: null };
     return {
       selectedInfo: {
         id,
         displayName: dn,
         props: { ...node.data.props } as Record<string, any>,
+        childNodes: node.data.nodes
+          .map((childId: string) => state.nodes[childId])
+          .filter(Boolean)
+          .map((child: any) => ({
+            displayName: child.data.displayName as string,
+            props: { ...child.data.props } as Record<string, any>,
+          })),
       },
     };
   });
 
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const rafRef = useRef<number>(0);
+  const [swapOpen, setSwapOpen] = useState(false);
+
+  const recommendations = useMemo(
+    () => (
+      selectedInfo && isRecommendableContainer(selectedInfo.displayName)
+        ? getContainerRecommendations({
+            displayName: selectedInfo.displayName,
+            direction: selectedInfo.props.direction,
+            children: selectedInfo.childNodes,
+          })
+        : []
+    ),
+    [selectedInfo],
+  );
+
+  useEffect(() => {
+    setSwapOpen(false);
+  }, [selectedInfo?.id]);
 
   useLayoutEffect(() => {
     const id = selectedInfo?.id;
@@ -6277,6 +6314,42 @@ function SelectionPinButton() {
     ?? selectedInfo.props.title
     ?? selectedInfo.displayName;
   const label = String(rawLabel ?? selectedInfo.displayName);
+  const assistantVisibility = getSelectionAssistantVisibility(
+    selectedInfo.displayName,
+    true,
+    false,
+  );
+  const canRecommend = assistantVisibility.showRecommendations && recommendations.length > 0;
+
+  const insertRecommendation = (recommendation: ContainerRecommendation) => {
+    const definition = getRecommendationComponent(recommendation);
+    if (!definition || !selectedInfo || !recommendations.length) return;
+    const item = TOOLBOX_BY_ID[definition.id];
+    if (!item) return;
+
+    try {
+      const target = craftQueryRef.current?.node(selectedInfo.id).get?.();
+      if (!target || !isRecommendableContainer(target.data?.displayName)) return;
+      const insertionIndex = (target.data.nodes as string[]).length;
+      const buildPatternElement = (node: RecommendationPatternNode): JSX.Element => {
+        const nodeItem = TOOLBOX_BY_ID[node.componentId];
+        if (!nodeItem) throw new Error(`Unknown recommendation component: ${node.componentId}`);
+        const element = nodeItem.getElement();
+        const children = (node.children ?? []).map(buildPatternElement);
+        return children.length ? cloneElement(element, {}, children) : element;
+      };
+      const element = recommendation.pattern
+        ? buildPatternElement(recommendation.pattern)
+        : item.getElement();
+      const tree = craftQueryRef.current.parseReactElement(element).toNodeTree();
+
+      (actions as any).addNodeTree(tree, selectedInfo.id, insertionIndex);
+      pushRecentId(definition.id);
+      setSwapOpen(false);
+    } catch (error) {
+      console.error("[recommendation] failed to build component tree:", error);
+    }
+  };
 
   return (
     <div
@@ -6287,15 +6360,79 @@ function SelectionPinButton() {
         zIndex: 1000,
       }}
     >
-      <button
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => setPinned({ displayName: selectedInfo.displayName, props: selectedInfo.props, label, nodeId: selectedInfo.id })}
-        className="flex items-center gap-1 bg-primary text-primary-foreground rounded-lg px-2 py-1 shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-[10px] font-semibold"
-        title="Pin this element to the AI chat"
-      >
-        <MessageCirclePlus className="w-3 h-3" />
-        Ask AI
-      </button>
+      <div className="flex items-center gap-1">
+        {canRecommend && (
+          <Popover open={swapOpen} onOpenChange={setSwapOpen}>
+            <div
+              role="group"
+              aria-label="Smart component suggestions"
+              data-testid="smart-recommendation-group"
+              className="flex items-center overflow-hidden rounded-lg bg-violet-600 text-white shadow-lg"
+            >
+            <button
+              type="button"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => insertRecommendation(recommendations[0])}
+              data-testid="smart-recommendation-add"
+              className="flex h-7 w-7 items-center justify-center hover:bg-violet-500 active:scale-95 transition-all"
+                   title={`Add ${recommendations[0]?.label ?? recommendations[0]?.componentId ?? "a suggested component"}`}
+                   aria-label={`Add ${recommendations[0]?.label ?? recommendations[0]?.componentId ?? "a suggested component"}`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+              <span className="h-4 w-px bg-white/40" aria-hidden="true" />
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  data-testid="smart-recommendation-menu"
+                  className="flex h-7 w-6 items-center justify-center hover:bg-violet-500 active:scale-95 transition-all"
+                  title="Choose a suggested component"
+                  aria-label="Choose a suggested component"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </PopoverTrigger>
+            </div>
+            <PopoverContent
+              align="start"
+              side="bottom"
+              sideOffset={8}
+              className="w-56 p-1.5"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+            >
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Suggested components</p>
+              {recommendations.map((choice) => (
+                <button
+                  key={choice.componentId}
+                  type="button"
+                  onClick={() => insertRecommendation(choice)}
+                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="block text-xs font-medium text-foreground">{choice.label ?? choice.componentId}</span>
+                  <span className="block text-[11px] text-muted-foreground">{choice.reason}</span>
+                  {choice.pattern && (
+                    <span className="block text-[10px] text-muted-foreground/80">
+                      Includes {choice.pattern.children?.map((child) => child.componentId).join(", ")}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
+        {assistantVisibility.showAskAI && (
+          <button
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => setPinned({ displayName: selectedInfo.displayName, props: selectedInfo.props, label, nodeId: selectedInfo.id })}
+            className="flex items-center gap-1 bg-primary text-primary-foreground rounded-lg px-2 py-1 shadow-lg hover:bg-primary/90 active:scale-95 transition-all text-[10px] font-semibold"
+            title="Pin this element to the AI chat"
+          >
+            <MessageCirclePlus className="w-3 h-3" />
+            Ask AI
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -6360,6 +6497,12 @@ function SnapGuideOverlay() {
 }
 
 // ─── Infinite canvas (pan + zoom) ────────────────────────────────────────────
+
+export const INTERFACE_CANVAS_SURFACE_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--kf-canvas)",
+  // Disable native browser pan/zoom on touch so our pointer handlers take full control.
+  touchAction: "none",
+};
 
 function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: ReactNode; zoom: number; onZoom: (updater: (z: number) => number) => void; fitTrigger?: number }) {
   const [pan, setPan] = useState({ x: 80, y: 80 });
@@ -6646,13 +6789,8 @@ function InfiniteCanvas({ children, zoom, onZoom, fitTrigger }: { children: Reac
     <div
       ref={containerRef}
       className="h-full w-full relative overflow-hidden"
-      style={{
-        backgroundImage: "radial-gradient(circle, var(--kf-canvas-dot) 1.5px, transparent 1.5px)",
-        backgroundSize: "20px 20px",
-        backgroundColor: "var(--kf-canvas)",
-        // Disable native browser pan/zoom on touch so our pointer handlers take full control.
-        touchAction: "none",
-      }}
+      data-testid="interface-canvas"
+      style={INTERFACE_CANVAS_SURFACE_STYLE}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -6848,6 +6986,19 @@ export function getUntouchedDefaultArtboardId(state: Record<string, unknown>): s
   const props = artboard?.props as Record<string, unknown> | undefined;
   const children = Array.isArray(artboard?.nodes) ? artboard.nodes : [];
   return children.length === 0 && props?.label === "Screen 1" ? id : undefined;
+}
+
+export function getNewArtboardDimensions(state: Record<string, any>): { width: number; height: number } {
+  const rootNodes = Array.isArray(state["ROOT"]?.nodes) ? state["ROOT"].nodes : [];
+  const lastArtboardId = [...rootNodes]
+    .reverse()
+    .find((id) => state[id]?.type?.resolvedName === "AstryxArtboard");
+  const lastArtboard = lastArtboardId ? state[lastArtboardId] : undefined;
+
+  return {
+    width: Number(lastArtboard?.props?.width) || DEFAULT_ARTBOARD_WIDTH,
+    height: Number(lastArtboard?.props?.height) || DEFAULT_ARTBOARD_HEIGHT,
+  };
 }
 
 /** Applies a first-generation result onto the canvas's pristine default

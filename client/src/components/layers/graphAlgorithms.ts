@@ -1,6 +1,6 @@
 export class UF {
   private p: Record<string,string> = {};
-  find(x:string){ if(!this.p[x]) this.p[x]=x; return this.p[x]===x?x:this.p[x]=this.find(this.p[x]); }
+  find(x:string): string { if(!this.p[x]) this.p[x]=x; return this.p[x]===x?x:this.p[x]=this.find(this.p[x]); }
   union(a:string,b:string){ this.p[this.find(a)] = this.find(b); }
   groups(){ const m:Record<string,string[]>={}; for(const k of Object.keys(this.p)){ const r=this.find(k); (m[r]??=[]).push(k);} return m; }
 }

@@ -86,8 +86,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     };
 
     // Use cleanup manager for event listeners
-    const cleanupClick = cleanupManager.addEventListener(document, 'mousedown', handleClickOutside);
-    const cleanupKeyboard = cleanupManager.addEventListener(document, 'keydown', handleKeyDown);
+    const cleanupClick = cleanupManager.addEventListener(document, 'mousedown', handleClickOutside as EventListener);
+    const cleanupKeyboard = cleanupManager.addEventListener(document, 'keydown', handleKeyDown as EventListener);
 
     return () => {
       cleanupClick();

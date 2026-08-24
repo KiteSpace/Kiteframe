@@ -136,13 +136,26 @@ export function listWorkflowPRDs(projectId: string): string[] {
   
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith(prefix) && !key.endsWith(BACKUP_SUFFIX)) {
+    if (key && key.startsWith(prefix) && !key.endsWith(BACKUP_SUFFIX) && !key.endsWith(HISTORY_SUFFIX)) {
       const workflowId = key.replace(prefix, '');
       keys.push(workflowId);
     }
   }
   
   return keys;
+}
+
+/** Workflow ids that still have saved version history, including removed workflows. */
+export function listWorkflowPRDHistoryIds(projectId: string): string[] {
+  const prefix = `${WORKFLOW_PRD_PREFIX}${projectId}-`;
+  const ids: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(prefix) || !key.endsWith(HISTORY_SUFFIX)) continue;
+    const workflowId = key.slice(prefix.length, -HISTORY_SUFFIX.length);
+    if (workflowId) ids.push(workflowId);
+  }
+  return ids;
 }
 
 export function updatePRDSection(

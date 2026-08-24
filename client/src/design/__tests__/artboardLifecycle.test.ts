@@ -5,7 +5,9 @@ import {
   getUntouchedDefaultArtboardId,
   reuseUntouchedDefaultArtboard,
   getSharedDimensionValue,
+  getNewArtboardDimensions,
 } from "../DesignEditor";
+import { DEFAULT_ARTBOARD_HEIGHT, DEFAULT_ARTBOARD_WIDTH } from "../resolver";
 
 function generatedState() {
   return {
@@ -43,8 +45,8 @@ describe("artboard lifecycle helpers", () => {
   it("recognizes only the untouched default Screen 1 artboard", () => {
     const initial = JSON.parse(createEmptyCraftState());
     expect(getUntouchedDefaultArtboardId(initial)).toBe("artboard-1");
-    expect((initial["artboard-1"] as any).props.width).toBeUndefined();
-    expect((initial["artboard-1"] as any).props.height).toBeUndefined();
+    expect((initial["artboard-1"] as any).props.width).toBe(DEFAULT_ARTBOARD_WIDTH);
+    expect((initial["artboard-1"] as any).props.height).toBe(DEFAULT_ARTBOARD_HEIGHT);
     initial["artboard-1"].nodes = ["button"];
     expect(getUntouchedDefaultArtboardId(initial)).toBeUndefined();
   });
@@ -63,6 +65,17 @@ describe("artboard lifecycle helpers", () => {
     };
     expect(fallbackState["artboard-1"].props.width).toBeUndefined();
     expect(fallbackState["artboard-1"].props.height).toBeUndefined();
+  });
+
+  it("uses the last added artboard's dimensions for a new artboard", () => {
+    const state = {
+      ROOT: { nodes: ["desktop", "phone", "not-an-artboard"] },
+      desktop: { type: { resolvedName: "AstryxArtboard" }, props: { width: 1440, height: 900 } },
+      phone: { type: { resolvedName: "AstryxArtboard" }, props: { width: 390, height: 844 } },
+      "not-an-artboard": { type: { resolvedName: "AstryxCard" }, props: { width: 500, height: 500 } },
+    };
+
+    expect(getNewArtboardDimensions(state)).toEqual({ width: 390, height: 844 });
   });
 
   it("reuses the default artboard ID and generated label for first interface generation", () => {

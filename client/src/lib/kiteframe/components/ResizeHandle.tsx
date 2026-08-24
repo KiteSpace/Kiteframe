@@ -140,8 +140,8 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({
     };
 
     // Use cleanup manager for event listeners
-    const cleanupMove = cleanupManager.addEventListener(document, 'mousemove', handleMouseMove);
-    const cleanupUp = cleanupManager.addEventListener(document, 'mouseup', handleMouseUp);
+    const cleanupMove = cleanupManager.addEventListener(document, 'mousemove', handleMouseMove as EventListener);
+    const cleanupUp = cleanupManager.addEventListener(document, 'mouseup', handleMouseUp as EventListener);
     
     // Store combined cleanup function
     cleanupFnRef.current = () => {

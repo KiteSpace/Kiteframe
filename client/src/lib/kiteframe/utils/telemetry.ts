@@ -498,5 +498,5 @@ export function withTelemetry<P extends object>(
     });
     
     return React.createElement(Component, props);
-  });
+  }) as unknown as React.ComponentType<P>;
 }

@@ -31,6 +31,7 @@ import {
   AstryxButton,
   AstryxSection,
 } from '../resolver';
+import { INTERFACE_CANVAS_SURFACE_STYLE } from '../DesignEditor';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -122,6 +123,14 @@ function getSelectedIds(): string[] {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('Interface builder canvas surface', () => {
+  it('uses a solid background without the decorative dot pattern', () => {
+    expect(INTERFACE_CANVAS_SURFACE_STYLE.backgroundColor).toBe('var(--kf-canvas)');
+    expect(INTERFACE_CANVAS_SURFACE_STYLE.backgroundImage).toBeUndefined();
+    expect(INTERFACE_CANVAS_SURFACE_STYLE.backgroundSize).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

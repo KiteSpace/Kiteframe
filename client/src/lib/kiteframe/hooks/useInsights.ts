@@ -4,7 +4,7 @@ import type { Insight } from '../utils/insights/types';
 import { diagnosticsEngine } from '../utils/diagnostics/DiagnosticsEngine';
 import { convertDiagnosticsToInsights } from '../utils/insights/insightConverter';
 import { apiRequest } from '@/lib/queryClient';
-import { filterDiagnosticsByMode, type DiagnosticsMode } from '@/utils/workflowDiagnostics';
+import type { DiagnosticsMode } from '@/utils/workflowDiagnostics';
 
 interface UseInsightsOptions {
   projectId: string;
@@ -127,7 +127,12 @@ export function useInsights(
       });
       
       // Phase 4: Filter diagnostics by mode - 'educate' mode only shows blockers
-      const filteredIssues = filterDiagnosticsByMode(diagnosticIssues, diagnosticsMode);
+      // The KiteFrame diagnostics engine uses the richer persisted issue shape.
+      // Keep its type intact for the insight converter while applying the
+      // educate-mode blocker filter locally.
+      const filteredIssues = diagnosticsMode === 'validate'
+        ? diagnosticIssues
+        : diagnosticIssues.filter((issue) => issue.severity === 'risk' || issue.severity === 'critical');
       
       const newInsights = convertDiagnosticsToInsights(filteredIssues);
       

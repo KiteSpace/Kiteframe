@@ -89,6 +89,7 @@ import {
   readStoredMessages,
   saveStoredMessages,
   type DesignPreview,
+  type ChatArtifact,
   type TranscriptEntry,
 } from '@/lib/kiteaiTranscript';
 import { useKiteAIConversation, type ProcessInputResult } from '@/hooks/useKiteAIConversation';
@@ -110,6 +111,15 @@ import {
   type ProposalValidationResult
 } from '@/ai/proposalValidation';
 import { computeWorkflowDelta, computeDetailedWorkflowDelta } from '@/utils/workflowDiff';
+import {
+  applyWorkflowSpecEdit,
+  buildWorkflowSpecEditInstructions,
+  findWorkflowSpecTarget,
+  isWorkflowSpecEditRequest,
+  parseWorkflowSpecEditResponse,
+} from '@/lib/workflowSpecEdits';
+import { isWorkflowImportRequest } from '@/lib/workflowImportIntent';
+import { useReaderTarget } from '@/stores/readerStore';
 
 // Phase 7 feature flag keys
 const FLAG_UNIFIED_ENGINE = 'ai.unifiedConversationEngine';
@@ -131,6 +141,38 @@ export type MessageType =
   | 'edge_case_selector'   // Inline edge case picker card
   | 'edge_case_selected'   // Confirmed selection summary card
   | 'system';              // Informational system messages
+
+export interface KiteAIQuickAction {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
+const WELCOME_QUICK_ACTIONS: KiteAIQuickAction[] = [
+  {
+    id: 'create-workflow',
+    label: 'Create new workflows from descriptions',
+    prompt: 'Create a new workflow from my description.',
+  },
+  {
+    id: 'improve-workflow',
+    label: 'Analyze and improve existing workflows',
+    prompt: 'Analyze and improve my existing workflow.',
+  },
+  {
+    id: 'import-workflow',
+    label: 'Import workflows from images or .kiteframe files',
+    prompt: 'Import a workflow from an image or .kiteframe file.',
+  },
+  {
+    id: 'workflow-design-question',
+    label: 'Answer questions about workflow design',
+    prompt: 'Help me answer a workflow design question.',
+  },
+];
+
+const WELCOME_COPY =
+  "Hi! I'm KiteAI, your workflow assistant.";
 
 export interface ChatMessage {
   id: string;
@@ -157,6 +199,15 @@ export interface ChatMessage {
    * the canvas.
    */
   designPreview?: DesignPreview;
+  /**
+   * A document this message produced. Rendered as a card that opens the
+   * reader, instead of pasting thousands of words into the thread.
+   */
+  artifact?: ChatArtifact;
+  /** Makes the welcome's suggested workflows immediately actionable. */
+  quickActions?: KiteAIQuickAction[];
+  /** Stable anchor for a home prompt and its reader card. */
+  conversationId?: string;
   meta?: {
     kiteRole?: KiteRole;
     confidence?: number;
@@ -195,8 +246,9 @@ function getDefaultWelcomeMessage(): ChatMessage {
   return {
     id: 'welcome',
     role: 'assistant',
-    content: "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?",
-    timestamp: new Date()
+    content: WELCOME_COPY,
+    timestamp: new Date(),
+    quickActions: WELCOME_QUICK_ACTIONS,
   };
 }
 
@@ -220,8 +272,13 @@ function loadMessagesFromStorage(storageKey: string): ChatMessage[] | null {
 
 // Transcript message type for storing conversation history
 export interface TranscriptMessage {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
+  type?: MessageType;
+  timestamp?: string;
+  conversationId?: string;
+  artifact?: ChatArtifact;
 }
 
 // WorkflowDraft type exported for use by shells
@@ -265,6 +322,7 @@ interface KiteAIChatBrainProps {
   onInitialPromptConsumed?: () => void;
   onCreateWorkflow?: (draft: WorkflowDraft) => void;
   generationMode?: 'workflow' | 'design';
+  onOpenWorkflowImport?: () => void;
 }
 
 const WORKFLOW_GENERATION_SIGNALS = [
@@ -338,6 +396,7 @@ export function KiteAIChatBrain({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
   const { toast } = useToast();
+  const readerTarget = useReaderTarget();
   const aiClient = useAi();
   const promptContextStore = usePromptContextStore();
   const { 
@@ -419,7 +478,7 @@ export function KiteAIChatBrain({
         return "You've run out of AI credits.\n\n" + ctaMessage + "\n\nOnce you have credits, you'll be able to:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images\n• Generate AI-powered suggestions";
       }
     }
-    return "Hi! I'm KiteAI, your workflow assistant. I can help you:\n\n• Create new workflows from descriptions\n• Analyze and improve existing workflows\n• Import workflows from images or .kiteframe files\n• Answer questions about workflow design\n\nThis feature uses AI tokens. Need more? Contact info@kiteframe.space\n\nHow can I help you today?";
+    return WELCOME_COPY;
   }, [isOutOfCredits, isAuthenticated, ctaMessage]);
   
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -529,12 +588,16 @@ export function KiteAIChatBrain({
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 'welcome') {
       const welcomeContent = getWelcomeMessage();
-      if (messages[0].content !== welcomeContent) {
+      if (
+        messages[0].content !== welcomeContent ||
+        (isOutOfCredits ? !!messages[0].quickActions : !messages[0].quickActions)
+      ) {
         setMessages([{
           id: 'welcome',
           role: 'assistant',
           content: welcomeContent,
-          timestamp: new Date()
+          timestamp: new Date(),
+          quickActions: isOutOfCredits ? undefined : WELCOME_QUICK_ACTIONS,
         }]);
       }
     }
@@ -614,20 +677,6 @@ export function KiteAIChatBrain({
     // Mark this prompt as being processed
     initialPromptProcessedRef.current = initialPrompt;
     
-    // Save the initial prompt to the prompt transcript immediately
-    // This captures the "pre-project" conversation from the home page
-    // Regular in-project chat is saved separately to kiteai-chat storage
-    if (projectId) {
-      const transcriptKey = `kiteframe-prompt-transcript-${projectId}`;
-      const existingTranscript = localStorage.getItem(transcriptKey);
-      
-      // Only save if there's no existing transcript (to preserve FullScreenChat transcript)
-      if (!existingTranscript) {
-        const promptTranscript = [{ role: 'user' as const, content: initialPrompt }];
-        localStorage.setItem(transcriptKey, JSON.stringify(promptTranscript));
-      }
-    }
-    
     // Consume attachments from PromptContextStore if any
     // This ensures Home Prompt attachments are carried through to KiteAI Chat
     let filesToSend: File[] = [];
@@ -655,17 +704,61 @@ export function KiteAIChatBrain({
       }
     }
     
-    // Call the shared handleSend with the initial prompt and files
+    // Call the shared handleSend with the initial prompt and files.
+    // Panel prompts receive a durable card that reconstructs this exchange from
+    // the existing project transcript in the reader — no parallel prompt store.
+    const conversationId = `prompt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     // This ensures identical behavior to typing in the chat input
     // Use finally to guarantee cleanup even on failure
-    handleSend(initialPrompt, filesToSend.length > 0 ? filesToSend : undefined).finally(() => {
+    handleSend(
+      initialPrompt,
+      filesToSend.length > 0 ? filesToSend : undefined,
+      { conversationId },
+    ).finally(() => {
+      setMessages((current) => {
+        const welcome = current.filter((message) => message.id === 'welcome');
+        const conversation = current.filter((message) => message.id !== 'welcome');
+        const hasPrompt = conversationId && conversation.some(
+          (message) => message.role === 'user' && message.conversationId === conversationId,
+        );
+        const hasCard = conversationId && conversation.some(
+          (message) =>
+            message.artifact?.docKind === 'prompt-conversation' &&
+            message.artifact.conversationId === conversationId,
+        );
+
+        if (mode === 'panel' && projectId && conversationId && hasPrompt && !hasCard) {
+          conversation.push({
+            id: `prompt-card-${conversationId}`,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date(),
+            artifact: {
+              docId: `prompt-conversation:${conversationId}`,
+              docKind: 'prompt-conversation',
+              conversationId,
+              title: 'View Prompt',
+              kindLabel: 'Prompt conversation',
+              sectionCount: 0,
+              wordCount: initialPrompt.trim().split(/\s+/).filter(Boolean).length,
+              excerpt: initialPrompt,
+              createdAt: new Date().toISOString(),
+            },
+          });
+        }
+
+        // A home prompt is the start of the conversation, not an interruption
+        // after the welcome. Keep the welcome as the friendly next step once
+        // KiteAI has answered the prompt.
+        return [...conversation, ...welcome];
+      });
       // Clear the store after successful consumption
       if (promptContextStore && filesToSend.length > 0) {
         promptContextStore.clearStore();
       }
       onInitialPromptConsumed?.();
     });
-  }, [initialPrompt, isLoading, onInitialPromptConsumed, promptContextStore, projectId]);
+  }, [initialPrompt, isLoading, mode, onInitialPromptConsumed, promptContextStore, projectId]);
 
   useLayoutEffect(() => {
     if (inputRef.current) {
@@ -825,12 +918,34 @@ export function KiteAIChatBrain({
   }, [scopedNodes, scopedEdges, selectedWorkflowGroup]);
 
   // Shared message sending function - accepts optional message override and files for programmatic calls
-  const handleSend = async (messageOverride?: string, filesOverride?: File[]) => {
+  const handleSend = async (
+    messageOverride?: string,
+    filesOverride?: File[],
+    options?: { conversationId?: string },
+  ) => {
     const messageContent = messageOverride ?? inputValue;
     const filesToProcess = filesOverride ?? pendingFiles;
     const hasPendingFiles = filesToProcess.length > 0;
     
     if (!messageContent.trim() && !hasPendingFiles) return;
+
+    // Import requests open the chat uploader. Do this before credit checks
+    // because opening a file picker is not an AI
+    // operation, and before the chat model can answer with a false "ready".
+    if (isWorkflowImportRequest(messageContent) && !hasPendingFiles) {
+      const importRequestMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: messageContent,
+        timestamp: new Date(),
+        conversationId: options?.conversationId,
+      };
+      setMessages(prev => [...prev, importRequestMessage]);
+      setInputValue('');
+      fileInputRef.current?.click();
+      onInitialPromptConsumed?.();
+      return;
+    }
 
     if (isOutOfCredits) {
       toast({
@@ -959,7 +1074,8 @@ export function KiteAIChatBrain({
       role: 'user',
       content: messageContent,
       timestamp: new Date(),
-      attachments: attachments.length > 0 ? attachments : undefined
+      attachments: attachments.length > 0 ? attachments : undefined,
+      conversationId: options?.conversationId,
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -1151,6 +1267,29 @@ export function KiteAIChatBrain({
         content: m.content
       }));
 
+      const requestedWorkflowSpecEdit = mode === 'panel'
+        && !!projectId
+        && isWorkflowSpecEditRequest(messageContent);
+      const workflowSpecTarget = requestedWorkflowSpecEdit && projectId
+        ? findWorkflowSpecTarget(
+          projectId,
+          messageContent,
+          readerTarget?.docKind === 'workflow-prd' ? readerTarget.workflowId : undefined,
+        )
+        : null;
+
+      // A specific document edit must resolve to exactly one saved workflow
+      // spec. Never make a plausible-looking change to an arbitrary document.
+      if (requestedWorkflowSpecEdit && !workflowSpecTarget) {
+        setMessages(prev => [...prev, {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: "I couldn't identify one saved workflow spec to update, so I left your documents unchanged. Please name the workflow spec you want to edit.",
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
       const hasFigmaAttachment = attachments.some(a => 
         a.name?.toLowerCase().includes('figma') || 
         a.type === 'image'
@@ -1187,6 +1326,9 @@ export function KiteAIChatBrain({
       );
       
       let enhancedPrompt = kiteAIContext.systemPrompt;
+      if (workflowSpecTarget) {
+        enhancedPrompt += buildWorkflowSpecEditInstructions(workflowSpecTarget);
+      }
 
       // Design mode: override with design system prompt (works in both panel and fullscreen)
       const isDesignMode = generationMode === 'design';
@@ -1221,7 +1363,9 @@ export function KiteAIChatBrain({
       const msgLowerForRouting = messageContent.toLowerCase();
       const hasWorkflowIntent = WORKFLOW_GENERATION_SIGNALS.some(sig => msgLowerForRouting.includes(sig));
 
-      const effectiveTaskType = (isExecutionReady || hasWorkflowIntent)
+      const effectiveTaskType = workflowSpecTarget
+        ? 'workflow_edit'
+        : (isExecutionReady || hasWorkflowIntent)
         ? 'workflow_reasoning'
         : 'general_chat';
 
@@ -1278,6 +1422,47 @@ export function KiteAIChatBrain({
 
       let workflowProposal: ChatMessage['workflowProposal'] | undefined;
       let responseText = response.text;
+
+      if (workflowSpecTarget) {
+        const edit = parseWorkflowSpecEditResponse(response.text, workflowSpecTarget.prd);
+        if (!edit) {
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: "I couldn't safely apply that response to your workflow spec, so I left the document unchanged. Please try again with the section you want to update.",
+            timestamp: new Date(),
+          }]);
+          return;
+        }
+
+        const updated = await applyWorkflowSpecEdit(workflowSpecTarget, edit);
+        if (!updated) {
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: "I couldn't apply that update because the workflow spec changed while I was working. I left the latest document untouched; please try again.",
+            timestamp: new Date(),
+          }]);
+          return;
+        }
+
+        const sectionTitle = updated.sections.find(section => section.id === edit.sectionId)?.title
+          ?? edit.sectionId;
+        responseText = edit.summary
+          ?? `Updated the ${sectionTitle} section in ${updated.workflowName} Spec.`;
+        setMessages(prev => [...prev, {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: responseText,
+          timestamp: new Date(),
+          meta: { kiteRole: effectiveRole as KiteRole },
+        }]);
+        toast({
+          title: 'Workflow spec updated',
+          description: `Updated the ${sectionTitle} section.`,
+        });
+        return;
+      }
 
       // Scan forward through all '{' positions, skipping ones that aren't
       // the start of a real JSON object (e.g. template literals, prose like
@@ -1699,12 +1884,44 @@ export function KiteAIChatBrain({
       }
       if (onCreateWorkflow) {
         // Include transcript in the draft so it can be saved with the new project
-        const transcript = messages
+        const transcript: TranscriptMessage[] = messages
           .filter(msg => msg.role !== 'system' && msg.id !== 'welcome')
           .map(msg => ({
+            id: msg.id,
             role: msg.role as 'user' | 'assistant',
-            content: msg.content
+            type: msg.type,
+            content: msg.content,
+            timestamp: msg.timestamp.toISOString(),
+            conversationId: msg.conversationId,
+            artifact: msg.artifact,
           }));
+
+        const homePrompt = transcript.find(
+          (message) => message.role === 'user' && message.conversationId,
+        );
+        if (homePrompt?.conversationId && !transcript.some(
+          (message) =>
+            message.artifact?.docKind === 'prompt-conversation' &&
+            message.artifact.conversationId === homePrompt.conversationId,
+        )) {
+          transcript.push({
+            id: `prompt-card-${homePrompt.conversationId}`,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date().toISOString(),
+            artifact: {
+              docId: `prompt-conversation:${homePrompt.conversationId}`,
+              docKind: 'prompt-conversation',
+              conversationId: homePrompt.conversationId,
+              title: 'View Prompt',
+              kindLabel: 'Prompt conversation',
+              sectionCount: 0,
+              wordCount: homePrompt.content.trim().split(/\s+/).filter(Boolean).length,
+              excerpt: homePrompt.content,
+              createdAt: new Date().toISOString(),
+            },
+          });
+        }
         
         onCreateWorkflow({
           ...currentWorkflowDraft,
@@ -2599,10 +2816,10 @@ export function KiteAIChatBrain({
     <div className={`flex flex-col h-full w-full ${mode === 'fullscreen' ? 'relative' : ''}`}>
       {/* Header - hidden in fullscreen/home mode */}
       {mode !== 'fullscreen' && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-purple-600/10 to-blue-600/10 flex-shrink-0">
+        <div className="flex h-[46px] items-center justify-between border-b border-border bg-background px-3 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
+            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-md bg-brand-soft">
+              <Sparkles className="w-[13px] h-[13px] text-brand-strong" />
             </div>
             <span className="font-semibold">KiteAI</span>
             {isLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
@@ -2626,6 +2843,7 @@ export function KiteAIChatBrain({
         isLoading={isLoading}
         mode={mode}
         onFollowUpClick={setInputValue}
+        onQuickActionClick={(prompt) => { void handleSend(prompt); }}
         onWorkflowChipSelect={handleWorkflowChipSelect}
         onEdgeCaseSubmit={(messageId, selectedIds, edgeCases) => handleEdgeCaseSelection(selectedIds, messageId, edgeCases)}
         onModifyEdgeCaseSelection={handleModifyEdgeCaseSelection}
@@ -2686,7 +2904,7 @@ export function KiteAIChatBrain({
                   // Immediately call accept after approving
                   setTimeout(() => handleAcceptWorkflow(), 0);
                 }}
-                className="flex-1 h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                className="flex-1 h-8 text-xs bg-primary text-primary-foreground hover:bg-[color:var(--primary-hover)]"
                 data-testid="button-apply-changes-workflow"
                 disabled={!isWorkflowValidForCreation({ 
                   nodes: currentWorkflowDraft.nodes.map(n => ({
@@ -2711,7 +2929,7 @@ export function KiteAIChatBrain({
                 size="sm"
                 variant="default"
                 onClick={handleAcceptWorkflow}
-                className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                className="flex-1 h-8 text-xs bg-primary text-primary-foreground hover:bg-[color:var(--primary-hover)]"
                 data-testid="button-create-workflow-draft"
                 disabled={!isWorkflowValidForCreation({ 
                   nodes: currentWorkflowDraft.nodes.map(n => ({
@@ -2796,7 +3014,7 @@ export function KiteAIChatBrain({
 
       {/* Input Area */}
       <div 
-        className={`p-3 border-t border-border flex-shrink-0 ${dragActive ? 'bg-primary/10' : ''}`}
+        className={`relative border-t border-border bg-background p-3 flex-shrink-0 ${dragActive ? 'bg-brand-soft' : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -2820,8 +3038,8 @@ export function KiteAIChatBrain({
         )}
         
         {dragActive && (
-          <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center pointer-events-none">
-            <span className="text-primary font-medium">Drop files here</span>
+          <div className="absolute inset-0 border-2 border-[color:var(--brand)] bg-brand-soft rounded-xl flex items-center justify-center pointer-events-none">
+            <span className="text-brand-strong font-medium">Drop files here</span>
           </div>
         )}
         
@@ -3287,7 +3505,7 @@ ${workflowContext}`;
         </p>
         <div className="bg-muted/50 rounded-lg p-4 text-xs text-muted-foreground max-w-[280px]">
           <p className="font-medium mb-1">To enable AI features:</p>
-          <ol className="list-decimal list-inside space-y-1 text-left">
+          <ol className="list-decimal list-outside pl-5 space-y-1 text-left">
             <li>Open the KiteFrame editor</li>
             <li>Go to KiteAI settings</li>
             <li>Add your API key</li>
@@ -3387,6 +3605,7 @@ interface KiteAIChatPanelProps {
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
   generationMode?: 'workflow' | 'design';
+  onOpenWorkflowImport?: () => void;
 }
 
 export function KiteAIChatPanel({
@@ -3400,6 +3619,7 @@ export function KiteAIChatPanel({
   initialPrompt,
   onInitialPromptConsumed,
   generationMode = 'workflow',
+  onOpenWorkflowImport,
 }: KiteAIChatPanelProps) {
   return (
     <div className="flex h-full w-full flex-col">
@@ -3415,6 +3635,7 @@ export function KiteAIChatPanel({
         initialPrompt={initialPrompt}
         onInitialPromptConsumed={onInitialPromptConsumed}
         generationMode={generationMode}
+        onOpenWorkflowImport={onOpenWorkflowImport}
       />
     </div>
   );

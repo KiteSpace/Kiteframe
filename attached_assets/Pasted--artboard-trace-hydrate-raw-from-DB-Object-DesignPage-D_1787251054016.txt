@@ -1,0 +1,470 @@
+[artboard-trace] hydrate: raw from DB Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: after sanitize+repair Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: disconnected detected Array(0)
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: final (after prune) Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: raw from DB Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: after sanitize+repair Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: disconnected detected Array(0)
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: final (after prune) Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: raw from DB Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: after sanitize+repair Object
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: disconnected detected Array(0)
+DesignPage-DYBgpCIf.js:7 [artboard-trace] hydrate: final (after prune) Object
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] Object
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] Object
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] overview failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] goals failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] architecture failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] workflows failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] assumptions failed, leaving empty: Error: AI error: 404 - Job not found or expired
+    at qk (index-DltKAdVb.js:154:58065)
+    at async jT.chat (index-DltKAdVb.js:154:60266)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:966
+    at async Promise.allSettled (index 4)
+    at async ag (CommentsOverlay-Ds77JnL3.js:140:826)
+    at async CommentsOverlay-Ds77JnL3.js:246:10756
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:246 [ProjectPRDSection] Project changed during generation — discarding result
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+2KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] overview failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] requirements failed, leaving empty: AbortError: signal is aborted without reason
+    at CommentsOverlay-Ds77JnL3.js:235:7503
+    at ou (index-DltKAdVb.js:41:22385)
+    at Ho (index-DltKAdVb.js:41:24081)
+    at $r (index-DltKAdVb.js:41:41555)
+    at ux (index-DltKAdVb.js:41:41115)
+    at Hn (index-DltKAdVb.js:41:40172)
+    at kf (index-DltKAdVb.js:41:36799)
+    at Un (index-DltKAdVb.js:39:3265)
+    at index-DltKAdVb.js:41:34186
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] user-flow failed, leaving empty: AbortError: signal is aborted without reason
+    at CommentsOverlay-Ds77JnL3.js:235:7503
+    at ou (index-DltKAdVb.js:41:22385)
+    at Ho (index-DltKAdVb.js:41:24081)
+    at $r (index-DltKAdVb.js:41:41555)
+    at ux (index-DltKAdVb.js:41:41115)
+    at Hn (index-DltKAdVb.js:41:40172)
+    at kf (index-DltKAdVb.js:41:36799)
+    at Un (index-DltKAdVb.js:39:3265)
+    at index-DltKAdVb.js:41:34186
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] inputs-outputs failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 3)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] failure-scenarios failed, leaving empty: AbortError: signal is aborted without reason
+    at CommentsOverlay-Ds77JnL3.js:235:7503
+    at ou (index-DltKAdVb.js:41:22385)
+    at Ho (index-DltKAdVb.js:41:24081)
+    at $r (index-DltKAdVb.js:41:41555)
+    at ux (index-DltKAdVb.js:41:41115)
+    at Hn (index-DltKAdVb.js:41:40172)
+    at kf (index-DltKAdVb.js:41:36799)
+    at Un (index-DltKAdVb.js:39:3265)
+    at index-DltKAdVb.js:41:34186
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] recovery-fallback failed, leaving empty: AbortError: Aborted
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] operational-risks failed, leaving empty: AbortError: signal is aborted without reason
+    at CommentsOverlay-Ds77JnL3.js:235:7503
+    at ou (index-DltKAdVb.js:41:22385)
+    at Ho (index-DltKAdVb.js:41:24081)
+    at $r (index-DltKAdVb.js:41:41555)
+    at ux (index-DltKAdVb.js:41:41115)
+    at Hn (index-DltKAdVb.js:41:40172)
+    at kf (index-DltKAdVb.js:41:36799)
+    at Un (index-DltKAdVb.js:39:3265)
+    at index-DltKAdVb.js:41:34186
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] acceptance-criteria failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 7)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:235 [WorkflowPRDSection] Project/workflow changed during generation — discarding result
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] Object
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+2KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+2KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+2KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] overview failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 0)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] requirements failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 1)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] user-flow failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 2)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] inputs-outputs failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 3)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] failure-scenarios failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 4)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] recovery-fallback failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 5)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] operational-risks failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 6)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] acceptance-criteria failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 7)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] Object
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+6KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request failed, retrying (1/1)...
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Using claude-sonnet-4-5-20250929 for prd_generation
+KiteAIChat-90E5IplA.js:211 [AIRouter] Request started: Object
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Retries exhausted. Falling back to claude-haiku-4-5-20251001.
+t @ KiteAIChat-90E5IplA.js:211
+KiteAIChat-90E5IplA.js:211 [AIRouter] Fallback to claude-haiku-4-5-20251001 also failed: Object
+t @ KiteAIChat-90E5IplA.js:211
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] overview failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 0)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] requirements failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 1)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] user-flow failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 2)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] inputs-outputs failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 3)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] failure-scenarios failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 4)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] recovery-fallback failed, leaving empty: Error: AI error: 429 - Too many concurrent AI operations (3/3). Wait for one to finish before starting another.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 5)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] operational-risks failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 6)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:140 [PRD][SECTION] acceptance-criteria failed, leaving empty: Error: AI error: 429 - Too many AI requests. Please wait a moment and try again.
+    at jT.chat (index-DltKAdVb.js:154:59761)
+    at async t (KiteAIChat-90E5IplA.js:211:23594)
+    at async ju (CommentsOverlay-Ds77JnL3.js:120:594)
+    at async lp (CommentsOverlay-Ds77JnL3.js:140:16)
+    at async CommentsOverlay-Ds77JnL3.js:140:261
+    at async Promise.allSettled (index 7)
+    at async ig (CommentsOverlay-Ds77JnL3.js:140:121)
+    at async CommentsOverlay-Ds77JnL3.js:235:9415
+(anonymous) @ CommentsOverlay-Ds77JnL3.js:140
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_ATTEMPT] Object
+CommentsOverlay-Ds77JnL3.js:235 [PRD][LOAD_RESULT] Object

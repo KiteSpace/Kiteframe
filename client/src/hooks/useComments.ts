@@ -26,6 +26,12 @@ interface CreateCommentInput {
   parentCommentId?: string | null;
 }
 
+interface UpdateCommentPositionInput {
+  id: string;
+  positionX: number;
+  positionY: number;
+}
+
 /**
  * Shared comments data layer used by both the editor and the view-only viewer.
  * Handles fetching, live WebSocket sync (keyed by project UUID), and the
@@ -144,6 +150,18 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
     onSuccess: invalidate,
   });
 
+  const positionMutation = useMutation({
+    mutationFn: async ({ id, positionX, positionY }: UpdateCommentPositionInput) => {
+      const res = await apiRequest('PATCH', `/api/comments/${id}/position`, {
+        positionX,
+        positionY,
+        ...(shareId ? { shareId } : {}),
+      });
+      return res.json();
+    },
+    onSuccess: invalidate,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest('DELETE', `/api/comments/${id}`, {
@@ -161,6 +179,7 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
     createComment: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
     resolveComment: resolveMutation.mutateAsync,
+    updateCommentPosition: positionMutation.mutateAsync,
     deleteComment: deleteMutation.mutateAsync,
   };
 }

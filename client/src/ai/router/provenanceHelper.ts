@@ -7,10 +7,10 @@ import type { ModelProvenance } from '../explainability/types';
  */
 export function toModelProvenance(metadata: RouterMetadata): ModelProvenance {
   return {
-    providerUsed: metadata.providerUsed,
-    modelUsed: metadata.modelUsed,
+    providerUsed: metadata.providerUsed ?? 'unknown',
+    modelUsed: metadata.modelUsed ?? 'unknown',
     routerTaskType: metadata.taskType as ModelProvenance['routerTaskType'],
-    usedFallback: metadata.usedFallback,
+    usedFallback: metadata.usedFallback ?? false,
     fallbackModelUsed: metadata.fallbackModelUsed,
     sessionId: metadata.sessionId,
   };

@@ -3284,7 +3284,10 @@ export const resolver = {
 
 // ─── Empty state factory ───────────────────────────────────────────────────────
 // Default craft state: a transparent ROOT row-flex wrapper containing one
-// Default Screen 1 starts content-sized; users can set explicit dimensions later.
+// desktop-sized Screen 1.
+
+export const DEFAULT_ARTBOARD_WIDTH = 1440;
+export const DEFAULT_ARTBOARD_HEIGHT = 900;
 
 export function createEmptyCraftState(): string {
   return JSON.stringify({
@@ -3302,7 +3305,14 @@ export function createEmptyCraftState(): string {
     "artboard-1": {
       type: { resolvedName: "AstryxArtboard" },
       isCanvas: true,
-      props: { label: "Screen 1", direction: "column", gap: 16, padding: 24 },
+      props: {
+        label: "Screen 1",
+        direction: "column",
+        gap: 16,
+        padding: 24,
+        width: DEFAULT_ARTBOARD_WIDTH,
+        height: DEFAULT_ARTBOARD_HEIGHT,
+      },
       displayName: "AstryxArtboard",
       custom: {},
       parent: "ROOT",

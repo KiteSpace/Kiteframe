@@ -51,6 +51,37 @@ export interface DesignPreview {
 }
 
 /**
+ * A document the assistant produced, rendered in the chat as a card instead of
+ * as its full text.
+ *
+ * A generated spec is thousands of words. Pasted into the thread it buries
+ * every other message, cannot be edited in place, and has to be re-read in full
+ * to find the one paragraph that matters. The card is the handle: it says what
+ * was produced and opens the real, editable document in the reader.
+ *
+ * Every field is a plain serializable value — this is written to localStorage
+ * and read back on the next load, so nothing here may be a live object.
+ */
+export interface ChatArtifact {
+  /** Stable reader address, e.g. `project-prd` or `prompt-conversation:<id>`. */
+  docId: string;
+  docKind: 'project-prd' | 'workflow-prd' | 'prompt-conversation';
+  /** Required for `workflow-prd`. */
+  workflowId?: string;
+  /** Required for a transcript-backed prompt conversation. */
+  conversationId?: string;
+  title: string;
+  /** Short kind label for the card's metadata line, e.g. "Project spec". */
+  kindLabel: string;
+  sectionCount: number;
+  wordCount: number;
+  /** First lines of the document, as plain text. */
+  excerpt?: string;
+  /** ISO timestamp of when the document was produced. */
+  createdAt?: string;
+}
+
+/**
  * Structural subset of KiteAIChat's ChatMessage. Anything written here must
  * stay assignable to that type.
  */
@@ -61,7 +92,36 @@ export interface TranscriptEntry {
   content: string;
   timestamp: Date;
   designPreview?: DesignPreview;
+  artifact?: ChatArtifact;
+  /** Groups an initial/home prompt with its later prompt-conversation card. */
+  conversationId?: string;
   [key: string]: unknown;
+}
+
+/**
+ * Find the exchange addressed by a prompt-conversation artifact without
+ * duplicating the user's prompt or KiteAI's response into a second store.
+ */
+export function findPromptConversation(
+  entries: TranscriptEntry[],
+  conversationId: string,
+): TranscriptEntry[] {
+  const start = entries.findIndex(
+    (entry) => entry.role === 'user' && entry.conversationId === conversationId,
+  );
+  if (start < 0) return [];
+
+  const card = entries.findIndex(
+    (entry, index) =>
+      index > start &&
+      entry.artifact?.docKind === 'prompt-conversation' &&
+      entry.artifact.conversationId === conversationId,
+  );
+  const end = card >= 0 ? card : entries.length;
+
+  return entries
+    .slice(start, end)
+    .filter((entry) => entry.role === 'user' || entry.role === 'assistant');
 }
 
 export function transcriptStorageKey(projectId: string): string {
