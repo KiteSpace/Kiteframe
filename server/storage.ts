@@ -372,6 +372,7 @@ export class DatabaseStorage implements IStorage {
       canvasObjects: data.canvasObjects ? JSON.parse(JSON.stringify(data.canvasObjects)) : null,
       viewport: data.viewport ? JSON.parse(JSON.stringify(data.viewport)) : null,
       projectMetadata: data.projectMetadata ? JSON.parse(JSON.stringify(data.projectMetadata)) : null,
+      panelDocs: data.panelDocs ? JSON.parse(JSON.stringify(data.panelDocs)) : null,
     };
     const [created] = await db.insert(shareLinks).values(serialized).returning();
     return created;
@@ -389,6 +390,7 @@ export class DatabaseStorage implements IStorage {
       canvasObjects: Array.isArray(link.canvasObjects) ? link.canvasObjects : undefined,
       viewport: link.viewport ? link.viewport : undefined,
       projectMetadata: link.projectMetadata ? link.projectMetadata : undefined,
+      panelDocs: link.panelDocs ? link.panelDocs : undefined,
     };
   }
 
@@ -410,6 +412,9 @@ export class DatabaseStorage implements IStorage {
     if (data.projectMetadata !== undefined) {
       serialized.projectMetadata = JSON.parse(JSON.stringify(data.projectMetadata));
     }
+    if (data.panelDocs !== undefined) {
+      serialized.panelDocs = JSON.parse(JSON.stringify(data.panelDocs));
+    }
     if (data.flowSettings !== undefined) {
       serialized.flowSettings = JSON.parse(JSON.stringify(data.flowSettings));
     }
@@ -429,6 +434,7 @@ export class DatabaseStorage implements IStorage {
       canvasObjects: Array.isArray(updated.canvasObjects) ? updated.canvasObjects : undefined,
       viewport: updated.viewport ? updated.viewport : undefined,
       projectMetadata: updated.projectMetadata ? updated.projectMetadata : undefined,
+      panelDocs: updated.panelDocs ? updated.panelDocs : undefined,
     };
   }
 

@@ -16,6 +16,7 @@
 - [Stale routes & schema pushes](server-route-404-and-schema-push.md) — an /api 200 with no body preview in the log is the SPA fallback (route not registered — restart); drizzle-kit push needs a TTY.
 - [Design tabs carry the source workflow's cloud id](design-tab-vs-workflow-identity.md) — per-project state for an Interface tab must key off the design id; the tab's cloud project id is the parent workflow and silently answers with the wrong row.
 - [Shared-link surfaces & localStorage threads](browser-local-thread-scoping.md) — never point a read-only/shared-link view at a project-keyed chat thread; localStorage is per-browser, so it leaks the owner's history across accounts.
+- [Legacy snapshot documentation](legacy-share-documentation.md) — snapshot shares must persist the panel-doc bundle on create/update and return explicit empty fields for old snapshots; browser-only docs cannot be recovered later.
 - [craft.js Frame data is mount-only](craft-frame-data-is-mount-only.md) — a changed craftState prop silently does nothing; live/read-only views must actions.deserialize inside the Editor.
 - [Previews own their containing block](preview-owns-its-containing-block.md) — an `absolute inset-0` root inherits bounds from an arbitrary ancestor and escapes unpositioned callers; fix in the component, and measure rects to test it.
 - [Resize single history entry](resize-single-history-entry.md) — drag gestures: history.ignore() live moves + one plain setProp on mouseup; revert-to-start-then-commit avoids craft.js empty-patch skip.
@@ -36,7 +37,7 @@
 - [Inline vs global progress](inline-vs-global-progress-claims.md) — an inline indicator must claim only its own jobs and the global pill must filter, never hide wholesale, or unrelated work loses its only signal.
 - [Partial writes to a shared JSONB blob](jsonb-blob-partial-writes.md) — per-key updates of an aggregate column need a DB row lock (an in-process queue is a false green); debounced client saves need per-doc ordering + cancel-on-immediate.
 - [Radix forceMount is never [hidden]](radix-forcemount-not-hidden.md) — keep-alive panes must be hidden via data-state="inactive"; a `[hidden]` rule matches nothing and stacks every visited pane on the active one.
-- [Editor won't reopen a routed project](editor-routed-project-cold-load.md) — /project/:uuid cold-loads to the start screen; click the Recent Projects card, and use /view/:shareId for mount-time assertions.
+- [Routed project tab hydration](editor-routed-project-cold-load.md) — a direct /project/:uuid route must create or activate the matching editor tab; new browser tabs begin on Home even with other saved tabs.
 - [Drag-handle gestures](drag-handle-gestures.md) — preventDefault on mousedown (or a native text-drag kills mousemove) and listen on document in capture phase (the canvas stops propagation).
 - [Scroll-spy over long documents](scroll-spy-tall-sections.md) — IntersectionObserver thresholds are ratios of the target, so tall sections silently stop reporting; measure rect tops on scroll.
 - [Side pane sharing the canvas](side-pane-shares-the-canvas.md) — measure the canvas's own interval (the sidebar is a flex sibling) and clamp the width during render, not on window resize.

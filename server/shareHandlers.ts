@@ -241,6 +241,7 @@ export async function viewSharedProjectHandler(
         canvasObjects: shareLink.canvasObjects,
         viewport: shareLink.viewport,
         flowSettings: shareLink.flowSettings,
+        ...extractSharePanelDocs(shareLink.panelDocs ?? {}),
         isOwner: false,
       });
     }

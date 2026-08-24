@@ -495,7 +495,7 @@ function WorkflowEditorContent({
   const { projectUuid } = useParams<{ projectUuid?: string }>();
   const [, setLocation] = useLocation();
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
-  const projectLoadedRef = useRef(false);
+  const projectLoadedRef = useRef<string | null>(null);
   const {
     isOutOfCredits,
     ctaMessage,
@@ -2107,6 +2107,11 @@ function WorkflowEditorContent({
     }
     return "home";
   });
+  // Route-driven project loads can complete after local tabs have hydrated.
+  // Keep the latest list available to that async loader so a new browser tab
+  // can activate an existing local copy instead of dropping the response.
+  const tabsRef = useRef<WorkflowTab[]>(tabs);
+  tabsRef.current = tabs;
 
   // Check if we're on the home screen
   const isOnHomeTab = activeTabId === "home" && !isReadOnly;
@@ -6399,6 +6404,43 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   // Ref to track share update debounce timer
   const shareUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Bumped whenever the right-hand Project Panel documentation changes so a
+  // legacy snapshot share is refreshed even when the canvas did not change.
+  const [panelDocsVersion, setPanelDocsVersion] = useState(0);
+
+  // The id panel documentation is keyed under in localStorage for a given tab.
+  // Mirrors the global `projectIdentifier` so a tab's panel docs (PRDs, notes,
+  // overview) are read/written under the same key the Project Panel uses.
+  const tabProjectIdentifier = useCallback(
+    (tab: WorkflowTab): string =>
+      tab.projectUuid || tab.cloudProjectId?.toString() || tab.id,
+    [],
+  );
+
+  // Read the right-hand Project Panel documentation (project PRD, per-workflow
+  // PRDs, notes, overview/details) out of localStorage for a project id.
+  const readPanelDocs = useCallback((pid: string) => {
+    let prdData: any = null;
+    let workflowPRDs: any[] | null = null;
+    let notesData: string | null = null;
+    let detailsData: string | null = null;
+    try {
+      prdData = loadProjectPRD(pid);
+    } catch {}
+    try {
+      const ids = [...listWorkflowPRDs(pid)].sort();
+      const prds = ids.map((id) => loadWorkflowPRD(pid, id)).filter(Boolean);
+      workflowPRDs = prds.length > 0 ? (prds as any[]) : null;
+    } catch {}
+    try {
+      notesData = localStorage.getItem(`kiteframe-notes-${pid}`);
+    } catch {}
+    try {
+      detailsData = localStorage.getItem(`kiteframe-details-${pid}`);
+    } catch {}
+    return { prdData, workflowPRDs, notesData, detailsData };
+  }, []);
+
   // Sync activeShareId with the active tab whenever the user switches tabs.
   // activeShareId is global state, but nodes/edges are always the active tab's
   // data. Without this sync, switching away from a shared tab would fire the
@@ -6423,12 +6465,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
     shareUpdateTimeoutRef.current = setTimeout(async () => {
       try {
+        const panelDocs = activeTab
+          ? readPanelDocs(tabProjectIdentifier(activeTab))
+          : undefined;
         await apiRequest("PUT", `/api/share-project/${activeShareId}`, {
           nodes,
           edges,
           canvasObjects: canvasObjects || [],
           viewport: viewport || { x: 0, y: 0, zoom: 1 },
           projectMetadata: activeTab?.metadata,
+          panelDocs,
         });
       } catch (error) {
         console.error("Failed to update shared project:", error);
@@ -6447,6 +6493,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     canvasObjects,
     viewport,
     activeTab?.metadata,
+    panelDocsVersion,
+    readPanelDocs,
+    tabProjectIdentifier,
   ]);
 
   // Toggle the "locked down" state of the shared project. Keeps the share
@@ -6510,51 +6559,93 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
   // Load project from URL parameter (projectUuid)
   useEffect(() => {
-    if (!projectUuid || projectLoadedRef.current) return;
+    if (!projectUuid || projectLoadedRef.current === projectUuid) return;
 
-    projectLoadedRef.current = true;
+    projectLoadedRef.current = projectUuid;
+    let cancelled = false;
 
     fetch(`/api/project/${projectUuid}`, { credentials: "include" })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Project request failed with ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        if (cancelled) return;
         if (data.redirect) {
           // Non-owner trying to access edit URL - redirect to view URL
           setLocation(data.redirect);
         } else if (data.project) {
-          // Load project data into editor
-          const workflowData = data.project.workflowData;
-          if (workflowData && activeTabId && openTabs.length > 0) {
-            // Update the active tab with project data
+          const workflowData = data.project.workflowData || {};
+          const projectId = data.project.projectUuid || projectUuid;
+          const existingTab = tabsRef.current.find(
+            (tab) =>
+              tab.cloudProjectId === data.project.id ||
+              tab.projectUuid === projectId,
+          );
+          const routeTab: WorkflowTab = {
+            id: generateTabId(),
+            name: data.project.name || "Untitled Project",
+            nodes: workflowData.nodes || [],
+            edges: workflowData.edges || [],
+            canvasObjects: workflowData.canvasObjects || [],
+            viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+            selectedNodeId: "",
+            selectedEdgeId: "",
+            history: [
+              {
+                nodes: workflowData.nodes || [],
+                edges: workflowData.edges || [],
+                canvasObjects: workflowData.canvasObjects || [],
+                viewport: workflowData.viewport || { x: 0, y: 0, zoom: 1 },
+              },
+            ],
+            historyIndex: 0,
+            showImageModal: null,
+            metadata: {
+              name: data.project.name || "Untitled Project",
+              description: data.project.description || "",
+              links: [],
+              linksFormat: "text",
+              categories: [],
+            },
+            flowSettings: workflowData.flowSettings || {},
+            sketchStrokes: workflowData.sketchStrokes ?? [],
+            cloudProjectId: data.project.id,
+            projectUuid: projectId,
+            shareUuid: data.project.shareUuid || null,
+            isOpen: true,
+          };
+
+          // Direct URLs (including a browser's "open in new tab") begin on the
+          // Home screen with no active workflow tab. Create one in that case;
+          // otherwise refresh and activate the matching project without
+          // overwriting whichever unrelated tab was previously active.
+          if (existingTab) {
             setTabs((prev) =>
               prev.map((tab) =>
-                tab.id === activeTabId
+                tab.id === existingTab.id
                   ? {
-                      ...tab,
-                      name: data.project.name || tab.name,
-                      nodes: workflowData.nodes || [],
-                      edges: workflowData.edges || [],
-                      canvasObjects: workflowData.canvasObjects || [],
-                      viewport: workflowData.viewport || {
-                        x: 0,
-                        y: 0,
-                        zoom: 1,
-                      },
-                      metadata: {
-                        ...tab.metadata,
-                        name: data.project.name || "",
-                        description: data.project.description || "",
-                      },
-                      projectUuid:
-                        tab.projectUuid ||
-                        data.project.projectUuid ||
-                        `cloud-${data.project.id}`,
-                      cloudProjectId: data.project.id,
-                      shareUuid: data.project.shareUuid || null,
+                      ...routeTab,
+                      id: tab.id,
+                      selectedNodeId: tab.selectedNodeId,
+                      selectedEdgeId: tab.selectedEdgeId,
+                      selectedEdgeIds: tab.selectedEdgeIds,
                     }
                   : tab,
               ),
             );
+            setActiveTabId(existingTab.id);
+          } else {
+            setTabs((prev) => [...prev, routeTab]);
+            setActiveTabId(routeTab.id);
           }
+
+          // The Project Panel reads documentation from localStorage. Seed it
+          // from the same cloud response so a routed load behaves exactly like
+          // opening the project from the Home screen.
+          writePanelDocs(projectId, workflowData);
           setCurrentProjectId(data.project.id);
 
           // Set activeShareId if project has sharing enabled
@@ -6570,6 +6661,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }
       })
       .catch((error) => {
+        if (cancelled) return;
+        projectLoadedRef.current = null;
         console.error("Failed to load project:", error);
         toast({
           title: "Error",
@@ -6577,7 +6670,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           variant: "destructive",
         });
       });
-  }, [projectUuid, setLocation, activeTabId, openTabs.length, toast]);
+    return () => {
+      cancelled = true;
+    };
+  }, [projectUuid, setLocation, generateTabId, toast]);
 
   // Track toolbar position when node/canvas object is being dragged
   useEffect(() => {
@@ -7482,9 +7578,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const cloudSyncSigRef = useRef<Map<string, string>>(new Map());
   const cloudSyncTsRef = useRef<Map<string, number>>(new Map());
 
-  // Bumped (debounced) whenever the right-hand Project Panel docs change, to
-  // re-trigger the cloud auto-save effect on panel-only edits.
-  const [panelDocsVersion, setPanelDocsVersion] = useState(0);
   // Deadline (epoch ms) until which panel-doc change events are ignored. We set
   // this while hydrating panel docs from the cloud so neither the synchronous
   // events nor the *async* follow-on re-saves (e.g. ProjectOverviewSection
@@ -7560,46 +7653,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     },
     [],
   );
-
-  // The id panel documentation is keyed under in localStorage for a given tab.
-  // Mirrors the global `projectIdentifier` so a tab's panel docs (PRDs, notes,
-  // overview) are read/written under the same key the Project Panel uses.
-  const tabProjectIdentifier = useCallback(
-    (tab: WorkflowTab): string =>
-      tab.projectUuid || tab.cloudProjectId?.toString() || tab.id,
-    [],
-  );
-
-  // Read the right-hand Project Panel documentation (project PRD, per-workflow
-  // PRDs, notes, overview/details) out of localStorage for a project id. These
-  // are the same keys the manual "Save to cloud" bundles, so cloud auto-save can
-  // carry them too and the shared view-only page stays current.
-  const readPanelDocs = useCallback((pid: string) => {
-    let prdData: any = null;
-    let workflowPRDs: any[] | null = null;
-    let notesData: string | null = null;
-    let detailsData: string | null = null;
-    try {
-      prdData = loadProjectPRD(pid);
-    } catch {}
-    try {
-      // Sort by workflow id so the resulting array (and therefore the cloud
-      // sync signature) is canonical and device-independent. Without this,
-      // two devices with identical PRDs but different localStorage key order
-      // would produce different signatures and falsely look "out of sync",
-      // which could make a device push stale state over newer cloud edits.
-      const ids = [...listWorkflowPRDs(pid)].sort();
-      const prds = ids.map((id) => loadWorkflowPRD(pid, id)).filter(Boolean);
-      workflowPRDs = prds.length > 0 ? (prds as any[]) : null;
-    } catch {}
-    try {
-      notesData = localStorage.getItem(`kiteframe-notes-${pid}`);
-    } catch {}
-    try {
-      detailsData = localStorage.getItem(`kiteframe-details-${pid}`);
-    } catch {}
-    return { prdData, workflowPRDs, notesData, detailsData };
-  }, []);
 
   // Mirror cloud-held panel documentation back into localStorage so the open
   // Project Panel reflects edits made on another device, and so auto-save does
@@ -15258,6 +15311,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           canvasObjects={canvasObjects}
           viewport={viewport}
           projectMetadata={activeTab?.metadata}
+          panelDocs={activeTab ? readPanelDocs(tabProjectIdentifier(activeTab)) : undefined}
           onShareCreated={(shareId) => {
             setActiveShareId(shareId);
             updateActiveTab({ shareUuid: shareId });

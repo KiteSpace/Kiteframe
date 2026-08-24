@@ -48,6 +48,7 @@ type FakeProject = {
 
 const projectStore: FakeProject[] = [];
 let nextProjectId = 1;
+let legacyShareLink: any = null;
 
 vi.mock('../storage', () => {
   const storage = {
@@ -122,8 +123,8 @@ vi.mock('../storage', () => {
         ) ?? null
       );
     },
-    async getShareLink() {
-      return null;
+    async getShareLink(shareId: string) {
+      return legacyShareLink?.shareId === shareId ? legacyShareLink : null;
     },
   };
   return { storage };
@@ -201,6 +202,7 @@ async function loadApp() {
 beforeEach(() => {
   projectStore.length = 0;
   nextProjectId = 1;
+  legacyShareLink = null;
 });
 
 // Helpers --------------------------------------------------------------------
@@ -538,5 +540,55 @@ describe('Project Overview round-trips through cloud share links (real handlers)
     expect(viewRes.body.prdData.sections[0].content).toBe('alive');
     expect(viewRes.body.notesData).toContain('alive');
     expect(JSON.parse(viewRes.body.detailsData).categories).toEqual(['keep']);
+  });
+
+  it('returns panel documentation from a legacy snapshot share without leaking it to older snapshots', async () => {
+    const app = await loadApp();
+    const overview = JSON.stringify({
+      name: 'Legacy documentation',
+      categories: ['legacy'],
+    });
+    legacyShareLink = {
+      shareId: 'legacy-share-with-docs',
+      nodes: [{ id: 'legacy-node' }],
+      edges: [],
+      canvasObjects: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      flowSettings: {},
+      projectMetadata: { name: 'Legacy documentation' },
+      panelDocs: {
+        prdData: {
+          projectName: 'Legacy documentation',
+          sections: [{ id: 'overview', title: 'Overview', content: 'Stored with the share.' }],
+        },
+        workflowPRDs: [{
+          workflowId: 'workflow-1',
+          workflowName: 'Legacy workflow',
+          sections: [{ id: 'purpose', title: 'Purpose', content: 'Run a reliable process.' }],
+        }],
+        notesData: '{"notes":[{"id":"legacy-note","content":"Keep this context."}]}',
+        detailsData: overview,
+      },
+    };
+
+    const documented = await request(app).get('/api/view/legacy-share-with-docs');
+    expect(documented.status).toBe(200);
+    expect(documented.body.projectName).toBe('Legacy documentation');
+    expect(documented.body.prdData.sections[0].content).toBe('Stored with the share.');
+    expect(documented.body.workflowPRDs[0].workflowId).toBe('workflow-1');
+    expect(documented.body.notesData).toContain('Keep this context.');
+    expect(documented.body.detailsData).toBe(overview);
+
+    legacyShareLink = {
+      ...legacyShareLink,
+      shareId: 'legacy-share-without-docs',
+      panelDocs: null,
+    };
+    const olderSnapshot = await request(app).get('/api/view/legacy-share-without-docs');
+    expect(olderSnapshot.status).toBe(200);
+    expect(olderSnapshot.body.prdData).toBeNull();
+    expect(olderSnapshot.body.workflowPRDs).toBeNull();
+    expect(olderSnapshot.body.notesData).toBeNull();
+    expect(olderSnapshot.body.detailsData).toBeNull();
   });
 });

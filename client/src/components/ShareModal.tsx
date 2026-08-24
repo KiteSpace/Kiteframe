@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Copy, Check, Loader2, Link, AlertCircle, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import type { PanelDocsBundle } from '@shared/panelDocs';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface ShareModalProps {
   canvasObjects?: any[];
   viewport?: { x: number; y: number; zoom: number };
   projectMetadata?: { name?: string; description?: string };
+  panelDocs?: PanelDocsBundle;
   onShareCreated?: (shareId: string) => void;
   onShareRevoked?: () => void;
   projectId?: number | null;
@@ -29,6 +31,7 @@ export function ShareModal({
   canvasObjects, 
   viewport, 
   projectMetadata, 
+  panelDocs,
   onShareCreated,
   onShareRevoked,
   projectId,
@@ -65,7 +68,8 @@ export function ShareModal({
           edges,
           canvasObjects: canvasObjects || [],
           viewport: viewport || { x: 0, y: 0, zoom: 1 },
-          projectMetadata
+          projectMetadata,
+          panelDocs,
         });
         const data = await response.json();
         const url = `${window.location.origin}/view/${data.shareId}`;

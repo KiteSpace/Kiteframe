@@ -1671,6 +1671,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       name: z.string().optional(),
       description: z.string().optional(),
     }).optional(),
+    panelDocs: z.object({
+      prdData: z.any().nullable().optional(),
+      workflowPRDs: z.array(z.any()).nullable().optional(),
+      notesData: z.string().nullable().optional(),
+      detailsData: z.string().nullable().optional(),
+    }).optional(),
     flowSettings: z.record(z.object({
       enableStatusTracking: z.boolean().optional(),
       workflowName: z.string().optional(),
@@ -1684,7 +1690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
       }
       
-      const { nodes, edges, canvasObjects, viewport, projectMetadata, flowSettings } = parseResult.data;
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings } = parseResult.data;
       const shareId = crypto.randomUUID();
       const shareLink = await storage.createShareLink({
         shareId,
@@ -1693,6 +1699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         canvasObjects,
         viewport,
         projectMetadata,
+        panelDocs,
         flowSettings,
       });
       res.json({ shareId: shareLink.shareId });
@@ -1726,7 +1733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
       }
       
-      const { nodes, edges, canvasObjects, viewport, projectMetadata, flowSettings } = parseResult.data;
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings } = parseResult.data;
       
       // Update the share link in the database
       const updated = await storage.updateShareLink(shareId, {
@@ -1735,6 +1742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         canvasObjects,
         viewport,
         projectMetadata,
+        panelDocs,
         flowSettings,
       });
       
@@ -1745,7 +1753,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Broadcast update to all connected viewers via WebSocket
       const broadcastFn = (req.app as any).broadcastShareUpdate;
       if (broadcastFn) {
-        broadcastFn(shareId, { nodes, edges, canvasObjects, viewport, flowSettings });
+        broadcastFn(shareId, {
+          nodes,
+          edges,
+          canvasObjects,
+          viewport,
+          flowSettings,
+          ...(panelDocs ?? {
+            prdData: null,
+            workflowPRDs: null,
+            notesData: null,
+            detailsData: null,
+          }),
+        });
       }
       
       res.json({ success: true, shareId });
