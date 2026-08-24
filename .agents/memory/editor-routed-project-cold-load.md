@@ -1,21 +1,21 @@
 ---
-name: The editor does not reopen a routed project on a cold load
-description: /project/:uuid shows the start screen unless the project is clicked out of Recent Projects; use the shared viewer for cold-mount browser assertions.
+name: Routed project tab hydration
+description: Direct project URLs must materialize an editor tab from the fetched cloud project, including when a new browser tab inherits unrelated local tabs.
 ---
 
-Navigating straight to `/project/:uuid` (or reloading it) frequently lands on
-the editor's "what are we working on today" start screen instead of the
-workflow, so the right rail never mounts.
+Direct project URLs must create or activate a tab for the fetched project.
+They must not assume there is already an active editor tab to overwrite.
 
-**Why:** the routed-project loader sets its "already loaded" ref as soon as it
-fires, but only copies the fetched project into a tab if a tab already exists.
-On a cold profile there is no tab yet, so the project is fetched and then
-dropped, and nothing retries. Clicking the project out of Recent Projects is
-the only reliable way in.
+**Why:** a separately opened browser tab starts on the editor Home screen.
+Its localStorage may have unrelated saved tabs, but it has no active workflow
+tab for the requested route. A loader that only updates the active tab silently
+drops the fetched project and leaves the user at Home.
 
-**How to apply:** in browser tests, navigate and then click the project card if
-`[data-testid="project-panel"]` is absent (the Phase A and Phase C harnesses
-both do this). Do not expect a reload to restore the open project.
+**How to apply:** when changing route or tab-loading logic, test an authenticated
+`/project/:uuid` navigation in a fresh browser page whose localStorage already
+contains an unrelated tab. Confirm the requested workflow and Project panel
+mount, rather than falling back to Home. Preserve the fetched project’s panel
+documentation under its project identifier when hydrating the tab.
 
 For anything that must be asserted **at mount** — what a panel reads from the
 URL query or from localStorage on its first render — drive `/view/:shareId`

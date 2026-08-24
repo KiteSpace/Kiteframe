@@ -30,10 +30,10 @@ interface PendingPanelDocsSave {
 const pending = new Map<string, PendingPanelDocsSave>();
 const saveChains = new Map<string, Promise<unknown>>();
 
-function enqueue(key: string, fn: () => Promise<void>): Promise<void> {
+function enqueue<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prior = saveChains.get(key) ?? Promise.resolve();
   const run = prior.then(fn, fn);
-  const settled = run.catch(() => undefined);
+  const settled: Promise<unknown> = run.catch(() => undefined);
   saveChains.set(key, settled);
   void settled.then(() => {
     if (saveChains.get(key) === settled) saveChains.delete(key);
