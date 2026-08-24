@@ -250,16 +250,13 @@ function createApp() {
     next();
   });
 
-  // Wire the same handlers that production uses — extracted to a helper so
-  // we don't have to spin up the whole server. The handler logic mirrors
-  // server/routes.ts snapshot endpoints.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return mountSnapshotRoutes(app);
 }
 
-// Inline implementation of the route logic for the test. We replicate the
-// shape rather than importing the entire routes.ts (which boots Stripe,
-// websockets, etc.). The behaviour under test is small and focused.
+// Inline mirror of snapshotHandlers.createSnapshotHandler so we can exercise
+// the saved_projects merge without importing the full handler module (which
+// pulls schema column objects the drizzle mock does not fully emulate).
+// Keep the merge rules identical to production via shared/panelDocs.
 function mountSnapshotRoutes(app: express.Express) {
   const isAuthed = (req: Request & { user?: unknown }, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -271,9 +268,32 @@ function mountSnapshotRoutes(app: express.Express) {
   const RETENTION = 50;
 
   app.post('/api/snapshots', isAuthed, async (req, res) => {
+    const {
+      mergeWorkflowDataPreservingPanelDocs,
+      pickPresentPanelDocs,
+    } = await import('@shared/panelDocs');
+
     const userId = uid(req as Request & { user?: { claims?: { sub?: string } } });
-    const { workflowId, name, nodes, edges, isAutoSave, cloudProjectId } = req.body;
+    const {
+      workflowId,
+      name,
+      nodes,
+      edges,
+      isAutoSave,
+      cloudProjectId,
+      prdData,
+      workflowPRDs,
+      notesData,
+      detailsData,
+    } = req.body;
     if (!workflowId || !name) return res.status(400).json({ error: 'bad' });
+
+    const optionalPanelDocs = pickPresentPanelDocs({
+      prdData,
+      workflowPRDs,
+      notesData,
+      detailsData,
+    });
 
     snapshotStore.push({
       id: `snap-${nextId++}`,
@@ -308,12 +328,12 @@ function mountSnapshotRoutes(app: express.Express) {
     if (resolved) {
       const proj = projectStore.find((p) => p.id === resolved && p.userId === userId);
       if (proj) {
-        proj.workflowData = {
-          ...proj.workflowData,
+        proj.workflowData = mergeWorkflowDataPreservingPanelDocs(proj.workflowData, {
           workflowId,
           nodes: parsedNodes,
           edges: parsedEdges,
-        };
+          ...optionalPanelDocs,
+        });
       } else {
         resolved = undefined;
       }
@@ -327,19 +347,27 @@ function mountSnapshotRoutes(app: express.Express) {
         (p) => p.userId === userId && p.workflowData?.workflowId === workflowId,
       );
       if (existing) {
-        existing.workflowData = {
-          ...existing.workflowData,
-          workflowId,
-          nodes: parsedNodes,
-          edges: parsedEdges,
-        };
+        existing.workflowData = mergeWorkflowDataPreservingPanelDocs(
+          existing.workflowData,
+          {
+            workflowId,
+            nodes: parsedNodes,
+            edges: parsedEdges,
+            ...optionalPanelDocs,
+          },
+        );
         resolved = existing.id;
       } else {
         const created: ProjectRow = {
           id: `proj-${nextId++}`,
           userId,
           name: `Untitled — ${new Date().toISOString().slice(0, 10)}`,
-          workflowData: { workflowId, nodes: parsedNodes, edges: parsedEdges },
+          workflowData: {
+            workflowId,
+            nodes: parsedNodes,
+            edges: parsedEdges,
+            ...optionalPanelDocs,
+          },
         };
         projectStore.push(created);
         resolved = created.id;
@@ -518,6 +546,71 @@ describe('Mirror to saved_projects', () => {
     expect(proj.workflowData.edges).toHaveLength(1);
   });
 
+  it('MERGES without erasing existing panel documentation on a canvas-only snapshot', async () => {
+    currentUserId = 'alice';
+    projectStore.push({
+      id: 'proj-with-docs',
+      userId: 'alice',
+      name: 'Documented',
+      workflowData: {
+        nodes: [{ id: 'old' }],
+        edges: [],
+        prdData: { projectName: 'Keep', sections: [{ id: 'overview', title: 'Overview', content: 'x' }] },
+        workflowPRDs: [{ workflowId: 'wf-1', sections: [] }],
+        notesData: '{"notes":[{"id":"n1","content":"important"}]}',
+        detailsData: '{"name":"Documented","description":"overview","categories":["a"]}',
+      },
+    });
+
+    const app = createApp();
+    await request(app)
+      .post('/api/snapshots')
+      .send({
+        workflowId: 'w-docs',
+        cloudProjectId: 'proj-with-docs',
+        name: 'auto',
+        // Canvas-only body — no documentation fields at all.
+        nodes: [{ id: 'new1' }],
+        edges: [],
+        isAutoSave: true,
+      });
+
+    const proj = projectStore.find((p) => p.id === 'proj-with-docs')!;
+    expect(proj.workflowData.nodes).toEqual([{ id: 'new1' }]);
+    expect((proj.workflowData as any).prdData.projectName).toBe('Keep');
+    expect((proj.workflowData as any).workflowPRDs).toHaveLength(1);
+    expect((proj.workflowData as any).notesData).toContain('important');
+    expect((proj.workflowData as any).detailsData).toContain('overview');
+  });
+
+  it('seeds optional panel docs onto an auto-created cloud row', async () => {
+    currentUserId = 'alice';
+    const app = createApp();
+    const res = await request(app)
+      .post('/api/snapshots')
+      .send({
+        workflowId: 'w-seed-docs',
+        name: 'My Project',
+        nodes: [{ id: 'n1' }],
+        edges: [],
+        isAutoSave: true,
+        detailsData: '{"name":"My Project","description":"seeded"}',
+        notesData: '{"notes":[]}',
+        prdData: { projectName: 'My Project', sections: [] },
+      });
+
+    expect(res.status).toBe(200);
+    expect(projectStore).toHaveLength(1);
+    const wd = projectStore[0].workflowData as any;
+    // Debug aid if seeding regresses:
+    expect(wd).toMatchObject({
+      workflowId: 'w-seed-docs',
+      detailsData: expect.stringContaining('seeded'),
+      notesData: expect.stringContaining('notes'),
+      prdData: expect.objectContaining({ projectName: 'My Project' }),
+    });
+  });
+
   it('auto-creates a saved_projects row when no cloudProjectId is provided', async () => {
     currentUserId = 'alice';
     const app = createApp();
@@ -680,7 +773,9 @@ describe('routes.ts source — guardrails', () => {
   });
 
   it('mirror logic merges with existing workflowData rather than replacing', () => {
-    expect(handlersSrc).toMatch(/\.\.\.existing[\s\S]*?nodes:\s*parsedNodes/);
+    expect(handlersSrc).toMatch(
+      /mergeWorkflowDataPreservingPanelDocs[\s\S]*?nodes:\s*parsedNodes/,
+    );
   });
 
   it('does not bypass types via `as any` in the snapshot handlers', () => {

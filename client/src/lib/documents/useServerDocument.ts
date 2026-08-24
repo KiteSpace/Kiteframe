@@ -24,6 +24,11 @@ interface Options<T> {
   docKind: DocKind;
   /** Required for `workflow-prd`. */
   workflowId?: string;
+  /**
+   * When false, never fetch or save — used by read-only shared viewers whose
+   * `projectId` is a shareUuid (also a UUID) and must not hit owner APIs.
+   */
+  enabled?: boolean;
   /** Read the cached copy (localStorage). */
   readLocal: () => T | null;
   /** Write the cache. Called only when the server copy genuinely wins. */
@@ -56,6 +61,7 @@ export function useServerDocument<T>({
   projectId,
   docKind,
   workflowId,
+  enabled = true,
   readLocal,
   writeLocal,
   onAdoptRemote,
@@ -75,7 +81,10 @@ export function useServerDocument<T>({
     onAdoptRemoteRef.current = onAdoptRemote;
   });
 
-  const addressable = isAddressableProject(projectId) && (docKind !== 'workflow-prd' || !!workflowId);
+  const addressable =
+    enabled &&
+    isAddressableProject(projectId) &&
+    (docKind !== 'workflow-prd' || !!workflowId);
 
   useEffect(() => {
     let cancelled = false;

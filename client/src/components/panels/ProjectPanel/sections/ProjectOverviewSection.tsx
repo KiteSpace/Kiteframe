@@ -11,6 +11,7 @@ import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { useAi } from '@/ai/AiProvider';
 import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
 import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
+import { schedulePanelDocsSave } from '@/lib/documents/panelDocsClient';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { getRouter, extractJSON } from '@/ai/router';
 
@@ -342,8 +343,19 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     if (!storageKey) return;
     
     const toSave = { ...details, updatedAt: Date.now() };
-    localStorage.setItem(storageKey, JSON.stringify(toSave));
-    if (!isReadOnly && projectId) notifyPanelDocsChanged(projectId);
+    const detailsData = JSON.stringify(toSave);
+    localStorage.setItem(storageKey, detailsData);
+    if (!isReadOnly && projectId) {
+      notifyPanelDocsChanged(projectId);
+      // Persist independently of canvas autosave so shared viewers see overview
+      // edits without requiring a full project save. No-ops unless projectId is
+      // a real projectUuid (share viewers / local tabs are skipped).
+      schedulePanelDocsSave(projectId, {
+        detailsData,
+        name: details.name || undefined,
+        description: details.description ?? null,
+      });
+    }
   }, [details, storageKey, isReadOnly, projectId]);
 
   useEffect(() => {

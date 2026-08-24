@@ -15,6 +15,7 @@
  *                                      owner gets a redirect payload)
  */
 import type { Request, Response } from 'express';
+import { extractSharePanelDocs } from '@shared/panelDocs';
 import { storage } from './storage';
 
 type AuthUser = { claims?: { sub?: string }; id?: string };
@@ -205,9 +206,10 @@ export async function viewSharedProjectHandler(
       }
 
       const workflowData = project.workflowData as any;
-      const doc = workflowData?.documentation;
+      const panelDocs = extractSharePanelDocs(workflowData);
       return res.json({
         shareUuid: project.shareUuid,
+        // Distinct from shareUuid — comments and owner redirects use this.
         projectUuid: project.projectUuid,
         projectName: project.name,
         projectDescription: project.description,
@@ -216,11 +218,10 @@ export async function viewSharedProjectHandler(
         canvasObjects: workflowData?.canvasObjects,
         viewport: workflowData?.viewport,
         flowSettings: workflowData?.flowSettings,
-        prdData: workflowData?.prdData ?? doc?.projectPRD ?? null,
-        workflowPRDs:
-          workflowData?.workflowPRDs ?? doc?.workflowPRDs ?? null,
-        notesData: workflowData?.notesData ?? null,
-        detailsData: workflowData?.detailsData ?? null,
+        prdData: panelDocs.prdData,
+        workflowPRDs: panelDocs.workflowPRDs,
+        notesData: panelDocs.notesData,
+        detailsData: panelDocs.detailsData,
         isOwner: false,
       });
     }

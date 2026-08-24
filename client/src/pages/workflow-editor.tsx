@@ -7866,7 +7866,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
         // Bundle the right-hand Project Panel docs so the cloud copy (and the
         // shared view-only page) carries the current PRDs/notes/overview.
+        // Only include keys that are actually present locally — omitting empty
+        // ones lets the server preserve docs already stored on the project
+        // (avoids canvas/autosave wiping documentation after a key mismatch).
         const docs = readPanelDocs(tabProjectIdentifier(tab));
+        const presentDocs = {
+          ...(docs.prdData != null ? { prdData: docs.prdData } : {}),
+          ...(Array.isArray(docs.workflowPRDs) && docs.workflowPRDs.length > 0
+            ? { workflowPRDs: docs.workflowPRDs }
+            : {}),
+          ...(typeof docs.notesData === 'string' && docs.notesData.length > 0
+            ? { notesData: docs.notesData }
+            : {}),
+          ...(typeof docs.detailsData === 'string' && docs.detailsData.length > 0
+            ? { detailsData: docs.detailsData }
+            : {}),
+        };
         const workflowData = {
           nodes: tab.nodes,
           edges: tab.edges,
@@ -7874,10 +7889,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           viewport: tab.viewport,
           flowSettings: tab.flowSettings || {},
           sketchStrokes: tab.sketchStrokes || [],
-          prdData: docs.prdData,
-          workflowPRDs: docs.workflowPRDs,
-          notesData: docs.notesData,
-          detailsData: docs.detailsData,
+          ...presentDocs,
         };
         const thumbnail = generateWorkflowThumbnail(tab.nodes, tab.edges);
 

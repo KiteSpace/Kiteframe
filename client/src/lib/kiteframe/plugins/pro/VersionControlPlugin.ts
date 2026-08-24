@@ -1,5 +1,59 @@
 import type { KiteFramePlugin } from '../../core/KiteFrameCore';
 
+/** Panel docs keyed the same way as the Project Panel / cloud autosave. */
+function readPanelDocsForTab(tab: any): {
+  prdData?: unknown;
+  workflowPRDs?: unknown[];
+  notesData?: string;
+  detailsData?: string;
+} {
+  const pid =
+    tab?.projectUuid || tab?.cloudProjectId?.toString() || tab?.id;
+  if (!pid || typeof localStorage === 'undefined') return {};
+  const out: {
+    prdData?: unknown;
+    workflowPRDs?: unknown[];
+    notesData?: string;
+    detailsData?: string;
+  } = {};
+  try {
+    const prdRaw = localStorage.getItem(`prd-project-${pid}`);
+    if (prdRaw) out.prdData = JSON.parse(prdRaw);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const prefix = `prd-workflow-${pid}-`;
+    const prds: unknown[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '');
+        if (parsed) prds.push(parsed);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (prds.length > 0) out.workflowPRDs = prds;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const notes = localStorage.getItem(`kiteframe-notes-${pid}`);
+    if (notes) out.notesData = notes;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const details = localStorage.getItem(`kiteframe-details-${pid}`);
+    if (details) out.detailsData = details;
+  } catch {
+    /* ignore */
+  }
+  return out;
+}
+
 /**
  * Version Control Pro Plugin  
  * Advanced workflow versioning and history management
@@ -101,6 +155,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
       // never clobbers a real local name on the way back.
       const realName: string =
         currentTab.name || currentTab.metadata?.name || "Untitled";
+      const panelDocs = readPanelDocsForTab(currentTab);
       const snapshotData = {
         workflowId: currentTab.id,
         cloudProjectId: currentTab.cloudProjectId || undefined,
@@ -113,7 +168,10 @@ export class VersionControlPlugin implements KiteFramePlugin {
           edgeCount: currentTab.edges.length,
           autoSave: true
         }),
-        isAutoSave: true
+        isAutoSave: true,
+        // Seed docs onto auto-created cloud rows so share viewers are not
+        // left without overview/PRDs/notes after the first canvas snapshot.
+        ...panelDocs,
       };
 
       const res = await fetch('/api/snapshots', {
@@ -159,6 +217,7 @@ export class VersionControlPlugin implements KiteFramePlugin {
       if (!(await this.ensureAuthed())) return false;
 
       const currentTab = tabManager.currentTab;
+      const panelDocs = readPanelDocsForTab(currentTab);
       const snapshotData = {
         workflowId: currentTab.id,
         cloudProjectId: currentTab.cloudProjectId || undefined,
@@ -171,7 +230,8 @@ export class VersionControlPlugin implements KiteFramePlugin {
           edgeCount: currentTab.edges.length,
           manualSave: true
         }),
-        isAutoSave: false
+        isAutoSave: false,
+        ...panelDocs,
       };
 
       const response = await fetch('/api/snapshots', {

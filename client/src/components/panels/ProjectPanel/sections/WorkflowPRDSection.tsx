@@ -280,10 +280,12 @@ export function WorkflowPRDSection({
   }, [projectId, workflowId, nodes, edges]);
 
   // Server is the system of record; localStorage above is the offline cache.
+  // Disabled in read-only shared viewers — their projectId is a shareUuid.
   const { updatedAt, persist } = useServerDocument<WorkflowPRD>({
     projectId,
     docKind: 'workflow-prd',
     workflowId,
+    enabled: !isReadOnly,
     readLocal: () => loadWorkflowPRD(projectId, workflowId),
     writeLocal: (content) => saveWorkflowPRD(projectId, workflowId, content),
     // Re-read through the normal path so staleness and history are recomputed

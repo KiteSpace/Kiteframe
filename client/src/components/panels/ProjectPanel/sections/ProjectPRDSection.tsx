@@ -89,9 +89,11 @@ export function ProjectPRDSection({
   }, [projectId]);
 
   // Server is the system of record; localStorage above is the offline cache.
+  // Disabled in read-only shared viewers — their projectId is a shareUuid.
   const { updatedAt, persist } = useServerDocument<ProjectPRD>({
     projectId,
     docKind: 'project-prd',
+    enabled: !isReadOnly,
     readLocal: () => loadProjectPRD(projectId),
     writeLocal: (content) => saveProjectPRD(projectId, content),
     onAdoptRemote: () => loadFromStorage(),

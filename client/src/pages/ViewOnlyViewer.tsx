@@ -115,6 +115,14 @@ export default function ViewOnlyViewer() {
   });
 
   useEffect(() => {
+    // Changing share links in the same browser must never show the previous
+    // project's panel docs. Clear the seed gate so ProjectPanel remounts only
+    // after the new response is written into localStorage under this shareId.
+    setPanelStorageSeeded(false);
+    setDataLoaded(false);
+  }, [shareId]);
+
+  useEffect(() => {
     if (data?.isOwner && data?.redirect) {
       setLocation(data.redirect);
     }
