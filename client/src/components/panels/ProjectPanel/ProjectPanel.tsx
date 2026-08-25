@@ -89,6 +89,7 @@ interface ProjectPanelProps {
   onInsightNavigateToNode?: (nodeId: string) => void;
   focusedInsightId?: string | null;
   forceTab?: ProjectPanelTab | null;
+  hiddenTabs?: ProjectPanelTab[];
   initialPrompt?: string;
   onInitialPromptConsumed?: () => void;
   onOpenWorkflowImport?: () => void;
@@ -162,6 +163,7 @@ export function ProjectPanel({
   onInsightNavigateToNode,
   focusedInsightId,
   forceTab,
+  hiddenTabs = [],
   initialPrompt,
   onInitialPromptConsumed,
   onOpenWorkflowImport,
@@ -176,6 +178,8 @@ export function ProjectPanel({
   const resizeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const search = useSearch();
+  const hiddenTabSet = new Set(hiddenTabs);
+  const visibleTabConfig = tabConfig.filter(({ id }) => !hiddenTabSet.has(id));
 
   // A ?panel= link is an explicit instruction and outranks the tab the user
   // happened to leave open last time.
@@ -183,13 +187,13 @@ export function ProjectPanel({
     if (typeof window === 'undefined') return DEFAULT_TAB;
     try {
       const fromUrl = new URLSearchParams(search || window.location.search).get(PANEL_QUERY_PARAM);
-      if (isPanelTab(fromUrl)) return fromUrl;
+      if (isPanelTab(fromUrl) && !hiddenTabSet.has(fromUrl)) return fromUrl;
     } catch {}
     try {
       const stored = migrateStoredTab(localStorage.getItem(PANEL_ACTIVE_TAB_KEY));
-      if (stored) return stored;
+      if (stored && !hiddenTabSet.has(stored)) return stored;
     } catch {}
-    return DEFAULT_TAB;
+    return visibleTabConfig[0]?.id ?? DEFAULT_TAB;
   };
 
   const [activeTab, setActiveTab] = useState<ProjectPanelTab>(getInitialTab);
@@ -384,7 +388,7 @@ export function ProjectPanel({
             </div>
 
             <div className="flex flex-col items-center gap-1 mt-2 border-t border-border pt-2">
-              {tabConfig.map(({ id, icon: Icon, label }) => (
+               {visibleTabConfig.map(({ id, icon: Icon, label }) => (
                 <Tooltip key={id}>
                   <TooltipTrigger asChild>
                     <Button
@@ -437,7 +441,7 @@ export function ProjectPanel({
           <ScrollArea className="flex-1">
             <TooltipProvider delayDuration={100}>
               <TabsList className="inline-flex h-full w-max min-w-full p-0 gap-[3px] bg-transparent">
-                {tabConfig.map(({ id, icon: Icon, label, testId }) => {
+                 {visibleTabConfig.map(({ id, icon: Icon, label, testId }) => {
                   const isActive = activeTab === id;
                   // The active tab always keeps its label so the rail never
                   // becomes an unlabelled row of icons at minimum width.

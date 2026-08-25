@@ -77,7 +77,9 @@ export default function ViewOnlyViewer() {
   
   const [dataLoaded, setDataLoaded] = useState(false);
   const [panelStorageSeeded, setPanelStorageSeeded] = useState(false);
-  const [liveUpdates, setLiveUpdates] = useState(false);
+  // The control is intentionally hidden in shared view, so viewers always
+  // receive updates. Keep the state/ref for the transport's update behavior.
+  const [liveUpdates, setLiveUpdates] = useState(true);
   const [commentPlacing, setCommentPlacing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
@@ -127,6 +129,10 @@ export default function ViewOnlyViewer() {
       setLocation(data.redirect);
     }
   }, [data, setLocation]);
+
+  useEffect(() => {
+    liveUpdatesRef.current = liveUpdates;
+  }, [liveUpdates]);
 
   useEffect(() => {
     if (data) {
@@ -202,10 +208,6 @@ export default function ViewOnlyViewer() {
   }, [data, shareId]);
 
   useEffect(() => {
-    liveUpdatesRef.current = liveUpdates;
-  }, [liveUpdates]);
-
-  useEffect(() => {
     if (!shareId) return;
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -239,17 +241,12 @@ export default function ViewOnlyViewer() {
           const nodeCount = msg.nodes?.length || 0;
           const edgeCount = msg.edges?.length || 0;
           
-          if (liveUpdatesRef.current) {
-            console.log(`📡 [VIEWER WS] Applying update - ${nodeCount} nodes, ${edgeCount} edges`);
-            if (msg.nodes) setNodes(msg.nodes);
-            if (msg.edges) setEdges(msg.edges);
-            if (msg.canvasObjects) setCanvasObjects(msg.canvasObjects);
-            if (msg.viewport) setViewport(msg.viewport);
-            if (msg.flowSettings) setFlowSettings(msg.flowSettings);
-          } else {
-            console.log(`📡 [VIEWER WS] Live updates OFF - marking pending updates`);
-            setHasPendingUpdates(true);
-          }
+          console.log(`📡 [VIEWER WS] Applying update - ${nodeCount} nodes, ${edgeCount} edges`);
+          if (msg.nodes) setNodes(msg.nodes);
+          if (msg.edges) setEdges(msg.edges);
+          if (msg.canvasObjects) setCanvasObjects(msg.canvasObjects);
+          if (msg.viewport) setViewport(msg.viewport);
+          if (msg.flowSettings) setFlowSettings(msg.flowSettings);
 
           // Re-seed localStorage from panel data fields sent directly in the WS message.
           // No HTTP round-trip needed — viewers see changes the moment the author saves.
@@ -320,10 +317,8 @@ export default function ViewOnlyViewer() {
   const noopConnect = useCallback(() => {}, []);
 
   const handleNodesChange = useCallback((newNodes: Node[]) => {
-    if (!liveUpdates) {
-      setNodes(newNodes);
-    }
-  }, [liveUpdates]);
+    setNodes(newNodes);
+  }, []);
 
   const handleReset = useCallback(() => {
     setNodes(JSON.parse(JSON.stringify(originalNodes)));
@@ -387,7 +382,7 @@ export default function ViewOnlyViewer() {
     const newValue = !liveUpdates;
     liveUpdatesRef.current = newValue;
     setLiveUpdates(newValue);
-    
+
     if (newValue) {
       console.log(`📡 [VIEWER] Enabling live updates - refetching latest data`);
       setHasPendingUpdates(false);
@@ -497,7 +492,7 @@ export default function ViewOnlyViewer() {
             />
             
             {/* Status badges - positioned over canvas */}
-            <div className="absolute top-4 left-4 z-50 flex items-center gap-2" data-testid="status-badges">
+            <div className="hidden" aria-hidden="true" data-testid="status-badges">
             <div 
               className="bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5"
               data-testid="read-only-badge"
@@ -596,6 +591,7 @@ export default function ViewOnlyViewer() {
               projectId={shareId}
               projectName={projectName}
               isReadOnly={true}
+              hiddenTabs={['kite-ai', 'diagnostics']}
               commentWorkflowId={data?.projectUuid}
               commentShareId={shareId}
             />

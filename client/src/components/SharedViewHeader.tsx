@@ -26,6 +26,12 @@ export function SharedViewHeader({ projectName }: SharedViewHeaderProps) {
         >
           {projectName}
         </span>
+        <span
+          className="flex-shrink-0 rounded bg-black px-1.5 py-0.5 text-[10px] font-medium leading-none text-white"
+          data-testid="shared-view-read-only-badge"
+        >
+          Read only
+        </span>
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0">

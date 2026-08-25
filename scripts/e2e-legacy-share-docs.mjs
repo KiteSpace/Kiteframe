@@ -82,6 +82,22 @@ try {
   await page.locator('[data-testid="project-panel"]').waitFor({ timeout: 30000 });
   await page.locator('[data-testid="project-doc-tab"]').waitFor({ timeout: 15000 });
 
+  const readOnlyBadge = page.locator('[data-testid="shared-view-read-only-badge"]');
+  check(
+    "shared header shows the compact read-only badge",
+    (await readOnlyBadge.isVisible()) && (await readOnlyBadge.innerText()) === "Read only",
+  );
+  check(
+    "shared panel omits KiteAI and Insights tabs",
+    (await page.locator('[data-testid="tab-kite-ai"]').count()) === 0
+      && (await page.locator('[data-testid="tab-insights"]').count()) === 0,
+  );
+  check(
+    "canvas does not show read-only or live-update controls",
+    !(await page.locator('[data-testid="read-only-badge"]').isVisible())
+      && !(await page.locator('[data-testid="live-updates-toggle"]').isVisible()),
+  );
+
   const overview = await page.locator('[data-testid="project-overview-section"]').innerText();
   check("shared viewer renders the legacy overview", overview.includes(overviewText), overview.slice(0, 160));
 
