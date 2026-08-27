@@ -442,7 +442,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
         borderWidth: 1,
         borderStyle: 'solid',
         boxShadow: dropShadow,
-        zIndex: node.zIndex || 1,
+        zIndex: node.zIndex ?? 0,
         ...style,
       }}
       onMouseDown={handleMouseDown}

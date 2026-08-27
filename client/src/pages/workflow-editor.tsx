@@ -112,6 +112,12 @@ import {
 } from "../lib/kiteframe/utils/FlowDetection";
 import { DEFAULT_SHAPE_NODE_DATA } from "../lib/kiteframe/constants/defaults";
 import { recalculateAllEdgeZIndexes } from "../lib/kiteframe/utils/edgeZIndex";
+import {
+  appendCanvasStackHistory,
+  reorderCanvasStack,
+  type CanvasStackOperation,
+  type CanvasStackTarget,
+} from "../lib/kiteframe/utils/canvasZOrder";
 import { VLStore } from "@/stores/layersStateManager";
 import { AncestorsStore } from "@/components/layers/ancestorsStore";
 import { isEffectivelyOn } from "@/components/layers/triStateUtils";
@@ -8290,6 +8296,59 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     onReset,
   ]);
 
+  const applyCanvasStackOperation = useCallback(
+    (
+      target: CanvasStackTarget,
+      operation: CanvasStackOperation,
+    ) => {
+      if (!activeTab) return;
+
+      const result = reorderCanvasStack(
+        nodes,
+        canvasObjects,
+        target,
+        operation,
+      );
+      if (!result.changed) return;
+
+      const updatedEdges = recalculateAllEdgeZIndexes(edges, result.nodes);
+      const currentState = structuredClone({
+        nodes,
+        edges,
+        canvasObjects,
+        viewport,
+      });
+      const nextState = structuredClone({
+        nodes: result.nodes,
+        edges: updatedEdges,
+        canvasObjects: result.canvasObjects,
+        viewport,
+      });
+      const nextHistory = appendCanvasStackHistory(
+        activeTab.history,
+        activeTab.historyIndex,
+        currentState,
+        nextState,
+      );
+
+      updateActiveTab({
+        nodes: result.nodes,
+        edges: updatedEdges,
+        canvasObjects: result.canvasObjects,
+        history: nextHistory.history,
+        historyIndex: nextHistory.historyIndex,
+      });
+    },
+    [
+      activeTab,
+      nodes,
+      edges,
+      canvasObjects,
+      viewport,
+      updateActiveTab,
+    ],
+  );
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <TrialBanner />
@@ -16143,123 +16202,57 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           }
           onBringToFront={() => {
             if (contextMenu.node) {
-              const maxZIndex = Math.max(...nodes.map((n) => n.zIndex || 0));
-              saveToHistory("Bring node to front");
-              const updatedNodes = nodes.map((n) =>
-                n.id === contextMenu.node!.id
-                  ? { ...n, zIndex: maxZIndex + 1 }
-                  : n,
+              applyCanvasStackOperation(
+                { kind: "node", id: contextMenu.node.id },
+                "bring-to-front",
               );
-              // Recalculate edge z-indexes based on updated nodes
-              const updatedEdges = recalculateAllEdgeZIndexes(
-                edges,
-                updatedNodes,
-              );
-              updateActiveTab({
-                nodes: updatedNodes,
-                edges: updatedEdges,
-              });
             } else if (contextMenu.canvasObject) {
-              const maxZIndex = Math.max(
-                ...canvasObjects.map((obj) => obj.zIndex || 0),
+              applyCanvasStackOperation(
+                { kind: "canvasObject", id: contextMenu.canvasObject.id },
+                "bring-to-front",
               );
-              saveToHistory("Bring canvas object to front");
-              updateActiveTab({
-                canvasObjects: canvasObjects.map((obj) =>
-                  obj.id === contextMenu.canvasObject!.id
-                    ? { ...obj, zIndex: maxZIndex + 1 }
-                    : obj,
-                ),
-              });
             }
             setContextMenu(null);
           }}
           onBringForward={() => {
             if (contextMenu.node) {
-              const currentZIndex = contextMenu.node.zIndex || 0;
-              saveToHistory("Bring node forward");
-              const updatedNodes = nodes.map((n) =>
-                n.id === contextMenu.node!.id
-                  ? { ...n, zIndex: currentZIndex + 1 }
-                  : n,
+              applyCanvasStackOperation(
+                { kind: "node", id: contextMenu.node.id },
+                "bring-forward",
               );
-              // Recalculate edge z-indexes based on updated nodes
-              const updatedEdges = recalculateAllEdgeZIndexes(
-                edges,
-                updatedNodes,
-              );
-              updateActiveTab({
-                nodes: updatedNodes,
-                edges: updatedEdges,
-              });
             } else if (contextMenu.canvasObject) {
-              const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-              saveToHistory("Bring canvas object forward");
-              updateActiveTab({
-                canvasObjects: canvasObjects.map((obj) =>
-                  obj.id === contextMenu.canvasObject!.id
-                    ? { ...obj, zIndex: currentZIndex + 1 }
-                    : obj,
-                ),
-              });
+              applyCanvasStackOperation(
+                { kind: "canvasObject", id: contextMenu.canvasObject.id },
+                "bring-forward",
+              );
             }
             setContextMenu(null);
           }}
           onSendBackward={() => {
             if (contextMenu.node) {
-              const currentZIndex = contextMenu.node.zIndex || 0;
-              saveToHistory("Send node backward");
-              const updatedNodes = nodes.map((n) =>
-                n.id === contextMenu.node!.id
-                  ? { ...n, zIndex: Math.max(0, currentZIndex - 1) }
-                  : n,
+              applyCanvasStackOperation(
+                { kind: "node", id: contextMenu.node.id },
+                "send-backward",
               );
-              // Recalculate edge z-indexes based on updated nodes
-              const updatedEdges = recalculateAllEdgeZIndexes(
-                edges,
-                updatedNodes,
-              );
-              updateActiveTab({
-                nodes: updatedNodes,
-                edges: updatedEdges,
-              });
             } else if (contextMenu.canvasObject) {
-              const currentZIndex = contextMenu.canvasObject.zIndex || 0;
-              saveToHistory("Send canvas object backward");
-              updateActiveTab({
-                canvasObjects: canvasObjects.map((obj) =>
-                  obj.id === contextMenu.canvasObject!.id
-                    ? { ...obj, zIndex: Math.max(0, currentZIndex - 1) }
-                    : obj,
-                ),
-              });
+              applyCanvasStackOperation(
+                { kind: "canvasObject", id: contextMenu.canvasObject.id },
+                "send-backward",
+              );
             }
             setContextMenu(null);
           }}
           onSendToBack={() => {
             if (contextMenu.node) {
-              saveToHistory("Send node to back");
-              const updatedNodes = nodes.map((n) =>
-                n.id === contextMenu.node!.id ? { ...n, zIndex: 0 } : n,
+              applyCanvasStackOperation(
+                { kind: "node", id: contextMenu.node.id },
+                "send-to-back",
               );
-              // Recalculate edge z-indexes based on updated nodes
-              const updatedEdges = recalculateAllEdgeZIndexes(
-                edges,
-                updatedNodes,
-              );
-              updateActiveTab({
-                nodes: updatedNodes,
-                edges: updatedEdges,
-              });
             } else if (contextMenu.canvasObject) {
-              saveToHistory("Send canvas object to back");
-              updateActiveTab({
-                canvasObjects: canvasObjects.map((obj) =>
-                  obj.id === contextMenu.canvasObject!.id
-                    ? { ...obj, zIndex: 0 }
-                    : obj,
-                ),
-              });
+              applyCanvasStackOperation(
+                { kind: "canvasObject", id: contextMenu.canvasObject.id },
+                "send-to-back",
+              );
             }
             setContextMenu(null);
           }}
