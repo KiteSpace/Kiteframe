@@ -283,7 +283,7 @@ function toOptions(
   compare: (a: FacetOption, b: FacetOption) => number = (a, b) =>
     b.count - a.count || a.label.localeCompare(b.label),
 ): FacetOption[] {
-  return [...counts.entries()]
+  return Array.from(counts.entries())
     .map(([value, count]) => ({ value, label: label(value), count }))
     .sort(compare);
 }
@@ -374,17 +374,17 @@ export function derivePlaces(shops: CoffeeShop[]): Place[] {
 
   const places: Place[] = [];
 
-  for (const [key, group] of cities) {
+  for (const [key, group] of Array.from(cities.entries())) {
     const [city, region, country] = key.split("|");
     places.push(placeFrom("city", city, `${region}, ${country}`, group));
   }
-  for (const [key, group] of regions) {
+  for (const [key, group] of Array.from(regions.entries())) {
     const [region, country] = key.split("|");
     // A region whose name repeats the city (Berlin, Oslo) adds no information.
     if (group.every((shop) => shop.city === region)) continue;
     places.push(placeFrom("region", region, country, group));
   }
-  for (const [country, group] of countries) {
+  for (const [country, group] of Array.from(countries.entries())) {
     places.push(placeFrom("country", country, `${group.length} in the atlas`, group));
   }
 

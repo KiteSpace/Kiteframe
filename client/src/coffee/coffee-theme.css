@@ -1,0 +1,167 @@
+/*
+ * Warm palette for the Coffee Atlas.
+ *
+ * These are the same semantic tokens the rest of the app defines, re-declared
+ * under a single class. CoffeeLayout puts that class on <html> while an atlas
+ * route is mounted and removes it on the way out, so existing utilities like
+ * `bg-background` and `text-muted-foreground` come out espresso-and-cream here
+ * and Graphite everywhere else. Setting it on <html> rather than a wrapper
+ * matters because Radix portals (dialogs, popovers, the command palette) render
+ * into <body>, outside any wrapper element.
+ */
+
+.coffee-theme {
+  --background: hsl(36, 40%, 97%); /* #FBF7F1 warm paper */
+  --foreground: hsl(24, 26%, 14%); /* #2D211A roasted bean */
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(24, 26%, 14%);
+  --popover: hsl(38, 44%, 99%);
+  --popover-foreground: hsl(24, 26%, 14%);
+
+  --primary: hsl(22, 42%, 22%); /* #4F3020 espresso */
+  --primary-foreground: hsl(36, 60%, 97%);
+  --primary-hover: hsl(22, 40%, 30%);
+
+  --secondary: hsl(34, 34%, 93%); /* #F1E8DC oat milk */
+  --secondary-foreground: hsl(24, 30%, 20%);
+  --muted: hsl(34, 30%, 93%);
+  --muted-foreground: hsl(24, 14%, 42%); /* #7A6A5F */
+  --accent: hsl(34, 38%, 90%);
+  --accent-foreground: hsl(24, 30%, 20%);
+
+  --brand: hsl(20, 62%, 44%); /* #B55A28 copper roast */
+  --brand-foreground: hsl(36, 60%, 97%);
+  --brand-soft: hsl(28, 62%, 94%); /* #FBEDE2 */
+  --brand-wash: hsl(32, 70%, 98%);
+  --brand-strong: hsl(16, 66%, 34%); /* #8F3D1D */
+
+  --info: hsl(190, 46%, 40%); /* muted teal, for the map's cool accents */
+  --info-soft: hsl(190, 44%, 93%);
+
+  --success: hsl(140, 40%, 32%); /* leaf green */
+  --success-soft: hsl(140, 38%, 92%);
+  --success-foreground: hsl(140, 44%, 20%);
+  --warning: hsl(38, 88%, 52%);
+  --warning-soft: hsl(40, 92%, 92%);
+  --warning-foreground: hsl(28, 82%, 28%);
+  --destructive: hsl(4, 66%, 48%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --destructive-soft: hsl(6, 74%, 95%);
+
+  --border: hsl(32, 24%, 87%); /* #E5DACD */
+  --border-soft: hsl(32, 28%, 91%);
+  --input: hsl(30, 22%, 82%);
+  --ring: hsl(20, 62%, 44%);
+
+  --chart-1: hsl(20, 62%, 44%);
+  --chart-2: hsl(190, 46%, 40%);
+  --chart-3: hsl(140, 40%, 32%);
+  --chart-4: hsl(38, 88%, 52%);
+  --chart-5: hsl(4, 66%, 48%);
+
+  --radius: 10px;
+  --font-serif: "Iowan Old Style", Palatino, Georgia, serif;
+}
+
+.dark .coffee-theme,
+.coffee-theme.dark {
+  --background: hsl(24, 16%, 10%); /* #1D1815 dark roast */
+  --foreground: hsl(36, 30%, 92%); /* #F0E7DC */
+  --card: hsl(24, 14%, 14%);
+  --card-foreground: hsl(36, 30%, 92%);
+  --popover: hsl(24, 14%, 14%);
+  --popover-foreground: hsl(36, 30%, 92%);
+
+  --primary: hsl(36, 30%, 92%);
+  --primary-foreground: hsl(24, 24%, 12%);
+  --primary-hover: hsl(36, 40%, 97%);
+
+  --secondary: hsl(24, 12%, 17%);
+  --secondary-foreground: hsl(36, 30%, 92%);
+  --muted: hsl(24, 12%, 18%);
+  --muted-foreground: hsl(32, 14%, 68%);
+  --accent: hsl(24, 12%, 20%);
+  --accent-foreground: hsl(36, 30%, 92%);
+
+  --brand: hsl(24, 76%, 58%); /* lifts for contrast on dark roast */
+  --brand-foreground: hsl(24, 40%, 10%);
+  --brand-soft: hsl(22, 30%, 20%);
+  --brand-wash: hsl(24, 22%, 14%);
+  --brand-strong: hsl(26, 80%, 66%);
+
+  --border: hsl(26, 12%, 24%);
+  --border-soft: hsl(26, 12%, 20%);
+  --input: hsl(26, 12%, 28%);
+  --ring: hsl(24, 76%, 58%);
+}
+
+/* Subtle warmth behind the atlas hero, in place of the marketing gradient. */
+.coffee-theme .coffee-hero-wash {
+  background-image: radial-gradient(
+      ellipse 60% 80% at 15% 0%,
+      var(--brand-soft) 0%,
+      transparent 60%
+    ),
+    radial-gradient(ellipse 50% 70% at 95% 10%, var(--info-soft) 0%, transparent 55%);
+}
+
+/*
+ * MapLibre ships its own light-themed chrome. Repaint the popup, controls, and
+ * attribution bar with the atlas tokens so the map does not look bolted on.
+ */
+.coffee-theme .maplibregl-popup-content {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgb(45 33 26 / 18%);
+}
+
+.coffee-theme .maplibregl-popup-tip {
+  border-top-color: var(--popover);
+  border-bottom-color: var(--popover);
+}
+
+.coffee-theme .maplibregl-popup-close-button {
+  color: var(--muted-foreground);
+  font-size: 18px;
+  padding: 2px 8px;
+  background: transparent;
+}
+
+.coffee-theme .maplibregl-popup-close-button:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.coffee-theme .maplibregl-ctrl-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow: 0 2px 8px rgb(45 33 26 / 12%);
+}
+
+.coffee-theme .maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+
+.coffee-theme .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: var(--coffee-map-icon-filter, none);
+}
+
+.coffee-theme .maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.coffee-theme .maplibregl-ctrl-attrib a {
+  color: var(--muted-foreground);
+}
+
+.dark .coffee-theme {
+  /* The control glyphs are dark PNGs; invert them on the dark basemap. */
+  --coffee-map-icon-filter: invert(1) brightness(1.4);
+}
