@@ -749,18 +749,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         });
       }
       
-      // Fill style button for shapes only
+      // Shape type button
       if (objType === 'shape') {
-        buttons.push({
-          id: 'fillStyle',
-          icon: <Eye size={18} />,
-          label: 'Fill Style',
-          color: 'bg-cyan-500',
-          hoverColor: 'hover:bg-cyan-600',
-          hasSubmenu: true
-        });
-        
-        // Shape type button
         buttons.push({
           id: 'shapeType',
           icon: <Square size={18} />,
@@ -792,6 +782,13 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
     // Text fields can colour three different things, so they get a target
     // selector above the swatches. Every other target keeps the plain row.
     const isTextField = isCanvasObjectTarget && canvasObject?.type === 'text-field';
+    const isShape = isCanvasObjectTarget && canvasObject?.type === 'shape';
+    const currentFillStyle = (canvasObject?.data as any)?.fillStyle || 'solid';
+    const fillStyleOptions = [
+      { id: 'solid', label: 'Solid', description: '50% intensity (lighter hue)', icon: <Square size={16} className="fill-current" /> },
+      { id: 'transparent', label: 'Transparent', description: '30% opacity', icon: <Square size={16} className="opacity-30" /> },
+      { id: 'none', label: 'No Fill', description: 'Border only', icon: <Square size={16} className="fill-none" /> }
+    ];
     const TARGETS: { id: 'text' | 'border' | 'background'; label: string }[] = [
       { id: 'text', label: 'Text' },
       { id: 'border', label: 'Border' },
@@ -896,6 +893,41 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
             />
           ))}
         </div>
+        {isShape && (
+          <div
+            className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 min-w-[220px]"
+            data-testid="toolbar-fill-style-options"
+          >
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+              Fill Style
+            </div>
+            <div className="flex flex-col gap-1">
+              {fillStyleOptions.map((opt) => (
+                <button
+                  type="button"
+                  key={opt.id}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-700 text-left",
+                    currentFillStyle === opt.id && "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500"
+                  )}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onCanvasObjectFillStyleChange?.(opt.id as 'solid' | 'transparent' | 'none');
+                  }}
+                  data-testid={`toolbar-fill-${opt.id}`}
+                >
+                  <span className="text-gray-600 dark:text-gray-300">{opt.icon}</span>
+                  <div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{opt.label}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{opt.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1237,55 +1269,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderFillStyleSubmenu = () => {
-    const currentFillStyle = (canvasObject?.data as any)?.fillStyle || 'solid';
-    
-    const fillStyleOptions = [
-      { id: 'solid', label: 'Solid', description: '50% intensity (lighter hue)', icon: <Square size={16} className="fill-current" /> },
-      { id: 'transparent', label: 'Transparent', description: '30% opacity', icon: <Square size={16} className="opacity-30" /> },
-      { id: 'none', label: 'No Fill', description: 'Border only', icon: <Square size={16} className="fill-none" /> }
-    ];
-    
-    return (
-      <div 
-        ref={submenuRef}
-        className={cn(
-          "absolute left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in-0 zoom-in-95 duration-150 min-w-[180px]",
-          showAbove ? "bottom-full mb-2" : "top-full mt-2"
-        )}
-      >
-        <div className="space-y-2">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Fill Style</div>
-          <div className="flex flex-col gap-1">
-            {fillStyleOptions.map((opt) => (
-              <button
-                type="button"
-                key={opt.id}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-700 text-left",
-                  currentFillStyle === opt.id && "bg-blue-50 dark:bg-blue-900/30 ring-1 ring-blue-500"
-                )}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onCanvasObjectFillStyleChange?.(opt.id as 'solid' | 'transparent' | 'none');
-                }}
-                data-testid={`toolbar-fill-${opt.id}`}
-              >
-                <span className="text-gray-600 dark:text-gray-300">{opt.icon}</span>
-                <div>
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{opt.label}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{opt.description}</div>
-                </div>
-              </button>
-            ))}
           </div>
         </div>
       </div>
@@ -2926,7 +2909,6 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         {activeSubmenu === 'strokeStyle' && renderStrokeStyleSubmenu()}
         {activeSubmenu === 'lineType' && renderLineTypeSubmenu()}
         {activeSubmenu === 'endpoints' && renderEndpointsSubmenu()}
-        {activeSubmenu === 'fillStyle' && renderFillStyleSubmenu()}
         {activeSubmenu === 'shapeType' && renderShapeTypeSubmenu()}
         {activeSubmenu === 'edges' && renderNodeEdgesSubmenu()}
         </>

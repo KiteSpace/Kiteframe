@@ -182,6 +182,74 @@ try {
   await otherNode.waitFor({ state: "visible", timeout: 15000 });
   await shape.waitFor({ state: "visible", timeout: 15000 });
 
+  await shape.click({ position: { x: 95, y: 45 } });
+  await page.waitForTimeout(700);
+  const colorButton = page.locator('[data-testid="toolbar-button-color"]');
+  await colorButton.click();
+  const colorMenu = page.locator('[data-testid="toolbar-color-submenu"]');
+  await colorMenu.waitFor({ state: "visible", timeout: 5000 });
+  check(
+    "shape Color opens with fill controls in the same popover",
+    (await colorMenu.locator('[data-testid="toolbar-fill-style-options"]').isVisible()) &&
+      (await colorMenu.locator('[data-testid="toolbar-color-ef4444"]').isVisible()),
+  );
+  check(
+    "shape Color no longer has a separate Fill Style toolbar button",
+    (await page.locator('[data-testid="toolbar-button-fillStyle"]').count()) === 0,
+  );
+  const fillStyleFromProject = async () => {
+    const stored = await db.query(
+      `SELECT workflow_data FROM saved_projects WHERE project_uuid = $1`,
+      [projectUuid],
+    );
+    const data =
+      typeof stored.rows[0]?.workflow_data === "string"
+        ? JSON.parse(stored.rows[0].workflow_data)
+        : stored.rows[0]?.workflow_data;
+    return data?.canvasObjects?.find((item) => item.id === "shape-a")?.data;
+  };
+  for (const option of [
+    ["transparent", 0.3],
+    ["none", 0],
+    ["solid", 0.5],
+  ]) {
+    const [fillStyle, fillOpacity] = option;
+    await page.locator(`[data-testid="toolbar-fill-${fillStyle}"]`).click();
+    await page.waitForTimeout(350);
+    const updatedShape = await shape.evaluate((element) => {
+      const fillElement = element.querySelector('[data-testid="shape-rectangle"]');
+      return {
+        selected: element.className.includes("outline-blue-500"),
+        background: getComputedStyle(fillElement).backgroundColor,
+      };
+    });
+    check(
+      `choosing ${fillStyle} updates the shape immediately and keeps it selected`,
+      updatedShape.selected &&
+        (fillStyle === "none"
+          ? updatedShape.background === "rgba(0, 0, 0, 0)"
+          : updatedShape.background !== "rgba(0, 0, 0, 0)"),
+      JSON.stringify(updatedShape),
+    );
+  }
+  let persistedFillData = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.waitForTimeout(500);
+    persistedFillData = await fillStyleFromProject();
+    if (
+      persistedFillData?.fillStyle === "solid" &&
+      persistedFillData?.fillOpacity === 0.5
+    ) break;
+  }
+  check(
+    "the selected fill style persists to the project",
+    persistedFillData?.fillStyle === "solid" &&
+      persistedFillData?.fillOpacity === 0.5,
+    JSON.stringify(persistedFillData),
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+
   const initial = await layerValues();
   check(
     "legacy duplicate z-indexes load",
