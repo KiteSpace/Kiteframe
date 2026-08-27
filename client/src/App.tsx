@@ -39,11 +39,6 @@ const DevDocs = lazy(() => import("@/pages/DevDocs"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const FullScreenChat = lazy(() => import("@/pages/FullScreenChat"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
-const CoffeeMap = lazy(() => import("@/pages/coffee/CoffeeMap"));
-const CoffeeCatalogue = lazy(() => import("@/pages/coffee/CoffeeCatalogue"));
-const CoffeeShopDetail = lazy(() => import("@/pages/coffee/CoffeeShopDetail"));
-const CoffeeJournal = lazy(() => import("@/pages/coffee/CoffeeJournal"));
-const CoffeeJournalPost = lazy(() => import("@/pages/coffee/CoffeeJournalPost"));
 
 interface AuthUser {
   id: string;
@@ -179,15 +174,6 @@ function Router() {
         <Route path="/benchmark" component={Benchmark} />
         <Route path="/legal" component={Legal} />
         <Route path="/faq" component={FAQ} />
-        {/* Coffee Atlas — public, self-contained, and database-free. */}
-        <Route path="/coffee">
-          <Redirect to="/coffee/map" />
-        </Route>
-        <Route path="/coffee/map" component={CoffeeMap} />
-        <Route path="/coffee/grid" component={CoffeeCatalogue} />
-        <Route path="/coffee/shops/:slug" component={CoffeeShopDetail} />
-        <Route path="/coffee/journal" component={CoffeeJournal} />
-        <Route path="/coffee/journal/:slug" component={CoffeeJournalPost} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

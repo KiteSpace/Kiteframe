@@ -12,9 +12,8 @@ import { pooledPhoto } from "./photo-pool";
  * for a review of your own.
  *
  * To make an entry yours: rewrite `summary`/`review`/`orderThis`, set your own
- * `visits` and `rating`, drop your photos into `client/public/coffee/photos/`
- * and reference them directly, then remove `sample: true`. See
- * client/src/coffee/README.md.
+ * `visits` and `rating`, drop your photos into `public/coffee/photos/`
+ * and reference them directly, then remove `sample: true`. See README.md.
  */
 const RAW_SHOPS: CoffeeShop[] = [
   // --- Tokyo: three entries in one city, so the map has something to cluster.

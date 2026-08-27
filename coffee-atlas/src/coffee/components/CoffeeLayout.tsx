@@ -6,10 +6,9 @@ import "../coffee-theme.css";
 /**
  * Shell for every atlas page.
  *
- * The theme is applied by putting `coffee-theme` on <html> for as long as an
- * atlas route is mounted, rather than on a wrapper div, because Radix portals
- * (the command palette, popovers) render into <body> and would otherwise keep
- * the app-wide Graphite tokens.
+ * `coffee-theme` lives on <html> (set in index.html, reinforced here) rather
+ * than a wrapper div, because Radix portals render into <body> and need the
+ * same tokens as the rest of the page.
  */
 export function CoffeeLayout({
   children,
@@ -30,7 +29,6 @@ export function CoffeeLayout({
 }) {
   useEffect(() => {
     document.documentElement.classList.add("coffee-theme");
-    return () => document.documentElement.classList.remove("coffee-theme");
   }, []);
 
   return (
@@ -50,9 +48,9 @@ export function CoffeeLayout({
 }
 
 const NAV = [
-  { href: "/coffee/map", label: "Map" },
-  { href: "/coffee/grid", label: "Catalogue" },
-  { href: "/coffee/journal", label: "Journal" },
+  { href: "/map", label: "Map" },
+  { href: "/grid", label: "Catalogue" },
+  { href: "/journal", label: "Journal" },
 ];
 
 function CoffeeHeader() {
@@ -62,7 +60,7 @@ function CoffeeHeader() {
     <header className="coffee-band sticky top-0 z-30">
       <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center gap-8 px-4 sm:px-6">
         <Link
-          href="/coffee/map"
+          href="/map"
           className="coffee-display text-2xl leading-none sm:text-[28px]"
           data-testid="link-coffee-home"
         >
@@ -89,13 +87,6 @@ function CoffeeHeader() {
             );
           })}
         </nav>
-
-        <Link
-          href="/"
-          className="coffee-eyebrow coffee-band-muted ml-auto hidden hover:text-[var(--band-foreground)] sm:block"
-        >
-          Kiteframe ↗
-        </Link>
       </div>
     </header>
   );

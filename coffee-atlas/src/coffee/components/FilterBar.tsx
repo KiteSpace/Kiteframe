@@ -150,8 +150,8 @@ export function ViewSwitcher({ search }: { search: string }) {
   const [pathname] = useLocation();
 
   const views = [
-    { href: "/coffee/map", label: "Map", icon: Globe2 },
-    { href: "/coffee/grid", label: "Catalogue", icon: Grid2x2 },
+    { href: "/map", label: "Map", icon: Globe2 },
+    { href: "/grid", label: "Catalogue", icon: Grid2x2 },
   ];
 
   return (

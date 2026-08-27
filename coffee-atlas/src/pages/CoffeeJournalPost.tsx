@@ -23,7 +23,7 @@ export default function CoffeeJournalPostPage() {
             Nothing in the journal has the slug “{params.slug}”.
           </p>
           <Button asChild className="mt-6">
-            <Link href="/coffee/journal">Back to the journal</Link>
+            <Link href="/journal">Back to the journal</Link>
           </Button>
         </div>
       </CoffeeLayout>
@@ -68,7 +68,7 @@ export default function CoffeeJournalPostPage() {
         </div>
 
         <Link
-          href="/coffee/journal"
+          href="/journal"
           className="mt-12 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           data-testid="link-coffee-post-back"
         >

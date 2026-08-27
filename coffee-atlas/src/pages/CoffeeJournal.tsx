@@ -34,12 +34,12 @@ export default function CoffeeJournalPage() {
             <span className="coffee-eyebrow mr-2 text-muted-foreground">
               Filter
             </span>
-            <TagLink label="All" href="/coffee/journal" active={!activeTag} />
+            <TagLink label="All" href="/journal" active={!activeTag} />
             {tags.map(({ tag, count }) => (
               <TagLink
                 key={tag}
                 label={`${tag} (${count})`}
-                href={`/coffee/journal?tag=${encodeURIComponent(tag)}`}
+                href={`/journal?tag=${encodeURIComponent(tag)}`}
                 active={activeTag === tag}
               />
             ))}
@@ -50,7 +50,7 @@ export default function CoffeeJournalPage() {
           {posts.map((post) => (
             <article key={post.slug} className="border-b border-border">
               <Link
-                href={`/coffee/journal/${post.slug}`}
+                href={`/journal/${post.slug}`}
                 className="group grid items-start gap-6 py-8 md:grid-cols-[200px_minmax(0,1fr)_auto]"
                 data-testid={`link-coffee-post-${post.slug}`}
               >

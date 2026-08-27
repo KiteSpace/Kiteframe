@@ -93,7 +93,6 @@
     "jspdf-autotable": "^5.0.7",
     "jszip": "^3.10.1",
     "lucide-react": "^0.453.0",
-    "maplibre-gl": "^6.6.0",
     "memoizee": "^0.4.17",
     "memorystore": "^1.6.7",
     "multer": "^2.1.1",

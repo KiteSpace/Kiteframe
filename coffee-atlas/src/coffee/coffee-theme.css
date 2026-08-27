@@ -9,13 +9,10 @@
  * page reads as alternating bands rather than one flat surface. One accent
  * colour, used sparingly.
  *
- * These are the same semantic tokens the rest of the app defines, re-declared
- * under a single class. CoffeeLayout puts that class on <html> while an atlas
- * route is mounted and removes it on the way out, so existing utilities like
- * `bg-background` and `text-muted-foreground` pick up this palette here and
- * Graphite everywhere else. Setting it on <html> rather than a wrapper matters
- * because Radix portals (dialogs, popovers, the command palette) render into
- * <body>, outside any wrapper element.
+ * These are the same semantic tokens Tailwind utilities consume
+ * (`bg-background`, `text-muted-foreground`, and so on), declared under a
+ * single class. The class sits on <html> so Radix portals (dialogs, popovers,
+ * the command palette) pick up the palette too.
  */
 
 .coffee-theme {

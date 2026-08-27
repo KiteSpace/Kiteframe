@@ -25,7 +25,7 @@ export function ShopCard({
 
   return (
     <Link
-      href={`/coffee/shops/${shop.slug}${search}`}
+      href={`/shops/${shop.slug}${search}`}
       className={cn(
         "group flex flex-col overflow-hidden border bg-card transition-colors",
         highlighted

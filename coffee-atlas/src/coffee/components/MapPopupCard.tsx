@@ -56,7 +56,7 @@ export function MapPopupCard({
         </p>
 
         <Link
-          href={`/coffee/shops/${shop.slug}${search}`}
+          href={`/shops/${shop.slug}${search}`}
           className="coffee-eyebrow inline-flex items-center gap-1 text-brand hover:underline"
           data-testid={`link-coffee-popup-detail-${shop.slug}`}
         >

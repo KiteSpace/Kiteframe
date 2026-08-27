@@ -17,6 +17,7 @@ import {
   type MapGeoJSONFeature,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { FeatureCollection } from "geojson";
 import type { CoffeeShop } from "@shared/coffee/types";
 import {
   CLUSTER_COLORS,
@@ -78,7 +79,7 @@ function paintOcean(map: MapLibreMap, dark: boolean) {
   }
 }
 
-function toFeatureCollection(shops: CoffeeShop[]): GeoJSON.FeatureCollection {
+function toFeatureCollection(shops: CoffeeShop[]): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: shops.map((shop) => ({

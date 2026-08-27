@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
 /**
- * Tracks the app's `.dark` class on <html>.
+ * Tracks the `.dark` class on <html>.
  *
- * Read from the DOM rather than a theme provider because the app has no theme
- * context mounted; this keeps working if one is added later.
+ * Read from the DOM rather than a theme provider so the map follows whatever
+ * sets the class, including a future toggle.
  */
 export function useDarkMode(): boolean {
   const [dark, setDark] = useState(

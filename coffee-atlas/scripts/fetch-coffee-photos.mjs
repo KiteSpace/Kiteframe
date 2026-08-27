@@ -24,12 +24,12 @@ import path from "node:path";
 const execFileAsync = promisify(execFile);
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const PHOTO_DIR = path.join(ROOT, "client", "public", "coffee", "photos");
+const PHOTO_DIR = path.join(ROOT, "public", "coffee", "photos");
 const POOL_MODULE = path.join(ROOT, "shared", "coffee", "photo-pool.ts");
 const CREDITS_DB = path.join(ROOT, "scripts", "coffee-photo-credits.json");
 
 const USER_AGENT =
-  "KiteframeCoffeeAtlas/1.0 (scripts/fetch-coffee-photos.mjs; open-licensed image fetch)";
+  "CoffeeAtlas/1.0 (scripts/fetch-coffee-photos.mjs; open-licensed image fetch)";
 
 /** Search terms paired with how many keepers we want from each. */
 const QUERIES = [
@@ -244,7 +244,7 @@ function renderModule(photos) {
 // Openly-licensed coffee imagery from Wikimedia Commons, used as stand-in
 // photography for atlas entries until real photos are dropped in. Every entry
 // keeps its author and licence so the UI can credit it. Files live in
-// client/public/coffee/photos/.
+// public/coffee/photos/.
 
 export interface PooledPhoto {
   key: string;

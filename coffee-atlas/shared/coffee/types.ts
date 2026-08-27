@@ -73,7 +73,7 @@ export const PRICE_LABELS: Record<number, string> = {
 };
 
 export const photoSchema = z.object({
-  /** Absolute URL, or a path under `client/public` such as `/coffee/photos/x.jpg`. */
+  /** Absolute URL, or a path under `public` such as `/coffee/photos/x.jpg`. */
   src: z.string().min(1),
   alt: z.string().min(1),
   /** Photographer or source name. Required so open-licensed imagery stays credited. */

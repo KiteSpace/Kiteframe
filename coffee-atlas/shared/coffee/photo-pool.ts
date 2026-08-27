@@ -3,7 +3,7 @@
 // Openly-licensed coffee imagery from Wikimedia Commons, used as stand-in
 // photography for atlas entries until real photos are dropped in. Every entry
 // keeps its author and licence so the UI can credit it. Files live in
-// client/public/coffee/photos/.
+// public/coffee/photos/.
 
 export interface PooledPhoto {
   key: string;

@@ -36,7 +36,7 @@ export default function CoffeeShopDetailPage() {
             Nothing in the atlas has the slug “{params.slug}”.
           </p>
           <Button asChild className="mt-6">
-            <Link href="/coffee/grid">Back to the catalogue</Link>
+            <Link href="/grid">Back to the catalogue</Link>
           </Button>
         </div>
       </CoffeeLayout>
@@ -81,7 +81,7 @@ export default function CoffeeShopDetailPage() {
 
       <article className="mx-auto w-full max-w-[1400px] px-4 py-10 sm:px-6 sm:py-12">
         <Link
-          href={`/coffee/grid${search}`}
+          href={`/grid${search}`}
           className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           data-testid="link-coffee-detail-back"
         >
@@ -120,7 +120,7 @@ export default function CoffeeShopDetailPage() {
               <ShopLocationInset shop={shop} />
               <Button asChild variant="outline" size="sm" className="mt-3 w-full">
                 <Link
-                  href={`/coffee/map?shop=${shop.slug}`}
+                  href={`/map?shop=${shop.slug}`}
                   data-testid="link-coffee-detail-map"
                 >
                   <Globe2 className="h-4 w-4" />
