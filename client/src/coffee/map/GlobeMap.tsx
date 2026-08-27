@@ -29,6 +29,7 @@ const PIN_RING_LAYER = "atlas-pin-rings";
 
 /** Zoomed far enough out that the globe reads as a globe. */
 const INITIAL_ZOOM = 1.1;
+const DEFAULT_CENTER: [number, number] = [10, 25];
 
 export interface GlobeMapHandle {
   /** Frames a place's extent; used by the region/city search. */
@@ -43,6 +44,16 @@ interface GlobeMapProps {
   onSelect: (slug: string | null) => void;
   /** Rendered inside the map popup for the selected shop. */
   renderPopup: (shop: CoffeeShop) => React.ReactNode;
+  /**
+   * Opening view. Defaults to the whole globe; the detail-page inset passes a
+   * single shop's coordinates so it opens on the neighbourhood instead.
+   */
+  initialView?: { center: [number, number]; zoom: number };
+  /**
+   * Set false for the inset, so scrolling the page over the map scrolls the
+   * page rather than zooming the map.
+   */
+  interactive?: boolean;
 }
 
 function toFeatureCollection(shops: CoffeeShop[]): GeoJSON.FeatureCollection {
@@ -69,7 +80,17 @@ function toFeatureCollection(shops: CoffeeShop[]): GeoJSON.FeatureCollection {
  * the map being torn down and rebuilt on every keystroke.
  */
 export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
-  function GlobeMap({ shops, selectedSlug, onSelect, renderPopup }, ref) {
+  function GlobeMap(
+    {
+      shops,
+      selectedSlug,
+      onSelect,
+      renderPopup,
+      initialView,
+      interactive = true,
+    },
+    ref,
+  ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const popupRef = useRef<Popup | null>(null);
@@ -195,13 +216,14 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
         map = new MapLibreMap({
           container: containerRef.current,
           style: mapStyleFor(dark ? "dark" : "light"),
-          center: [10, 25],
-          zoom: INITIAL_ZOOM,
+          center: initialView?.center ?? DEFAULT_CENTER,
+          zoom: initialView?.zoom ?? INITIAL_ZOOM,
           minZoom: 0.6,
           maxZoom: 17,
           attributionControl: { compact: true },
           // The globe's poles are meaningless to drag past.
           maxPitch: 0,
+          interactive,
         });
       } catch (error) {
         // Almost always a missing WebGL context (headless browsers, blocked
@@ -213,7 +235,9 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
       }
 
       mapRef.current = map;
-      map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+      if (interactive) {
+        map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+      }
       map.on("error", (event) => {
         // Tile and glyph fetch failures are noisy but not fatal; only report
         // the ones that leave the map unusable.
@@ -384,7 +408,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
         },
         resetView: () => {
           mapRef.current?.easeTo({
-            center: [10, 25],
+            center: DEFAULT_CENTER,
             zoom: INITIAL_ZOOM,
             duration: 900,
           });
