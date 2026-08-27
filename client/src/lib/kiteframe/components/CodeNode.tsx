@@ -63,6 +63,7 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
   node,
   onUpdate,
   onDoubleClick,
+  onContextMenu,
   onFocusNode,
   className,
   style,
@@ -448,6 +449,12 @@ const CodeNodeComponent: React.FC<CodeNodeComponentProps> = ({
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(e, node);
+      }}
+      data-node-id={node.id}
       data-testid={`code-node-${node.id}`}
     >
       {/* Header */}

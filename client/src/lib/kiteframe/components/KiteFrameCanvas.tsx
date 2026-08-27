@@ -4561,6 +4561,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }}
                     onFocusNode={props.onFocusNode}
                     onDoubleClick={(e) => props.onNodeDoubleClick?.(e, n)}
+                    onContextMenu={(e) => props.onNodeRightClick?.(e, n)}
                     showHandles={!props.readOnly && n.showHandles !== false}
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {

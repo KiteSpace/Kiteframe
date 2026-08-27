@@ -36,6 +36,15 @@ const workflowData = {
       height: 300,
       zIndex: 0,
     },
+    {
+      id: "node-b",
+      type: "process",
+      position: { x: 900, y: 180 },
+      data: { label: "Standard node", description: "Layer neighbor" },
+      width: 240,
+      height: 140,
+      zIndex: -10,
+    },
   ],
   edges: [],
   canvasObjects: [
@@ -141,9 +150,14 @@ const check = (name, ok, detail = "") => {
 };
 
 const node = page.locator('[data-testid="code-node-node-a"]');
+const otherNode = page.locator('[data-node-id="node-b"]');
 const shape = page.locator('[data-testid="shape-object-shape-a"]');
 const layerValues = async () => ({
   node: Number.parseInt(await node.evaluate((element) => getComputedStyle(element).zIndex), 10),
+  otherNode: Number.parseInt(
+    await otherNode.evaluate((element) => getComputedStyle(element).zIndex),
+    10,
+  ),
   shape: Number.parseInt(await shape.evaluate((element) => getComputedStyle(element).zIndex), 10),
 });
 const runLayerCommand = async (target, command, position) => {
@@ -165,12 +179,13 @@ try {
     });
   }
   await node.waitFor({ state: "visible", timeout: 45000 });
+  await otherNode.waitFor({ state: "visible", timeout: 15000 });
   await shape.waitFor({ state: "visible", timeout: 15000 });
 
   const initial = await layerValues();
   check(
     "legacy duplicate z-indexes load",
-    initial.node === 0 && initial.shape === 0,
+    initial.node === 0 && initial.otherNode === -10 && initial.shape === 0,
     JSON.stringify(initial),
   );
 
@@ -190,7 +205,7 @@ try {
   const undone = await layerValues();
   check(
     "one undo restores the exact pre-move layer values",
-    undone.node === 0 && undone.shape === 0,
+    undone.node === 0 && undone.otherNode === -10 && undone.shape === 0,
     JSON.stringify(undone),
   );
 
@@ -207,12 +222,13 @@ try {
 
   const shapeForward = await runLayerCommand(
     shape,
-    "Bring Forward",
+    "Bring to Front",
     { x: 185, y: 85 },
   );
   check(
-    "shape moves one layer forward across a code node",
-    shapeForward.shape > shapeForward.node,
+    "shape moves to the true front of the combined stack",
+    shapeForward.shape > shapeForward.node &&
+      shapeForward.shape > shapeForward.otherNode,
     JSON.stringify(shapeForward),
   );
 
@@ -229,13 +245,27 @@ try {
 
   const nodeBackward = await runLayerCommand(
     node,
-    "Send Backward",
+    "Send to Back",
     { x: 5, y: 5 },
   );
   check(
-    "code node preserves layer zero when moved behind a shape",
-    nodeBackward.node < nodeBackward.shape,
+    "code node preserves layer zero behind both a node and shape",
+    nodeBackward.node === 0 &&
+      nodeBackward.node < nodeBackward.otherNode &&
+      nodeBackward.node < nodeBackward.shape,
     JSON.stringify(nodeBackward),
+  );
+
+  const nodeForwardAgain = await runLayerCommand(
+    node,
+    "Bring Forward",
+    { x: 5, y: 5 },
+  );
+  check(
+    "code node moves forward by exactly one combined layer",
+    nodeForwardAgain.otherNode < nodeForwardAgain.node &&
+      nodeForwardAgain.node < nodeForwardAgain.shape,
+    JSON.stringify(nodeForwardAgain),
   );
 
   let persisted = null;
@@ -251,13 +281,17 @@ try {
         : stored.rows[0]?.workflow_data;
     persisted = {
       node: data?.nodes?.find((item) => item.id === "node-a")?.zIndex,
+      otherNode: data?.nodes?.find((item) => item.id === "node-b")?.zIndex,
       shape: data?.canvasObjects?.find((item) => item.id === "shape-a")?.zIndex,
     };
-    if (persisted.node < persisted.shape) break;
+    if (
+      persisted.otherNode < persisted.node &&
+      persisted.node < persisted.shape
+    ) break;
   }
   check(
     "combined layer order persists to the project",
-    persisted?.node < persisted?.shape,
+    persisted?.otherNode < persisted?.node && persisted?.node < persisted?.shape,
     JSON.stringify(persisted),
   );
 
@@ -266,7 +300,7 @@ try {
   const reloaded = await layerValues();
   check(
     "combined layer order persists after reload",
-    reloaded.node < reloaded.shape,
+    reloaded.otherNode < reloaded.node && reloaded.node < reloaded.shape,
     JSON.stringify(reloaded),
   );
 

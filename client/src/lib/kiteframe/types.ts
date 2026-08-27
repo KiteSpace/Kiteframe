@@ -943,6 +943,7 @@ export interface BaseNodeComponentProps<TData = any> {
   onUpdate?: (nodeId: string, updates: Partial<Node>) => void;
   onConnect?: (connection: { source: string; target: string }) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent, node: Node) => void;
   onFocusNode?: (nodeId: string) => void; // Focus/pan canvas to a specific node
   className?: string;
   style?: React.CSSProperties;
