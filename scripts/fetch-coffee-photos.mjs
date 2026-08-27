@@ -42,6 +42,9 @@ const QUERIES = [
   ["coffee beans green roasted", 2],
   ["cafe counter pastries", 2],
   ["coffee cup table window", 2],
+  ["coffee shop exterior storefront", 2],
+  ["cafe tables chairs indoor", 2],
+  ["coffee grinder cafe", 2],
 ];
 
 /**

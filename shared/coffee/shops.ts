@@ -218,8 +218,11 @@ If you only want a cup, the takeaway window is faster than the dining room.
 **Worth knowing:** weekend waits are long and they do not take bookings for
 small groups.`,
     photos: [
+      pooledPhoto(
+        "beans-dropping-from-a-coffee-roaster",
+        "Beans dropping into the cooling tray",
+      ),
       pooledPhoto("coffee-roaster-1", "Roasting drum in the cafe"),
-      pooledPhoto("75-degrees-green-coffee", "Green coffee beans"),
     ],
     sample: true,
   },
@@ -325,8 +328,8 @@ week of pale filter is a relief rather than a compromise.
 **Worth knowing:** it is standing-room and it is busy. Saturday mornings at
 Borough are a poor plan unless the queue is part of the appeal.`,
     photos: [
+      pooledPhoto("drip-coffee-bangkok", "Filter brewed one cup at a time"),
       pooledPhoto("the-magnetic-counter-01-8034827583", "Cups and glassware on the counter"),
-      pooledPhoto("mi-tierra-restaurant-san-antonio-now-serving-number-65", "Pastry counter"),
     ],
     sample: true,
   },
@@ -422,11 +425,11 @@ The Godthåbsvej site has the roaster in the room, a long bar, and enough space
 that it never feels like you are being turned over. Good filter, good espresso,
 no theatre.`,
     photos: [
-      pooledPhoto("coffee-roaster-1", "Roaster in the middle of the room"),
       pooledPhoto(
         "cappuccino-with-latte-art-on-coffee-right-in-brno-brno-city-",
         "Cappuccino with latte art",
       ),
+      pooledPhoto("coffee-roaster-1", "Roaster in the middle of the room"),
     ],
     sample: true,
   },
@@ -459,7 +462,7 @@ local choreography.
 bar does. This is normal and not a scam.`,
     photos: [
       pooledPhoto("cappuccino-latte-art-2006-04-14", "Espresso in a small cup"),
-      pooledPhoto("gustav-wentzel-ktakaffe-lkm-000334-lillehammer-kunstmuseum", "Cafe scene"),
+      pooledPhoto("juan-gris-le-moulin-a-cafe-google-art-project", "Coffee mill still life"),
     ],
     sample: true,
   },
@@ -521,13 +524,10 @@ being divisive.
 The room is bright white tile with big windows onto Burnside. It gets loud, and
 seating fills up by mid-morning.`,
     photos: [
+      pooledPhoto("hot-coffee-on-a-rainy-day-flickr-deapeajay", "Coffee on a wet morning"),
       pooledPhoto(
         "barista-prepares-espresso-at-coffee-shop",
         "Barista pulling a shot of espresso",
-      ),
-      pooledPhoto(
-        "making-of-latte-art-of-cappuccino-on-coffee-right-in-brno-br",
-        "Milk being poured into a cup",
       ),
     ],
     sample: true,
@@ -556,11 +556,11 @@ for a downtown cafe, and the batch filter is kept fresh rather than stewed.
 A reasonable place to work through a morning, and a short walk from the ferry
 terminal.`,
     photos: [
+      pooledPhoto("cold-drip-coffee-2", "Cold brew served over ice"),
       pooledPhoto(
         "2019-11-08-inside-cafe-main-church-street-cromer",
         "Cafe interior with light wood seating",
       ),
-      pooledPhoto("hot-coffee-on-a-rainy-day-flickr-deapeajay", "Filter coffee in a blue mug"),
     ],
     sample: true,
   },
@@ -662,8 +662,8 @@ Sit on the upper level where you can see the roaster running.
 **Worth knowing:** it is a tourist destination as much as a cafe, and priced
 accordingly for Cape Town.`,
     photos: [
+      pooledPhoto("moulin-a-cafe-peugeot-face", "Vintage brass coffee mill"),
       pooledPhoto("coffee-roaster-1", "Vintage drum roaster"),
-      pooledPhoto("75-degrees-green-coffee", "Green coffee before roasting"),
     ],
     sample: true,
   },
@@ -691,11 +691,11 @@ narrow and deliberate.
 There is a bench outside and a lot of people leaning against walls with cups,
 which is a large part of the charm.`,
     photos: [
+      pooledPhoto("75-degrees-green-coffee", "Green coffee from a single lot"),
       pooledPhoto(
         "figaro-coffee-shop-interior-in-salawag-dasmarin-as-cavite-19",
         "Small cafe interior",
       ),
-      pooledPhoto("drip-coffee-bangkok", "Hand pour-over on the counter"),
     ],
     sample: true,
   },
@@ -727,12 +727,12 @@ as an afterthought, and this one clearly does not.
 mornings are calm.`,
     photos: [
       pooledPhoto(
-        "mi-tierra-restaurant-san-antonio-now-serving-number-65",
-        "Bakery counter stacked with pastries",
+        "gustav-wentzel-ktakaffe-lkm-000334-lillehammer-kunstmuseum",
+        "Warm interior of an old cafe",
       ),
       pooledPhoto(
-        "cappuccino-with-latte-art-on-coffee-right-in-brno-brno-city-",
-        "Cappuccino with latte art",
+        "mi-tierra-restaurant-san-antonio-now-serving-number-65",
+        "Bakery counter stacked with pastries",
       ),
     ],
     sample: true,

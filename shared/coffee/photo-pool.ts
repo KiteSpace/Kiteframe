@@ -136,6 +136,14 @@ export const PHOTO_POOL: PooledPhoto[] = [
     license: "CC BY-SA 2.0",
   },
   {
+    key: "juan-gris-le-moulin-a-cafe-google-art-project",
+    src: "/coffee/photos/juan-gris-le-moulin-a-cafe-google-art-project.jpg",
+    alt: "Juan Gris Le moulin à café Google Art Project",
+    credit: "Juan Gris",
+    creditUrl: "https://commons.wikimedia.org/wiki/File:Juan_Gris_-_Le_moulin_%C3%A0_caf%C3%A9_-_Google_Art_Project.jpg",
+    license: "Public domain",
+  },
+  {
     key: "making-of-latte-art-of-cappuccino-on-coffee-right-in-brno-br",
     src: "/coffee/photos/making-of-latte-art-of-cappuccino-on-coffee-right-in-brno-br.jpg",
     alt: "Making of Latte art of cappuccino on Coffee Right in Brno, Brno City District",
@@ -150,6 +158,14 @@ export const PHOTO_POOL: PooledPhoto[] = [
     credit: "Mathieu Plourde",
     creditUrl: "https://commons.wikimedia.org/wiki/File:Mi_Tierra_Restaurant,_San_Antonio_Now_Serving_Number_65.jpg",
     license: "CC BY 2.0",
+  },
+  {
+    key: "moulin-a-cafe-peugeot-face",
+    src: "/coffee/photos/moulin-a-cafe-peugeot-face.jpg",
+    alt: "Moulin à café Peugeot face",
+    credit: "Clément Bucco-Lechat",
+    creditUrl: "https://commons.wikimedia.org/wiki/File:Moulin_%C3%A0_caf%C3%A9_Peugeot_-_face.jpg",
+    license: "CC BY-SA 3.0",
   },
   {
     key: "the-magnetic-counter-01-8034827583",
