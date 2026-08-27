@@ -2,7 +2,7 @@ import * as React from 'react';
 import { 
   Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2, ChevronRight, ChevronDown,
   ArrowRight, ArrowLeft, Cog, HelpCircle, Bot, Image, Folder, Link2, Layers,
-  Circle, Clock, CheckCircle2, Pencil, Type, StickyNote, Square, TextCursorInput
+  Circle, Clock, CheckCircle2, Pencil, Type, StickyNote, Square, TextCursorInput, Ungroup
 } from 'lucide-react';
 import type { Tri } from './triStateUtils';
 import { useState } from 'react';
@@ -35,6 +35,7 @@ const getGroupRoleIcon = (role: string) => {
     case 'linkGroup': return { icon: Link2, color: 'text-purple-500' };
     case 'standalone': return { icon: Folder, color: 'text-gray-400' };
     case 'markup': return { icon: Pencil, color: 'text-pink-500' };
+    case 'persistentGroup': return { icon: Layers, color: 'text-indigo-500' };
     default: return { icon: Folder, color: 'text-gray-500' };
   }
 };
@@ -75,7 +76,7 @@ export function GroupRow({
   onClick, onNameChange, role,
   collapsed, onToggleCollapse,
   status, onStatusChange,
-  canDropCanvasObject, isDropTarget, onDropCanvasObject, onCanvasObjectDragOver
+  canDropCanvasObject, isDropTarget, onDropCanvasObject, onCanvasObjectDragOver, onUngroup
 }:{
   id:string; depth:number; label:string; childIds:string[];
   triHidden:Tri; triLocked:Tri;
@@ -87,6 +88,7 @@ export function GroupRow({
   isDropTarget?: boolean;
   onDropCanvasObject?: (objectId: string) => void;
   onCanvasObjectDragOver?: (isOver: boolean) => void;
+  onUngroup?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -238,6 +240,19 @@ export function GroupRow({
         )}
         {role === 'workflow' && status && onStatusChange && (
           <StatusBadge status={status} onStatusChange={onStatusChange} workflowId={id} />
+        )}
+        {role === 'persistentGroup' && onUngroup && (
+          <button
+            data-testid={`button-ungroup-${id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUngroup();
+            }}
+            className="opacity-50 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 p-0.5 rounded transition-colors duration-150 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            title="Ungroup"
+          >
+            <Ungroup size={12} />
+          </button>
         )}
       </div>
       <span className="flex gap-0.5">

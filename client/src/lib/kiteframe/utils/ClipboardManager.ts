@@ -1,4 +1,5 @@
 import type { Node, Edge, CanvasObject, Position } from '../types';
+import { createGroupIdRemap } from './groupOperations';
 
 /**
  * Unified Clipboard Manager for KiteFrame
@@ -153,6 +154,12 @@ export class ClipboardManager {
     
     // Map from original node ID to new node ID for edge remapping
     const nodeIdMap = new Map<string, string>();
+    // A pasted group must be independent from its source while preserving the
+    // relationship between all pasted node and canvas-object members.
+    const groupIdMap = createGroupIdRemap(
+      clipboardData.items.map(item => item.data),
+      () => this.generateGroupId(),
+    );
 
     // Calculate paste position
     const pastePosition = this.calculatePastePosition(
@@ -175,6 +182,9 @@ export class ClipboardManager {
           preserveRelativePositions,
           generateNewIds
         );
+        if (newNode.groupId) {
+          newNode.groupId = groupIdMap.get(newNode.groupId) ?? newNode.groupId;
+        }
         
         // Track ID mapping for edge remapping
         nodeIdMap.set(originalNode.id, newNode.id);
@@ -191,6 +201,9 @@ export class ClipboardManager {
           preserveRelativePositions,
           generateNewIds
         );
+        if (newObject.groupId) {
+          newObject.groupId = groupIdMap.get(newObject.groupId) ?? newObject.groupId;
+        }
         
         newCanvasObjects.push(newObject);
         newCanvasObjectIds.push(newObject.id);
@@ -450,6 +463,10 @@ export class ClipboardManager {
 
   private generateEdgeId(): string {
     return `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private generateGroupId(): string {
+    return `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 

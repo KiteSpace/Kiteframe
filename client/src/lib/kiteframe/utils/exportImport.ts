@@ -60,6 +60,7 @@ const NodeDataSchema = z.object({
 // Schema for node
 const NodeSchema = z.object({
   id: z.string(),
+  groupId: z.string().optional(),
   type: z.string(),
   position: z.object({
     x: z.number(),
@@ -98,6 +99,7 @@ const EdgeSchema = z.object({
 // Schema for canvas object
 const CanvasObjectSchema = z.object({
   id: z.string(),
+  groupId: z.string().optional(),
   type: z.enum(['text', 'text-field', 'shape', 'sticky', 'group']),
   position: z.object({
     x: z.number(),

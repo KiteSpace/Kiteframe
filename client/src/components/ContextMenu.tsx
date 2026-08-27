@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug, Workflow, BookmarkMinus, Bookmark, FileText } from 'lucide-react';
+import { Palette, PaintBucket, Copy, Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Bug, Workflow, BookmarkMinus, Bookmark, FileText, Group, Ungroup } from 'lucide-react';
 import type { Node as KiteframeNode } from '@/lib/kiteframe/types';
 import type { PRDNodeLink } from '@/stores/prdNodeLinkStore';
 
@@ -11,6 +11,8 @@ interface ContextMenuProps {
   onPasteProperties?: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onGroup?: () => void;
+  onUngroup?: () => void;
   hasPropertiesInClipboard?: boolean;
   onBringForward?: () => void;
   onBringToFront?: () => void;
@@ -24,7 +26,7 @@ interface ContextMenuProps {
   onViewLinkedPRD?: (link: PRDNodeLink) => void;
 }
 
-export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData, node, onGenerateWorkflowFromFrames, onToggleReferenceFrame, prdLinks, onViewLinkedPRD }: ContextMenuProps) {
+export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties, onDuplicate, onDelete, onGroup, onUngroup, hasPropertiesInClipboard, onBringForward, onBringToFront, onSendBackward, onSendToBack, onViewSemanticData, node, onGenerateWorkflowFromFrames, onToggleReferenceFrame, prdLinks, onViewLinkedPRD }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -82,6 +84,29 @@ export function ContextMenu({ x, y, onClose, onCopyProperties, onPasteProperties
         <Copy size={16} className="mr-2" />
         Duplicate
       </div>
+      {(onGroup || onUngroup) && <div className="border-t border-border my-1" />}
+      {onGroup && (
+        <div
+          className="px-3 py-2 hover:bg-accent cursor-pointer text-sm flex items-center"
+          onClick={() => { onGroup(); onClose(); }}
+          data-testid="context-menu-group"
+        >
+          <Group size={16} className="mr-2" />
+          Group
+          <span className="ml-auto text-xs text-muted-foreground">⌘G</span>
+        </div>
+      )}
+      {onUngroup && (
+        <div
+          className="px-3 py-2 hover:bg-accent cursor-pointer text-sm flex items-center"
+          onClick={() => { onUngroup(); onClose(); }}
+          data-testid="context-menu-ungroup"
+        >
+          <Ungroup size={16} className="mr-2" />
+          Ungroup
+          <span className="ml-auto text-xs text-muted-foreground">⇧⌘G</span>
+        </div>
+      )}
       
       {/* Z-Index Controls */}
       <div className="border-t border-border my-1" />

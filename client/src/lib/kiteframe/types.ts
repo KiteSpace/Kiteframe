@@ -77,6 +77,8 @@ export interface EdgeMeta {
 
 export type Node = {
   id: string;
+  /** Persistent visual group identity, independent of Layers workflow organization. */
+  groupId?: string;
   type?: string;
   position: Position;
   data: any & BaseNodeData;
@@ -1330,6 +1332,8 @@ export interface RichTextFieldData {
 // Canvas Objects - not connectable, no handles
 export type CanvasObject = {
   id: string;
+  /** Persistent visual group identity, independent of Layers workflow organization. */
+  groupId?: string;
   type: CanvasObjectType;
   position: Position;
   data: TextNodeData | StickyNoteData | ShapeNodeData | RichTextFieldData;

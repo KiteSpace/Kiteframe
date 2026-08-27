@@ -45,3 +45,4 @@
 - [Single-pane inspector decisions](inspector-tabbed-contract.md) — no tabs: five collapsible sections, collapse memory per node kind in localStorage; inapplicable sections omitted; every Style prop must be consumed by the renderer.
 - [GitHub connector staged writes](github-connector-staged-writes.md) — when a multi-request GitHub connector call hits PTC replay errors, run one API request per CodeExecution block and pass only serializable state forward.
 - [PRD generation capacity](prd-generation-capacity.md) — section fan-out must share a conservative queue; treat 429s as backpressure and never save incomplete generated specs.
+- [Persistent groups and layer locks](persistent-group-locks.md) — lock/delete/drag checks must treat mixed persistent groups atomically across node and object layer IDs.

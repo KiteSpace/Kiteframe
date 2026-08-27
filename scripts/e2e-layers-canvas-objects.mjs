@@ -39,6 +39,15 @@ const workflowData = {
       width: 220,
       height: 120,
     },
+    {
+      id: "group-node",
+      type: "process",
+      position: { x: 760, y: 720 },
+      data: { label: "Grouped review" },
+      groupId: "persisted-mixed-group",
+      width: 220,
+      height: 120,
+    },
   ],
   edges: [{ id: "edge-1", source: "start", target: "finish" }],
   canvasObjects: [
@@ -77,6 +86,7 @@ const workflowData = {
       id: "field-a",
       type: "text-field",
       position: { x: 1080, y: 480 },
+      groupId: "persisted-mixed-group",
       width: 230,
       height: 130,
       data: {
@@ -219,6 +229,16 @@ async function dropCanvasObjectWithPlainText(page, objectId, groupId) {
   await target.dispatchEvent("drop", { dataTransfer });
   await dataTransfer.dispose();
 }
+const worldLeft = (locator) =>
+  locator.evaluate((element) => {
+    let current = element;
+    while (current instanceof HTMLElement) {
+      const left = Number.parseFloat(current.style.left);
+      if (Number.isFinite(left)) return left;
+      current = current.parentElement;
+    }
+    return Number.NaN;
+  });
 
 try {
   const { context, page } = await newPage();
@@ -248,12 +268,94 @@ try {
   check("search finds a canvas object", await row(page, "sticky-a").isVisible());
   check("search filters unrelated canvas objects", !(await row(page, "text-a").isVisible()));
   await search.fill("");
+  await search.blur();
+
+  const persistentGroup = group(page, "group:persisted-mixed-group");
+  await persistentGroup.waitFor({ state: "visible", timeout: 30000 });
+  check("persistent mixed group appears distinctly in Layers", await persistentGroup.isVisible());
+  await persistentGroup.click();
+  await page.waitForTimeout(250);
+  check(
+    "clicking a persistent group selects its node member",
+    (await page.locator('[data-node-id="group-node"]').first().getAttribute("class"))?.includes("selected"),
+  );
+  check(
+    "clicking a persistent group selects its canvas-object member",
+    (await row(page, "field-a").getAttribute("aria-selected")) === "true",
+  );
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  await openLayers(page);
+
+  const groupedNodeCanvas = page.locator('[data-node-id="group-node"]').first();
+  const groupedFieldCanvas = page
+    .locator('[data-testid="rich-text-field-object"]')
+    .filter({ hasText: "Customer details" })
+    .first();
+  const groupedNodeBefore = await worldLeft(groupedNodeCanvas);
+  const groupedFieldBefore = await worldLeft(groupedFieldCanvas);
+  await groupedFieldCanvas.dispatchEvent("click");
+  await page.waitForTimeout(250);
+  check(
+    "clicking a grouped canvas object keeps its node member selected",
+    (await groupedNodeCanvas.getAttribute("class"))?.includes("selected"),
+  );
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(300);
+  const groupedNodeAfter = await worldLeft(groupedNodeCanvas);
+  const groupedFieldAfter = await worldLeft(groupedFieldCanvas);
+  const nodeNudge = groupedNodeAfter - groupedNodeBefore;
+  const fieldNudge = groupedFieldAfter - groupedFieldBefore;
+  check(
+    "nudging a grouped canvas object moves both member kinds together",
+    nodeNudge > 0 && Math.abs(nodeNudge - fieldNudge) < 0.5,
+    JSON.stringify({ nodeNudge, fieldNudge }),
+  );
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  await openLayers(page);
+  const deletionGroup = group(page, "group:persisted-mixed-group");
+  await deletionGroup.click();
+  await page.waitForTimeout(250);
+  const persistentGroupLock = page.locator(
+    '[data-testid="button-lock-group:persisted-mixed-group"]',
+  );
+  await persistentGroupLock.click({ force: true });
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-testid="button-lock-group:persisted-mixed-group"]')
+      ?.getAttribute("title")
+      ?.includes("on"),
+  );
+  await page.keyboard.press("Delete");
+  await page.waitForTimeout(250);
+  await persistentGroupLock.click({ force: true });
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-testid="button-lock-group:persisted-mixed-group"]')
+      ?.getAttribute("title")
+      ?.includes("off"),
+  );
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  await openLayers(page);
+  const lockedDeletionProject = await db.query(
+    `SELECT workflow_data FROM saved_projects WHERE project_uuid = $1`,
+    [projectUuid],
+  );
+  const lockedDeletionData =
+    typeof lockedDeletionProject.rows[0].workflow_data === "string"
+      ? JSON.parse(lockedDeletionProject.rows[0].workflow_data)
+      : lockedDeletionProject.rows[0].workflow_data;
+  check(
+    "a locked persistent group cannot be partially deleted",
+    lockedDeletionData.nodes.some((node) => node.id === "group-node") &&
+      lockedDeletionData.canvasObjects.some((object) => object.id === "field-a"),
+  );
 
   const selectedNode = page.locator('[data-node-id="start"]').first();
+  const textObject = page.locator('[data-testid="text-object-text-a"]');
   await selectedNode.click({ force: true });
   await row(page, "text-a").click();
+  await textObject.dispatchEvent("click");
   await page.waitForTimeout(300);
-  const textObject = page.locator('[data-testid="text-object-text-a"]');
   check(
     "clicking an object row selects the exact canvas object",
     (await textObject.getAttribute("class"))?.includes("outline-blue-500"),
@@ -326,6 +428,10 @@ try {
         reloadedOrder.indexOf("row-layer-group-standalone"),
     JSON.stringify(reloadedOrder),
   );
+  check(
+    "persistent mixed group survives reload",
+    await group(page, "group:persisted-mixed-group").isVisible(),
+  );
   await context.close();
 
   const shared = await newPage({ authenticated: false });
@@ -343,6 +449,11 @@ try {
     "shared viewers cannot drag canvas object rows",
     (await row(shared.page, "shape-a").getAttribute("draggable")) !== "true",
     await row(shared.page, "shape-a").getAttribute("draggable"),
+  );
+  check(
+    "shared viewers see persistent mixed groups without an ungroup action",
+    await group(shared.page, "group:persisted-mixed-group").isVisible() &&
+      !(await shared.page.locator('[data-testid="button-ungroup-group:persisted-mixed-group"]').isVisible()),
   );
   await row(shared.page, "shape-a").click();
   await shared.page.waitForTimeout(250);

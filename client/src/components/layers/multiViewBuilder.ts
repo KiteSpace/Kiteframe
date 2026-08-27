@@ -2,8 +2,16 @@ import { buildLinkGroups } from './linkGroups';
 
 import type { CanvasObject, CanvasObjectType } from '@/lib/kiteframe/types';
 
-export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'canvasObject'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone'|'markup';
-export interface LayerGroupBase { id:string; name:string; role:LayerRole; childIds:string[]; badges?:string[]; }
+export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'canvasObject'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone'|'markup'|'persistentGroup';
+export interface LayerGroupBase {
+  id:string;
+  name:string;
+  role:LayerRole;
+  childIds:string[];
+  badges?:string[];
+  /** Persisted group id, distinct from workflowGroupId. */
+  persistentGroupId?:string;
+}
 export interface LayerLeaf { 
   id:string; 
   role:'node'|'edge'|'stroke'|'canvasObject';
@@ -31,6 +39,10 @@ export function buildMultiViewTrees(
 
   // Create lookup maps for node and edge labels
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const getPersistentGroupId = (item: unknown): string | undefined => {
+    const groupId = (item as { groupId?: unknown } | null)?.groupId;
+    return typeof groupId === 'string' && groupId.trim() ? groupId : undefined;
+  };
   const getNodeLabel = (nodeId: string) => {
     const node = nodeMap.get(nodeId);
     return node?.data?.label || node?.data?.name || nodeId;
@@ -71,7 +83,52 @@ export function buildMultiViewTrees(
   };
 
   groups['structureRoot'] = { id:'structureRoot', name:'Structure', role:'root', childIds:[] };
-  
+
+  // A persistent group may span graph nodes and freeform canvas objects. Build
+  // its rows before workflows so its label/order is stable and its members have
+  // exactly one Structure parent. workflowGroupId remains canvas-object-only
+  // workflow placement metadata and is deliberately not consulted here.
+  const persistentGroupRows = new Map<string, string>();
+  const ensurePersistentGroup = (persistentGroupId: string) => {
+    let layerGroupId = persistentGroupRows.get(persistentGroupId);
+    if (!layerGroupId) {
+      layerGroupId = `group:${persistentGroupId}`;
+      persistentGroupRows.set(persistentGroupId, layerGroupId);
+      groups['structureRoot'].childIds.push(layerGroupId);
+      groups[layerGroupId] = {
+        id: layerGroupId,
+        name: `Group ${persistentGroupRows.size}`,
+        role: 'persistentGroup',
+        childIds: [],
+        persistentGroupId,
+      };
+    }
+    return layerGroupId;
+  };
+
+  const persistentGroupIds = Array.from(new Set([
+    ...nodes.map(getPersistentGroupId),
+    ...canvasObjects.map(getPersistentGroupId),
+  ].filter((id): id is string => !!id))).sort();
+  persistentGroupIds.forEach(ensurePersistentGroup);
+
+  const groupedNodeIds = new Set<string>();
+  nodes.forEach((node) => {
+    const persistentGroupId = getPersistentGroupId(node);
+    if (!persistentGroupId) return;
+    const parentId = ensurePersistentGroup(persistentGroupId);
+    groupedNodeIds.add(node.id);
+    leaves[node.id] = {
+      id: node.id,
+      role: 'node',
+      label: getNodeLabel(node.id),
+      parentId,
+      isDecision: isDecisionNode(node.id),
+      branchDepth: 0,
+      outgoingEdgeCount: getOutgoingEdgeCount(node.id),
+    };
+    groups[parentId].childIds.push(node.id);
+  });
   // Collect standalone nodes
   const standaloneNodeIds: string[] = [];
   
@@ -81,16 +138,18 @@ export function buildMultiViewTrees(
   });
   
   for (const [wf, nodeIds] of Object.entries(workflowsById)) {
+    const ungroupedNodeIds = (nodeIds as string[]).filter(nodeId => !groupedNodeIds.has(nodeId));
+    if (ungroupedNodeIds.length === 0) continue;
     // Count internal edges for this component
     const internalEdges = edges.filter(e =>
-      (nodeIds as string[]).includes(e.source) &&
-      (nodeIds as string[]).includes(e.target)
+      ungroupedNodeIds.includes(e.source) &&
+      ungroupedNodeIds.includes(e.target)
     );
     
     // Only create workflow if >= 1 internal edge (2+ connected nodes)
     if (internalEdges.length < 1) {
       // Add all nodes to standalone bucket
-      standaloneNodeIds.push(...(nodeIds as string[]));
+      standaloneNodeIds.push(...ungroupedNodeIds);
       continue;
     }
     
@@ -112,7 +171,7 @@ export function buildMultiViewTrees(
     });
     
     // Find root nodes (no incoming edges within workflow)
-    const rootNodes = (nodeIds as string[]).filter(nid => 
+    const rootNodes = ungroupedNodeIds.filter(nid =>
       !nodeIncoming.has(nid) || nodeIncoming.get(nid)!.length === 0
     );
     
@@ -127,8 +186,8 @@ export function buildMultiViewTrees(
     });
     
     // If no roots found, start from first node
-    if (queue.length === 0 && (nodeIds as string[]).length > 0) {
-      queue.push({ nodeId: (nodeIds as string[])[0], depth: 0, parentIsDecision: false });
+    if (queue.length === 0 && ungroupedNodeIds.length > 0) {
+      queue.push({ nodeId: ungroupedNodeIds[0], depth: 0, parentIsDecision: false });
     }
     
     while (queue.length > 0) {
@@ -150,14 +209,14 @@ export function buildMultiViewTrees(
     }
     
     // Add unvisited nodes with depth 0
-    (nodeIds as string[]).forEach(nid => {
+    ungroupedNodeIds.forEach(nid => {
       if (!branchDepths.has(nid)) {
         branchDepths.set(nid, 0);
       }
     });
     
     // Sort nodes by topological level then by branch depth for better visualization
-    const sortedNodeIds = [...(nodeIds as string[])].sort((a, b) => {
+    const sortedNodeIds = [...ungroupedNodeIds].sort((a, b) => {
       const levelA = workerResult.level[a] ?? 0;
       const levelB = workerResult.level[b] ?? 0;
       if (levelA !== levelB) return levelA - levelB;
@@ -222,6 +281,20 @@ export function buildMultiViewTrees(
 
   canvasObjects.forEach((object) => {
     const leafId = `object:${object.id}`;
+    const persistentGroupId = getPersistentGroupId(object);
+    if (persistentGroupId) {
+      const parentId = ensurePersistentGroup(persistentGroupId);
+      leaves[leafId] = {
+        id: leafId,
+        role: 'canvasObject',
+        label: getCanvasObjectLabel(object),
+        parentId,
+        canvasObjectId: object.id,
+        canvasObjectType: object.type,
+      };
+      groups[parentId].childIds.push(leafId);
+      return;
+    }
     const requestedGroupId = object.workflowGroupId;
     const parentId = requestedGroupId && groups[requestedGroupId]?.role === 'workflow'
       ? requestedGroupId

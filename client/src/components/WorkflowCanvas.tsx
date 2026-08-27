@@ -653,6 +653,7 @@ export function WorkflowCanvas({
         onNodesChange={onNodesChangeGuarded}
         onEdgesChange={onEdgesChangeGuarded}
         onCanvasObjectsChange={onCanvasObjectsChange}
+        isItemLocked={(kind, id) => isReadOnly || isLocked(kind === 'canvasObject' ? `object:${id}` : id)}
         onConnect={onConnectGuarded}
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClickGuarded}

@@ -31,6 +31,16 @@ function object(
   };
 }
 
+function groupedObject(
+  id: string,
+  type: CanvasObject['type'],
+  data: CanvasObject['data'],
+  groupId: string,
+  workflowGroupId?: string,
+): CanvasObject {
+  return { ...object(id, type, data, workflowGroupId), groupId } as CanvasObject;
+}
+
 describe('buildMultiViewTrees canvas objects', () => {
   it('shows every supported object with useful labels and persisted grouping', () => {
     const canvasObjects = [
@@ -96,5 +106,34 @@ describe('buildMultiViewTrees canvas objects', () => {
     );
 
     expect(tree.groups.standalone.childIds).toEqual([]);
+  });
+
+  it('places persistent mixed groups under Structure without using workflowGroupId', () => {
+    const groupedNodes = [
+      { ...nodes[0], groupId: 'alpha' },
+      nodes[1],
+      { id: 'review', type: 'process', data: { label: 'Review' }, groupId: 'beta' },
+    ];
+    const tree = buildMultiViewTrees(
+      groupedNodes,
+      edges,
+      [],
+      workerResult,
+      [],
+      [
+        groupedObject('note', 'sticky', { text: 'Alpha note' } as any, 'alpha', 'wf:start'),
+        groupedObject('shape', 'shape', { shapeType: 'circle' } as any, 'beta'),
+      ],
+    );
+
+    expect(tree.groups.structureRoot.childIds.slice(0, 2)).toEqual(['group:alpha', 'group:beta']);
+    expect(tree.groups['group:alpha']).toMatchObject({ name: 'Group 1', role: 'persistentGroup', persistentGroupId: 'alpha' });
+    expect(tree.groups['group:beta']).toMatchObject({ name: 'Group 2', role: 'persistentGroup', persistentGroupId: 'beta' });
+    expect(tree.groups['group:alpha'].childIds).toEqual(['start', 'object:note']);
+    expect(tree.groups['group:beta'].childIds).toEqual(['review', 'object:shape']);
+    expect(tree.groups['wf:start']).toBeUndefined();
+    expect(tree.groups.standalone.childIds).toEqual(['finish']);
+    expect(tree.leaves.start.parentId).toBe('group:alpha');
+    expect(tree.leaves['object:note'].parentId).toBe('group:alpha');
   });
 });

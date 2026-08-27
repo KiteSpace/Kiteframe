@@ -224,6 +224,20 @@ export {
   type WorkflowExport
 } from './utils/exportImport';
 
+// Persistent visual group identity utilities
+export {
+  expandSelectedItemIds,
+  assignGroupId,
+  clearSelectedGroups,
+  createGroupIdRemap,
+  duplicatePersistentGroup,
+  getLockedPersistentGroupIds,
+  remapGroupIds,
+  remapGroupIdsForPaste,
+  type DuplicateGroupIdFactories,
+  type GroupableItem,
+} from './utils/groupOperations';
+
 // Data Import utilities for Table Nodes
 export {
   parseCSV,

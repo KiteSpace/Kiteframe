@@ -592,6 +592,8 @@ type Props = {
   onNodesChange: (n: Node[]) => void;
   onEdgesChange: (e: Edge[]) => void;
   onCanvasObjectsChange?: (canvasObjects: CanvasObject[]) => void;
+  /** Prevents moving a persistent group when any node or object member is locked. */
+  isItemLocked?: (kind: 'node' | 'canvasObject', id: string) => boolean;
   onConnect?: (c: { source: string; target: string; data?: { variableName?: string } }) => void;
   minZoom?: number;
   maxZoom?: number;
@@ -1787,8 +1789,20 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const vp = viewportRef.current;
         const rect = containerRef.current.getBoundingClientRect();
         const wp = clientToWorld(capturedX, capturedY, vp, rect);
-        const sel = nodesRef.current.filter(nd => nd.selected);
-        const isGroupDrag = sel.length > 1 && n.selected;
+        const selection = getPersistentGroupSelection([n.id], []);
+        const groupNodeIds = new Set(selection.nodeIds);
+        const groupObjectIds = new Set(selection.canvasObjectIds);
+        if (n.groupId && (
+          nodesRef.current.some(item => groupNodeIds.has(item.id) && props.isItemLocked?.('node', item.id)) ||
+          (props.canvasObjects || []).some(item => groupObjectIds.has(item.id) && props.isItemLocked?.('canvasObject', item.id))
+        )) return;
+        const sel = n.groupId
+          ? nodesRef.current.filter(item => groupNodeIds.has(item.id))
+          : nodesRef.current.filter(item => item.selected);
+        const selectedObjects = n.groupId
+          ? (props.canvasObjects || []).filter(item => groupObjectIds.has(item.id))
+          : (props.canvasObjects || []).filter(item => item.selected);
+        const isGroupDrag = !!n.groupId || (sel.length + selectedObjects.length > 1 && n.selected);
         dragInfo.current = {
           id: n.id,
           start: wp,
@@ -1796,6 +1810,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           origins: isGroupDrag
             ? sel.map(nd => ({ id: nd.id, origin: { ...nd.position } }))
             : [{ id: n.id, origin: { ...n.position } }],
+          canvasObjectOrigins: isGroupDrag
+            ? selectedObjects.map(obj => ({ id: obj.id, origin: { ...obj.position } }))
+            : [],
           isGroupDrag,
         };
         touchDragging.current = true;
@@ -1871,6 +1888,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           return o ? { ...n, position: { x: o.origin.x + dx, y: o.origin.y + dy } } : n;
         });
         props.onNodesChange(updated);
+        if (dragInfo.current.canvasObjectOrigins?.length) {
+          props.onCanvasObjectsChange?.((props.canvasObjects || []).map(obj => {
+            const origin = dragInfo.current!.canvasObjectOrigins!.find(item => item.id === obj.id);
+            return origin ? { ...obj, position: { x: origin.origin.x + dx, y: origin.origin.y + dy } } : obj;
+          }));
+        }
       } else {
         const id = dragInfo.current.id;
         const updated = nodesRef.current.map(n =>
@@ -1979,11 +2002,13 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         } else {
           // Single tap → select node
           touchLastTap.current = { time: now, nodeId, canvasObjId: null, part };
-          const updatedNodes = nodesRef.current.map(node => ({ ...node, selected: node.id === nodeId }));
-          props.onNodesChange(updatedNodes);
-          if (props.canvasObjects?.some(o => o.selected)) {
-            props.onCanvasObjectsChange?.((props.canvasObjects || []).map(o => ({ ...o, selected: false })));
-          }
+          const selection = getPersistentGroupSelection([nodeId], []);
+          const selectedNodeIds = new Set(selection.nodeIds);
+          const selectedObjectIds = new Set(selection.canvasObjectIds);
+          props.onNodesChange(nodesRef.current.map(node => ({ ...node, selected: selectedNodeIds.has(node.id) })));
+          props.onCanvasObjectsChange?.((props.canvasObjects || []).map(object => ({
+            ...object, selected: selectedObjectIds.has(object.id),
+          })));
           const tappedNode = nodesRef.current.find(n => n.id === nodeId);
           if (tappedNode) props.onNodeClick?.(syntheticEvent, tappedNode);
         }
@@ -2000,11 +2025,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           } else {
             // Single tap → select canvas object
             touchLastTap.current = { time: now, nodeId: null, canvasObjId, part: null };
-            if (nodesRef.current.some(n => n.selected)) {
-              props.onNodesChange(nodesRef.current.map(n => ({ ...n, selected: false })));
-            }
+            const selection = getPersistentGroupSelection([], [canvasObjId]);
+            const selectedNodeIds = new Set(selection.nodeIds);
+            const selectedObjectIds = new Set(selection.canvasObjectIds);
+            props.onNodesChange(nodesRef.current.map(node => ({ ...node, selected: selectedNodeIds.has(node.id) })));
             props.onCanvasObjectsChange?.((props.canvasObjects || []).map(o => ({
-              ...o, selected: o.id === canvasObjId,
+              ...o, selected: selectedObjectIds.has(o.id),
             })));
             props.onCanvasObjectClick?.(syntheticEvent, tappedObj);
           }
@@ -2260,8 +2286,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       const nx2 = Math.max(startWorld.x, endWorld.x);
       const ny2 = Math.max(startWorld.y, endWorld.y);
 
-      // Select nodes that intersect with selection rectangle
-      const updatedNodes = props.nodes.map((n) => {
+      const lassoNodeIds = new Set<string>();
+      const lassoObjectIds = new Set<string>();
+      props.nodes.forEach((n) => {
         // Start with fallback bounds from stored dimensions
         const w = n.style?.width ?? n.width ?? 200;
         const h = n.style?.height ?? n.height ?? 100;
@@ -2280,21 +2307,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const overlapsY = nodeBounds.y1 < ny2 && nodeBounds.y2 > ny1;
         const intersectsWithLasso = overlapsX && overlapsY;
 
-        // Handle additive vs replacement selection
-        let selected: boolean;
-        if (isShiftHeld) {
-          // Additive selection: preserve existing selection, add intersecting items
-          selected = n.selected || intersectsWithLasso;
-        } else {
-          // Replacement selection: only select intersecting items
-          selected = intersectsWithLasso;
-        }
-
-        return { ...n, selected };
+        if (intersectsWithLasso || (isShiftHeld && n.selected)) lassoNodeIds.add(n.id);
       });
 
-      // Select canvas objects that intersect with selection rectangle
-      const updatedObjects = (props.canvasObjects || []).map((obj) => {
+      (props.canvasObjects || []).forEach((obj) => {
         // Get fallback bounds from stored dimensions
         const objRect = getCanvasObjectRect(obj);
 
@@ -2306,18 +2322,15 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         const overlapsY = accurateBounds.y1 < ny2 && accurateBounds.y2 > ny1;
         const intersectsWithLasso = overlapsX && overlapsY;
 
-        // Handle additive vs replacement selection
-        let selected: boolean;
-        if (isShiftHeld) {
-          // Additive selection: preserve existing selection, add intersecting items
-          selected = obj.selected || intersectsWithLasso;
-        } else {
-          // Replacement selection: only select intersecting items
-          selected = intersectsWithLasso;
-        }
-
-        return { ...obj, selected };
+        if (intersectsWithLasso || (isShiftHeld && obj.selected)) lassoObjectIds.add(obj.id);
       });
+      // Any item touched by the marquee selects all members of its persistent
+      // group, including members of the other canvas-item kind.
+      const expandedSelection = getPersistentGroupSelection(lassoNodeIds, lassoObjectIds);
+      const expandedNodeIds = new Set(expandedSelection.nodeIds);
+      const expandedObjectIds = new Set(expandedSelection.canvasObjectIds);
+      const updatedNodes = props.nodes.map(n => ({ ...n, selected: expandedNodeIds.has(n.id) }));
+      const updatedObjects = (props.canvasObjects || []).map(obj => ({ ...obj, selected: expandedObjectIds.has(obj.id) }));
 
       // Update both nodes and canvas objects
       props.onNodesChange(updatedNodes);
@@ -2413,6 +2426,97 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     canvasObjectOrigins?: { id: string; origin: { x: number; y: number } }[];
     isGroupDrag?: boolean;
   } | null>(null);
+
+  const getPersistentGroupSelection = useCallback((
+    seedNodeIds: Iterable<string>,
+    seedCanvasObjectIds: Iterable<string>,
+  ) => {
+    const nodeSeeds = new Set(seedNodeIds);
+    const objectSeeds = new Set(seedCanvasObjectIds);
+    const groupIds = new Set<string>();
+    props.nodes.forEach(node => {
+      if (nodeSeeds.has(node.id) && node.groupId) groupIds.add(node.groupId);
+    });
+    (props.canvasObjects || []).forEach(object => {
+      if (objectSeeds.has(object.id) && object.groupId) groupIds.add(object.groupId);
+    });
+    return {
+      nodeIds: props.nodes
+        .filter(node => nodeSeeds.has(node.id) || (!!node.groupId && groupIds.has(node.groupId)))
+        .map(node => node.id),
+      canvasObjectIds: (props.canvasObjects || [])
+        .filter(object => objectSeeds.has(object.id) || (!!object.groupId && groupIds.has(object.groupId)))
+        .map(object => object.id),
+    };
+  }, [props.nodes, props.canvasObjects]);
+
+  const startNodeDrag = useCallback((
+    node: Node,
+    e: React.MouseEvent,
+  ): boolean => {
+    if (!containerRef.current) return false;
+    const persistentSelection = getPersistentGroupSelection([node.id], []);
+    const nodeIds = new Set(persistentSelection.nodeIds);
+    const objectIds = new Set(persistentSelection.canvasObjectIds);
+    const isPersistentGroup = !!node.groupId;
+
+    // A locked member makes the entire persistent group immovable. Keep the
+    // old multi-select behavior for ungrouped nodes.
+    if (isPersistentGroup && (
+      props.nodes.some(item => nodeIds.has(item.id) && props.isItemLocked?.('node', item.id)) ||
+      (props.canvasObjects || []).some(item => objectIds.has(item.id) && props.isItemLocked?.('canvasObject', item.id))
+    )) {
+      return false;
+    }
+
+    const selectedNodes = isPersistentGroup
+      ? props.nodes.filter(item => nodeIds.has(item.id))
+      : props.nodes.filter(item => item.selected);
+    const selectedObjects = isPersistentGroup
+      ? (props.canvasObjects || []).filter(item => objectIds.has(item.id))
+      : (props.canvasObjects || []).filter(item => item.selected);
+    const isGroupDrag = isPersistentGroup || (node.selected && selectedNodes.length + selectedObjects.length > 1);
+    const rect = containerRef.current.getBoundingClientRect();
+    const start = clientToWorld(e.clientX, e.clientY, viewport, rect);
+
+    if (isPersistentGroup) {
+      props.onNodesChange(props.nodes.map(item => ({ ...item, selected: nodeIds.has(item.id) })));
+      props.onCanvasObjectsChange?.((props.canvasObjects || []).map(item => ({ ...item, selected: objectIds.has(item.id) })));
+    }
+    dragInfo.current = {
+      id: node.id,
+      start,
+      origin: { ...node.position },
+      origins: isGroupDrag
+        ? selectedNodes.map(item => ({ id: item.id, origin: { ...item.position } }))
+        : [{ id: node.id, origin: { ...node.position } }],
+      canvasObjectOrigins: isGroupDrag
+        ? selectedObjects.map(item => ({ id: item.id, origin: { ...item.position } }))
+        : [],
+      isGroupDrag,
+    };
+    return true;
+  }, [getPersistentGroupSelection, props, viewport]);
+
+  const selectNodePersistentGroup = useCallback((node: Node, e: React.MouseEvent) => {
+    if (selectionInProgress.current || justCompletedUnifiedSelection.current || justCompletedNodeDrag.current) return;
+    const selection = getPersistentGroupSelection([node.id], []);
+    const nodeIds = new Set(selection.nodeIds);
+    const objectIds = new Set(selection.canvasObjectIds);
+    const allMembersSelected = [
+      ...props.nodes.filter(item => nodeIds.has(item.id)).map(item => !!item.selected),
+      ...(props.canvasObjects || []).filter(item => objectIds.has(item.id)).map(item => !!item.selected),
+    ].every(Boolean);
+    const shouldSelect = e.shiftKey ? !allMembersSelected : true;
+    props.onNodesChange(props.nodes.map(item => ({
+      ...item,
+      selected: nodeIds.has(item.id) ? shouldSelect : e.shiftKey ? item.selected : false,
+    })));
+    props.onCanvasObjectsChange?.((props.canvasObjects || []).map(item => ({
+      ...item,
+      selected: objectIds.has(item.id) ? shouldSelect : e.shiftKey ? item.selected : false,
+    })));
+  }, [getPersistentGroupSelection, props]);
   
   // Performance: RAF throttling for drag updates
   const dragRafId = useRef<number | null>(null);
@@ -2432,6 +2536,8 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     origin: { x: number; y: number };
     hasMoved: boolean;
     originalEvent: React.MouseEvent; // Store original event for proper click handling
+    nodeOrigins?: { id: string; origin: { x: number; y: number } }[];
+    objectOrigins?: { id: string; origin: { x: number; y: number } }[];
   } | null>(null);
 
   // Endpoint dragging for arrow/line shapes
@@ -2541,6 +2647,30 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
 
     const handleNodeDragMove = (e: MouseEvent) => {
       if (!dragInfo.current) return;
+      // Most specialized node renderers provide their own onStartDrag. Normalize
+      // those starts here too, so persistent groups work for every node type.
+      const draggedNode = props.nodes.find(node => node.id === dragInfo.current!.id);
+      if (draggedNode?.groupId && !dragInfo.current.origins?.some(origin => origin.id !== draggedNode.id)) {
+        const selection = getPersistentGroupSelection([draggedNode.id], []);
+        const nodeIds = new Set(selection.nodeIds);
+        const objectIds = new Set(selection.canvasObjectIds);
+        if (
+          props.nodes.some(item => nodeIds.has(item.id) && props.isItemLocked?.('node', item.id)) ||
+          (props.canvasObjects || []).some(item => objectIds.has(item.id) && props.isItemLocked?.('canvasObject', item.id))
+        ) {
+          dragInfo.current = null;
+          return;
+        }
+        dragInfo.current.origins = props.nodes
+          .filter(item => nodeIds.has(item.id))
+          .map(item => ({ id: item.id, origin: { ...item.position } }));
+        dragInfo.current.canvasObjectOrigins = (props.canvasObjects || [])
+          .filter(item => objectIds.has(item.id))
+          .map(item => ({ id: item.id, origin: { ...item.position } }));
+        dragInfo.current.isGroupDrag = true;
+        props.onNodesChange(props.nodes.map(item => ({ ...item, selected: nodeIds.has(item.id) })));
+        props.onCanvasObjectsChange?.((props.canvasObjects || []).map(item => ({ ...item, selected: objectIds.has(item.id) })));
+      }
       
       const now = performance.now();
       const rect = containerRef.current!.getBoundingClientRect();
@@ -2843,13 +2973,31 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
         setCurrentGuides([]);
       }
 
-      // Update canvas object position
+      const groupNodeOrigins = canvasObjectDragInfo.current.nodeOrigins || [];
+      const groupObjectOrigins = canvasObjectDragInfo.current.objectOrigins || [];
+      const isPersistentGroupDrag = groupNodeOrigins.length > 0 || groupObjectOrigins.length > 0;
+      // Update canvas object position. Persistent group drags deliberately
+      // bypass per-item snapping so every member keeps its relative offset.
       const updatedObjects = (props.canvasObjects || []).map((obj) =>
-        obj.id === canvasObjectDragInfo.current!.id
-          ? { ...obj, position: finalPosition }
+        groupObjectOrigins.some(origin => origin.id === obj.id)
+          ? {
+              ...obj,
+              position: {
+                x: groupObjectOrigins.find(origin => origin.id === obj.id)!.origin.x + dx,
+                y: groupObjectOrigins.find(origin => origin.id === obj.id)!.origin.y + dy,
+              },
+            }
+          : obj.id === canvasObjectDragInfo.current!.id
+            ? { ...obj, position: isPersistentGroupDrag ? newPosition : finalPosition }
           : obj,
       );
       props.onCanvasObjectsChange?.(updatedObjects);
+      if (groupNodeOrigins.length) {
+        props.onNodesChange(props.nodes.map(node => {
+          const origin = groupNodeOrigins.find(item => item.id === node.id);
+          return origin ? { ...node, position: { x: origin.origin.x + dx, y: origin.origin.y + dy } } : node;
+        }));
+      }
     };
 
     const onUp = () => {
@@ -2937,15 +3085,26 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           pendingDragUpdate.current = null;
           
           // Calculate final position
-          const finalPosition = {
-            x: dragInfo.current.origin.x + dx,
-            y: dragInfo.current.origin.y + dy,
-          };
-          
-          const updated = props.nodes.map((n) =>
-            n.id === nodeId ? { ...n, position: finalPosition } : n,
-          );
-          props.onNodesChange(updated);
+          if (dragInfo.current.isGroupDrag && dragInfo.current.origins) {
+            props.onNodesChange(props.nodes.map(n => {
+              const origin = dragInfo.current!.origins!.find(item => item.id === n.id);
+              return origin ? { ...n, position: { x: origin.origin.x + dx, y: origin.origin.y + dy } } : n;
+            }));
+            if (dragInfo.current.canvasObjectOrigins?.length) {
+              props.onCanvasObjectsChange?.((props.canvasObjects || []).map(obj => {
+                const origin = dragInfo.current!.canvasObjectOrigins!.find(item => item.id === obj.id);
+                return origin ? { ...obj, position: { x: origin.origin.x + dx, y: origin.origin.y + dy } } : obj;
+              }));
+            }
+          } else {
+            const finalPosition = {
+              x: dragInfo.current.origin.x + dx,
+              y: dragInfo.current.origin.y + dy,
+            };
+            props.onNodesChange(props.nodes.map(n =>
+              n.id === nodeId ? { ...n, position: finalPosition } : n,
+            ));
+          }
         }
         
         // Handle smart connect auto-connection on drag end
@@ -3202,24 +3361,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     );
     if (!targetObject) return;
 
+    const selection = getPersistentGroupSelection([], [objectId]);
+    const nodeIds = new Set(selection.nodeIds);
+    const objectIds = new Set(selection.canvasObjectIds);
     let updatedObjects: CanvasObject[];
 
     if (e.shiftKey) {
-      // Shift+Click: Toggle this object into the selection without affecting node selections
+      const allMembersSelected = [
+        ...props.nodes.filter(node => nodeIds.has(node.id)).map(node => !!node.selected),
+        ...(props.canvasObjects || []).filter(object => objectIds.has(object.id)).map(object => !!object.selected),
+      ].every(Boolean);
+      const shouldSelect = !allMembersSelected;
       updatedObjects = (props.canvasObjects || []).map((canvasObject) =>
-        canvasObject.id === objectId
-          ? { ...canvasObject, selected: !canvasObject.selected }
+        objectIds.has(canvasObject.id)
+          ? { ...canvasObject, selected: shouldSelect }
           : canvasObject,
       );
+      props.onNodesChange(props.nodes.map(node =>
+        nodeIds.has(node.id) ? { ...node, selected: shouldSelect } : node,
+      ));
     } else {
-      // Regular click: Select only this object; clear all other selections including nodes
       updatedObjects = (props.canvasObjects || []).map((canvasObject) => ({
         ...canvasObject,
-        selected: canvasObject.id === objectId,
+        selected: objectIds.has(canvasObject.id),
       }));
-      if (props.nodes.some((n) => n.selected)) {
-        props.onNodesChange(props.nodes.map((n) => ({ ...n, selected: false })));
-      }
+      props.onNodesChange(props.nodes.map(node => ({
+        ...node,
+        selected: nodeIds.has(node.id),
+      })));
     }
 
     props.onCanvasObjectsChange?.(updatedObjects);
@@ -3890,6 +4059,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -3938,6 +4111,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -3989,6 +4163,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -4033,6 +4211,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4142,6 +4321,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onFocusNode={props.onFocusNode}
                     onStartDrag={(e: React.MouseEvent, draggedNode: Node) => {
                       e.stopPropagation();
+                      if (draggedNode.groupId) {
+                        startNodeDrag(draggedNode, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -4245,6 +4428,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onFocusNode={props.onFocusNode}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -4290,6 +4477,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4355,6 +4543,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onFocusNode={props.onFocusNode}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -4400,6 +4592,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       // Note: drag optimization activates after 100px threshold in handleNodeDragMove
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4566,6 +4759,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(
@@ -4610,6 +4807,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4671,6 +4869,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     readOnly={props.readOnly}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
@@ -4694,6 +4896,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     viewport={viewport}
@@ -4741,6 +4944,10 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     showResizeHandle={n.resizable !== false}
                     onStartDrag={(e: React.MouseEvent) => {
                       e.stopPropagation();
+                      if (n.groupId) {
+                        startNodeDrag(n, e);
+                        return;
+                      }
                       if (!containerRef.current) return;
                       const rect = containerRef.current.getBoundingClientRect();
                       const wp = clientToWorld(e.clientX, e.clientY, viewport, rect);
@@ -4768,6 +4975,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       };
                     }}
                     onClick={(e: React.MouseEvent) => {
+                      selectNodePersistentGroup(n, e);
                       props.onNodeClick?.(e, n);
                     }}
                     onHandleConnect={(position, e) => {
@@ -4814,6 +5022,11 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                       onFocusNode={props.onFocusNode}
                       onStartDrag={(e: React.MouseEvent, node: any) => {
                         e.stopPropagation();
+                        const draggedNode = (node as Node) || n;
+                        if (draggedNode.groupId) {
+                          startNodeDrag(draggedNode, e);
+                          return;
+                        }
                         if (!containerRef.current) return;
                         const rect =
                           containerRef.current.getBoundingClientRect();
@@ -4913,51 +5126,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     if (props.inlineEditing?.nodeId === n.id) {
                       return;
                     }
-                    if (!containerRef.current) return;
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const wp = clientToWorld(
-                      e.clientX,
-                      e.clientY,
-                      viewport,
-                      rect,
-                    );
-
-                    // Check if this node is selected and if there are other selected nodes or canvas objects
-                    const selectedNodes = props.nodes.filter(
-                      (node) => node.selected === true,
-                    );
-                    const selectedCanvasObjects = (
-                      props.canvasObjects || []
-                    ).filter((obj) => obj.selected === true);
-                    const totalSelected =
-                      selectedNodes.length + selectedCanvasObjects.length;
-                    const isGroupDrag =
-                      totalSelected > 1 && n.selected === true;
-
-                    // Prepare origins for all nodes that will be dragged
-                    const origins = isGroupDrag
-                      ? selectedNodes.map((node) => ({
-                          id: node.id,
-                          origin: { ...node.position },
-                        }))
-                      : [{ id: n.id, origin: { ...n.position } }];
-
-                    // Prepare origins for all canvas objects that will be dragged
-                    const canvasObjectOrigins = isGroupDrag
-                      ? selectedCanvasObjects.map((obj) => ({
-                          id: obj.id,
-                          origin: { ...obj.position },
-                        }))
-                      : [];
-
-                    dragInfo.current = {
-                      id: n.id,
-                      start: wp,
-                      origin: { ...n.position },
-                      origins: origins,
-                      canvasObjectOrigins: canvasObjectOrigins,
-                      isGroupDrag: isGroupDrag,
-                    };
+                    if (!startNodeDrag(n, e)) return;
 
                     // Notify SmartConnectPlugin of drag start (for both single and group drags)
                     if (
@@ -4968,7 +5137,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                         core.getPlugin("smart-connect-pro");
                       if (smartConnectPlugin) {
                         // Call the plugin's handleDragStart method to initialize drag tracking
-                        (smartConnectPlugin as any).handleDragStart?.(n.id, wp);
+                        (smartConnectPlugin as any).handleDragStart?.(n.id, dragInfo.current?.start);
                       }
                     }
                   }}
@@ -4990,25 +5159,34 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     }
 
                     if (e.shiftKey) {
-                      // Shift+Click: Toggle this node into the selection without affecting canvas objects
+                      const selection = getPersistentGroupSelection([n.id], []);
+                      const nodeIds = new Set(selection.nodeIds);
+                      const objectIds = new Set(selection.canvasObjectIds);
+                      const allMembersSelected = [
+                        ...props.nodes.filter(node => nodeIds.has(node.id)).map(node => !!node.selected),
+                        ...(props.canvasObjects || []).filter(object => objectIds.has(object.id)).map(object => !!object.selected),
+                      ].every(Boolean);
+                      const shouldSelect = !allMembersSelected;
                       const updatedNodes = props.nodes.map((node) =>
-                        node.id === n.id
-                          ? { ...node, selected: !node.selected }
-                          : node,
+                        nodeIds.has(node.id) ? { ...node, selected: shouldSelect } : node,
                       );
                       props.onNodesChange(updatedNodes);
+                      props.onCanvasObjectsChange?.((props.canvasObjects || []).map(object =>
+                        objectIds.has(object.id) ? { ...object, selected: shouldSelect } : object,
+                      ));
                     } else {
-                      // Regular click: Select only this node; clear all other selections including canvas objects
+                      const selection = getPersistentGroupSelection([n.id], []);
+                      const nodeIds = new Set(selection.nodeIds);
+                      const objectIds = new Set(selection.canvasObjectIds);
                       const updatedNodes = props.nodes.map((node) => ({
                         ...node,
-                        selected: node.id === n.id,
+                        selected: nodeIds.has(node.id),
                       }));
                       props.onNodesChange(updatedNodes);
-                      if (props.canvasObjects?.some((o) => o.selected)) {
-                        props.onCanvasObjectsChange?.(
-                          (props.canvasObjects || []).map((o) => ({ ...o, selected: false }))
-                        );
-                      }
+                      props.onCanvasObjectsChange?.((props.canvasObjects || []).map(object => ({
+                        ...object,
+                        selected: objectIds.has(object.id),
+                      })));
                     }
 
                     props.onNodeClick?.(e, n);
@@ -5491,6 +5669,14 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 );
 
                 if (targetObject) {
+                  const persistentSelection = getPersistentGroupSelection([], [objectId]);
+                  const nodeIds = new Set(persistentSelection.nodeIds);
+                  const objectIds = new Set(persistentSelection.canvasObjectIds);
+                  const isPersistentGroup = !!targetObject.groupId;
+                  if (isPersistentGroup && (
+                    props.nodes.some(item => nodeIds.has(item.id) && props.isItemLocked?.('node', item.id)) ||
+                    (props.canvasObjects || []).some(item => objectIds.has(item.id) && props.isItemLocked?.('canvasObject', item.id))
+                  )) return;
                   // Dispatch global canvas object drag start event to cancel click timers
                   window.dispatchEvent(
                     new CustomEvent("canvasObjectDragStart", {
@@ -5506,6 +5692,12 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     origin: { ...targetObject.position },
                     hasMoved: false,
                     originalEvent: e,
+                    nodeOrigins: isPersistentGroup
+                      ? props.nodes.filter(item => nodeIds.has(item.id)).map(item => ({ id: item.id, origin: { ...item.position } }))
+                      : undefined,
+                    objectOrigins: isPersistentGroup
+                      ? (props.canvasObjects || []).filter(item => objectIds.has(item.id)).map(item => ({ id: item.id, origin: { ...item.position } }))
+                      : undefined,
                   };
                 }
               };

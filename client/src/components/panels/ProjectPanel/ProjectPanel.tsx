@@ -58,7 +58,14 @@ interface ProjectPanelProps {
   edges: Edge[];
   frames?: any[];
   canvasObjects?: CanvasObject[];
+  onNodesChange?: (nodes: Node[]) => void;
   onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
+  onPersistentGroupFocus?: (members: {
+    groupId: string;
+    nodeIds: string[];
+    canvasObjectIds: string[];
+  }) => void;
+  onPersistentGroupUngroup?: (groupId: string) => void;
   sketchStrokes?: SketchStroke[];
   projectId?: string;
   projectName?: string;
@@ -134,8 +141,11 @@ export function ProjectPanel({
   nodes, 
   edges, 
   frames, 
-  canvasObjects = [], 
+  canvasObjects = [],
+  onNodesChange,
   onCanvasObjectsChange,
+  onPersistentGroupFocus,
+  onPersistentGroupUngroup,
   sketchStrokes,
   projectId,
   projectName,
@@ -538,7 +548,10 @@ export function ProjectPanel({
             edges={edges} 
             frames={frames}
             canvasObjects={canvasObjects}
+            onNodesChange={onNodesChange}
             onCanvasObjectsChange={onCanvasObjectsChange}
+            onPersistentGroupFocus={onPersistentGroupFocus}
+            onPersistentGroupUngroup={onPersistentGroupUngroup}
             sketchStrokes={sketchStrokes}
             projectId={projectId}
             isReadOnly={isReadOnly}

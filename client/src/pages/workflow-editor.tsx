@@ -118,6 +118,11 @@ import {
   type CanvasStackOperation,
   type CanvasStackTarget,
 } from "../lib/kiteframe/utils/canvasZOrder";
+import {
+  assignGroupId,
+  duplicatePersistentGroup,
+  getLockedPersistentGroupIds,
+} from "../lib/kiteframe/utils/groupOperations";
 import { VLStore } from "@/stores/layersStateManager";
 import { AncestorsStore } from "@/components/layers/ancestorsStore";
 import { isEffectivelyOn } from "@/components/layers/triStateUtils";
@@ -2972,15 +2977,6 @@ function WorkflowEditorContent({
     setViewport({ x: cw / 2 - ((minX + maxX) / 2) * zoom, y: ch / 2 - ((minY + maxY) / 2) * zoom, zoom });
   }, [nodes, setViewport]);
 
-  // Symmetric selection exclusivity: deselect nodes/edges when canvas objects are selected
-  useEffect(() => {
-    if (selectedCanvasObjects.length > 0) {
-      setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
-      setEdges((prev) => prev.map((e) => ({ ...e, selected: false })));
-      updateActiveTab({ selectedNodeId: "", selectedEdgeId: "", selectedEdgeIds: [] });
-    }
-  }, [selectedCanvasObjects.length, updateActiveTab]);
-
   // Helper function to calculate viewport-centered position with sequential offset
   const getViewportCenteredPosition = useCallback(() => {
     // Use common canvas dimensions (matching WorkflowCanvas)
@@ -5173,6 +5169,139 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     }
   }, [historyIndex, history, updateActiveTab, nodes, edges, activeTab]);
 
+  const isLayerItemLocked = useCallback((kind: "node" | "canvasObject", id: string) => {
+    const { locked } = VLStore.get();
+    const ancestors = AncestorsStore.get();
+    const layerId = kind === "canvasObject" ? `object:${id}` : id;
+    const groupId = kind === "canvasObject"
+      ? canvasObjects.find(object => object.id === id)?.groupId
+      : nodes.find(node => node.id === id)?.groupId;
+    return (
+      isEffectivelyOn(layerId, ancestors[layerId] ?? [], locked) ||
+      (!!groupId && !!locked[`group:${groupId}`])
+    );
+  }, [nodes, canvasObjects]);
+
+  const groupSelectedCanvasItems = useCallback(() => {
+    if (effectiveReadOnly) return false;
+    const selectedNodeIds = nodes.filter(node => node.selected).map(node => node.id);
+    const selectedObjectIds = canvasObjects.filter(object => object.selected).map(object => object.id);
+    if (selectedNodeIds.length + selectedObjectIds.length < 2) return false;
+
+    const hasLockedMember =
+      selectedNodeIds.some(id => isLayerItemLocked("node", id)) ||
+      selectedObjectIds.some(id => isLayerItemLocked("canvasObject", id));
+    if (hasLockedMember) {
+      toast({
+        title: "Can't group locked items",
+        description: "Unlock every selected item before grouping.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const groupId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    saveToHistory("Group canvas items");
+    updateActiveTab({
+      nodes: assignGroupId(nodes, selectedNodeIds, groupId),
+      canvasObjects: assignGroupId(canvasObjects, selectedObjectIds, groupId),
+    });
+    setLinearToolbar(null);
+    toast({
+      title: "Items grouped",
+      description: `${selectedNodeIds.length + selectedObjectIds.length} items will now move together.`,
+    });
+    return true;
+  }, [
+    effectiveReadOnly,
+    nodes,
+    canvasObjects,
+    isLayerItemLocked,
+    saveToHistory,
+    updateActiveTab,
+    toast,
+  ]);
+
+  const ungroupSelectedCanvasItems = useCallback(() => {
+    if (effectiveReadOnly) return false;
+    const selectedNodeIds = nodes.filter(node => node.selected).map(node => node.id);
+    const selectedObjectIds = canvasObjects.filter(object => object.selected).map(object => object.id);
+    const selectedGroupIds = new Set([
+      ...nodes.filter(node => node.selected && node.groupId).map(node => node.groupId!),
+      ...canvasObjects.filter(object => object.selected && object.groupId).map(object => object.groupId!),
+    ]);
+    if (selectedGroupIds.size === 0) return false;
+
+    const lockedGroupMember =
+      nodes.some(node => node.groupId && selectedGroupIds.has(node.groupId) && isLayerItemLocked("node", node.id)) ||
+      canvasObjects.some(object => object.groupId && selectedGroupIds.has(object.groupId) && isLayerItemLocked("canvasObject", object.id));
+    if (lockedGroupMember) {
+      toast({
+        title: "Can't ungroup locked items",
+        description: "Unlock every item in the group before ungrouping.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    saveToHistory("Ungroup canvas items");
+    updateActiveTab({
+      nodes: nodes.map(node =>
+        node.groupId && selectedGroupIds.has(node.groupId)
+          ? { ...node, groupId: undefined }
+          : node,
+      ),
+      canvasObjects: canvasObjects.map(object =>
+        object.groupId && selectedGroupIds.has(object.groupId)
+          ? { ...object, groupId: undefined }
+          : object,
+      ),
+    });
+    setLinearToolbar(null);
+    toast({ title: "Items ungrouped" });
+    return true;
+  }, [
+    effectiveReadOnly,
+    nodes,
+    canvasObjects,
+    isLayerItemLocked,
+    saveToHistory,
+    updateActiveTab,
+    toast,
+  ]);
+
+  const ungroupPersistentGroupById = useCallback((groupId: string) => {
+    if (effectiveReadOnly) return;
+    const groupNodes = nodes.filter(node => node.groupId === groupId);
+    const groupObjects = canvasObjects.filter(object => object.groupId === groupId);
+    const lockedMember =
+      groupNodes.some(node => isLayerItemLocked("node", node.id)) ||
+      groupObjects.some(object => isLayerItemLocked("canvasObject", object.id));
+    if (lockedMember) {
+      toast({
+        title: "Can't ungroup locked items",
+        description: "Unlock every item in the group before ungrouping.",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveToHistory("Ungroup canvas items");
+    updateActiveTab({
+      nodes: nodes.map(node => node.groupId === groupId ? { ...node, groupId: undefined } : node),
+      canvasObjects: canvasObjects.map(object =>
+        object.groupId === groupId ? { ...object, groupId: undefined } : object,
+      ),
+    });
+  }, [
+    effectiveReadOnly,
+    nodes,
+    canvasObjects,
+    isLayerItemLocked,
+    saveToHistory,
+    updateActiveTab,
+    toast,
+  ]);
+
   // Snapshot and Version History handlers
   const handleSnapshot = useCallback(() => {
     // Access version control plugin through global registry
@@ -5286,6 +5415,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         // Deselect all nodes and edges
         setNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
         setEdges((prev) => prev.map((edge) => ({ ...edge, selected: false })));
+        updateActiveTab({
+          canvasObjects: canvasObjects.map(object => ({ ...object, selected: false })),
+        });
         setSelectedNodeId("");
         setSelectedEdgeId("");
         setSelectedEdgeIds([]);
@@ -5328,32 +5460,49 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           setSketchSelection(null);
           return;
         }
-        // Get lock state from VLStore to check if items are locked
-        const { locked } = VLStore.get();
-        const ancestors = AncestorsStore.get();
-        const isNodeLocked = (nodeId: string) => 
-          isEffectivelyOn(nodeId, ancestors[nodeId] ?? [], locked);
+        const isNodeLocked = (nodeId: string) =>
+          isLayerItemLocked("node", nodeId);
+        const isCanvasObjectLocked = (objectId: string) =>
+          isLayerItemLocked("canvasObject", objectId);
         const isEdgeLocked = (edge: Edge) => 
           isNodeLocked(edge.source) || isNodeLocked(edge.target);
         
         const selectedNodesList = nodes.filter((n) => n.selected);
         const selectedEdgesList = edges.filter((edge) => edge.selected);
-        const hasSelectedObjects = selectedCanvasObjects.length > 0;
+        const selectedGroupIds = new Set([
+          ...selectedNodesList.flatMap(node => node.groupId ? [node.groupId] : []),
+          ...selectedCanvasObjects.flatMap(object => object.groupId ? [object.groupId] : []),
+        ]);
+        const blockedGroupIds = getLockedPersistentGroupIds(
+          nodes,
+          canvasObjects,
+          (kind, id) => kind === "node" ? isNodeLocked(id) : isCanvasObjectLocked(id),
+        );
         
-        // Filter out locked items - only delete unlocked ones
-        const deletableNodes = selectedNodesList.filter((n) => !isNodeLocked(n.id));
+        // Persistent groups delete atomically: any locked member protects the
+        // complete selected group, including members of the other item kind.
+        const deletableNodes = selectedNodesList.filter((n) =>
+          !isNodeLocked(n.id) &&
+          (!n.groupId || !selectedGroupIds.has(n.groupId) || !blockedGroupIds.has(n.groupId)),
+        );
+        const deletableObjects = selectedCanvasObjects.filter(object =>
+          !isCanvasObjectLocked(object.id) &&
+          (!object.groupId ||
+            !selectedGroupIds.has(object.groupId) ||
+            !blockedGroupIds.has(object.groupId)),
+        );
         const deletableEdges = selectedEdgesList.filter((e) => !isEdgeLocked(e));
         const lockedNodesCount = selectedNodesList.length - deletableNodes.length;
         const lockedEdgesCount = selectedEdgesList.length - deletableEdges.length;
 
         // Pre-compute deletion label before any mutations so saveToHistory
         // captures the pre-deletion state (correct "undo" snapshot).
-        const wouldDelete = deletableNodes.length > 0 || deletableEdges.length > 0 || hasSelectedObjects;
+        const wouldDelete = deletableNodes.length > 0 || deletableEdges.length > 0 || deletableObjects.length > 0;
         if (wouldDelete) {
           const deletionParts = [
             deletableNodes.length > 0 ? `${deletableNodes.length} node(s)` : null,
             deletableEdges.length > 0 ? `${deletableEdges.length} edge(s)` : null,
-            hasSelectedObjects ? `${selectedCanvasObjects.length} object(s)` : null,
+            deletableObjects.length > 0 ? `${deletableObjects.length} object(s)` : null,
           ].filter(Boolean);
           saveToHistory(`Delete ${deletionParts.join(", ")}`);
         }
@@ -5388,13 +5537,14 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         }
 
         // Delete selected canvas objects
-        if (hasSelectedObjects) {
+        if (deletableObjects.length > 0) {
           e.preventDefault();
+          const deletableObjectIds = new Set(deletableObjects.map(object => object.id));
           updateActiveTab({
-            canvasObjects: canvasObjects.filter((obj) => !obj.selected),
+            canvasObjects: canvasObjects.filter((obj) => !deletableObjectIds.has(obj.id)),
           });
           setLinearToolbar(null);
-          deletedItems.push(`${selectedCanvasObjects.length} object(s)`);
+          deletedItems.push(`${deletableObjects.length} object(s)`);
         }
         return;
       }
@@ -5424,6 +5574,20 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
+      // Ctrl/Cmd + G - persistently group the mixed canvas selection
+      if (isCtrlOrCmd && e.key.toLowerCase() === "g" && !e.shiftKey) {
+        e.preventDefault();
+        groupSelectedCanvasItems();
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + G - ungroup every selected persistent group
+      if (isCtrlOrCmd && e.key.toLowerCase() === "g" && e.shiftKey) {
+        e.preventDefault();
+        ungroupSelectedCanvasItems();
+        return;
+      }
+
       // Ctrl/Cmd + C - Copy (sketch mode: copy selected strokes)
       if (isCtrlOrCmd && e.key === "c") {
         if (isSketchMode) {
@@ -5442,13 +5606,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      // Ctrl/Cmd + A - Select all nodes
+      // Ctrl/Cmd + A - Select all canvas items
       if (isCtrlOrCmd && e.key === "a") {
         e.preventDefault();
         setNodes((prev) => prev.map((n) => ({ ...n, selected: true })));
+        updateActiveTab({
+          canvasObjects: canvasObjects.map(object => ({ ...object, selected: true })),
+        });
         toast({
           title: "Selected All",
-          description: `${nodes.length} nodes selected`,
+          description: `${nodes.length + canvasObjects.length} items selected`,
         });
         return;
       }
@@ -5840,11 +6007,16 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         return;
       }
 
-      // Arrow keys - Nudge selected nodes
+      // Arrow keys - nudge the complete mixed selection
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         const selectedNodesList = nodes.filter((n) => n.selected);
-        if (selectedNodesList.length > 0) {
+        const selectedObjectsList = canvasObjects.filter(object => object.selected);
+        if (selectedNodesList.length > 0 || selectedObjectsList.length > 0) {
           e.preventDefault();
+          const hasLockedItem =
+            selectedNodesList.some(node => isLayerItemLocked("node", node.id)) ||
+            selectedObjectsList.some(object => isLayerItemLocked("canvasObject", object.id));
+          if (hasLockedItem) return;
           const nudgeAmount = e.shiftKey ? 10 : 1;
           const delta = {
             x:
@@ -5861,9 +6033,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   : 0,
           };
 
-          saveToHistory("Nudge node");
-          setNodes((prev) =>
-            prev.map((n) =>
+          saveToHistory("Nudge canvas items");
+          updateActiveTab({
+            nodes: nodes.map((n) =>
               n.selected
                 ? {
                     ...n,
@@ -5874,7 +6046,18 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   }
                 : n,
             ),
-          );
+            canvasObjects: canvasObjects.map(object =>
+              object.selected
+                ? {
+                    ...object,
+                    position: {
+                      x: object.position.x + delta.x,
+                      y: object.position.y + delta.y,
+                    },
+                  }
+                : object,
+            ),
+          });
         }
         return;
       }
@@ -5922,6 +6105,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     updateActiveTab,
     isSketchMode,
     effectiveReadOnly,
+    groupSelectedCanvasItems,
+    ungroupSelectedCanvasItems,
+    isLayerItemLocked,
   ]);
 
   // Track mouse position for quick create menu
@@ -5954,6 +6140,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     };
 
     const handleCanvasObjectDragStart = () => {
+      if (!isDraggingRef.current) {
+        saveToHistory("Move canvas items");
+      }
       isDraggingRef.current = true;
       if (clickDelayTimeoutRef.current) {
         clearTimeout(clickDelayTimeoutRef.current);
@@ -5991,7 +6180,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         handleCanvasObjectDragEnd,
       );
     };
-  }, []);
+  }, [saveToHistory]);
 
   // Cleanup timers on unmount to prevent memory leaks
   useEffect(() => {
@@ -11353,7 +11542,9 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     isGeneratingInterface={isGeneratingInterface}
                     onViewportChange={setViewport}
                     onCanvasObjectsChange={(newCanvasObjects) => {
-                      saveToHistory("Update canvas objects");
+                      if (!isDraggingRef.current) {
+                        saveToHistory("Update canvas objects");
+                      }
                       updateActiveTab({ canvasObjects: newCanvasObjects });
                     }}
                     proFeatures={proFeaturesConfig}
@@ -11842,31 +12033,63 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         clickDelayTimeoutRef.current = null;
                       }
 
+                      const persistentGroupId = node.groupId;
+
                       if (e.shiftKey) {
-                        // Shift+click for multi-select - immediate action
-                        setNodes((prev) => {
-                          const updated = prev.map((n) => {
-                            if (n.id === node.id) {
-                              return { ...n, selected: !n.selected };
-                            }
-                            return n;
+                        // Shift-click toggles a persistent group atomically.
+                        const groupNodes = persistentGroupId
+                          ? nodes.filter(candidate => candidate.groupId === persistentGroupId)
+                          : [node];
+                        const groupObjects = persistentGroupId
+                          ? canvasObjects.filter(object => object.groupId === persistentGroupId)
+                          : [];
+                        const shouldSelect = ![
+                          ...groupNodes.map(candidate => !!candidate.selected),
+                          ...groupObjects.map(object => !!object.selected),
+                        ].every(Boolean);
+                        const groupNodeIds = new Set(groupNodes.map(candidate => candidate.id));
+                        const groupObjectIds = new Set(groupObjects.map(object => object.id));
+                        setNodes((prev) => prev.map(candidate =>
+                          groupNodeIds.has(candidate.id)
+                            ? { ...candidate, selected: shouldSelect }
+                            : candidate,
+                        ));
+                        if (groupObjectIds.size > 0) {
+                          updateActiveTab({
+                            canvasObjects: canvasObjects.map(object =>
+                              groupObjectIds.has(object.id)
+                                ? { ...object, selected: shouldSelect }
+                                : object,
+                            ),
                           });
-                          return updated;
-                        });
+                        }
 
                         // Hide toolbar during multi-select
                         setLinearToolbar(null);
 
                         // Don't change selectedNodeId during multi-select to preserve the selection
                       } else {
-                        // Regular click - update selection immediately but delay properties panel
-                        setNodes((prev) => {
-                          const updated = prev.map((n) => ({
-                            ...n,
-                            selected: n.id === node.id,
-                          }));
-                          return updated;
+                        // Regular click selects the full persistent group, including
+                        // canvas-object members, or just this node when ungrouped.
+                        setNodes((prev) => prev.map(candidate => ({
+                          ...candidate,
+                          selected: persistentGroupId
+                            ? candidate.groupId === persistentGroupId
+                            : candidate.id === node.id,
+                        })));
+                        updateActiveTab({
+                          canvasObjects: canvasObjects.map(object => ({
+                            ...object,
+                            selected: persistentGroupId
+                              ? object.groupId === persistentGroupId
+                              : false,
+                          })),
                         });
+                        if (persistentGroupId) {
+                          setSelectedNodeId("");
+                          setLinearToolbar(null);
+                          return;
+                        }
 
                         // Reset drag detection
                         isDraggingRef.current = false;
@@ -12231,7 +12454,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
 
                         // Delay opening toolbar to detect if this becomes a drag
                         clickDelayTimeoutRef.current = setTimeout(() => {
-                          if (!isDraggingRef.current) {
+                          if (!isDraggingRef.current && !canvasObject.groupId) {
                             // Don't overwrite toolbar if we're editing a hyperlink or in a submenu
                             setLinearToolbar((prev) => {
                               if (
@@ -12292,9 +12515,15 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                         }, 150); // 150ms delay to detect drag
                       }
 
-                      // Deselect nodes and edges
+                      // A persistent group click has already expanded selection in
+                      // KiteFrameCanvas. Preserve its node members in host state.
                       setNodes((prev) =>
-                        prev.map((n) => ({ ...n, selected: false })),
+                        prev.map((n) => ({
+                          ...n,
+                          selected: canvasObject.groupId
+                            ? n.groupId === canvasObject.groupId
+                            : false,
+                        })),
                       );
                       setEdges((prev) =>
                         prev.map((e) => ({ ...e, selected: false })),
@@ -14342,10 +14571,33 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges={edges}
                 frames={[]}
                 canvasObjects={canvasObjects}
+                onNodesChange={(newNodes) => {
+                  saveToHistory("Update persistent group");
+                  updateActiveTab({ nodes: newNodes });
+                }}
                 onCanvasObjectsChange={(newCanvasObjects) => {
                   saveToHistory("Organize canvas object");
                   updateActiveTab({ canvasObjects: newCanvasObjects });
                 }}
+                onPersistentGroupFocus={({ nodeIds, canvasObjectIds }) => {
+                  const selectedNodeIds = new Set(nodeIds);
+                  const selectedObjectIds = new Set(canvasObjectIds);
+                  updateActiveTab({
+                    nodes: nodes.map(node => ({
+                      ...node,
+                      selected: selectedNodeIds.has(node.id),
+                    })),
+                    canvasObjects: canvasObjects.map(object => ({
+                      ...object,
+                      selected: selectedObjectIds.has(object.id),
+                    })),
+                    selectedNodeId: "",
+                    selectedEdgeId: "",
+                    selectedEdgeIds: [],
+                  });
+                  setLinearToolbar(null);
+                }}
+                onPersistentGroupUngroup={ungroupPersistentGroupById}
                 sketchStrokes={sketchStrokes}
                 projectId={
                   activeTab?.projectUuid ||
@@ -16285,7 +16537,44 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               setContextMenu(null);
             }
           }}
+          onGroup={
+            nodes.filter(node => node.selected).length +
+              canvasObjects.filter(object => object.selected).length >= 2
+              ? groupSelectedCanvasItems
+              : undefined
+          }
+          onUngroup={
+            nodes.some(node => node.selected && node.groupId) ||
+            canvasObjects.some(object => object.selected && object.groupId)
+              ? ungroupSelectedCanvasItems
+              : undefined
+          }
           onDuplicate={() => {
+            const sourceGroupId =
+              contextMenu.node?.groupId ?? contextMenu.canvasObject?.groupId;
+            if (sourceGroupId) {
+              const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              const duplicated = duplicatePersistentGroup(
+                nodes,
+                canvasObjects,
+                edges,
+                sourceGroupId,
+                {
+                  nodeId: (sourceId) => `${sourceId}-copy-${unique}`,
+                  canvasObjectId: (sourceId) => `${sourceId}-copy-${unique}`,
+                  edgeId: (sourceId) => `${sourceId}-copy-${unique}`,
+                  groupId: () => `group-${unique}`,
+                },
+              );
+              saveToHistory("Duplicate group");
+              updateActiveTab({
+                nodes: [...nodes, ...duplicated.nodes],
+                edges: [...edges, ...duplicated.edges],
+                canvasObjects: [...canvasObjects, ...duplicated.canvasObjects],
+              });
+              setContextMenu(null);
+              return;
+            }
             if (contextMenu.node) {
               const newNode = {
                 ...contextMenu.node,

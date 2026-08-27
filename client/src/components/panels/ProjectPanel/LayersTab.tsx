@@ -26,7 +26,19 @@ interface LayersTabProps {
   projectId?: string;
   isReadOnly?: boolean;
   onStrokeSelect?: (index: number) => void;
+  /** Required to persist ungrouping when a persistent group contains nodes. */
+  onNodesChange?: (nodes: Node[]) => void;
   onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
+  /**
+   * Lets the canvas host select the mixed members of a persistent group.
+   * Focusing its combined world bounds is performed by LayersTab directly.
+   */
+  onPersistentGroupFocus?: (members: {
+    groupId: string;
+    nodeIds: string[];
+    canvasObjectIds: string[];
+  }) => void;
+  onPersistentGroupUngroup?: (groupId: string) => void;
 }
 
 export function LayersTab({
@@ -38,7 +50,10 @@ export function LayersTab({
   projectId,
   isReadOnly = false,
   onStrokeSelect,
+  onNodesChange,
   onCanvasObjectsChange,
+  onPersistentGroupFocus,
+  onPersistentGroupUngroup,
 }: LayersTabProps) {
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -236,6 +251,88 @@ export function LayersTab({
     setDropTargetGroupId(null);
   };
 
+  const getPersistentGroupMembers = (groupId: string) => {
+    const childIds = tree?.groups[groupId]?.childIds ?? [];
+    return {
+      nodeIds: childIds.filter((id: string) => tree?.leaves[id]?.role === 'node'),
+      canvasObjectIds: childIds
+        .filter((id: string) => tree?.leaves[id]?.role === 'canvasObject')
+        .map((id: string) => tree.leaves[id].canvasObjectId as string),
+    };
+  };
+
+  const focusPersistentGroup = (layerGroupId: string) => {
+    const group = tree?.groups[layerGroupId];
+    if (!group?.persistentGroupId) return;
+    const members = getPersistentGroupMembers(layerGroupId);
+    onPersistentGroupFocus?.({
+      groupId: group.persistentGroupId,
+      ...members,
+    });
+
+    const bounds: { x: number; y: number; width: number; height: number }[] = [];
+    members.nodeIds.forEach((id: string) => {
+      const node = nodes.find(candidate => candidate.id === id);
+      if (!node) return;
+      bounds.push({
+        x: node.position.x,
+        y: node.position.y,
+        width: node.style?.width ?? node.width ?? node.measuredWidth ?? 200,
+        height: node.style?.height ?? node.height ?? node.measuredHeight ?? 100,
+      });
+    });
+    members.canvasObjectIds.forEach((id: string) => {
+      const object = canvasObjects.find(candidate => candidate.id === id);
+      if (!object) return;
+      bounds.push({
+        x: object.position.x,
+        y: object.position.y,
+        width: object.style?.width ?? object.width ?? 160,
+        height: object.style?.height ?? object.height ?? 100,
+      });
+    });
+    if (bounds.length === 0) return;
+    const minX = Math.min(...bounds.map(bound => bound.x));
+    const minY = Math.min(...bounds.map(bound => bound.y));
+    const maxX = Math.max(...bounds.map(bound => bound.x + bound.width));
+    const maxY = Math.max(...bounds.map(bound => bound.y + bound.height));
+    focusBus.focusWorldRect({
+      x: minX,
+      y: minY,
+      width: Math.max(maxX - minX, 1),
+      height: Math.max(maxY - minY, 1),
+    }, { padding: 150 });
+  };
+
+  const ungroupPersistentGroup = (layerGroupId: string) => {
+    if (isReadOnly) return;
+    const persistentGroupId = tree?.groups[layerGroupId]?.persistentGroupId;
+    if (!persistentGroupId) return;
+    if (onPersistentGroupUngroup) {
+      onPersistentGroupUngroup(persistentGroupId);
+      return;
+    }
+    const { nodeIds, canvasObjectIds } = getPersistentGroupMembers(layerGroupId);
+    if (nodeIds.length > 0 && !onNodesChange) return;
+    if (canvasObjectIds.length > 0 && !onCanvasObjectsChange) return;
+    if (nodeIds.length > 0) {
+      onNodesChange?.(nodes.map(node => {
+        if (node.groupId !== persistentGroupId) return node;
+        const nextNode = { ...node };
+        delete nextNode.groupId;
+        return nextNode;
+      }));
+    }
+    if (canvasObjectIds.length > 0) {
+      onCanvasObjectsChange?.(canvasObjects.map(object => {
+        if (object.groupId !== persistentGroupId) return object;
+        const nextObject = { ...object };
+        delete nextObject.groupId;
+        return nextObject;
+      }));
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900" role="tree" aria-label="Layers" data-testid="layers-tab">
       {/* Search Bar */}
@@ -274,6 +371,8 @@ export function LayersTab({
                 if (role === 'workflow' && childIds) {
                   const nodeIds = childIds.filter(cid => tree.leaves[cid]?.role === 'node');
                   focusBus.focusWorkflow(nodeIds, { padding: 150 });
+                } else if (role === 'persistentGroup') {
+                  focusPersistentGroup(id);
                 }
               };
               
@@ -290,6 +389,14 @@ export function LayersTab({
               const handleStatusChange = role === 'workflow' ? (newStatus: WorkflowStatus) => {
                 workflowMeta.setStatus(wfKey, newStatus);
               } : undefined;
+                const members = role === 'persistentGroup' ? getPersistentGroupMembers(id) : undefined;
+                const canUngroup = !isReadOnly && !!members && (
+                  !!onPersistentGroupUngroup ||
+                  (
+                    (members.nodeIds.length === 0 || !!onNodesChange) &&
+                    (members.canvasObjectIds.length === 0 || !!onCanvasObjectsChange)
+                  )
+                );
               
               return <GroupRow 
                 id={id} depth={depth} label={label} childIds={childIds ?? []}
@@ -311,6 +418,7 @@ export function LayersTab({
                   setDropTargetGroupId(nextTarget);
                 }}
                 onDropCanvasObject={(objectId) => moveCanvasObjectToGroup(objectId, id)}
+                onUngroup={canUngroup ? () => ungroupPersistentGroup(id) : undefined}
               />;
             } else {
               const ancestors = ancestorsIndex[id] ?? [];
@@ -318,6 +426,13 @@ export function LayersTab({
               const effLocked = isEffectivelyOn(id, ancestors, flags.locked);
               
               const handleClick = () => {
+                const persistentAncestorId = [...ancestors].reverse().find(
+                  ancestorId => tree?.groups[ancestorId]?.role === 'persistentGroup',
+                );
+                if (persistentAncestorId) {
+                  focusPersistentGroup(persistentAncestorId);
+                  return;
+                }
                 if (role === 'node') {
                   focusBus.focusNodes([id], { select: true, padding: 150 });
                 } else if (role === 'edge' && id.startsWith('e:')) {
