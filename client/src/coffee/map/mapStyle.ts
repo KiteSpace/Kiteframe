@@ -1,69 +1,50 @@
-import type { StyleSpecification } from "maplibre-gl";
-
 /**
  * Basemap styles for the atlas globe.
  *
- * Deliberately API-key-free by default: CARTO's raster basemaps need no token
- * and are free to use with attribution, which keeps the atlas deployable as
- * static output with no secrets. Raster tiles render correctly under the globe
- * projection, so the tradeoff is tile detail rather than functionality.
+ * Deliberately API-key-free: OpenFreeMap serves OpenStreetMap-derived vector
+ * tiles with no key and no account, which keeps the atlas deployable as static
+ * output with no secrets. Vector tiles also stay crisp under the globe
+ * projection and bring their own glyph endpoint, so the cluster count labels
+ * render without a separate font source.
  *
- * To swap in a vector basemap (MapTiler, Protomaps, a self-hosted style), set
+ * To use a different basemap (MapTiler, Protomaps, a self-hosted style), set
  * `VITE_COFFEE_MAP_STYLE_URL` to its style URL — including any key — and it is
  * used for both themes instead.
  */
 
-const ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>';
-
-function rasterStyle(basemap: "light_all" | "dark_all"): StyleSpecification {
-  return {
-    version: 8,
-    // Fonts are only needed by symbol layers; the cluster labels below use this.
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-    sources: {
-      carto: {
-        type: "raster",
-        tiles: [
-          `https://a.basemaps.cartocdn.com/rastertiles/${basemap}/{z}/{x}/{y}{r}.png`,
-          `https://b.basemaps.cartocdn.com/rastertiles/${basemap}/{z}/{x}/{y}{r}.png`,
-          `https://c.basemaps.cartocdn.com/rastertiles/${basemap}/{z}/{x}/{y}{r}.png`,
-        ],
-        tileSize: 256,
-        maxzoom: 19,
-        attribution: ATTRIBUTION,
-      },
-    },
-    layers: [
-      {
-        // Painted behind the tiles so the globe's oceans are never transparent
-        // while tiles are still loading.
-        id: "background",
-        type: "background",
-        paint: {
-          "background-color": basemap === "dark_all" ? "#14100e" : "#e8e2d9",
-        },
-      },
-      {
-        id: "carto-tiles",
-        type: "raster",
-        source: "carto",
-        paint: { "raster-opacity": 1 },
-      },
-    ],
-  };
-}
+const STYLES = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+} as const;
 
 const OVERRIDE_STYLE_URL = import.meta.env.VITE_COFFEE_MAP_STYLE_URL as
   | string
   | undefined;
 
-export function mapStyleFor(theme: "light" | "dark"): StyleSpecification | string {
-  if (OVERRIDE_STYLE_URL) return OVERRIDE_STYLE_URL;
-  return rasterStyle(theme === "dark" ? "dark_all" : "light_all");
+export function mapStyleFor(theme: "light" | "dark"): string {
+  return OVERRIDE_STYLE_URL || STYLES[theme];
 }
 
-/** Colour ramp for cluster bubbles, from the atlas palette. */
+/**
+ * Fonts to label cluster counts with. Both OpenFreeMap styles ship Noto Sans;
+ * the second entry is a fallback for custom styles that do not.
+ */
+export const CLUSTER_LABEL_FONTS = ["Noto Sans Bold", "Open Sans Semibold"];
+
+/**
+ * Ocean colour applied to the style's `background` layer after it loads.
+ *
+ * OpenMapTiles has no ocean polygons at low zoom — sea is simply where land
+ * isn't — so the backdrop colour is what makes the sphere read as a sphere.
+ * Positron's near-white default leaves the globe looking like a pale smudge
+ * against a pale page.
+ */
+export const OCEAN_COLOR = {
+  light: "#cfdbe2",
+  dark: "#101b21",
+} as const;
+
+/** Colour ramp for cluster bubbles and pins, from the atlas palette. */
 export const CLUSTER_COLORS = {
   small: "#C97B45",
   medium: "#B55A28",

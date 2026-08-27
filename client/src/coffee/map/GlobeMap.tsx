@@ -18,7 +18,12 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { CoffeeShop } from "@shared/coffee/types";
-import { CLUSTER_COLORS, mapStyleFor } from "./mapStyle";
+import {
+  CLUSTER_COLORS,
+  CLUSTER_LABEL_FONTS,
+  OCEAN_COLOR,
+  mapStyleFor,
+} from "./mapStyle";
 import { useDarkMode } from "./useDarkMode";
 
 const SOURCE_ID = "atlas-shops";
@@ -28,7 +33,7 @@ const PIN_LAYER = "atlas-pins";
 const PIN_RING_LAYER = "atlas-pin-rings";
 
 /** Zoomed far enough out that the globe reads as a globe. */
-const INITIAL_ZOOM = 1.1;
+const INITIAL_ZOOM = 1.9;
 const DEFAULT_CENTER: [number, number] = [10, 25];
 
 export interface GlobeMapHandle {
@@ -54,6 +59,23 @@ interface GlobeMapProps {
    * page rather than zooming the map.
    */
   interactive?: boolean;
+}
+
+/**
+ * Tints the basemap's backdrop so the globe reads as an ocean-covered sphere.
+ * Skipped silently when a custom style has no `background` layer.
+ */
+function paintOcean(map: MapLibreMap, dark: boolean) {
+  if (!map.getLayer("background")) return;
+  try {
+    map.setPaintProperty(
+      "background",
+      "background-color",
+      dark ? OCEAN_COLOR.dark : OCEAN_COLOR.light,
+    );
+  } catch {
+    // A custom style may declare `background` with a non-overridable value.
+  }
 }
 
 function toFeatureCollection(shops: CoffeeShop[]): GeoJSON.FeatureCollection {
@@ -106,8 +128,8 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
 
     // Kept in a ref so map event handlers registered once always see the
     // latest values without needing to be torn down and re-attached.
-    const latest = useRef({ shops, onSelect, data });
-    latest.current = { shops, onSelect, data };
+    const latest = useRef({ shops, onSelect, data, dark });
+    latest.current = { shops, onSelect, data, dark };
 
     /** A single DOM node reused for every popup, rendered into by React. */
     const popupNode = useMemo(() => {
@@ -167,7 +189,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
         filter: ["has", "point_count"],
         layout: {
           "text-field": ["get", "point_count_abbreviated"],
-          "text-font": ["Noto Sans Bold", "Open Sans Semibold"],
+          "text-font": CLUSTER_LABEL_FONTS,
           "text-size": 12,
           "text-allow-overlap": true,
         },
@@ -235,6 +257,11 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
       }
 
       mapRef.current = map;
+      if (import.meta.env.DEV) {
+        // Handle for poking at the live map from the console or a browser test:
+        // __coffeeMap.queryRenderedFeatures(...), .getStyle(), and so on.
+        (window as unknown as { __coffeeMap?: MapLibreMap }).__coffeeMap = map;
+      }
       if (interactive) {
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
       }
@@ -247,6 +274,7 @@ export const GlobeMap = forwardRef<GlobeMapHandle, GlobeMapProps>(
 
       const onStyleReady = () => {
         map.setProjection({ type: "globe" });
+        paintOcean(map, latest.current.dark);
         addAtlasLayers(map);
         styleReadyRef.current = true;
       };

@@ -151,17 +151,25 @@
   filter: var(--coffee-map-icon-filter, none);
 }
 
-.coffee-theme .maplibregl-ctrl-attrib {
-  background: color-mix(in srgb, var(--card) 88%, transparent);
+.coffee-theme .maplibregl-ctrl-attrib,
+.coffee-theme .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--card);
   color: var(--muted-foreground);
   font-size: 10px;
 }
 
-.coffee-theme .maplibregl-ctrl-attrib a {
+.coffee-theme .maplibregl-ctrl-attrib a,
+.coffee-theme .maplibregl-ctrl-attrib-button {
   color: var(--muted-foreground);
 }
 
-.dark .coffee-theme {
+/*
+ * Both selectors are needed: CoffeeLayout puts `coffee-theme` on <html>, which
+ * is the same element that carries `dark`, so the descendant form alone never
+ * matches.
+ */
+.dark .coffee-theme,
+.coffee-theme.dark {
   /* The control glyphs are dark PNGs; invert them on the dark basemap. */
-  --coffee-map-icon-filter: invert(1) brightness(1.4);
+  --coffee-map-icon-filter: invert(1) brightness(1.6);
 }
