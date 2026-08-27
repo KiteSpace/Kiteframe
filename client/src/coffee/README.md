@@ -127,19 +127,40 @@ dependency. It does not handle nested maps or multi-line scalars.
 
 ## The basemap
 
-Defaults to CARTO's raster basemaps, which need no API key and are free with
-attribution, so the atlas stays deployable with no secrets. Raster tiles render
-correctly under MapLibre's globe projection; the tradeoff is tile detail.
+Defaults to [OpenFreeMap](https://openfreemap.org/), which serves
+OpenStreetMap-derived vector tiles with no API key and no account, so the atlas
+stays deployable with no secrets. It also supplies the glyph endpoint that the
+cluster count labels need. `positron` is used in light mode and `dark` in dark
+mode.
 
-To use a vector basemap instead, set `VITE_COFFEE_MAP_STYLE_URL` to its style
-URL, including any key:
+To use a different basemap, set `VITE_COFFEE_MAP_STYLE_URL` to its style URL,
+including any key:
 
 ```bash
 VITE_COFFEE_MAP_STYLE_URL="https://api.maptiler.com/maps/streets/style.json?key=..." npm run dev:client
 ```
 
+A custom style needs a `background` layer for the ocean tint to apply and a font
+from `CLUSTER_LABEL_FONTS` for the cluster counts; both degrade quietly if
+absent.
+
 The map needs WebGL. If the browser cannot provide it, the map view says so and
 points at the catalogue, which shows the same shops under the same filters.
+
+### Debugging the map
+
+In dev builds the MapLibre instance is on `window.__coffeeMap`, so you can
+inspect it from the console or a browser test:
+
+```js
+__coffeeMap.getStyle().layers.map((l) => l.id);
+__coffeeMap.queryRenderedFeatures([x, y], { layers: ["atlas-pins"] });
+```
+
+One gotcha worth knowing: under the globe projection,
+`queryRenderedFeatures()` with no geometry returns nothing. Point and box
+queries work fine, which is why marker clicks still work — but a whole-viewport
+query is not a valid way to check whether markers rendered.
 
 ## Tests
 
