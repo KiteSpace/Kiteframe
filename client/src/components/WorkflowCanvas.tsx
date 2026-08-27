@@ -581,6 +581,8 @@ export function WorkflowCanvas({
         
         // Handle canvas object selection
         if (event.selectCanvasObject && onCanvasObjectsChange) {
+          // Canvas-object selection is exclusive, matching a direct canvas click.
+          onSelectionChange?.([], []);
           onCanvasObjectsChange(canvasObjects.map(obj => ({
             ...obj,
             selected: obj.id === event.selectCanvasObject

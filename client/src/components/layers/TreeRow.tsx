@@ -2,7 +2,7 @@ import * as React from 'react';
 import { 
   Eye, EyeOff, Lock, Unlock, MinusSquare, Edit2, ChevronRight, ChevronDown,
   ArrowRight, ArrowLeft, Cog, HelpCircle, Bot, Image, Folder, Link2, Layers,
-  Circle, Clock, CheckCircle2, Pencil
+  Circle, Clock, CheckCircle2, Pencil, Type, StickyNote, Square, TextCursorInput
 } from 'lucide-react';
 import type { Tri } from './triStateUtils';
 import { useState } from 'react';
@@ -74,7 +74,8 @@ export function GroupRow({
   onToggleHidden, onToggleLocked,
   onClick, onNameChange, role,
   collapsed, onToggleCollapse,
-  status, onStatusChange
+  status, onStatusChange,
+  canDropCanvasObject, isDropTarget, onDropCanvasObject, onCanvasObjectDragOver
 }:{
   id:string; depth:number; label:string; childIds:string[];
   triHidden:Tri; triLocked:Tri;
@@ -82,6 +83,10 @@ export function GroupRow({
   onClick?:()=>void; onNameChange?:(newName:string)=>void; role?:string;
   collapsed?:boolean; onToggleCollapse?:()=>void;
   status?: WorkflowStatus; onStatusChange?: (status: WorkflowStatus) => void;
+  canDropCanvasObject?: boolean;
+  isDropTarget?: boolean;
+  onDropCanvasObject?: (objectId: string) => void;
+  onCanvasObjectDragOver?: (isOver: boolean) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(label);
@@ -144,7 +149,37 @@ export function GroupRow({
   };
 
   return (
-    <div role="treeitem" aria-level={depth+1} aria-expanded={!collapsed} className={getRowStyles()}>
+    <div
+      role="treeitem"
+      aria-level={depth+1}
+      aria-expanded={!collapsed}
+      className={`${getRowStyles()} ${isDropTarget ? 'bg-blue-100 ring-1 ring-inset ring-blue-400 dark:bg-blue-900/40' : ''}`}
+      onDragEnter={canDropCanvasObject ? (event) => {
+        event.preventDefault();
+        onCanvasObjectDragOver?.(true);
+      } : undefined}
+      onDragOver={canDropCanvasObject ? (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        onCanvasObjectDragOver?.(true);
+      } : undefined}
+      onDragLeave={canDropCanvasObject ? (event) => {
+        if (event.currentTarget.contains(event.relatedTarget as globalThis.Node | null)) return;
+        onCanvasObjectDragOver?.(false);
+      } : undefined}
+      onDrop={canDropCanvasObject ? (event) => {
+        event.preventDefault();
+        const objectId =
+          event.dataTransfer.getData('application/x-kiteframe-canvas-object') ||
+          event.dataTransfer.getData('text/plain');
+        if (objectId) {
+          onDropCanvasObject?.(objectId);
+        } else {
+          onCanvasObjectDragOver?.(false);
+        }
+      } : undefined}
+      data-testid={`row-layer-group-${id}`}
+    >
       <div style={{paddingLeft: depth*16}} className="flex items-center gap-1 flex-1">
         {/* Collapse/Expand Chevron - only show for groups with children */}
         {childIds.length > 0 && onToggleCollapse ? (
@@ -229,11 +264,15 @@ export function GroupRow({
 
 export function LeafRow({
   id, depth, label, effHidden, effLocked, onClick, role, nodeType, isDecision, branchDepth,
-  onToggleHidden, onToggleLocked
+  onToggleHidden, onToggleLocked, canvasObjectType, selected,
+  draggable, onCanvasObjectDragStart, onCanvasObjectDragEnd
 }:{
   id:string; depth:number; label:string; effHidden:boolean; effLocked:boolean;
   onClick?:()=>void; role?:string; nodeType?:string; isDecision?:boolean; branchDepth?:number;
   onToggleHidden?:()=>void; onToggleLocked?:()=>void;
+  canvasObjectType?: string; selected?: boolean; draggable?: boolean;
+  onCanvasObjectDragStart?: (objectId: string) => void;
+  onCanvasObjectDragEnd?: () => void;
 }) {
   // Add branch indentation for decision tree visualization
   const effectiveDepth = depth + (branchDepth ?? 0);
@@ -245,6 +284,11 @@ export function LeafRow({
       return { icon: Link2, color: 'text-purple-400' };
     } else if (role === 'stroke') {
       return { icon: Pencil, color: 'text-pink-400' };
+    } else if (role === 'canvasObject') {
+      if (canvasObjectType === 'text') return { icon: Type, color: 'text-blue-500' };
+      if (canvasObjectType === 'sticky') return { icon: StickyNote, color: 'text-amber-500' };
+      if (canvasObjectType === 'text-field') return { icon: TextCursorInput, color: 'text-violet-500' };
+      return { icon: Square, color: 'text-emerald-500' };
     } else if (nodeType) {
       return getNodeTypeIcon(nodeType);
     } else {
@@ -259,8 +303,18 @@ export function LeafRow({
   
   return (
     <div role="treeitem" aria-level={effectiveDepth+1}
-         className={leafStyles}
+         aria-selected={selected || undefined}
+         className={`${leafStyles} ${selected ? 'bg-blue-100 dark:bg-blue-900/40' : ''}`}
          onClick={onClick}
+         draggable={draggable}
+         onDragStart={draggable ? (event) => {
+           const objectId = id.startsWith('object:') ? id.slice('object:'.length) : id;
+           event.dataTransfer.effectAllowed = 'move';
+           event.dataTransfer.setData('application/x-kiteframe-canvas-object', objectId);
+           event.dataTransfer.setData('text/plain', objectId);
+           onCanvasObjectDragStart?.(objectId);
+         } : undefined}
+         onDragEnd={draggable ? onCanvasObjectDragEnd : undefined}
          data-testid={`row-layer-${id}`}>
       <div style={{paddingLeft: effectiveDepth*16}} className="flex items-center gap-1 flex-1">
         {/* Spacer to align with parent chevrons */}

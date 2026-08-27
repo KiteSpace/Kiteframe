@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useReducer } from 'react';
+import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
 import { VirtualTree } from '@/components/layers/VirtualTree';
 import { computeTri, cascade, isEffectivelyOn, Tri } from '@/components/layers/triStateUtils';
 import { GroupRow, LeafRow } from '@/components/layers/TreeRow';
@@ -26,20 +26,41 @@ interface LayersTabProps {
   projectId?: string;
   isReadOnly?: boolean;
   onStrokeSelect?: (index: number) => void;
+  onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
 }
 
-export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, projectId, isReadOnly = false, onStrokeSelect }: LayersTabProps) {
+export function LayersTab({
+  nodes,
+  edges,
+  frames,
+  canvasObjects = [],
+  sketchStrokes,
+  projectId,
+  isReadOnly = false,
+  onStrokeSelect,
+  onCanvasObjectsChange,
+}: LayersTabProps) {
   const [tree, setTree] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropTargetGroupId, setDropTargetGroupId] = useState<string | null>(null);
+  const draggedCanvasObjectIdRef = useRef<string | null>(null);
+  const dropTargetGroupIdRef = useRef<string | null>(null);
   const [collapseVersion, forceCollapseUpdate] = useReducer((x: number) => x + 1, 0);
   const workflowMeta = useWorkflowMetadata(projectId);
 
   useEffect(() => {
     const w = new Worker(new URL('@/components/layers/graphWorker.ts', import.meta.url), { type: 'module' });
-    w.onmessage = (e: any) => setTree(buildMultiViewTrees(nodes, edges, frames ?? [], e.data, sketchStrokes ?? []));
+    w.onmessage = (e: any) => setTree(buildMultiViewTrees(
+      nodes,
+      edges,
+      frames ?? [],
+      e.data,
+      sketchStrokes ?? [],
+      canvasObjects,
+    ));
     w.postMessage({ nodes, edges, frames, pinnedWorkflows: {} });
     return () => w.terminate();
-  }, [nodes, edges, frames, sketchStrokes]);
+  }, [nodes, edges, frames, sketchStrokes, canvasObjects]);
 
   const rootId = 'structureRoot';
   const getChildren = (id: string): string[] => tree?.groups[id]?.childIds ?? [];
@@ -52,7 +73,9 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
     Object.entries(tree.groups).forEach(([groupId, group]) => {
       if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
         const wfKey = groupId.slice(3);
-        workflowsById[wfKey] = (group as any).childIds.filter((id: string) => !id.startsWith('e:'));
+        workflowsById[wfKey] = (group as any).childIds.filter(
+          (id: string) => tree.leaves[id]?.role === 'node',
+        );
       }
     });
     return generateDefaultWorkflowNames(workflowsById, nodes);
@@ -65,7 +88,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
       if ((group as any).role === 'workflow' && groupId.startsWith('wf:')) {
         const wfName = workflowNames.get(groupId) || defaultWorkflowNames[groupId] || (group as any).name;
         (group as any).childIds.forEach((childId: string) => {
-          if (!childId.startsWith('e:')) {
+          if (tree.leaves[childId]?.role === 'node') {
             mappings.push({ 
               nodeId: childId, 
               workflowGroupId: groupId, 
@@ -164,6 +187,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                 depth: leafDepth, 
                 role: leaf.role,
                 nodeType: leaf.role === 'node' ? nodes.find(n => n.id === cid)?.type : undefined,
+                 canvasObjectId: leaf.canvasObjectId,
+                 canvasObjectType: leaf.canvasObjectType,
                 isDecision: leaf.isDecision,
                 branchDepth: leaf.branchDepth ?? 0
               });
@@ -192,6 +217,25 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
   
   const flags = VLStore.get();
 
+  const moveCanvasObjectToGroup = (objectId: string, groupId: string) => {
+    if (isReadOnly || !onCanvasObjectsChange) return;
+    if (groupId !== 'standalone' && tree?.groups[groupId]?.role !== 'workflow') return;
+
+    const nextWorkflowGroupId = groupId === 'standalone' ? undefined : groupId;
+    let changed = false;
+    const nextObjects = canvasObjects.map((object) => {
+      if (object.id !== objectId || object.workflowGroupId === nextWorkflowGroupId) return object;
+      changed = true;
+      const nextObject = { ...object, workflowGroupId: nextWorkflowGroupId };
+      if (!nextWorkflowGroupId) delete nextObject.workflowGroupId;
+      return nextObject;
+    });
+    if (changed) onCanvasObjectsChange(nextObjects);
+    draggedCanvasObjectIdRef.current = null;
+    dropTargetGroupIdRef.current = null;
+    setDropTargetGroupId(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900" role="tree" aria-label="Layers" data-testid="layers-tab">
       {/* Search Bar */}
@@ -212,7 +256,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
       <div className="flex-1 overflow-hidden bg-gray-50/30 dark:bg-gray-800/30">
         <VirtualTree
           rows={rows}
-          Row={({ type, id, label, depth, childIds, role, collapsed, nodeType, isDecision, branchDepth }: { type: 'group' | 'leaf'; id: string; label: string; depth: number; childIds?: string[]; role?: string; collapsed?: boolean; nodeType?: string; isDecision?: boolean; branchDepth?: number }) => {
+          Row={({ type, id, label, depth, childIds, role, collapsed, nodeType, isDecision, branchDepth, canvasObjectId, canvasObjectType }: { type: 'group' | 'leaf'; id: string; label: string; depth: number; childIds?: string[]; role?: string; collapsed?: boolean; nodeType?: string; isDecision?: boolean; branchDepth?: number; canvasObjectId?: string; canvasObjectType?: string }) => {
             if (type === 'group') {
               const triHidden: Tri = computeTri(childIds ?? [], flags.hidden);
               const triLocked: Tri = computeTri(childIds ?? [], flags.locked);
@@ -228,7 +272,7 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
               };
               const handleClick = () => {
                 if (role === 'workflow' && childIds) {
-                  const nodeIds = childIds.filter(cid => !cid.startsWith('e:'));
+                  const nodeIds = childIds.filter(cid => tree.leaves[cid]?.role === 'node');
                   focusBus.focusWorkflow(nodeIds, { padding: 150 });
                 }
               };
@@ -258,6 +302,15 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                 onToggleCollapse={handleToggleCollapse}
                 status={wfStatus}
                 onStatusChange={handleStatusChange}
+                canDropCanvasObject={!isReadOnly && (role === 'workflow' || role === 'standalone')}
+                isDropTarget={dropTargetGroupId === id}
+                onCanvasObjectDragOver={(isOver) => {
+                  if (!draggedCanvasObjectIdRef.current) return;
+                  const nextTarget = isOver ? id : null;
+                  dropTargetGroupIdRef.current = nextTarget;
+                  setDropTargetGroupId(nextTarget);
+                }}
+                onDropCanvasObject={(objectId) => moveCanvasObjectToGroup(objectId, id)}
               />;
             } else {
               const ancestors = ancestorsIndex[id] ?? [];
@@ -292,6 +345,8 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                   }, { padding: 150 });
                   // Enter sketch mode and select this stroke
                   onStrokeSelect?.(idx);
+                } else if (role === 'canvasObject' && canvasObjectId) {
+                  focusBus.focusCanvasObject(canvasObjectId, { select: true, padding: 150 });
                 }
               };
 
@@ -309,10 +364,27 @@ export function LayersTab({ nodes, edges, frames, canvasObjects, sketchStrokes, 
                 onClick={handleClick}
                 role={role}
                 nodeType={role === 'node' ? nodes.find(n => n.id === id)?.type : undefined}
+                canvasObjectType={canvasObjectType}
+                selected={role === 'canvasObject' && !!canvasObjects.find(object => object.id === canvasObjectId)?.selected}
                 isDecision={isDecision}
                 branchDepth={branchDepth}
                 onToggleHidden={onToggleStrokeHidden}
                 onToggleLocked={onToggleStrokeLocked}
+                draggable={role === 'canvasObject' && !isReadOnly && !!onCanvasObjectsChange}
+                onCanvasObjectDragStart={(objectId) => {
+                  draggedCanvasObjectIdRef.current = objectId;
+                }}
+                onCanvasObjectDragEnd={() => {
+                  const objectId = draggedCanvasObjectIdRef.current;
+                  const groupId = dropTargetGroupIdRef.current;
+                  if (objectId && groupId) {
+                    moveCanvasObjectToGroup(objectId, groupId);
+                    return;
+                  }
+                  draggedCanvasObjectIdRef.current = null;
+                  dropTargetGroupIdRef.current = null;
+                  setDropTargetGroupId(null);
+                }}
               />;
             }
           }}

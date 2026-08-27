@@ -58,6 +58,7 @@ interface ProjectPanelProps {
   edges: Edge[];
   frames?: any[];
   canvasObjects?: CanvasObject[];
+  onCanvasObjectsChange?: (objects: CanvasObject[]) => void;
   sketchStrokes?: SketchStroke[];
   projectId?: string;
   projectName?: string;
@@ -134,6 +135,7 @@ export function ProjectPanel({
   edges, 
   frames, 
   canvasObjects = [], 
+  onCanvasObjectsChange,
   sketchStrokes,
   projectId,
   projectName,
@@ -536,6 +538,7 @@ export function ProjectPanel({
             edges={edges} 
             frames={frames}
             canvasObjects={canvasObjects}
+            onCanvasObjectsChange={onCanvasObjectsChange}
             sketchStrokes={sketchStrokes}
             projectId={projectId}
             isReadOnly={isReadOnly}

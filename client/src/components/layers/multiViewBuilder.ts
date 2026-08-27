@@ -1,10 +1,12 @@
 import { buildLinkGroups } from './linkGroups';
 
-export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone'|'markup';
+import type { CanvasObject, CanvasObjectType } from '@/lib/kiteframe/types';
+
+export type LayerRole = 'root'|'workflow'|'frame'|'node'|'edge'|'canvasObject'|'linkRoot'|'linkGroup'|'stage'|'spatialGroup'|'standalone'|'markup';
 export interface LayerGroupBase { id:string; name:string; role:LayerRole; childIds:string[]; badges?:string[]; }
 export interface LayerLeaf { 
   id:string; 
-  role:'node'|'edge'|'stroke'; 
+  role:'node'|'edge'|'stroke'|'canvasObject';
   label:string; 
   parentId:string;
   isDecision?: boolean;
@@ -12,13 +14,16 @@ export interface LayerLeaf {
   outgoingEdgeCount?: number;
   strokeColor?: string;
   strokeTool?: 'pen' | 'eraser';
+  canvasObjectId?: string;
+  canvasObjectType?: CanvasObjectType;
 }
 export type LayerTree = { groups:Record<string,LayerGroupBase>; leaves:Record<string,LayerLeaf>; roots:string[]; };
 
 export function buildMultiViewTrees(
   nodes:any[], edges:any[], frames:any[],
   workerResult:{ nodeToWorkflow:Record<string,string>, level:Record<string,number>, cycles:string[], rows:[number,string[]][] },
-  sketchStrokes:any[] = []
+  sketchStrokes:any[] = [],
+  canvasObjects:CanvasObject[] = []
 ): LayerTree {
   const groups: Record<string,LayerGroupBase> = {};
   const leaves: Record<string,LayerLeaf> = {};
@@ -29,6 +34,29 @@ export function buildMultiViewTrees(
   const getNodeLabel = (nodeId: string) => {
     const node = nodeMap.get(nodeId);
     return node?.data?.label || node?.data?.name || nodeId;
+  };
+
+  const compactText = (value: unknown) =>
+    typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+
+  const getCanvasObjectLabel = (object: CanvasObject) => {
+    const data = object.data as any;
+    const explicitLabel = compactText(data?.label);
+    if (explicitLabel) return explicitLabel;
+
+    if (object.type === 'shape') {
+      return compactText(data?.text) || `${String(data?.shapeType || 'shape').replace(/^\w/, c => c.toUpperCase())}`;
+    }
+    if (object.type === 'text-field') {
+      const richText = Array.isArray(data?.blocks)
+        ? data.blocks.flatMap((block: any) => block?.runs ?? []).map((run: any) => run?.text ?? '').join(' ')
+        : '';
+      return compactText(richText) || 'Text field';
+    }
+    if (object.type === 'sticky') {
+      return compactText(data?.text) || 'Sticky note';
+    }
+    return compactText(data?.text) || 'Text';
   };
   
   // Helper to count outgoing edges for a node
@@ -156,16 +184,23 @@ export function buildMultiViewTrees(
     // NOTE: Edges are NOT added to workflow groups (per spec)
   }
   
-  // Create standalone nodes group if there are any
-  if (standaloneNodeIds.length > 0) {
+  const ensureStandaloneGroup = () => {
     const standaloneId = 'standalone';
-    groups['structureRoot'].childIds.push(standaloneId);
-    groups[standaloneId] = { 
-      id: standaloneId, 
-      name: 'Standalone Nodes', 
-      role: 'standalone', 
-      childIds: [] 
-    };
+    if (!groups[standaloneId]) {
+      groups['structureRoot'].childIds.push(standaloneId);
+      groups[standaloneId] = {
+        id: standaloneId,
+        name: 'Standalone',
+        role: 'standalone',
+        childIds: [],
+      };
+    }
+    return standaloneId;
+  };
+
+  // Create standalone group for graph nodes that are not part of a workflow
+  if (standaloneNodeIds.length > 0) {
+    const standaloneId = ensureStandaloneGroup();
     
     standaloneNodeIds.forEach(nid => {
       leaves[nid] = { 
@@ -180,6 +215,28 @@ export function buildMultiViewTrees(
       groups[standaloneId].childIds.push(nid);
     });
   }
+
+  // Keep an empty drop target visible while any canvas objects exist so users
+  // can always move an object back out of a workflow.
+  if (canvasObjects.length > 0) ensureStandaloneGroup();
+
+  canvasObjects.forEach((object) => {
+    const leafId = `object:${object.id}`;
+    const requestedGroupId = object.workflowGroupId;
+    const parentId = requestedGroupId && groups[requestedGroupId]?.role === 'workflow'
+      ? requestedGroupId
+      : ensureStandaloneGroup();
+
+    leaves[leafId] = {
+      id: leafId,
+      role: 'canvasObject',
+      label: getCanvasObjectLabel(object),
+      parentId,
+      canvasObjectId: object.id,
+      canvasObjectType: object.type,
+    };
+    groups[parentId].childIds.push(leafId);
+  });
 
   groups['topologyRoot'] = { id:'topologyRoot', name:'Topology', role:'root', childIds:[] };
   const byLevel = new Map<number,string[]>();

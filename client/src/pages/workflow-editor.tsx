@@ -14342,6 +14342,10 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges={edges}
                 frames={[]}
                 canvasObjects={canvasObjects}
+                onCanvasObjectsChange={(newCanvasObjects) => {
+                  saveToHistory("Organize canvas object");
+                  updateActiveTab({ canvasObjects: newCanvasObjects });
+                }}
                 sketchStrokes={sketchStrokes}
                 projectId={
                   activeTab?.projectUuid ||

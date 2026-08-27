@@ -110,7 +110,8 @@ const CanvasObjectSchema = z.object({
   style: z.record(z.any()).optional(),
   selected: z.boolean().optional(),
   locked: z.boolean().optional(),
-  hidden: z.boolean().optional()
+  hidden: z.boolean().optional(),
+  workflowGroupId: z.string().optional()
 });
 
 // Schema for viewport

@@ -1342,6 +1342,8 @@ export type CanvasObject = {
   width?: number;
   height?: number;
   zIndex?: number;
+  /** Optional Layers-panel organization only. Canvas objects remain non-connectable. */
+  workflowGroupId?: string;
 };
 
 export interface EmojiReaction {
