@@ -1,108 +1,199 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&display=swap");
+
 /*
- * Warm palette for the Coffee Atlas.
+ * Editorial theme for the Coffee Atlas.
+ *
+ * High contrast and two sans-serif families: Anton for display (ultra-bold,
+ * condensed, set uppercase and tight) and Inter for everything else. Content
+ * sits on white; headers, hero bands, and the footer are near-black, so the
+ * page reads as alternating bands rather than one flat surface. One accent
+ * colour, used sparingly.
  *
  * These are the same semantic tokens the rest of the app defines, re-declared
  * under a single class. CoffeeLayout puts that class on <html> while an atlas
  * route is mounted and removes it on the way out, so existing utilities like
- * `bg-background` and `text-muted-foreground` come out espresso-and-cream here
- * and Graphite everywhere else. Setting it on <html> rather than a wrapper
- * matters because Radix portals (dialogs, popovers, the command palette) render
- * into <body>, outside any wrapper element.
+ * `bg-background` and `text-muted-foreground` pick up this palette here and
+ * Graphite everywhere else. Setting it on <html> rather than a wrapper matters
+ * because Radix portals (dialogs, popovers, the command palette) render into
+ * <body>, outside any wrapper element.
  */
 
 .coffee-theme {
-  --background: hsl(36, 40%, 97%); /* #FBF7F1 warm paper */
-  --foreground: hsl(24, 26%, 14%); /* #2D211A roasted bean */
+  --font-display: Anton, "Arial Narrow", Impact, sans-serif;
+  --font-sans: Inter, system-ui, sans-serif;
+  /* Sans throughout, so anything asking for serif still gets the body face. */
+  --font-serif: Inter, system-ui, sans-serif;
+
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(24, 14%, 8%); /* #17130F warm near-black */
   --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(24, 26%, 14%);
-  --popover: hsl(38, 44%, 99%);
-  --popover-foreground: hsl(24, 26%, 14%);
+  --card-foreground: hsl(24, 14%, 8%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(24, 14%, 8%);
 
-  --primary: hsl(22, 42%, 22%); /* #4F3020 espresso */
-  --primary-foreground: hsl(36, 60%, 97%);
-  --primary-hover: hsl(22, 40%, 30%);
+  --primary: hsl(24, 14%, 8%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --primary-hover: hsl(24, 12%, 18%);
 
-  --secondary: hsl(34, 34%, 93%); /* #F1E8DC oat milk */
-  --secondary-foreground: hsl(24, 30%, 20%);
-  --muted: hsl(34, 30%, 93%);
-  --muted-foreground: hsl(24, 14%, 42%); /* #7A6A5F */
-  --accent: hsl(34, 38%, 90%);
-  --accent-foreground: hsl(24, 30%, 20%);
+  --secondary: hsl(30, 14%, 95%); /* #F5F3F1 paper grey */
+  --secondary-foreground: hsl(24, 14%, 8%);
+  --muted: hsl(30, 14%, 95%);
+  --muted-foreground: hsl(24, 7%, 43%); /* #756E68 */
+  --accent: hsl(30, 12%, 92%);
+  --accent-foreground: hsl(24, 14%, 8%);
 
-  --brand: hsl(20, 62%, 44%); /* #B55A28 copper roast */
-  --brand-foreground: hsl(36, 60%, 97%);
-  --brand-soft: hsl(28, 62%, 94%); /* #FBEDE2 */
-  --brand-wash: hsl(32, 70%, 98%);
-  --brand-strong: hsl(16, 66%, 34%); /* #8F3D1D */
+  --brand: hsl(18, 82%, 46%); /* #D6501A the single accent */
+  --brand-foreground: hsl(0, 0%, 100%);
+  --brand-soft: hsl(24, 88%, 96%);
+  --brand-wash: hsl(28, 80%, 98%);
+  --brand-strong: hsl(14, 84%, 38%);
 
-  --info: hsl(190, 46%, 40%); /* muted teal, for the map's cool accents */
-  --info-soft: hsl(190, 44%, 93%);
-
-  --success: hsl(140, 40%, 32%); /* leaf green */
-  --success-soft: hsl(140, 38%, 92%);
-  --success-foreground: hsl(140, 44%, 20%);
-  --warning: hsl(38, 88%, 52%);
-  --warning-soft: hsl(40, 92%, 92%);
-  --warning-foreground: hsl(28, 82%, 28%);
-  --destructive: hsl(4, 66%, 48%);
+  --info: hsl(196, 60%, 38%);
+  --info-soft: hsl(196, 60%, 95%);
+  --success: hsl(146, 52%, 30%);
+  --success-soft: hsl(146, 44%, 94%);
+  --success-foreground: hsl(146, 56%, 18%);
+  --warning: hsl(38, 92%, 50%);
+  --warning-soft: hsl(40, 94%, 94%);
+  --warning-foreground: hsl(26, 84%, 26%);
+  --destructive: hsl(4, 72%, 46%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --destructive-soft: hsl(6, 74%, 95%);
+  --destructive-soft: hsl(6, 76%, 96%);
 
-  --border: hsl(32, 24%, 87%); /* #E5DACD */
-  --border-soft: hsl(32, 28%, 91%);
-  --input: hsl(30, 22%, 82%);
-  --ring: hsl(20, 62%, 44%);
+  --border: hsl(24, 10%, 87%);
+  --border-soft: hsl(24, 10%, 92%);
+  --input: hsl(24, 10%, 80%);
+  --ring: hsl(18, 82%, 46%);
 
-  --chart-1: hsl(20, 62%, 44%);
-  --chart-2: hsl(190, 46%, 40%);
-  --chart-3: hsl(140, 40%, 32%);
-  --chart-4: hsl(38, 88%, 52%);
-  --chart-5: hsl(4, 66%, 48%);
+  --chart-1: hsl(18, 82%, 46%);
+  --chart-2: hsl(196, 60%, 38%);
+  --chart-3: hsl(146, 52%, 30%);
+  --chart-4: hsl(38, 92%, 50%);
+  --chart-5: hsl(4, 72%, 46%);
 
-  --radius: 10px;
-  --font-serif: "Iowan Old Style", Palatino, Georgia, serif;
+  /* Crisp rather than rounded — the rounding lives on pill buttons instead. */
+  --radius: 4px;
+
+  /* The near-black used by the header, hero bands, and footer. */
+  --band: hsl(24, 14%, 7%);
+  --band-foreground: hsl(30, 20%, 97%);
+  --band-muted: hsl(28, 8%, 62%);
+  --band-border: hsl(24, 10%, 20%);
 }
 
 .dark .coffee-theme,
 .coffee-theme.dark {
-  --background: hsl(24, 16%, 10%); /* #1D1815 dark roast */
-  --foreground: hsl(36, 30%, 92%); /* #F0E7DC */
-  --card: hsl(24, 14%, 14%);
-  --card-foreground: hsl(36, 30%, 92%);
-  --popover: hsl(24, 14%, 14%);
-  --popover-foreground: hsl(36, 30%, 92%);
+  --background: hsl(24, 12%, 9%);
+  --foreground: hsl(30, 20%, 96%);
+  --card: hsl(24, 10%, 13%);
+  --card-foreground: hsl(30, 20%, 96%);
+  --popover: hsl(24, 10%, 13%);
+  --popover-foreground: hsl(30, 20%, 96%);
 
-  --primary: hsl(36, 30%, 92%);
-  --primary-foreground: hsl(24, 24%, 12%);
-  --primary-hover: hsl(36, 40%, 97%);
+  --primary: hsl(30, 20%, 96%);
+  --primary-foreground: hsl(24, 14%, 8%);
+  --primary-hover: hsl(0, 0%, 100%);
 
-  --secondary: hsl(24, 12%, 17%);
-  --secondary-foreground: hsl(36, 30%, 92%);
-  --muted: hsl(24, 12%, 18%);
-  --muted-foreground: hsl(32, 14%, 68%);
-  --accent: hsl(24, 12%, 20%);
-  --accent-foreground: hsl(36, 30%, 92%);
+  --secondary: hsl(24, 9%, 16%);
+  --secondary-foreground: hsl(30, 20%, 96%);
+  --muted: hsl(24, 9%, 17%);
+  --muted-foreground: hsl(28, 9%, 66%);
+  --accent: hsl(24, 9%, 20%);
+  --accent-foreground: hsl(30, 20%, 96%);
 
-  --brand: hsl(24, 76%, 58%); /* lifts for contrast on dark roast */
-  --brand-foreground: hsl(24, 40%, 10%);
-  --brand-soft: hsl(22, 30%, 20%);
-  --brand-wash: hsl(24, 22%, 14%);
-  --brand-strong: hsl(26, 80%, 66%);
+  --brand: hsl(20, 90%, 56%);
+  --brand-foreground: hsl(24, 30%, 8%);
+  --brand-soft: hsl(20, 30%, 18%);
+  --brand-wash: hsl(24, 18%, 13%);
+  --brand-strong: hsl(24, 92%, 66%);
 
-  --border: hsl(26, 12%, 24%);
-  --border-soft: hsl(26, 12%, 20%);
-  --input: hsl(26, 12%, 28%);
-  --ring: hsl(24, 76%, 58%);
+  --border: hsl(24, 9%, 22%);
+  --border-soft: hsl(24, 9%, 18%);
+  --input: hsl(24, 9%, 28%);
+  --ring: hsl(20, 90%, 56%);
+
+  --band: hsl(24, 14%, 5%);
+  --band-foreground: hsl(30, 20%, 96%);
+  --band-muted: hsl(28, 8%, 62%);
+  --band-border: hsl(24, 10%, 18%);
 }
 
-/* Subtle warmth behind the atlas hero, in place of the marketing gradient. */
-.coffee-theme .coffee-hero-wash {
-  background-image: radial-gradient(
-      ellipse 60% 80% at 15% 0%,
-      var(--brand-soft) 0%,
-      transparent 60%
-    ),
-    radial-gradient(ellipse 50% 70% at 95% 10%, var(--info-soft) 0%, transparent 55%);
+/*
+ * Display type. Anton ships a single weight that is already ultra-bold, so the
+ * character comes from case, tracking, and leading rather than font-weight.
+ */
+.coffee-theme .coffee-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.95;
+  /* Anton's caps look thin-stroked without this on light backgrounds. */
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Tighter leading for the oversized hero titles, where 0.95 leaves the stacked
+ * lines looking loose. A separate class rather than a Tailwind `leading-*`
+ * utility because `.coffee-theme .coffee-display` outranks a single-class
+ * utility and would win the cascade.
+ */
+.coffee-theme .coffee-display-tight {
+  line-height: 0.86;
+  letter-spacing: -0.015em;
+}
+
+/* Small all-caps labels, the counterpoint to the oversized headlines. */
+.coffee-theme .coffee-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Near-black band: header, hero sections, footer. */
+.coffee-theme .coffee-band {
+  background: var(--band);
+  color: var(--band-foreground);
+}
+
+.coffee-theme .coffee-band .coffee-band-muted {
+  color: var(--band-muted);
+}
+
+.coffee-theme .coffee-band-divider {
+  border-color: var(--band-border);
+}
+
+/* Outlined pill, as used for the contact chips in the reference. */
+.coffee-theme .coffee-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Long-form bodies: display face for headings, Inter for the prose itself. */
+.coffee-theme .prose :is(h1, h2, h3, h4) {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.95;
+}
+
+.coffee-theme .prose :is(h2, h3) {
+  margin-top: 2em;
+}
+
+.coffee-theme .prose strong {
+  font-weight: 700;
 }
 
 /*
@@ -112,11 +203,11 @@
 .coffee-theme .maplibregl-popup-content {
   background: var(--popover);
   color: var(--popover-foreground);
-  border: 1px solid var(--border);
+  border: 1px solid var(--foreground);
   border-radius: var(--radius);
   padding: 0;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgb(45 33 26 / 18%);
+  box-shadow: 0 12px 32px rgb(23 19 15 / 22%);
 }
 
 .coffee-theme .maplibregl-popup-tip {
@@ -138,9 +229,9 @@
 
 .coffee-theme .maplibregl-ctrl-group {
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-  box-shadow: 0 2px 8px rgb(45 33 26 / 12%);
+  border: 1px solid var(--foreground);
+  border-radius: var(--radius);
+  box-shadow: none;
 }
 
 .coffee-theme .maplibregl-ctrl-group button + button {

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { PRICE_LABELS, type CoffeeShop } from "@shared/coffee/types";
 import { RatingStars } from "./RatingStars";
 
@@ -23,8 +23,7 @@ export function MapPopupCard({
             className="h-full w-full object-cover"
           />
           {shop.recommended && (
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-brand-foreground">
-              <Sparkles className="h-2.5 w-2.5" />
+            <span className="coffee-eyebrow absolute left-0 top-2 bg-brand px-2 py-0.5 text-brand-foreground">
               Recommended
             </span>
           )}
@@ -33,7 +32,7 @@ export function MapPopupCard({
 
       <div className="space-y-2 p-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold leading-tight">{shop.name}</h3>
+          <h3 className="coffee-display break-words text-xl">{shop.name}</h3>
           <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
             {PRICE_LABELS[shop.priceBand]}
           </span>
@@ -51,18 +50,18 @@ export function MapPopupCard({
           {shop.summary}
         </p>
 
-        <p className="rounded-md bg-brand-soft px-2 py-1.5 text-xs text-brand-strong">
-          <span className="font-semibold">Order: </span>
+        <p className="border-y border-border py-2 text-xs leading-snug">
+          <span className="coffee-eyebrow text-brand">Order </span>
           {shop.orderThis}
         </p>
 
         <Link
           href={`/coffee/shops/${shop.slug}${search}`}
-          className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+          className="coffee-eyebrow inline-flex items-center gap-1 text-brand hover:underline"
           data-testid={`link-coffee-popup-detail-${shop.slug}`}
         >
           Read the full write-up
-          <ArrowRight className="h-3 w-3" />
+          <ArrowUpRight className="h-3 w-3" />
         </Link>
       </div>
     </div>

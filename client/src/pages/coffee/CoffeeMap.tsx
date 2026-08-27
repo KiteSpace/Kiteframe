@@ -56,7 +56,12 @@ export default function CoffeeMapPage() {
       fullBleed
       toolbar={<FilterBar state={state} onPlaceSelected={onPlaceSelected} />}
     >
-      <div className="relative h-full w-full">
+      {/*
+        MapLibre leaves everything outside the sphere transparent, so the band
+        colour shows through and the light globe reads against a dark field
+        rather than floating in white.
+      */}
+      <div className="coffee-band relative h-full w-full">
         <GlobeMap
           ref={mapRef}
           shops={results}

@@ -1,19 +1,9 @@
 import { lazy, Suspense, useCallback } from "react";
 import { Link, useParams, useSearch } from "wouter";
 import ReactMarkdown from "react-markdown";
-import {
-  ArrowLeft,
-  CalendarDays,
-  ExternalLink,
-  Globe2,
-  Info,
-  MapPin,
-  Sparkles,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, ArrowUpRight, Globe2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { CoffeeLayout } from "@/coffee/components/CoffeeLayout";
+import { CoffeeHero, CoffeeLayout } from "@/coffee/components/CoffeeLayout";
 import { RatingStars } from "@/coffee/components/RatingStars";
 import { ShopPhotoGallery } from "@/coffee/components/ShopPhotoGallery";
 import { ShopCard } from "@/coffee/components/ShopCard";
@@ -41,8 +31,8 @@ export default function CoffeeShopDetailPage() {
     return (
       <CoffeeLayout>
         <div className="mx-auto max-w-md px-6 py-24 text-center">
-          <h1 className="text-2xl font-semibold">No such shop</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="coffee-display text-4xl">No such shop</h1>
+          <p className="mt-3 text-muted-foreground">
             Nothing in the atlas has the slug “{params.slug}”.
           </p>
           <Button asChild className="mt-6">
@@ -59,68 +49,59 @@ export default function CoffeeShopDetailPage() {
 
   return (
     <CoffeeLayout>
-      <article className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
+      <CoffeeHero
+        size="md"
+        eyebrow={[shop.neighborhood, shop.city, shop.country]
+          .filter(Boolean)
+          .join(" · ")}
+        title={shop.name}
+        lead={shop.summary}
+        meta={
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <RatingStars rating={shop.rating} size="md" />
+            <span className="coffee-eyebrow coffee-band-muted">
+              {PRICE_LABELS[shop.priceBand]}
+            </span>
+            <span className="coffee-eyebrow coffee-band-muted">
+              {shop.visits.length === 1
+                ? `Visited ${formatPostDate(shop.visits[0])}`
+                : `${shop.visits.length} visits · last ${formatPostDate(shop.visits[0])}`}
+            </span>
+            {shop.recommended && (
+              <span className="coffee-eyebrow bg-brand px-2.5 py-1 text-brand-foreground">
+                Recommended
+              </span>
+            )}
+            {shop.sample && (
+              <span className="coffee-pill coffee-band-muted">Sample entry</span>
+            )}
+          </div>
+        }
+      />
+
+      <article className="mx-auto w-full max-w-[1400px] px-4 py-10 sm:px-6 sm:py-12">
         <Link
           href={`/coffee/grid${search}`}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           data-testid="link-coffee-detail-back"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to the catalogue
         </Link>
 
-        <header className="mb-6 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {shop.recommended && (
-              <Badge className="gap-1 bg-brand text-brand-foreground">
-                <Sparkles className="h-3 w-3" />
-                Recommended
-              </Badge>
-            )}
-            <Badge variant="secondary">{PRICE_LABELS[shop.priceBand]}</Badge>
-            {shop.sample && (
-              <Badge variant="outline" className="gap-1 text-muted-foreground">
-                <Info className="h-3 w-3" />
-                Sample entry
-              </Badge>
-            )}
-          </div>
-
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {shop.name}
-          </h1>
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="h-4 w-4" />
-              {shop.neighborhood ? `${shop.neighborhood}, ` : ""}
-              {shop.city}, {shop.region}, {shop.country}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4" />
-              {shop.visits.length === 1
-                ? `Visited ${formatPostDate(shop.visits[0])}`
-                : `${shop.visits.length} visits, last ${formatPostDate(shop.visits[0])}`}
-            </span>
-            <RatingStars rating={shop.rating} size="md" />
-          </div>
-        </header>
-
-        <ShopPhotoGallery photos={shop.photos} />
-
-        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <div className="rounded-lg border border-brand/30 bg-brand-soft p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-strong">
-                What to order
-              </p>
-              <p className="mt-1 text-lg font-medium text-foreground">
+            <ShopPhotoGallery photos={shop.photos} />
+
+            <div className="mt-8 border-y-2 border-foreground py-5">
+              <p className="coffee-eyebrow text-brand">What to order</p>
+              <p className="coffee-display mt-2 max-w-[20ch] text-3xl sm:text-4xl">
                 {shop.orderThis}
               </p>
             </div>
 
             {shop.sample && (
-              <p className="mt-4 rounded-md border border-border bg-secondary/50 p-3 text-xs text-muted-foreground">
+              <p className="mt-6 border-l-2 border-border bg-secondary/60 p-4 text-xs leading-relaxed text-muted-foreground">
                 This entry is seeded placeholder content. The cafe and its
                 location are real, but the notes are a neutral description
                 rather than a first-hand review, and the photography is
@@ -128,18 +109,16 @@ export default function CoffeeShopDetailPage() {
               </p>
             )}
 
-            <div className="prose prose-stone mt-6 max-w-none dark:prose-invert prose-headings:tracking-tight prose-p:leading-relaxed">
+            <div className="prose prose-stone mt-8 max-w-none dark:prose-invert prose-p:leading-relaxed">
               <ReactMarkdown>{shop.review}</ReactMarkdown>
             </div>
           </div>
 
-          <aside className="space-y-6">
+          <aside className="space-y-8">
             <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                On the map
-              </h2>
+              <SidebarHeading>On the map</SidebarHeading>
               <ShopLocationInset shop={shop} />
-              <Button asChild variant="outline" size="sm" className="mt-2 w-full">
+              <Button asChild variant="outline" size="sm" className="mt-3 w-full">
                 <Link
                   href={`/coffee/map?shop=${shop.slug}`}
                   data-testid="link-coffee-detail-map"
@@ -150,44 +129,44 @@ export default function CoffeeShopDetailPage() {
               </Button>
             </section>
 
-            <FactList title="Brew methods" values={shop.brewMethods.map((brew) => BREW_LABELS[brew])} />
+            <FactList
+              title="Brew methods"
+              values={shop.brewMethods.map((brew) => BREW_LABELS[brew])}
+            />
             <FactList title="Vibe" values={shop.tags.map((tag) => TAG_LABELS[tag])} />
 
             {shop.website && (
               <section>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Links
-                </h2>
+                <SidebarHeading>Links</SidebarHeading>
                 <a
                   href={shop.website}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-brand-strong hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
                 >
                   {new URL(shop.website).hostname}
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ArrowUpRight className="h-4 w-4" />
                 </a>
               </section>
             )}
           </aside>
         </div>
-
-        {nearby.length > 0 && (
-          <>
-            <Separator className="my-10" />
-            <section>
-              <h2 className="mb-4 text-lg font-semibold tracking-tight">
-                Also in {shop.city}
-              </h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {nearby.map((entry) => (
-                  <ShopCard key={entry.slug} shop={entry} search={search} />
-                ))}
-              </div>
-            </section>
-          </>
-        )}
       </article>
+
+      {nearby.length > 0 && (
+        <section className="border-t border-border bg-secondary/50">
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6">
+            <h2 className="coffee-display mb-6 text-3xl sm:text-4xl">
+              Also in {shop.city}
+            </h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {nearby.map((entry) => (
+                <ShopCard key={entry.slug} shop={entry} search={search} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </CoffeeLayout>
   );
 }
@@ -202,7 +181,7 @@ function ShopLocationInset({ shop }: { shop: CoffeeShop }) {
   const renderPopup = useCallback(() => null, []);
 
   return (
-    <div className="h-[200px] overflow-hidden rounded-lg border border-border">
+    <div className="h-[200px] overflow-hidden border border-border">
       <Suspense
         fallback={<div className="h-full w-full animate-pulse bg-muted" />}
       >
@@ -219,21 +198,29 @@ function ShopLocationInset({ shop }: { shop: CoffeeShop }) {
   );
 }
 
+function SidebarHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="coffee-eyebrow mb-3 border-b border-border pb-2 text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
 function FactList({ title, values }: { title: string; values: string[] }) {
   if (values.length === 0) return null;
   return (
     <section>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h2>
+      <SidebarHeading>{title}</SidebarHeading>
       <div className="flex flex-wrap gap-1.5">
         {values.map((value) => (
-          <Badge key={value} variant="secondary" className="font-normal">
+          <span
+            key={value}
+            className="border border-border px-2 py-1 text-xs text-foreground"
+          >
             {value}
-          </Badge>
+          </span>
         ))}
       </div>
     </section>
   );
 }
-

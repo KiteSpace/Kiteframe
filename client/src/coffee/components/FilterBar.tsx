@@ -122,14 +122,13 @@ export function FilterBar({
 
           <div className="ml-auto flex items-center gap-3">
             <span
-              className="text-sm text-muted-foreground"
+              className="coffee-eyebrow whitespace-nowrap text-muted-foreground"
               data-testid="text-coffee-result-count"
             >
-              <span className="font-semibold text-foreground">
+              <span className="coffee-display mr-1 text-lg align-[-2px] text-foreground">
                 {results.length}
               </span>
-              {" of "}
-              {total} shops
+              of {total} shops
             </span>
             <ViewSwitcher search={state.search} />
           </div>
@@ -156,7 +155,7 @@ export function ViewSwitcher({ search }: { search: string }) {
   ];
 
   return (
-    <div className="flex items-center rounded-md border border-border bg-card p-0.5">
+    <div className="flex items-center border border-foreground bg-card">
       {views.map((view) => {
         const active = pathname.startsWith(view.href);
         const Icon = view.icon;
@@ -166,9 +165,9 @@ export function ViewSwitcher({ search }: { search: string }) {
             href={`${view.href}${search}`}
             replace={false}
             className={cn(
-              "flex items-center gap-1.5 rounded-[5px] px-2.5 py-1.5 text-sm transition-colors",
+              "coffee-eyebrow flex items-center gap-1.5 px-3 py-2 transition-colors",
               active
-                ? "bg-primary text-primary-foreground"
+                ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
             data-testid={`link-coffee-view-${view.label.toLowerCase()}`}
@@ -295,9 +294,7 @@ function FacetSection({
 }) {
   return (
     <section>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
+      <h3 className="coffee-eyebrow mb-2 text-muted-foreground">{title}</h3>
       {children}
     </section>
   );
@@ -354,10 +351,10 @@ function ChipButton({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs transition-colors",
+        "inline-flex items-center border px-2.5 py-1 text-xs transition-colors",
         selected
           ? "border-brand bg-brand text-brand-foreground"
-          : "border-border bg-card text-foreground hover:bg-accent",
+          : "border-border bg-card text-foreground hover:border-foreground",
       )}
     >
       {children}
@@ -446,7 +443,7 @@ function ActiveFilterChips({
           key={chip.key}
           type="button"
           onClick={chip.remove}
-          className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand-soft px-2.5 py-1 text-xs text-brand-strong transition-colors hover:border-brand"
+          className="inline-flex items-center gap-1 border border-brand bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand-strong transition-colors hover:bg-brand hover:text-brand-foreground"
           data-testid={`chip-coffee-filter-${chip.key}`}
         >
           {chip.label}

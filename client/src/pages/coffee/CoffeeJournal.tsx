@@ -1,9 +1,8 @@
 import { useMemo } from "react";
 import { Link, useSearch } from "wouter";
-import { CalendarDays, Clock, Tag } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CoffeeLayout } from "@/coffee/components/CoffeeLayout";
+import { CoffeeHero, CoffeeLayout } from "@/coffee/components/CoffeeLayout";
 import { JOURNAL_POSTS, journalTags } from "@/coffee/content/posts";
 import { formatPostDate } from "@/coffee/content/format";
 
@@ -23,27 +22,23 @@ export default function CoffeeJournalPage() {
 
   return (
     <CoffeeLayout>
-      <div className="coffee-hero-wash border-b border-border">
-        <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Journal
-          </h1>
-          <p className="mt-3 text-muted-foreground">
-            Longer pieces about roasting styles, routes worth walking, and how
-            the entries in this atlas get judged.
-          </p>
-        </div>
-      </div>
+      <CoffeeHero
+        eyebrow={`${JOURNAL_POSTS.length} pieces`}
+        title="Journal"
+        lead="Longer pieces about roasting styles, routes worth walking, and how the entries in this atlas get judged."
+      />
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-10 sm:px-6 sm:py-12">
         {tags.length > 0 && (
-          <div className="mb-8 flex flex-wrap items-center gap-1.5">
-            <Tag className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+          <div className="mb-10 flex flex-wrap items-center gap-2 border-b border-border pb-6">
+            <span className="coffee-eyebrow mr-2 text-muted-foreground">
+              Filter
+            </span>
             <TagLink label="All" href="/coffee/journal" active={!activeTag} />
             {tags.map(({ tag, count }) => (
               <TagLink
                 key={tag}
-                label={`${tag} ${count}`}
+                label={`${tag} (${count})`}
                 href={`/coffee/journal?tag=${encodeURIComponent(tag)}`}
                 active={activeTag === tag}
               />
@@ -51,56 +46,54 @@ export default function CoffeeJournalPage() {
           </div>
         )}
 
-        <div className="space-y-8" data-testid="list-coffee-journal">
+        <div data-testid="list-coffee-journal">
           {posts.map((post) => (
-            <article
-              key={post.slug}
-              className="group border-b border-border-soft pb-8 last:border-0"
-            >
+            <article key={post.slug} className="border-b border-border">
               <Link
                 href={`/coffee/journal/${post.slug}`}
-                className="flex flex-col gap-4 sm:flex-row-reverse sm:items-start"
+                className="group grid items-start gap-6 py-8 md:grid-cols-[200px_minmax(0,1fr)_auto]"
                 data-testid={`link-coffee-post-${post.slug}`}
               >
-                {post.coverImage && (
+                {post.coverImage ? (
                   <img
                     src={post.coverImage}
                     alt=""
                     loading="lazy"
-                    className="h-32 w-full shrink-0 rounded-lg border border-border object-cover sm:w-44"
+                    className="h-32 w-full border border-border object-cover md:h-28"
                   />
+                ) : (
+                  <div className="hidden md:block" />
                 )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold leading-snug tracking-tight group-hover:text-brand-strong">
+
+                <div>
+                  <p className="coffee-eyebrow text-muted-foreground">
+                    {formatPostDate(post.date)} · {post.readingMinutes} min read
+                  </p>
+                  <h2 className="coffee-display mt-2 max-w-[24ch] text-3xl transition-colors group-hover:text-brand sm:text-4xl">
                     {post.title}
                   </h2>
-                  <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="h-3 w-3" />
-                      {formatPostDate(post.date)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {post.readingMinutes} min read
-                    </span>
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                     {post.excerpt}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-1">
+                  <div className="mt-4 flex flex-wrap gap-1.5">
                     {post.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="font-normal">
+                      <span
+                        key={tag}
+                        className="border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
+                      >
                         {tag}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 </div>
+
+                <ArrowUpRight className="hidden h-7 w-7 self-center text-muted-foreground transition-colors group-hover:text-brand md:block" />
               </Link>
             </article>
           ))}
 
           {posts.length === 0 && (
-            <p className="py-12 text-center text-muted-foreground">
+            <p className="py-16 text-center text-muted-foreground">
               Nothing tagged “{activeTag}” yet.
             </p>
           )}
@@ -123,10 +116,10 @@ function TagLink({
     <Link
       href={href}
       className={cn(
-        "rounded-full border px-2.5 py-1 text-xs transition-colors",
+        "coffee-pill",
         active
           ? "border-brand bg-brand text-brand-foreground"
-          : "border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}

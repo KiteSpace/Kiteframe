@@ -1,25 +1,30 @@
 import { useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Coffee, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "../coffee-theme.css";
 
 /**
  * Shell for every atlas page.
  *
- * The warm palette is applied by putting `coffee-theme` on <html> for as long
- * as an atlas route is mounted, rather than on a wrapper div, because Radix
- * portals (the command palette, popovers) render into <body> and would
- * otherwise keep the app-wide Graphite tokens.
+ * The theme is applied by putting `coffee-theme` on <html> for as long as an
+ * atlas route is mounted, rather than on a wrapper div, because Radix portals
+ * (the command palette, popovers) render into <body> and would otherwise keep
+ * the app-wide Graphite tokens.
  */
 export function CoffeeLayout({
   children,
+  /**
+   * Black title band. Rendered directly under the header so the two read as a
+   * single band, with the toolbar below them rather than sandwiched between.
+   */
+  hero,
   /** Filter bar and view switcher, pinned under the header on map/grid pages. */
   toolbar,
   /** Map needs the full viewport; article pages want normal page scroll. */
   fullBleed = false,
 }: {
   children: ReactNode;
+  hero?: ReactNode;
   toolbar?: ReactNode;
   fullBleed?: boolean;
 }) {
@@ -36,6 +41,7 @@ export function CoffeeLayout({
       )}
     >
       <CoffeeHeader />
+      {hero}
       {toolbar}
       <main className={cn("flex-1", fullBleed && "min-h-0")}>{children}</main>
       {!fullBleed && <CoffeeFooter />}
@@ -53,32 +59,28 @@ function CoffeeHeader() {
   const [pathname] = useLocation();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-6 px-4 sm:px-6">
+    <header className="coffee-band sticky top-0 z-30">
+      <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center gap-8 px-4 sm:px-6">
         <Link
           href="/coffee/map"
-          className="flex items-center gap-2 font-semibold tracking-tight"
+          className="coffee-display text-2xl leading-none sm:text-[28px]"
           data-testid="link-coffee-home"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-brand-foreground">
-            <Coffee className="h-4 w-4" />
-          </span>
           Coffee Atlas
         </Link>
 
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="flex items-center gap-1">
           {NAV.map((item) => {
-            // Map and catalogue links keep the current filters; see ViewSwitcher.
             const active = pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-md px-3 py-1.5 transition-colors",
+                  "coffee-eyebrow px-3 py-2 transition-colors",
                   active
-                    ? "bg-secondary font-medium text-secondary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    ? "text-brand"
+                    : "coffee-band-muted hover:text-[var(--band-foreground)]",
                 )}
                 data-testid={`link-coffee-nav-${item.label.toLowerCase()}`}
               >
@@ -90,29 +92,99 @@ function CoffeeHeader() {
 
         <Link
           href="/"
-          className="ml-auto hidden text-xs text-muted-foreground hover:text-foreground sm:block"
+          className="coffee-eyebrow coffee-band-muted ml-auto hidden hover:text-[var(--band-foreground)] sm:block"
         >
-          Back to Kiteframe
+          Kiteframe ↗
         </Link>
       </div>
     </header>
   );
 }
 
+/**
+ * The oversized black title band that opens the catalogue, journal, and article
+ * pages. `title` is set in the display face and is meant to run large — short
+ * words fill the width, longer ones wrap into two or three stacked lines.
+ */
+export function CoffeeHero({
+  eyebrow,
+  title,
+  lead,
+  meta,
+  size = "lg",
+  width = "wide",
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  /** A sentence or two under the title. */
+  lead?: ReactNode;
+  /** Dates, ratings, tags — sits below the lead on a divider. */
+  meta?: ReactNode;
+  /** `lg` for section landings, `md` for individual articles. */
+  size?: "lg" | "md";
+  /**
+   * Match the width of whatever follows, so the title's left edge lines up
+   * with the body beneath it. `article` for a centred prose column.
+   */
+  width?: "wide" | "article";
+}) {
+  return (
+    <div className="coffee-band">
+      <div
+        className={cn(
+          "mx-auto w-full px-4 sm:px-6",
+          width === "article" ? "max-w-3xl" : "max-w-[1400px]",
+          size === "lg" ? "py-12 sm:py-16" : "py-10 sm:py-12",
+        )}
+      >
+        {eyebrow && (
+          <p className="coffee-eyebrow coffee-band-muted mb-4">{eyebrow}</p>
+        )}
+
+        <h1
+          className={cn(
+            "coffee-display coffee-display-tight max-w-[16ch] text-balance",
+            size === "lg"
+              ? "text-[15vw] sm:text-[9vw] lg:text-[7.5rem]"
+              : "text-[11vw] sm:text-[6vw] lg:text-[4.5rem]",
+          )}
+          data-testid="text-coffee-hero-title"
+        >
+          {title}
+        </h1>
+
+        {lead && (
+          <p className="coffee-band-muted mt-6 max-w-2xl text-base leading-relaxed sm:text-lg">
+            {lead}
+          </p>
+        )}
+
+        {meta && (
+          <div className="coffee-band-divider mt-8 border-t pt-4">{meta}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CoffeeFooter() {
   return (
-    <footer className="border-t border-border bg-secondary/40">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-4 py-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p>
-          A personal log of coffee shops worth remembering. Entries marked{" "}
-          <span className="font-medium text-foreground">sample</span> are seeded
-          placeholder content.
+    <footer className="coffee-band mt-16">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6">
+        <p className="coffee-display max-w-[14ch] text-4xl sm:text-5xl">
+          Drink better coffee
         </p>
-        <p className="flex items-center gap-1.5">
-          <Github className="h-3.5 w-3.5" />
-          Photography from Wikimedia Commons under open licences, credited on
-          each entry.
-        </p>
+        <div className="coffee-band-divider mt-8 grid gap-6 border-t pt-6 text-xs sm:grid-cols-2">
+          <p className="coffee-band-muted max-w-md leading-relaxed">
+            A personal log of coffee shops worth remembering. Entries marked{" "}
+            <span className="text-[var(--band-foreground)]">sample</span> are
+            seeded placeholder content, not first-hand reviews.
+          </p>
+          <p className="coffee-band-muted max-w-md leading-relaxed sm:text-right">
+            Photography from Wikimedia Commons under open licences, credited on
+            each entry. Basemap from OpenFreeMap and OpenStreetMap.
+          </p>
+        </div>
       </div>
     </footer>
   );

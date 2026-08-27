@@ -1,6 +1,5 @@
 import { Link } from "wouter";
-import { MapPin, Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PRICE_LABELS,
@@ -28,10 +27,10 @@ export function ShopCard({
     <Link
       href={`/coffee/shops/${shop.slug}${search}`}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-lg border bg-card transition-all hover:-translate-y-0.5 hover:shadow-lg",
+        "group flex flex-col overflow-hidden border bg-card transition-colors",
         highlighted
-          ? "border-brand ring-2 ring-brand/30"
-          : "border-border hover:border-brand/40",
+          ? "border-brand ring-1 ring-brand"
+          : "border-border hover:border-foreground",
       )}
       data-testid={`card-coffee-shop-${shop.slug}`}
     >
@@ -41,7 +40,7 @@ export function ShopCard({
             src={photo.src}
             alt={photo.alt}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -50,54 +49,56 @@ export function ShopCard({
         )}
 
         {shop.recommended && (
-          <Badge className="absolute left-2 top-2 gap-1 bg-brand text-brand-foreground shadow">
-            <Sparkles className="h-3 w-3" />
+          <span className="coffee-eyebrow absolute left-0 top-3 bg-brand px-2.5 py-1 text-brand-foreground">
             Recommended
-          </Badge>
+          </span>
         )}
-        <span className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-medium tabular-nums">
-          {PRICE_LABELS[shop.priceBand]}
-        </span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold leading-tight tracking-tight group-hover:text-brand-strong">
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div>
+          <h3 className="coffee-display break-words text-2xl transition-colors group-hover:text-brand">
             {shop.name}
           </h3>
-          <RatingStars rating={shop.rating} showValue={false} />
+          <p className="coffee-eyebrow mt-1.5 text-muted-foreground">
+            {shop.city} · {shop.country}
+          </p>
         </div>
 
-        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3 w-3 shrink-0" />
-          {shop.neighborhood ? `${shop.neighborhood}, ` : ""}
-          {shop.city}, {shop.country}
-        </p>
+        <div className="flex items-center gap-2 border-y border-border-soft py-2">
+          <RatingStars rating={shop.rating} />
+          <span className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
+            {PRICE_LABELS[shop.priceBand]}
+          </span>
+        </div>
 
-        <p className="line-clamp-3 text-sm text-muted-foreground">
+        <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
           {shop.summary}
         </p>
 
-        <p className="mt-auto border-t border-border-soft pt-2 text-xs">
-          <span className="font-medium text-brand-strong">Order: </span>
-          <span className="text-muted-foreground">{shop.orderThis}</span>
+        <p className="text-sm leading-snug">
+          <span className="coffee-eyebrow text-brand">Order </span>
+          <span className="text-foreground">{shop.orderThis}</span>
         </p>
 
-        <div className="flex flex-wrap gap-1">
-          {shop.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="font-normal">
+        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+          {shop.tags.slice(0, 2).map((tag) => (
+            <span
+              key={tag}
+              className="border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
+            >
               {TAG_LABELS[tag]}
-            </Badge>
+            </span>
           ))}
           {shop.sample && (
-            <Badge
-              variant="outline"
-              className="font-normal text-muted-foreground"
+            <span
+              className="border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground"
               title="Seeded placeholder content, not a first-hand review"
             >
               sample
-            </Badge>
+            </span>
           )}
+          <ArrowUpRight className="ml-auto h-4 w-4 text-muted-foreground transition-colors group-hover:text-brand" />
         </div>
       </div>
     </Link>

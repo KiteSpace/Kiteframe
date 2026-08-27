@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CoffeeLayout } from "@/coffee/components/CoffeeLayout";
+import { CoffeeHero, CoffeeLayout } from "@/coffee/components/CoffeeLayout";
 import { FilterBar } from "@/coffee/components/FilterBar";
 import { ShopCard } from "@/coffee/components/ShopCard";
 import { useShopFilters } from "@/coffee/useShopFilters";
@@ -12,22 +12,42 @@ import { useShopFilters } from "@/coffee/useShopFilters";
  */
 export default function CoffeeCataloguePage() {
   const state = useShopFilters();
-  const { results, selectedSlug, search, isFiltered } = state;
+  const { results, total, selectedSlug, search, isFiltered } = state;
+
+  const countries = new Set(results.map((shop) => shop.country)).size;
+  const cities = new Set(results.map((shop) => shop.city)).size;
 
   return (
-    <CoffeeLayout toolbar={<FilterBar state={state} />}>
-      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">
+    <CoffeeLayout
+      hero={
+        <CoffeeHero
+          eyebrow="Every shop in the atlas"
+          title="The catalogue"
+          lead="Everywhere worth writing down, with what to order when you get there."
+          meta={
+            <dl className="flex flex-wrap gap-x-10 gap-y-3">
+              <HeroStat label="Shops" value={`${results.length} / ${total}`} />
+              <HeroStat label="Cities" value={cities} />
+              <HeroStat label="Countries" value={countries} />
+            </dl>
+          }
+        />
+      }
+      toolbar={<FilterBar state={state} />}
+    >
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-10 sm:px-6 sm:py-12">
         {results.length === 0 ? (
-          <div className="mx-auto max-w-md rounded-lg border border-dashed border-border py-16 text-center">
-            <p className="font-medium">No shops match these filters</p>
-            <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">
-              Try removing a filter, or search a different city.
+          <div className="mx-auto max-w-md border border-dashed border-border py-20 text-center">
+            <p className="coffee-display text-3xl">Nothing matches</p>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+              No shops match these filters. Try removing one, or search a
+              different city.
             </p>
             {isFiltered && (
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4"
+                className="mt-5"
                 onClick={state.clearFilters}
                 data-testid="button-coffee-grid-clear"
               >
@@ -37,7 +57,7 @@ export default function CoffeeCataloguePage() {
           </div>
         ) : (
           <div
-            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             data-testid="grid-coffee-shops"
           >
             {results.map((shop) => (
@@ -52,5 +72,14 @@ export default function CoffeeCataloguePage() {
         )}
       </div>
     </CoffeeLayout>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <dt className="coffee-eyebrow coffee-band-muted">{label}</dt>
+      <dd className="coffee-display mt-1 text-3xl tabular-nums">{value}</dd>
+    </div>
   );
 }
