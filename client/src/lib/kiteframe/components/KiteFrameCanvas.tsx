@@ -6092,6 +6092,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                     onAddReaction={addCanvasObjectReaction}
                     onRemoveReaction={removeCanvasObjectReaction}
                     viewport={viewport}
+                    readOnly={props.readOnly}
                     onEndpointDragStart={(endpoint, e) => {
                       // Get the shape data to find current endpoint position
                       const shapeData = obj.data as import("../types").ShapeNodeData;

@@ -101,6 +101,51 @@ const workflowData = {
         textColor: "#111827",
       },
     },
+    {
+      id: "line-a",
+      type: "shape",
+      position: { x: 180, y: 650 },
+      width: 300,
+      height: 100,
+      data: {
+        shapeType: "line",
+        startPoint: { x: 0, y: 50 },
+        endPoint: { x: 300, y: 50 },
+        strokeColor: "#111827",
+        strokeWidth: 2,
+        strokeStyle: "solid",
+      },
+    },
+    {
+      id: "arrow-a",
+      type: "shape",
+      position: { x: 540, y: 650 },
+      width: 220,
+      height: 140,
+      data: {
+        shapeType: "arrow",
+        startPoint: { x: 210, y: 130 },
+        endPoint: { x: 10, y: 10 },
+        strokeColor: "#7c3aed",
+        strokeWidth: 2,
+        strokeStyle: "solid",
+      },
+    },
+    {
+      id: "short-line-a",
+      type: "shape",
+      position: { x: 820, y: 680 },
+      width: 50,
+      height: 50,
+      data: {
+        shapeType: "line",
+        startPoint: { x: 30, y: 30 },
+        endPoint: { x: 18, y: 20 },
+        strokeColor: "#dc2626",
+        strokeWidth: 1,
+        strokeStyle: "solid",
+      },
+    },
   ],
   viewport: { x: 0, y: 0, zoom: 1 },
 };
@@ -239,6 +284,12 @@ const worldLeft = (locator) =>
     }
     return Number.NaN;
   });
+const boxesOverlap = (a, b) =>
+  a && b &&
+  a.left < b.left + b.width &&
+  a.left + a.width > b.left &&
+  a.top < b.top + b.height &&
+  a.top + a.height > b.top;
 
 try {
   const { context, page } = await newPage();
@@ -269,6 +320,69 @@ try {
   check("search filters unrelated canvas objects", !(await row(page, "text-a").isVisible()));
   await search.fill("");
   await search.blur();
+
+  const lineRoot = page.locator('[data-testid="shape-object-line-a"]');
+  await lineRoot.waitFor({ state: "visible", timeout: 30000 });
+  check(
+    "line uses a constant screen-space interaction corridor",
+    (await lineRoot.locator('[data-testid="shape-line-hit-target"]').getAttribute("stroke-width")) === "16" &&
+      (await lineRoot.locator('[data-testid="shape-line-hit-target"]').getAttribute("vector-effect")) === "non-scaling-stroke",
+  );
+  const lineBox = await lineRoot.boundingBox();
+  await page.mouse.click(lineBox.x + lineBox.width / 2, lineBox.y + lineBox.height / 2 + 6);
+  await page.waitForTimeout(250);
+  check(
+    "clicking near the visible line selects it",
+    (await row(page, "line-a").getAttribute("aria-selected")) === "true",
+  );
+  const lineLeftBefore = await worldLeft(lineRoot);
+  await page.mouse.move(lineBox.x + lineBox.width / 2, lineBox.y + lineBox.height / 2 + 6);
+  await page.mouse.down();
+  await page.mouse.move(lineBox.x + lineBox.width / 2 + 24, lineBox.y + lineBox.height / 2 + 6, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  check("dragging the forgiving line target moves the whole shape", (await worldLeft(lineRoot)) > lineLeftBefore);
+
+  await lineRoot.locator('[data-testid="shape-line-hit-target"]').dispatchEvent("click");
+  await page.waitForTimeout(250);
+  const lineLeftBeforeEndpoint = await worldLeft(lineRoot);
+  const endHandle = lineRoot.locator('[data-testid="endpoint-handle-end"]');
+  const endHandleBox = await endHandle.boundingBox();
+  await page.mouse.move(endHandleBox.x + endHandleBox.width / 2, endHandleBox.y + endHandleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endHandleBox.x + endHandleBox.width / 2 + 20, endHandleBox.y + endHandleBox.height / 2 + 10, { steps: 3 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  check("endpoint dragging does not move the whole line", (await worldLeft(lineRoot)) === lineLeftBeforeEndpoint);
+
+  const toolbarBox = await page.locator('[data-testid="linear-toolbar"]').boundingBox();
+  const startHandleBox = await lineRoot.locator('[data-testid="endpoint-handle-start"]').boundingBox();
+  const updatedEndHandleBox = await endHandle.boundingBox();
+  check(
+    "line toolbar clears both endpoint handles",
+    !boxesOverlap(toolbarBox, startHandleBox) && !boxesOverlap(toolbarBox, updatedEndHandleBox),
+  );
+
+  const lineWidthBeforeZoom = (await lineRoot.boundingBox()).width;
+  const workflowCanvas = page.locator('[data-testid="workflow-canvas"]');
+  await workflowCanvas.hover();
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, 500);
+  await page.keyboard.up("Control");
+  await page.waitForTimeout(250);
+  check(
+    "line corridor remains 16 screen pixels after zooming",
+    (await lineRoot.boundingBox()).width < lineWidthBeforeZoom &&
+    (await lineRoot.locator('[data-testid="shape-line-hit-target"]').getAttribute("stroke-width")) === "16" &&
+      (await lineRoot.locator('[data-testid="shape-line-hit-target"]').getAttribute("vector-effect")) === "non-scaling-stroke",
+  );
+  check(
+    "reversed diagonal arrows and short lines use the same corridor",
+    (await page.locator('[data-testid="shape-object-arrow-a"] [data-testid="shape-arrow-hit-target"]').count()) === 1 &&
+      (await page.locator('[data-testid="shape-object-short-line-a"] [data-testid="shape-line-hit-target"]').count()) === 1,
+  );
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  await openLayers(page);
 
   const persistentGroup = group(page, "group:persisted-mixed-group");
   await persistentGroup.waitFor({ state: "visible", timeout: 30000 });
@@ -460,6 +574,14 @@ try {
   check(
     "shared viewers can focus canvas object rows",
     await shared.page.locator('[data-testid="shape-object-shape-a"]').isVisible(),
+  );
+  const sharedLine = shared.page.locator('[data-testid="shape-object-line-a"]');
+  check(
+    "shared views render lines without edit hit targets or endpoint handles",
+    (await sharedLine.locator('[data-testid="shape-line"]').count()) === 1 &&
+      (await sharedLine.locator('[data-testid="shape-line-hit-target"]').count()) === 0 &&
+      (await sharedLine.locator('[data-testid^="endpoint-handle-"]').count()) === 0 &&
+      (await shared.page.locator('[data-testid="linear-toolbar"]').count()) === 0,
   );
   await shared.page.screenshot({ path: "/tmp/e2e-layers-canvas-objects.png" });
   await shared.context.close();

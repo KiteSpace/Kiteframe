@@ -416,8 +416,118 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   const minSpaceNeeded = toolbarHeight + submenuHeight;
   const spaceAbove = nodeRect ? nodeRect.top : position.y;
   const spaceBelow = nodeRect ? viewportHeight - nodeRect.bottom : viewportHeight - position.y;
-  // Prefer showing above only if there's enough space above AND it's not blocking the node
-  const showAbove = spaceAbove >= minSpaceNeeded;
+  const basicSpaceNeeded = toolbarHeight + 16;
+  const showAbove =
+    spaceAbove >= basicSpaceNeeded &&
+    (spaceBelow < basicSpaceNeeded ||
+      spaceAbove >= minSpaceNeeded ||
+      spaceAbove > spaceBelow);
+
+  const [measuredToolbarWidth, setMeasuredToolbarWidth] = useState(0);
+  const [viewportCorrection, setViewportCorrection] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    if (!isOpen || !menuRef.current) return;
+    const updateWidth = () => setMeasuredToolbarWidth(menuRef.current?.getBoundingClientRect().width ?? 0);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(menuRef.current);
+    return () => observer.disconnect();
+  }, [isOpen, activeSubmenu]);
+
+  useEffect(() => {
+    setViewportCorrection({ x: 0, y: 0 });
+  }, [activeSubmenu, nodeRect?.top, nodeRect?.bottom, nodeRect?.left, nodeRect?.right]);
+
+  useEffect(() => {
+    if (!isOpen || !menuRef.current) return;
+    const margin = 12;
+    let frame = 0;
+
+    const correctPlacement = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const root = menuRef.current;
+        if (!root) return;
+        const rects = [
+          root.getBoundingClientRect(),
+          ...Array.from(root.querySelectorAll<HTMLElement>('*')).map((element) =>
+            element.getBoundingClientRect(),
+          ),
+        ].filter((rect) => rect.width > 0 && rect.height > 0);
+        if (rects.length === 0) return;
+
+        const bounds = {
+          left: Math.min(...rects.map((rect) => rect.left)),
+          right: Math.max(...rects.map((rect) => rect.right)),
+          top: Math.min(...rects.map((rect) => rect.top)),
+          bottom: Math.max(...rects.map((rect) => rect.bottom)),
+        };
+        const width = bounds.right - bounds.left;
+        const height = bounds.bottom - bounds.top;
+        const availableWidth = window.innerWidth - margin * 2;
+        const availableHeight = window.innerHeight - margin * 2;
+        let dx = width > availableWidth
+          ? margin - bounds.left
+          : bounds.left < margin
+            ? margin - bounds.left
+            : bounds.right > window.innerWidth - margin
+              ? window.innerWidth - margin - bounds.right
+              : 0;
+        let dy = height > availableHeight
+          ? margin - bounds.top
+          : bounds.top < margin
+            ? margin - bounds.top
+            : bounds.bottom > window.innerHeight - margin
+              ? window.innerHeight - margin - bounds.bottom
+              : 0;
+
+        if (nodeRect) {
+          const overlapsNode = (candidateDx: number, candidateDy: number) =>
+            bounds.left + candidateDx < nodeRect.right &&
+            bounds.right + candidateDx > nodeRect.left &&
+            bounds.top + candidateDy < nodeRect.bottom &&
+            bounds.bottom + candidateDy > nodeRect.top;
+          const fitsViewport = (candidateDx: number, candidateDy: number) =>
+            bounds.left + candidateDx >= margin &&
+            bounds.right + candidateDx <= window.innerWidth - margin &&
+            bounds.top + candidateDy >= margin &&
+            bounds.bottom + candidateDy <= window.innerHeight - margin;
+
+          if (overlapsNode(dx, dy)) {
+            const candidates = [
+              { x: nodeRect.left - 16 - bounds.right, y: 0 },
+              { x: nodeRect.right + 16 - bounds.left, y: 0 },
+              { x: 0, y: nodeRect.top - 16 - bounds.bottom },
+              { x: 0, y: nodeRect.bottom + 16 - bounds.top },
+            ]
+              .filter((candidate) => fitsViewport(candidate.x, candidate.y))
+              .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+            if (candidates[0]) {
+              dx = candidates[0].x;
+              dy = candidates[0].y;
+            }
+          }
+        }
+
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+          setViewportCorrection((current) => ({
+            x: current.x + dx,
+            y: current.y + dy,
+          }));
+        }
+      });
+    };
+
+    correctPlacement();
+    const observer = new ResizeObserver(correctPlacement);
+    observer.observe(menuRef.current);
+    window.addEventListener('resize', correctPlacement);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', correctPlacement);
+    };
+  }, [isOpen, activeSubmenu, nodeRect]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -2660,12 +2770,21 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
   if (!isOpen) return null;
 
   // Calculate toolbar position with proper 16px gap
-  const toolbarX = nodeRect ? nodeRect.left + nodeRect.width / 2 : position.x;
+  const rawToolbarX = nodeRect ? nodeRect.left + nodeRect.width / 2 : position.x;
+  const toolbarHalfWidth = measuredToolbarWidth / 2;
+  const toolbarX = measuredToolbarWidth > 0
+    ? Math.min(
+        Math.max(rawToolbarX, toolbarHalfWidth + 12),
+        window.innerWidth - toolbarHalfWidth - 12,
+      )
+    : rawToolbarX;
   // When above: anchor to node top, transform moves toolbar up by 100% + 16px gap
   // When below: anchor to node bottom, transform moves toolbar down by 16px gap
   const toolbarY = showAbove 
     ? (nodeRect ? nodeRect.top : position.y)
     : (nodeRect ? nodeRect.bottom : position.y);
+  const correctedToolbarX = toolbarX + viewportCorrection.x;
+  const correctedToolbarY = toolbarY + viewportCorrection.y;
   
   // Different transforms for above vs below positioning
   const toolbarTransform = showAbove
@@ -2679,8 +2798,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         ref={menuRef}
         className="fixed z-[100] pointer-events-auto"
         style={{
-          left: toolbarX,
-          top: toolbarY,
+          left: correctedToolbarX,
+          top: correctedToolbarY,
           transform: toolbarTransform
         }}
         data-testid="linear-toolbar"
@@ -2699,8 +2818,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         ref={menuRef}
         className="fixed z-[100] pointer-events-auto"
         style={{
-          left: toolbarX,
-          top: toolbarY,
+          left: correctedToolbarX,
+          top: correctedToolbarY,
           transform: toolbarTransform
         }}
         data-testid="linear-toolbar"
@@ -2721,8 +2840,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
         ref={menuRef}
         className="fixed z-[100] pointer-events-auto"
         style={{
-          left: toolbarX,
-          top: toolbarY,
+          left: correctedToolbarX,
+          top: correctedToolbarY,
           transform: toolbarTransform
         }}
         data-testid="linear-toolbar"
@@ -2740,8 +2859,8 @@ export const LinearToolbar: React.FC<LinearToolbarProps> = ({
       ref={menuRef}
       className="fixed z-[100] pointer-events-auto"
       style={{
-        left: toolbarX,
-        top: toolbarY,
+        left: correctedToolbarX,
+        top: correctedToolbarY,
         transform: toolbarTransform
       }}
       data-testid="linear-toolbar"

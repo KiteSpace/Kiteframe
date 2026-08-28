@@ -12490,12 +12490,37 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                               const screenWidth = objWidth * viewport.zoom;
                               const screenHeight = objHeight * viewport.zoom;
 
-                              // Add extra clearance for line/arrow/polygon shapes so the toolbar
-                              // doesn't overlap with the resize/endpoint handles
                               const shapeType = canvasObject.type === 'shape'
                                 ? (canvasObject.data as ShapeNodeData).shapeType
                                 : undefined;
-                              const handlePad = (shapeType === 'line' || shapeType === 'arrow' || shapeType === 'polygon') ? 28 : 0;
+                              const isEndpointShape = shapeType === 'line' || shapeType === 'arrow';
+                              if (isEndpointShape) {
+                                const shapeData = canvasObject.data as ShapeNodeData;
+                                const start = shapeData.startPoint ?? { x: 0, y: objHeight / 2 };
+                                const end = shapeData.endPoint ?? { x: objWidth, y: objHeight / 2 };
+                                const startX = screenX + start.x * viewport.zoom;
+                                const startY = screenY + start.y * viewport.zoom;
+                                const endX = screenX + end.x * viewport.zoom;
+                                const endY = screenY + end.y * viewport.zoom;
+                                const handleClearance = 14;
+                                const left = Math.min(startX, endX) - handleClearance;
+                                const right = Math.max(startX, endX) + handleClearance;
+                                const top = Math.min(startY, endY) - handleClearance;
+                                const bottom = Math.max(startY, endY) + handleClearance;
+                                return {
+                                  x: (startX + endX) / 2,
+                                  y: top,
+                                  nodeRect: {
+                                    top,
+                                    bottom,
+                                    left,
+                                    right,
+                                    width: Math.max(right - left, 1),
+                                  },
+                                  canvasObject,
+                                };
+                              }
+                              const handlePad = shapeType === 'polygon' ? 28 : 0;
 
                               return {
                                 x: screenX + screenWidth / 2,

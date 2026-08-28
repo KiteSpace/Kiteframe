@@ -46,3 +46,4 @@
 - [GitHub connector staged writes](github-connector-staged-writes.md) — when a multi-request GitHub connector call hits PTC replay errors, run one API request per CodeExecution block and pass only serializable state forward.
 - [PRD generation capacity](prd-generation-capacity.md) — section fan-out must share a conservative queue; treat 429s as backpressure and never save incomplete generated specs.
 - [Persistent groups and layer locks](persistent-group-locks.md) — lock/delete/drag checks must treat mixed persistent groups atomically across node and object layer IDs.
+- [Floating toolbar collision bounds](floating-toolbar-collision-bounds.md) — clamp the union of the toolbar and absolute submenus, then re-route if clamping collides with endpoint handles.

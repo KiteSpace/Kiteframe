@@ -26,6 +26,7 @@ interface ShapeObjectProps {
   onPolygonPointAdd?: (objectId: string, point: { x: number; y: number }) => void;
   onPolygonClose?: (objectId: string) => void;
   canvasRef?: React.RefObject<HTMLDivElement>;
+  readOnly?: boolean;
 }
 
 export const ShapeObject: React.FC<ShapeObjectProps> = ({
@@ -45,7 +46,8 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
   onEndpointDragEnd,
   onPolygonPointAdd,
   onPolygonClose,
-  canvasRef
+  canvasRef,
+  readOnly = false,
 }) => {
   const objectRef = useRef<HTMLDivElement>(null);
   // Text editing disabled for shapes\n  // const [isEditingText, setIsEditingText] = useState(false);
@@ -431,6 +433,20 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         const lineEndY = object.data.endPoint?.y ?? height / 2;
         return (
           <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible absolute top-0 left-0">
+            {!readOnly && (
+              <line
+                x1={lineStartX}
+                y1={lineStartY}
+                x2={lineEndX}
+                y2={lineEndY}
+                stroke="transparent"
+                strokeWidth={16}
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="stroke"
+                style={{ cursor: 'move' }}
+                data-testid="shape-line-hit-target"
+              />
+            )}
             <line
               x1={lineStartX}
               y1={lineStartY}
@@ -445,6 +461,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
+                pointerEvents: 'none',
               }}
               data-testid="shape-line"
             />
@@ -478,6 +495,20 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 />
               </marker>
             </defs>
+            {!readOnly && (
+              <line
+                x1={arrowStartX}
+                y1={arrowStartY}
+                x2={arrowEndX}
+                y2={arrowEndY}
+                stroke="transparent"
+                strokeWidth={16}
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="stroke"
+                style={{ cursor: 'move' }}
+                data-testid="shape-arrow-hit-target"
+              />
+            )}
             <line
               x1={arrowStartX}
               y1={arrowStartY}
@@ -492,6 +523,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
                 filter: object.data.shadow?.enabled 
                   ? `drop-shadow(${object.data.shadow.offsetX || 0}px ${object.data.shadow.offsetY || 0}px ${object.data.shadow.blur || 0}px ${object.data.shadow.color || '#00000020'})`
                   : 'none',
+                pointerEvents: 'none',
               }}
               markerEnd={`url(#arrowhead-${object.id})`}
               data-testid="shape-arrow"
@@ -687,6 +719,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
 
   // Line, arrow, and polygon shapes don't need bounding box (they have point/vertex handles instead)
   const isLineShape = object.data.shapeType === 'line' || object.data.shapeType === 'arrow' || object.data.shapeType === 'polygon';
+  const isLineOrArrow = object.data.shapeType === 'line' || object.data.shapeType === 'arrow';
 
   return (
     <div
@@ -703,6 +736,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
         width: shapeSize.width,
         height: shapeSize.height,
         zIndex: object.zIndex || 0,
+        pointerEvents: isLineOrArrow ? 'none' : undefined,
       }}
       data-testid={`shape-object-${object.id}`}
       draggable={false}
@@ -814,7 +848,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
       )}
 
       {/* Endpoint handles for line/arrow shapes - shown when selected */}
-      {object.selected && selectedCanvasObjectCount === 1 && 
+      {!readOnly && object.selected && selectedCanvasObjectCount === 1 &&
        (object.data.shapeType === 'line' || object.data.shapeType === 'arrow') && (
         <>
           {/* Start endpoint handle */}
@@ -826,6 +860,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               transform: viewport ? `scale(${1 / viewport.zoom})` : undefined,
               transformOrigin: 'center center',
               zIndex: 1000,
+              pointerEvents: 'auto',
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -847,6 +882,7 @@ export const ShapeObject: React.FC<ShapeObjectProps> = ({
               transform: viewport ? `scale(${1 / viewport.zoom})` : undefined,
               transformOrigin: 'center center',
               zIndex: 1000,
+              pointerEvents: 'auto',
             }}
             onMouseDown={(e) => {
               e.preventDefault();
