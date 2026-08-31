@@ -1,13 +1,9 @@
 # Coffee Atlas
 
-A standalone Vite + React app for logging coffee shops: a clustered globe map,
-a catalogue grid, and a journal.
-
-This folder is a complete app of its own. It does not import anything from
-Kiteframe. Copy it into a separate repository to publish it independently.
+A Vite + React app for logging coffee shops: a clustered globe map, a catalogue
+grid, and a journal.
 
 ```bash
-cd coffee-atlas
 npm install
 npm run dev
 ```
@@ -30,6 +26,10 @@ and deploys as static output with no database, no API, and no secrets.
 
 If it ever needs a database, `shared/coffee/` is the layer to move behind an
 API; nothing else knows where the data comes from.
+
+Deploying on Vercel later: import this repo, framework **Vite**, output
+directory **`dist`**, build command `npm run build`. No environment variables
+are required.
 
 ## Layout
 
