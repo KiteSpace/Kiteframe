@@ -1650,6 +1650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Share project endpoint - create a view-only share link (requires authentication)
   const shareProjectSchema = z.object({
+    sourceProjectId: z.union([z.string(), z.number()]).optional(),
     nodes: z.array(z.object({
       id: z.string(),
       type: z.string(),
@@ -1690,7 +1691,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
       }
       
-      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings } = parseResult.data;
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings, sourceProjectId } = parseResult.data;
+      const sourceProject = sourceProjectId != null
+        ? await storage.getSavedProject(String(sourceProjectId), getUserIdFromRequest(req.user))
+        : undefined;
+      if (sourceProjectId != null && !sourceProject) {
+        return res.status(403).json({ error: 'Not allowed to share this source project' });
+      }
       const shareId = crypto.randomUUID();
       const shareLink = await storage.createShareLink({
         shareId,
@@ -1698,7 +1705,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         edges,
         canvasObjects,
         viewport,
-        projectMetadata,
+        projectMetadata: sourceProject
+          ? { ...projectMetadata, sourceProjectUuid: sourceProject.projectUuid }
+          : projectMetadata,
         panelDocs,
         flowSettings,
       });
@@ -1733,7 +1742,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request data', details: parseResult.error.errors });
       }
       
-      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings } = parseResult.data;
+      const { nodes, edges, canvasObjects, viewport, projectMetadata, panelDocs, flowSettings, sourceProjectId } = parseResult.data;
+      const sourceProject = sourceProjectId != null
+        ? await storage.getSavedProject(String(sourceProjectId), getUserIdFromRequest(req.user))
+        : undefined;
+      if (sourceProjectId != null && !sourceProject) {
+        return res.status(403).json({ error: 'Not allowed to share this source project' });
+      }
+      const existingLink = await storage.getShareLink(shareId);
+      const existingSourceUuid =
+        (existingLink?.projectMetadata as { sourceProjectUuid?: string } | null)?.sourceProjectUuid;
+      if (existingSourceUuid) {
+        const existingSource = await storage.getProjectByProjectUuid(existingSourceUuid);
+        if (!existingSource || existingSource.userId !== getUserIdFromRequest(req.user)) {
+          return res.status(403).json({ error: 'Not allowed to update this shared project' });
+        }
+        if (sourceProject && sourceProject.projectUuid !== existingSourceUuid) {
+          return res.status(400).json({ error: 'A shared snapshot cannot change source projects' });
+        }
+      }
+      const sourceProjectUuid = sourceProject?.projectUuid ??
+        existingSourceUuid;
       
       // Update the share link in the database
       const updated = await storage.updateShareLink(shareId, {
@@ -1741,7 +1770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         edges,
         canvasObjects,
         viewport,
-        projectMetadata,
+        projectMetadata: { ...projectMetadata, ...(sourceProjectUuid ? { sourceProjectUuid } : {}) },
         panelDocs,
         flowSettings,
       });
@@ -1759,6 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           canvasObjects,
           viewport,
           flowSettings,
+          ...(sourceProjectUuid ? { projectUuid: sourceProjectUuid } : {}),
           ...(panelDocs ?? {
             prdData: null,
             workflowPRDs: null,
@@ -4022,6 +4052,18 @@ Respond with only the corrected JSON data:`;
         const shared = await storage.getProjectByShareUuid(shareId);
         if (shared && !shared.isShareLocked && shared.projectUuid === workflowId) {
           return { authorized: true, userId, isOwner: false };
+        }
+        // Legacy snapshots only gain comment access through an owner-verified
+        // source association made by the authenticated share create/update route.
+        if (!shared) {
+          const snapshot = await storage.getShareLink(shareId);
+          const metadata = snapshot?.projectMetadata as { sourceProjectUuid?: string } | null;
+          if (metadata?.sourceProjectUuid === workflowId) {
+            const source = await storage.getProjectByProjectUuid(workflowId);
+            if (source && !source.isShareLocked) {
+              return { authorized: true, userId, isOwner: false };
+            }
+          }
         }
       } catch (lookupError) {
         console.error('Error validating comment share context:', lookupError);
@@ -8680,6 +8722,17 @@ jane@example.com,Jane,Smith,pro,GroupC
                   if (shared && !shared.isShareLocked && shared.projectUuid === projectId) {
                     allowed = true;
                     subType = 'share';
+                  }
+                  if (!shared) {
+                    const snapshot = await storage.getShareLink(subShareId);
+                    const metadata = snapshot?.projectMetadata as { sourceProjectUuid?: string } | null;
+                    if (metadata?.sourceProjectUuid === projectId) {
+                      const source = await storage.getProjectByProjectUuid(projectId);
+                      if (source && !source.isShareLocked) {
+                        allowed = true;
+                        subType = 'share';
+                      }
+                    }
                   }
                 } catch (lookupError) {
                   console.error('Error validating comment subscription (share):', lookupError);

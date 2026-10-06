@@ -41,7 +41,7 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
   const isEnabled = enabled && !!workflowId;
   const queryKey = ['/api/comments', workflowId] as const;
 
-  const { data: comments = [], isLoading } = useQuery<CommentWithAuthor[]>({
+  const { data: comments = [], isLoading, isError, refetch } = useQuery<CommentWithAuthor[]>({
     queryKey: [...queryKey, shareId ?? null],
     enabled: isEnabled,
     queryFn: async () => {
@@ -176,6 +176,8 @@ export function useComments({ workflowId, shareId, enabled = true }: UseComments
     comments,
     threads,
     isLoading,
+    isError,
+    refetch,
     createComment: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
     resolveComment: resolveMutation.mutateAsync,

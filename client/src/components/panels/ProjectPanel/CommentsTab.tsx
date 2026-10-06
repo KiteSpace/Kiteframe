@@ -281,7 +281,7 @@ function ThreadCard({
 }
 
 export function CommentsTab({ workflowId, shareId }: CommentsTabProps) {
-  const { threads, isLoading, resolveComment, deleteComment, createComment } = useComments({
+  const { threads, isLoading, isError, refetch, resolveComment, deleteComment, createComment } = useComments({
     workflowId,
     shareId,
   });
@@ -340,6 +340,11 @@ export function CommentsTab({ workflowId, shareId }: CommentsTabProps) {
       <ScrollArea className="flex-1">
         {isLoading ? (
           <div className="p-6 text-center text-sm text-muted-foreground">Loading comments…</div>
+        ) : isError ? (
+          <div className="p-6 text-center text-sm text-muted-foreground" role="alert">
+            <p>Comments couldn’t be loaded. Check that this share link is still accessible.</p>
+            <Button variant="ghost" size="sm" onClick={() => refetch()}>Retry</Button>
+          </div>
         ) : visible.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
             <MessageCircle size={28} className="opacity-40" />

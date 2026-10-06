@@ -23,12 +23,24 @@ const USER_ID = "e2e-workflow-comments-user";
 const EMAIL = "e2e-workflow-comments@example.com";
 const PROJECT_NAME = "E2E Workflow Comments";
 const workflowData = {
+  prdData: {
+    projectId: "e2e",
+    projectName: PROJECT_NAME,
+    sections: [{ id: "summary", title: "Summary", content: "Shared project specification body." }],
+    manualEditedAt: {}, version: 1, generatedAt: Date.now(),
+  },
+  workflowPRDs: [{
+    workflowId: "workflow-intake", workflowName: "Intake flow",
+    sections: [{ id: "summary", title: "Summary", content: "Shared workflow specification body." }],
+    manualEditedAt: {}, version: 1, generatedAt: Date.now(),
+  }],
   nodes: [
     { id: "intake", type: "process", position: { x: 140, y: 140 }, data: { label: "Intake" } },
     { id: "review", type: "process", position: { x: 460, y: 140 }, data: { label: "Review" } },
   ],
   edges: [{ id: "intake-review", source: "intake", target: "review" }],
   canvasObjects: [],
+  flowSettings: { "workflow-intake": { workflowName: "Intake flow" } },
   viewport: { x: 0, y: 0, zoom: 1 },
 };
 
@@ -42,10 +54,11 @@ await db.query(`DELETE FROM saved_projects WHERE user_id = $1`, [USER_ID]);
 const project = await db.query(
   `INSERT INTO saved_projects (user_id, name, workflow_data)
    VALUES ($1, $2, $3)
-   RETURNING project_uuid`,
+   RETURNING id, project_uuid`,
   [USER_ID, PROJECT_NAME, JSON.stringify(workflowData)],
 );
 const projectUuid = project.rows[0].project_uuid;
+const projectId = project.rows[0].id;
 const seededComment = await db.query(
   `INSERT INTO workflow_comments (workflow_id, user_id, position_x, position_y, content)
    VALUES ($1, $2, 620, 420, 'Persisted comment pin')
@@ -170,6 +183,82 @@ try {
     "dragging a pin does not open the thread",
     (await page.locator(`[data-testid="comment-thread-${commentId}"]`).count()) === 0,
   );
+
+  const shareResponse = await context.request.post(`${base}/api/projects/${projectId}/share`, { data: {} });
+  const { shareUuid } = await shareResponse.json();
+  check("the original saved project is shared", shareResponse.ok() && !!shareUuid);
+  const guestContext = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  await guestContext.addInitScript(() => {
+    localStorage.setItem("kiteframe_cookie_consent", "necessary");
+    localStorage.setItem("kiteframe-project-panel-collapsed", "false");
+  });
+  const guest = await guestContext.newPage();
+  const guestErrors = [];
+  guest.on("pageerror", (error) => {
+    // Existing dev-proxy Vite HMR fallback issue is not an application error.
+    if (error.stack?.includes("/@vite/client") && error.message.includes("wss://localhost:undefined/")) return;
+    guestErrors.push(error.message);
+  });
+  await guest.goto(`${base}/view/${shareUuid}`, { waitUntil: "networkidle", timeout: 60000 });
+  await guest.locator('[data-testid="tab-comments"]').click();
+  await guest.locator('button[title="Jump to comment on canvas"]').first().click();
+  await guest.waitForSelector(`[data-testid="comment-pin-${commentId}"]`);
+  check("anonymous shared view shows the original comment in the panel and canvas",
+    (await guest.locator('[data-testid="comments-tab"]').innerText()).includes("Persisted comment pin"));
+  await guest.locator('[data-testid="tab-project"]').click();
+  await guest.locator('[data-testid="mode-spec"]').click();
+  await guest.locator('[data-testid="document-card-project-prd"]').click();
+  await guest.waitForSelector('[data-testid="reader-pane"]');
+  check("shared project Spec opens in the reader",
+    (await guest.locator('[data-testid="reader-pane"]').innerText()).includes("Shared project specification body."));
+  check("shared reader does not offer Spec generation or editing",
+    (await guest.locator('[data-testid="reader-pane"] [contenteditable="true"], [data-testid="reader-pane"] textarea, [data-testid="reader-pane"] [data-testid="generate-project-prd"], [data-testid="reader-pane"] [data-testid="regenerate-project-prd"]').count()) === 0);
+  await guest.locator('[data-testid="document-card-workflow-workflow-intake"]').click();
+  check("shared workflow Spec opens in the same reader",
+    (await guest.locator('[data-testid="reader-pane"]').innerText()).includes("Shared workflow specification body."));
+  const geometry = await guest.locator('[data-testid="reader-pane"]').boundingBox();
+  check("the shared reader stays within the viewport", geometry && geometry.x >= 0 && geometry.x + geometry.width <= 1600);
+  await guest.reload({ waitUntil: "networkidle" });
+  await guest.locator('[data-testid="mode-spec"]').click();
+  await guest.locator('[data-testid="document-card-project-prd"]').click();
+  check("shared Specs remain readable after reload",
+    (await guest.locator('[data-testid="reader-pane"]').innerText()).includes("Shared project specification body."));
+
+  // Re-associate an existing snapshot rather than create duplicate comments.
+  const snapshotResponse = await context.request.post(`${base}/api/share-project`, { data: {
+    nodes: workflowData.nodes, edges: workflowData.edges, panelDocs: {
+      prdData: workflowData.prdData, workflowPRDs: workflowData.workflowPRDs,
+    },
+    projectMetadata: { name: PROJECT_NAME },
+  } });
+  const { shareId } = await snapshotResponse.json();
+  await guest.goto(`${base}/view/${shareId}`, { waitUntil: "networkidle" });
+  await guest.locator('[data-testid="tab-comments"]').click();
+  const associate = await context.request.put(`${base}/api/share-project/${shareId}`, { data: {
+    nodes: workflowData.nodes, edges: workflowData.edges, sourceProjectId: projectId,
+    projectMetadata: { name: PROJECT_NAME },
+  } });
+  check("the owner can associate the existing snapshot with its original project", associate.ok());
+  await guest.locator('button[title="Jump to comment on canvas"]').first().click({ timeout: 15000 });
+  await guest.waitForSelector(`[data-testid="comment-pin-${commentId}"]`, { timeout: 15000 });
+  check("an already-open snapshot viewer receives original comments live",
+    (await guest.locator('[data-testid="comments-tab"]').innerText()).includes("Persisted comment pin"));
+  const wrongProject = await guestContext.request.get(`${base}/api/comments/unrelated-project?shareId=${shareId}`);
+  check("a snapshot cannot expose another project's comments", wrongProject.status() === 403);
+  const anonymousAssociation = await guestContext.request.put(`${base}/api/share-project/${shareId}`, { data: {
+    nodes: [], edges: [], sourceProjectId: projectId,
+  } });
+  check("anonymous viewers cannot re-associate a snapshot", anonymousAssociation.status() === 401);
+  const invalidAssociation = await context.request.put(`${base}/api/share-project/${shareId}`, { data: {
+    nodes: [], edges: [], sourceProjectId: crypto.randomUUID(),
+  } });
+  check("the snapshot source must be an owned saved project", invalidAssociation.status() === 403);
+  await context.request.post(`${base}/api/projects/${projectId}/share/lock`, { data: { locked: true } });
+  const lockedComments = await guestContext.request.get(`${base}/api/comments/${projectUuid}?shareId=${shareId}`);
+  check("locking the original project blocks snapshot comment access", lockedComments.status() === 403);
+  await context.request.post(`${base}/api/projects/${projectId}/share/lock`, { data: { locked: false } });
+  check("shared reader and comments have no browser exceptions", guestErrors.length === 0, guestErrors.join("; "));
+  await guestContext.close();
 } finally {
   await browser.close();
   await db.end();

@@ -230,10 +230,17 @@ export async function viewSharedProjectHandler(
     const shareLink = await storage.getShareLink(shareUuid);
     if (shareLink) {
       const metadata = shareLink.projectMetadata as
-        | { name?: string; description?: string }
+        | { name?: string; description?: string; sourceProjectUuid?: string }
         | null;
+      if (metadata?.sourceProjectUuid) {
+        const source = await storage.getProjectByProjectUuid(metadata.sourceProjectUuid);
+        if (!source || source.isShareLocked) {
+          return res.json({ locked: true, projectName: metadata.name, isOwner: false });
+        }
+      }
       return res.json({
         shareUuid: shareLink.shareId,
+        projectUuid: metadata?.sourceProjectUuid,
         projectName: metadata?.name || 'Shared Workflow',
         projectDescription: metadata?.description,
         nodes: shareLink.nodes || [],

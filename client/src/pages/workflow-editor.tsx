@@ -6669,6 +6669,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
           canvasObjects: canvasObjects || [],
           viewport: viewport || { x: 0, y: 0, zoom: 1 },
           projectMetadata: activeTab?.metadata,
+          sourceProjectId: activeTab?.cloudProjectId,
           panelDocs,
         });
       } catch (error) {
@@ -6688,6 +6689,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     canvasObjects,
     viewport,
     activeTab?.metadata,
+    activeTab?.cloudProjectId,
     panelDocsVersion,
     readPanelDocs,
     tabProjectIdentifier,
@@ -15656,7 +15658,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             setActiveShareId(shareId);
             updateActiveTab({ shareUuid: shareId });
           }}
-          projectId={currentProjectId}
+          projectId={activeTab?.cloudProjectId}
           existingShareUuid={activeShareId}
           isAuthenticated={isAuthenticated}
           onShareRevoked={() => {

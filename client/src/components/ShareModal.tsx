@@ -18,7 +18,7 @@ interface ShareModalProps {
   panelDocs?: PanelDocsBundle;
   onShareCreated?: (shareId: string) => void;
   onShareRevoked?: () => void;
-  projectId?: number | null;
+  projectId?: string | number | null;
   existingShareUuid?: string | null;
   isAuthenticated?: boolean;
 }

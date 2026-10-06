@@ -6,6 +6,8 @@ import { Loader2, AlertCircle, Radio, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ViewOnlyToolbar } from '@/components/ViewOnlyToolbar';
 import { ProjectPanel } from '@/components/panels/ProjectPanel/ProjectPanel';
+import { ReaderPane } from '@/components/reader/ReaderPane';
+import { forceCloseReader } from '@/stores/readerStore';
 import { CommentsOverlay } from '@/components/comments/CommentsOverlay';
 import { useAuth } from '@/hooks/useAuth';
 import { SharedViewHeader } from '@/components/SharedViewHeader';
@@ -40,6 +42,7 @@ interface SharedProjectData {
 interface ShareUpdateMessage {
   type: 'share_update';
   shareId: string;
+  projectUuid?: string;
   nodes?: Node[];
   edges?: Edge[];
   canvasObjects?: CanvasObject[];
@@ -77,6 +80,7 @@ export default function ViewOnlyViewer() {
   
   const [dataLoaded, setDataLoaded] = useState(false);
   const [panelStorageSeeded, setPanelStorageSeeded] = useState(false);
+  const [commentProjectUuid, setCommentProjectUuid] = useState<string | undefined>();
   // The control is intentionally hidden in shared view, so viewers always
   // receive updates. Keep the state/ref for the transport's update behavior.
   const [liveUpdates, setLiveUpdates] = useState(true);
@@ -122,6 +126,9 @@ export default function ViewOnlyViewer() {
     // after the new response is written into localStorage under this shareId.
     setPanelStorageSeeded(false);
     setDataLoaded(false);
+    setCommentProjectUuid(undefined);
+    forceCloseReader();
+    return () => forceCloseReader();
   }, [shareId]);
 
   useEffect(() => {
@@ -136,6 +143,7 @@ export default function ViewOnlyViewer() {
 
   useEffect(() => {
     if (data) {
+      setCommentProjectUuid(data.projectUuid);
       const loadedNodes = data.nodes || [];
       const loadedEdges = data.edges || [];
       const loadedCanvasObjects = data.canvasObjects || [];
@@ -238,6 +246,7 @@ export default function ViewOnlyViewer() {
         }
         if (message.type === 'share_update' && (message as ShareUpdateMessage).shareId === shareId) {
           const msg = message as ShareUpdateMessage;
+          if (msg.projectUuid) setCommentProjectUuid(msg.projectUuid);
           const nodeCount = msg.nodes?.length || 0;
           const edgeCount = msg.edges?.length || 0;
           
@@ -570,7 +579,7 @@ export default function ViewOnlyViewer() {
             />
 
             <CommentsOverlay
-              workflowId={data?.projectUuid}
+              workflowId={commentProjectUuid}
               shareId={shareId}
               isAuthenticated={!!user}
               placing={commentPlacing}
@@ -580,6 +589,17 @@ export default function ViewOnlyViewer() {
               containerRef={canvasContainerRef}
             />
           </div>
+
+          {panelStorageSeeded && (
+            <ReaderPane
+              key={shareId}
+              projectId={shareId}
+              projectName={projectName}
+              nodes={nodes}
+              edges={edges}
+              isReadOnly
+            />
+          )}
 
           {/* Project Panel - docked right side. Only mount after localStorage is seeded
               so ProjectDocTab reads the correct PRD/notes data on first render. */}
@@ -592,7 +612,7 @@ export default function ViewOnlyViewer() {
               projectName={projectName}
               isReadOnly={true}
               hiddenTabs={['kite-ai', 'diagnostics']}
-              commentWorkflowId={data?.projectUuid}
+              commentWorkflowId={commentProjectUuid}
               commentShareId={shareId}
             />
           )}
