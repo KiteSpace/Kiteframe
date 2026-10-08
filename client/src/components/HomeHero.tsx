@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, ArrowUp, Lock, ChevronDown, Paperclip, Paintbrush, GitBranch, Check } from "lucide-react";
 import { SiFigma } from "react-icons/si";
@@ -13,6 +13,8 @@ import { InlineFigmaImport } from "./home/InlineFigmaImport";
 import { AttachmentPreviewList } from "./attachments/AttachmentPreview";
 import { usePromptContextStore } from "@/contexts/PromptContextStore";
 import type { PromptAttachment } from "@/types/promptContext";
+import { isPromptDocument, MAX_PROMPT_DOCUMENT_BYTES, PROMPT_DOCUMENT_ACCEPT } from "@/lib/promptDocuments";
+import { useToast } from "@/hooks/use-toast";
 
 interface HomeHeroProps {
   onStartDesigning: (prompt: string) => void;
@@ -53,11 +55,23 @@ export function HomeHero({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   const [showFigmaPanel, setShowFigmaPanel] = useState(false);
 
   useEffect(() => {
     setOrigin("homepage");
   }, [setOrigin]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 240)}px`;
+    if (document.activeElement === textarea && textarea.selectionEnd === context.textInput.length) {
+      textarea.scrollTop = textarea.scrollHeight;
+    }
+  }, [context.textInput]);
 
   const hasFigmaAttachment = !canAddFigma();
   const canAddMoreImages = canAddImage();
@@ -84,7 +98,10 @@ export function HomeHero({
         isReadyToSend() &&
         !isGenerating &&
         !isDisabled
+        && !e.nativeEvent.isComposing
       ) {
+        e.preventDefault();
+        e.stopPropagation();
         handleStartDesigning();
       }
     },
@@ -156,6 +173,21 @@ export function HomeHero({
     },
     [context.attachments, addAttachment],
   );
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    for (const file of Array.from(e.target.files || [])) {
+      if (!isPromptDocument(file) || file.size > MAX_PROMPT_DOCUMENT_BYTES) {
+        toast({ title: "Unsupported document", description: "Choose a .md or .txt document under 100 KB.", variant: "destructive" });
+        continue;
+      }
+      addAttachment({
+        id: crypto.randomUUID(), type: "document", displayName: file.name,
+        status: "ready", file,
+        metadata: { fileSize: file.size, mimeType: file.type },
+      });
+    }
+    e.target.value = "";
+  };
 
   const canSubmit = isReadyToSend() && !isGenerating && !isDisabled;
 
@@ -261,7 +293,7 @@ export function HomeHero({
               value={context.textInput}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
-              className="min-h-[100px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base p-0 placeholder:text-muted-foreground/60"
+              className="min-h-[100px] max-h-[240px] overflow-y-auto resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base p-0 placeholder:text-muted-foreground/60"
               disabled={isDisabled}
               data-testid="input-hero-prompt"
             />
@@ -316,9 +348,10 @@ export function HomeHero({
                 className="hidden"
                 data-testid="input-file-upload"
               />
-              {onUploadDocument && (
+              {generationMode === "workflow" && (
                 <button
-                  onClick={onUploadDocument}
+                  type="button"
+                  onClick={onUploadDocument ?? (() => documentInputRef.current?.click())}
                   disabled={isDisabled}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-sm disabled:opacity-50"
                   data-testid="button-hero-document"
@@ -330,6 +363,15 @@ export function HomeHero({
                   </div>
                 </button>
               )}
+              <input
+                ref={documentInputRef}
+                type="file"
+                accept={PROMPT_DOCUMENT_ACCEPT}
+                multiple
+                onChange={handleDocumentChange}
+                className="hidden"
+                data-testid="input-hero-document"
+              />
             </div>
 
             <div className="flex items-center gap-2">

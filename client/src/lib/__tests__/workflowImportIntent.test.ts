@@ -12,5 +12,10 @@ describe('workflow import intent', () => {
     expect(isWorkflowImportRequest('How should I improve this workflow?')).toBe(false);
     expect(isWorkflowImportRequest('Analyze this workflow image and suggest improvements.')).toBe(false);
     expect(isWorkflowImportRequest('What is a kiteframe file?')).toBe(false);
+    expect(isWorkflowImportRequest('Create a workflow where customers upload an image file and staff review it.')).toBe(false);
+    expect(isWorkflowImportRequest('The workflow must import the file, validate it, then notify the reviewer.')).toBe(false);
+    expect(isWorkflowImportRequest('Upload a file and build a workflow for handling customer requests.')).toBe(false);
+    expect(isWorkflowImportRequest(`Import files as part of the workflow.\n${'Review the uploaded image and notify staff. '.repeat(50)}`)).toBe(false);
+    expect(isWorkflowImportRequest(`Import a workflow from a file. ${'Customer requests must be reviewed. '.repeat(50)}`)).toBe(false);
   });
 });

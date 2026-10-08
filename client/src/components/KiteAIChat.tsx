@@ -119,6 +119,7 @@ import {
   parseWorkflowSpecEditResponse,
 } from '@/lib/workflowSpecEdits';
 import { isWorkflowImportRequest } from '@/lib/workflowImportIntent';
+import { isPromptDocument, MAX_PROMPT_DOCUMENT_BYTES, PROMPT_DOCUMENT_ACCEPT, readPromptDocument, withPromptDocuments } from '@/lib/promptDocuments';
 import { useReaderTarget } from '@/stores/readerStore';
 
 // Phase 7 feature flag keys
@@ -181,9 +182,10 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   attachments?: {
-    type: 'image' | 'kiteframe';
+    type: 'image' | 'kiteframe' | 'text';
     name: string;
     preview?: string;
+    textContent?: string;
     data?: any;
   }[];
   workflowProposal?: {
@@ -653,7 +655,9 @@ export function KiteAIChatBrain({
       attachmentsProcessedRef.current = true;
       
       // Generate a default message for image analysis
-      const defaultMessage = 'Analyze this workflow diagram and create a workflow based on what you see.';
+      const defaultMessage = filesToSend.some(isPromptDocument)
+        ? 'Create a workflow based on the attached documents.'
+        : 'Analyze this workflow diagram and create a workflow based on what you see.';
       
       handleSend(defaultMessage, filesToSend).finally(() => {
         promptContextStore?.clearStore();
@@ -763,7 +767,12 @@ export function KiteAIChatBrain({
   useLayoutEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+      const borderHeight = inputRef.current.offsetHeight - inputRef.current.clientHeight;
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight + borderHeight, 120) + 'px';
+      if (document.activeElement === inputRef.current &&
+          inputRef.current.selectionEnd === inputValue.length) {
+        inputRef.current.scrollTop = inputRef.current.scrollHeight;
+      }
     }
   }, [inputValue]);
 
@@ -819,20 +828,27 @@ export function KiteAIChatBrain({
   const handleFiles = (files: File[]) => {
     const validFiles = files.filter(file => {
       const isImage = file.type.startsWith('image/');
-      const isKiteframe = file.name.endsWith('.kiteframe') || file.name.endsWith('.json');
-      return isImage || isKiteframe;
+      const isKiteframe = /\.(kiteframe|json)$/i.test(file.name);
+      return isImage || isKiteframe || isPromptDocument(file);
     });
 
     if (validFiles.length === 0) {
       toast({
         title: "Invalid File",
-        description: "Please upload an image or .kiteframe file.",
+        description: "Please upload an image, .kiteframe, .json, .md, or .txt file.",
         variant: "destructive"
       });
       return;
     }
 
-    setPendingFiles(prev => [...prev, ...validFiles]);
+    const acceptedFiles = validFiles.filter(file => {
+      if (isPromptDocument(file) && file.size > MAX_PROMPT_DOCUMENT_BYTES) {
+        toast({ title: 'Document too large', description: `${file.name} must be under 100 KB.`, variant: 'destructive' });
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles(prev => [...prev, ...acceptedFiles]);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -923,11 +939,12 @@ export function KiteAIChatBrain({
     filesOverride?: File[],
     options?: { conversationId?: string },
   ) => {
-    const messageContent = messageOverride ?? inputValue;
+    let messageContent = messageOverride ?? inputValue;
+    const displayMessageContent = messageContent;
     const filesToProcess = filesOverride ?? pendingFiles;
     const hasPendingFiles = filesToProcess.length > 0;
     
-    if (!messageContent.trim() && !hasPendingFiles) return;
+    if (isLoading || (!messageContent.trim() && !hasPendingFiles)) return;
 
     // Import requests open the chat uploader. Do this before credit checks
     // because opening a file picker is not an AI
@@ -1037,27 +1054,41 @@ export function KiteAIChatBrain({
     const messageId = `msg-${Date.now()}`;
     const attachments: ChatMessage['attachments'] = [];
 
-    for (const file of filesToProcess) {
-      if (file.type.startsWith('image/')) {
-        const preview = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve((e.target?.result as string) || '');
-          reader.onerror = () => {
-            console.error('[KiteAIChat] Failed to read image preview for', file.name);
-            resolve('');
-          };
-          reader.readAsDataURL(file);
-        });
-        attachments.push({ type: 'image', name: file.name, preview });
-      } else {
-        const parsed = await parseKiteframeFile(file);
-        attachments.push({ 
-          type: 'kiteframe', 
-          name: file.name, 
-          data: parsed 
-        });
+    setIsLoading(true);
+    try {
+      for (const file of filesToProcess) {
+        if (file.type.startsWith('image/')) {
+          const preview = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve((e.target?.result as string) || '');
+            reader.onerror = () => {
+              console.error('[KiteAIChat] Failed to read image preview for', file.name);
+              resolve('');
+            };
+            reader.readAsDataURL(file);
+          });
+          attachments.push({ type: 'image', name: file.name, preview });
+        } else if (isPromptDocument(file)) {
+          attachments.push({ type: 'text', name: file.name, textContent: await readPromptDocument(file) });
+        } else {
+          const parsed = await parseKiteframeFile(file);
+          attachments.push({
+            type: 'kiteframe',
+            name: file.name,
+            data: parsed,
+          });
+        }
       }
+    } catch (error) {
+      setIsLoading(false);
+      toast({
+        title: 'Could not read attachment',
+        description: error instanceof Error ? error.message : 'Please choose the file again.',
+        variant: 'destructive',
+      });
+      return;
     }
+    messageContent = withPromptDocuments(messageContent, attachments);
 
     // Phase 7: Track attachments as conversation sources for unified vision pipeline
     if (unifiedEngineEnabled) {
@@ -1072,7 +1103,7 @@ export function KiteAIChatBrain({
     const userMessage: ChatMessage = {
       id: messageId,
       role: 'user',
-      content: messageContent,
+      content: displayMessageContent,
       timestamp: new Date(),
       attachments: attachments.length > 0 ? attachments : undefined,
       conversationId: options?.conversationId,
@@ -1264,7 +1295,7 @@ export function KiteAIChatBrain({
 
       const conversationHistory = messages.slice(-6).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content
+        content: withPromptDocuments(m.content, m.attachments ?? [])
       }));
 
       const requestedWorkflowSpecEdit = mode === 'panel'
@@ -2753,8 +2784,9 @@ export function KiteAIChatBrain({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
+      e.stopPropagation();
       handleSend();
     }
   };
@@ -2813,7 +2845,7 @@ export function KiteAIChatBrain({
   };
 
   return (
-    <div className={`flex flex-col h-full w-full ${mode === 'fullscreen' ? 'relative' : ''}`}>
+    <div className={`flex flex-col h-full min-h-0 w-full ${mode === 'fullscreen' ? 'relative' : ''}`}>
       {/* Header - hidden in fullscreen/home mode */}
       {mode !== 'fullscreen' && (
         <div className="flex h-[46px] items-center justify-between border-b border-border bg-background px-3 flex-shrink-0">
@@ -2853,7 +2885,7 @@ export function KiteAIChatBrain({
       {/* Bottom-anchored panel: draft actions + input bar.
           In fullscreen mode both are fixed together so actions are never
           hidden behind the input bar. In panel mode they stay in normal flow. */}
-      <div className={mode === 'fullscreen' ? 'fixed bottom-0 left-0 right-0 z-50 max-w-4xl mx-auto bg-background' : ''}>
+      <div className={mode === 'fullscreen' ? 'fixed bottom-0 left-0 right-0 z-50 max-w-4xl mx-auto bg-background' : 'shrink-0'} data-testid="kiteai-composer">
 
       {/* AUTHORITATIVE WORKFLOW DRAFT ACTIONS - Always visible when draft exists */}
       {currentWorkflowDraft && (
@@ -3218,14 +3250,15 @@ export function KiteAIChatBrain({
           </div>
         ) : (
           <>
-            <div className="flex gap-2">
+            <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,.kiteframe,.json"
+                accept={`image/*,.kiteframe,.json,${PROMPT_DOCUMENT_ACCEPT}`}
                 onChange={handleFileInputChange}
                 className="hidden"
                 multiple
+                data-testid="input-kiteai-attachment"
               />
               <Button
                 size="icon"
@@ -3242,12 +3275,10 @@ export function KiteAIChatBrain({
                 value={inputValue}
                 onChange={(e) => {
                   setInputValue(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                 }}
                 onKeyDown={handleKeyPress}
                 placeholder="Describe your workflow..."
-                className="flex-1 min-h-[40px] max-h-[120px] resize-none py-2"
+                className="flex-1 min-w-0 min-h-[40px] max-h-[120px] overflow-y-auto resize-none py-2 leading-5"
                 disabled={isLoading}
                 rows={1}
                 data-testid="input-kiteai-message"
@@ -3294,7 +3325,7 @@ export function KiteAIChatBrain({
             )}
             
             <div className="text-[10px] text-muted-foreground mt-2 text-center">
-              Drop images or .kiteframe files, or click the paperclip to upload
+              Attach images, .kiteframe, .json, .md, or .txt files
             </div>
           </>
         )}
@@ -3622,7 +3653,7 @@ export function KiteAIChatPanel({
   onOpenWorkflowImport,
 }: KiteAIChatPanelProps) {
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full min-h-0 w-full flex-col">
       <KiteAIChatBrain
         mode="panel"
         projectId={projectId}
