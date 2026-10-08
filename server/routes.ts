@@ -5,6 +5,9 @@ import cookieSig from 'cookie-signature';
 import { WebSocketServer, WebSocket } from 'ws';
 import multer from 'multer';
 import { storage } from "./storage";
+import { createInterfacePlanningHandlers } from "./interfacePlanningHandlers";
+import { interfacePlanSchema, buildApprovedInterfacePrompt, inspectGeneratedInterface, formatInterfaceSpecs } from "@shared/interfacePlan";
+import { extractSharePanelDocs } from "@shared/panelDocs";
 import {
   createSnapshotHandler,
   listSnapshotsHandler,
@@ -21,6 +24,14 @@ import {
   shareUpdateDocsFromWorkflowData,
 } from "@shared/panelDocs";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+const interfacePlanningHandlers = createInterfacePlanningHandlers(undefined, async (projectId, req) => {
+  if (!(req as any).user) throw new Error('Sign in to use the saved project Specs.');
+  const userId = getUserIdFromRequest((req as any).user);
+  const project = await storage.getSavedProject(projectId, userId);
+  if (!project) throw new Error('The source project was not found or is not accessible.');
+  const docs = extractSharePanelDocs(project.workflowData);
+  return formatInterfaceSpecs(docs.prdData, docs.workflowPRDs || []);
+});
 import { db } from "./db";
 import { 
   collaborationRooms, 
@@ -2446,6 +2457,9 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // The client pre-computes screen clusters and sends them; this endpoint generates
   // a description and SVG wireframe thumbnail for each cluster in parallel.
   app.post('/api/ai/interface-proposal', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+    // Complete workflow requests use the authoritative semantic planner.
+    // Retain the old cluster-only request format for older open browser tabs.
+    if (req.body && typeof req.body === 'object' && 'workflow' in req.body) return interfacePlanningHandlers.proposal(req, res);
     try {
       const schema = z.object({
         workflowName: z.string().max(200).optional(),
@@ -2543,6 +2557,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // regenerates SVG wireframes for any modified or added screens, and returns
   // the full updated proposal list together with a plain-language summary.
   app.post('/api/ai/interface-proposal-refine', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+    if (req.body && typeof req.body === 'object' && 'plan' in req.body) return interfacePlanningHandlers.refine(req, res);
     try {
       const screenSchema = z.object({
         id: z.string().max(50),
@@ -2737,6 +2752,7 @@ Only include screens that need changes. "modify" requires both description and d
     try {
       const schema = z.object({
         prompt: z.string().min(1).max(8000),
+        interfacePlan: interfacePlanSchema.optional(),
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
         source: z.enum(['workflow', 'chat']).optional(),
@@ -2764,13 +2780,21 @@ Only include screens that need changes. "modify" requires both description and d
         const field = firstIssue?.path.join('.') || 'request';
         return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
-      const { prompt, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory, newScreen } = parsed.data;
+      const { prompt, interfacePlan, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory, newScreen } = parsed.data;
       const isWorkflowGeneration = source === 'workflow';
+      if (interfacePlan && (!isWorkflowGeneration || currentCraftState || newScreen)) {
+        return res.status(400).json({ error: 'An approved interface plan creates a new workflow design, not an edit of an existing canvas.' });
+      }
 
       // Build a context-aware user message. Include the FULL current canvas state so the
       // model knows every existing node and can patch without dropping any existing children.
       // Do NOT truncate — a partial parent nodes[] list causes the patch to silently drop children.
-      let userMessage = prompt;
+      let userMessage: string;
+      try {
+        userMessage = interfacePlan ? buildApprovedInterfacePrompt(interfacePlan) : prompt;
+      } catch (error) {
+        return res.status(422).json({ error: error instanceof Error ? error.message : 'Invalid approved interface plan.' });
+      }
       if (currentCraftState && currentCraftState.trim().length > 2) {
         userMessage += `\n\n<CURRENT_CANVAS>\n${currentCraftState}\n</CURRENT_CANVAS>`;
         if (newScreen) {
@@ -2858,6 +2882,7 @@ Only include screens that need changes. "modify" requires both description and d
       }
 
       if (responseType === 'patch') {
+        if (interfacePlan) return res.status(422).json({ error: 'The generator returned a patch instead of the selected screens. Your plan is preserved; retry Generate.' });
         const patchNodes = parsedResponse.nodes;
         if (!patchNodes || typeof patchNodes !== 'object') {
           return res.status(500).json({ error: 'AI returned an invalid patch — try rephrasing your prompt' });
@@ -2894,9 +2919,18 @@ Only include screens that need changes. "modify" requires both description and d
       // [artboard-trace] Interface-generation lifecycle logging — stage 0: what
       // the AI actually produced, and what we return after layout + wrapping.
       console.log('[artboard-trace] ai/design: raw AI state (source=%s)', source ?? 'chat', JSON.stringify(summarizeArtboards(craftStateObj)));
-      const finalState = wrapRootChildrenInArtboard(layoutArtboards(sanitizeRootType(craftStateObj as CraftState)));
+      const finalState = wrapRootChildrenInArtboard(layoutArtboards(sanitizeRootType(
+        (interfacePlan ? pruneUnreachableCraftNodes(repairCraftState(craftStateObj)) : craftStateObj) as CraftState,
+      )));
       console.log('[artboard-trace] ai/design: after layout+wrap', JSON.stringify(summarizeArtboards(finalState)));
-      return res.json({ type: 'state', craftState: JSON.stringify(finalState), message: stateMessage, title: stateTitle });
+      const coverage = interfacePlan ? inspectGeneratedInterface(interfacePlan, finalState) : { errors: [], warnings: [] };
+      if (coverage.errors.length) {
+        return res.status(422).json({
+          error: `Some selected screens were not generated correctly. Your plan is preserved; retry Generate. ${coverage.errors.join(' ')}`,
+          warnings: coverage.warnings,
+        });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(finalState), message: stateMessage, title: stateTitle, warnings: coverage.warnings });
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });

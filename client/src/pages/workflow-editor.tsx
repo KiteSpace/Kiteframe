@@ -139,7 +139,9 @@ import {
   getOppositeTextColor,
 } from "../lib/kiteframe/utils/colorUtils";
 import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
-import { buildInterfacePromptFromWorkflow, analyzeWorkflowScreens, MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
+import { MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
+import { interfacePlanSchema, selectInterfacePages, type InterfacePlan } from "@shared/interfacePlan";
+import { collectWorkflowInterfaceContext, workflowToPlanningInput } from "@/lib/workflowInterfacePlan";
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
@@ -322,6 +324,7 @@ interface WorkflowTab {
   isOpen?: boolean; // Whether tab is shown in tab bar (project stays in gallery even when closed)
   sketchStrokes?: import('@/components/SketchCanvas').SketchStroke[]; // World-space drawing annotations
   designId?: string; // Set for design tabs — renders DesignTabView inline instead of workflow canvas
+  interfaceGenerationWarnings?: string[];
   designSyncedAt?: string; // ISO timestamp: when the design was last synced from its source workflow
   designIsStale?: boolean; // True when the source workflow has been edited since last sync
   designSourceWorkflowId?: string; // cloudProjectId of the workflow that generated this design
@@ -2300,6 +2303,8 @@ function WorkflowEditorContent({
   const [designModeTabIds, setDesignModeTabIds] = useState<Set<string>>(new Set());
   const [previousTabId, setPreviousTabId] = useState<string | null>(null);
   const [isGeneratingInterface, setIsGeneratingInterface] = useState(false);
+  const interfaceGenerationInFlight = useRef(false);
+  const [interfaceGenerationFeedback, setInterfaceGenerationFeedback] = useState<string[]>([]);
   const [screenPickerOpen, setScreenPickerOpen] = useState(false);
   const [screenPickerClusters, setScreenPickerClusters] = useState<Array<{ name: string; nodes: Node[] }>>([]);
   const [screenPickerSourceTab, setScreenPickerSourceTab] = useState<WorkflowTab | null>(null);
@@ -3200,7 +3205,7 @@ function WorkflowEditorContent({
   const openDesignTab = useCallback((
     designId: string,
     title?: string,
-    syncMeta?: { syncedAt?: string | null; isStale?: boolean; sourceWorkflowId?: string | null },
+    syncMeta?: { syncedAt?: string | null; isStale?: boolean; sourceWorkflowId?: string | null; warnings?: string[] },
   ) => {
     // If a tab for this design already exists, just switch to it.
     const existing = tabs.find((t) => t.designId === designId);
@@ -3229,6 +3234,7 @@ function WorkflowEditorContent({
       isOpen: true,
       lastModified: Date.now(),
       designId,
+      interfaceGenerationWarnings: syncMeta?.warnings,
       designSyncedAt: syncMeta?.syncedAt ?? undefined,
       designIsStale: syncMeta?.isStale ?? false,
       designSourceWorkflowId: syncMeta?.sourceWorkflowId ?? undefined,
@@ -3251,19 +3257,19 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
-  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, selectedClusters?: Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
-    if (isGeneratingInterface) return false;
+  const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
+    if (interfaceGenerationInFlight.current) return false;
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
       else openCreditsDialog();
       return false;
     }
+    interfaceGenerationInFlight.current = true;
+    setIsGeneratingInterface(true);
+    setInterfaceGenerationFeedback([]);
     try {
       const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
       if (sessionRes.status === 401) { openSignup(); return false; }
-    } catch { /* network error — let main call handle it */ }
-    setIsGeneratingInterface(true);
-    try {
       // Version naming: count existing design tabs linked to this source workflow
       const sourceWorkflowId = sourceTab.cloudProjectId ?? null;
       const linkedDesignTabs = tabs.filter(
@@ -3274,24 +3280,40 @@ function WorkflowEditorContent({
         ? baseName
         : `${baseName} v${linkedDesignTabs.length + 1}`;
 
-      const safeSelectedClusters = selectedClusters
-        ? selectedClusters.slice(0, MAX_GENERATED_SCREENS)
-        : selectedClusters;
-      const prompt = buildInterfacePromptFromWorkflow(
-        sourceTab.nodes,
-        sourceTab.edges,
-        sourceTab.name,
-        safeSelectedClusters,
-      );
+      let plan: InterfacePlan;
+      if (approvedPlan && !Array.isArray(approvedPlan)) {
+        plan = interfacePlanSchema.parse(approvedPlan);
+      } else {
+        // Bulk/stale entry points also use semantic planning, not legacy chunks.
+        const proposalRes = await fetch("/api/ai/interface-proposal", {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflow: workflowToPlanningInput(
+            sourceTab.nodes, sourceTab.edges, sourceTab.name, sourceTab.metadata.description,
+            collectWorkflowInterfaceContext(sourceTab),
+          ), sourceProjectId: sourceTab.cloudProjectId }),
+        });
+        const proposalData = await proposalRes.json();
+        if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
+        const interpreted = interfacePlanSchema.parse(proposalData.plan);
+        const pages = interpreted.screens.filter(s => s.kind === "page");
+        if (pages.length > MAX_GENERATED_SCREENS) {
+          throw new Error(`This workflow needs ${pages.length} pages. Open its interface proposal and choose up to ${MAX_GENERATED_SCREENS} pages before generating.`);
+        }
+        plan = selectInterfacePages(interpreted, pages.map(s => s.id));
+      }
+      const prompt = `Generate the approved interface for ${sourceTab.name}: ${plan.summary}`;
       const genRes = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ prompt, source: "workflow" }),
+        body: JSON.stringify({ prompt, source: "workflow", interfacePlan: plan }),
       });
       if (genRes.status === 401) { openSignup(); return false; }
       const genData = await genRes.json();
       if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      const generationWarnings = Array.isArray(genData.warnings) ? genData.warnings.filter((w: unknown) => typeof w === "string") : [];
+      setInterfaceGenerationFeedback(generationWarnings);
       const createRes = await fetch("/api/designs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3360,14 +3382,17 @@ function WorkflowEditorContent({
           syncedAt: createData.workflowSyncedAt ?? null,
           isStale: false,
           sourceWorkflowId: createData.sourceWorkflowId ?? null,
+          warnings: generationWarnings,
         },
       );
       return true;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Could not generate interface";
+      setInterfaceGenerationFeedback([msg]);
       toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
       return false;
     } finally {
+      interfaceGenerationInFlight.current = false;
       setIsGeneratingInterface(false);
     }
   }, [isGeneratingInterface, isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, setIsGeneratingInterface]);
@@ -9322,15 +9347,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             return (
               <InterfaceProposalView
                 workflowName={srcTab?.name}
+                workflowDescription={srcTab?.metadata.description}
+                sourceProjectId={srcTab?.cloudProjectId}
+                context={srcTab ? collectWorkflowInterfaceContext(srcTab) : ""}
                 nodes={srcTab?.nodes ?? []}
                 edges={srcTab?.edges ?? []}
                 isGenerating={isGeneratingInterface}
-                onConfirm={async (selectedClusters) => {
+                generationFeedback={interfaceGenerationFeedback}
+                onConfirm={async (plan) => {
                   if (!srcTab) return;
                   const proposalTabId = activeTab.id;
                   const success = await generateInterfaceFromWorkflow(
                     srcTab,
-                    selectedClusters.length > 0 ? selectedClusters : null,
+                    plan,
                   );
                   if (success) {
                     setTabs((prev) =>
@@ -9398,6 +9427,17 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                   {isGeneratingInterface ? "Generating…" : "Update Interface"}
                 </button>
               </div>
+            )}
+            {!!activeTab.interfaceGenerationWarnings?.length && (
+              <details className="flex-shrink-0 border-b border-border bg-muted/50 px-4 py-2 text-xs" data-testid="interface-generation-notes">
+                <summary className="cursor-pointer font-medium">
+                  Review generated requirements ({activeTab.interfaceGenerationWarnings.length} notes)
+                </summary>
+                <p className="mt-2 text-muted-foreground">The design is editable. These label checks are advisory; confirm the controls and states below.</p>
+                <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                  {activeTab.interfaceGenerationWarnings.map((warning, index) => <li key={index}>{warning}</li>)}
+                </ul>
+              </details>
             )}
             <DesignTabView
               key={activeTab.designId}
