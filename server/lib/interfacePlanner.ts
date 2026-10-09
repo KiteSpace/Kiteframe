@@ -6,13 +6,23 @@ import { executeAiChat } from '../aiChatExecutor';
 
 export type PlannerModel = (system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
+export class InterfacePlanningTimeoutError extends Error {
+  constructor() {
+    super('The UI proposal took too long to generate. Please retry. If this keeps happening, split the workflow into smaller tasks.');
+    this.name = 'InterfacePlanningTimeoutError';
+  }
+}
+
 export const callPlannerModel: PlannerModel = async (system, user, signal) => {
   const result = await executeAiChat({
     provider: 'anthropic', model: 'claude-sonnet-4-5-20250929',
     maxTokens: 9000, temperature: 0.2,
     messages: [{ role: 'user', content: user }],
   }, signal, { systemPrompt: system });
-  if (!result.ok) throw new Error(result.error || 'The interface planner is unavailable. Please retry.');
+  if (!result.ok) {
+    if (result.status === 504) throw new InterfacePlanningTimeoutError();
+    throw new Error(result.error || 'The interface planner is unavailable. Please retry.');
+  }
   if (result.json?.stop_reason === 'max_tokens') throw new Error('The interface plan was too large. Shorten the workflow or split it into smaller tasks.');
   return result.text || '';
 };
@@ -32,6 +42,7 @@ Roles/fields/business rules not explicit in workflow or Specs are provisional: m
 Existing Specs are context; the current graph and user's explicit refinements take precedence if they conflict. Explain conflicts as assumptions.
 Use up to 16 total surfaces. Do not silently drop tasks to satisfy the six-page GENERATION limit; the user selects pages later. If needed group genuinely related tasks and explain the tradeoff.
 During refinement preserve unchanged surface IDs, source references and full requirements. Add new pages requested by the user with new stable IDs, origin user and nodeIds [] if appropriate. Do not assign unrelated workflow nodes merely to satisfy a source requirement.
+Keep the JSON concise: goals, descriptions, rationale and state descriptions should each be one short sentence. Avoid repeating fields/actions in the same workspace or adding explanatory prose outside the JSON. Preserve all source mappings and necessary requirements.
 Return ONLY a JSON object, no markdown. Omit workflow (the server supplies the immutable source).
 Exact shape (all arrays must be present; parentScreenId and targetScreenId use "" when not applicable):
 {

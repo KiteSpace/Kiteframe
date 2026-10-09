@@ -47,4 +47,4 @@
 - [PRD generation capacity](prd-generation-capacity.md) — section fan-out must share a conservative queue; treat 429s as backpressure and never save incomplete generated specs.
 - [Persistent groups and layer locks](persistent-group-locks.md) — lock/delete/drag checks must treat mixed persistent groups atomically across node and object layer IDs.
 - [Floating toolbar collision bounds](floating-toolbar-collision-bounds.md) — clamp the union of the toolbar and absolute submenus, then re-route if clamping collides with endpoint handles.
-- [Interface plan calibration](interface-plan-calibration.md) — valid roles and source mappings can still hide invented product scope; check task boundaries with a bounded live comparison.
+- [Interface plan calibration](interface-plan-calibration.md) — valid mappings can hide invented scope; calibrate task boundaries and time budgets with bounded live comparisons.

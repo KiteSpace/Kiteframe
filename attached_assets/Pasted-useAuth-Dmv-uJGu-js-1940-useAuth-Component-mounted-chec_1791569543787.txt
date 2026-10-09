@@ -1,0 +1,48 @@
+useAuth-Dmv_uJGu.js:1940 🔐 useAuth: Component mounted, checking auth state...
+useAuth-Dmv_uJGu.js:1940 🔄 Auth state changed: No user
+useAuth-Dmv_uJGu.js:1940 ℹ️ No redirect result found
+DesignPage-lUgFS5pA.js:7 [artboard-trace] hydrate: raw from DB Object
+DesignPage-lUgFS5pA.js:7 [artboard-trace] hydrate: after sanitize+repair Object
+DesignPage-lUgFS5pA.js:7 [artboard-trace] hydrate: disconnected detected Array(0)
+DesignPage-lUgFS5pA.js:7 [artboard-trace] hydrate: final (after prune) Object
+useAuth-Dmv_uJGu.js:1940 🔐 useAuth: Component mounted, checking auth state...
+useAuth-Dmv_uJGu.js:1940 🔄 Auth state changed: No user
+useAuth-Dmv_uJGu.js:1940 ℹ️ No redirect result found
+index-CEqflU8Y.js:1 Fetch finished loading: GET "https://kiteframe.space/api/auth/user".
+ensureAuthed @ index-CEqflU8Y.js:1
+createAutoSnapshot @ index-CEqflU8Y.js:1
+(anonymous) @ index-CEqflU8Y.js:1
+index-CEqflU8Y.js:1 Fetch finished loading: POST "https://kiteframe.space/api/snapshots".
+createAutoSnapshot @ index-CEqflU8Y.js:1
+await in createAutoSnapshot
+(anonymous) @ index-CEqflU8Y.js:1
+index-dFp65Rcd.js:49 Fetch finished loading: GET "https://kiteframe.space/api/credits".
+(anonymous) @ index-dFp65Rcd.js:49
+s @ index-dFp65Rcd.js:49
+C @ index-dFp65Rcd.js:49
+start @ index-dFp65Rcd.js:49
+fetch @ index-dFp65Rcd.js:49
+Fo @ index-dFp65Rcd.js:49
+(anonymous) @ index-dFp65Rcd.js:49
+2index-dFp65Rcd.js:49 Fetch finished loading: GET "https://kiteframe.space/api/credits".
+(anonymous) @ index-dFp65Rcd.js:49
+s @ index-dFp65Rcd.js:49
+C @ index-dFp65Rcd.js:49
+start @ index-dFp65Rcd.js:49
+fetch @ index-dFp65Rcd.js:49
+Fo @ index-dFp65Rcd.js:49
+(anonymous) @ index-dFp65Rcd.js:49
+setInterval
+wu @ index-dFp65Rcd.js:49
+xu @ index-dFp65Rcd.js:49
+onQueryUpdate @ index-dFp65Rcd.js:49
+(anonymous) @ index-dFp65Rcd.js:49
+(anonymous) @ index-dFp65Rcd.js:49
+batch @ index-dFp65Rcd.js:49
+jt @ index-dFp65Rcd.js:49
+setData @ index-dFp65Rcd.js:49
+fetch @ index-dFp65Rcd.js:49
+await in fetch
+Fo @ index-dFp65Rcd.js:49
+(anonymous) @ index-dFp65Rcd.js:49
+interface-proposal:1  Failed to load resource: the server responded with a status of 422 ()

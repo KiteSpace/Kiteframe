@@ -307,6 +307,9 @@ export async function executeAiChat(
       activeModel,
     };
   } catch (error: any) {
+    if (error?.name === 'TimeoutError' || signal?.reason?.name === 'TimeoutError') {
+      return { ok: false, status: 504, error: 'AI request timed out. Please retry.' };
+    }
     if (error?.name === 'AbortError') {
       return { ok: false, status: 499, error: 'Cancelled by client' };
     }

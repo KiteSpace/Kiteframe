@@ -1,9 +1,13 @@
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it, vi } from 'vitest';
+import { request as httpRequest } from 'node:http';
+import { once } from 'node:events';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../aiChatExecutor', () => ({ executeAiChat: vi.fn() }));
 import { createInterfacePlanningHandlers } from '../interfacePlanningHandlers';
-import { INTERFACE_PLANNER_SYSTEM, interpretWorkflow } from '../lib/interfacePlanner';
+import { callPlannerModel, INTERFACE_PLANNER_SYSTEM, interpretWorkflow } from '../lib/interfacePlanner';
+import { executeAiChat } from '../aiChatExecutor';
+import { INTERFACE_PLANNING_TIMEOUT_MS } from '../interfacePlanningHandlers';
 import { interfacePlanningFixtures, userAddedPagePlan } from '../../shared/__tests__/fixtures/interfacePlanningFixtures';
 import { buildApprovedInterfacePrompt } from '../../shared/interfacePlan';
 
@@ -21,6 +25,82 @@ const appWithModel = (model: ReturnType<typeof vi.fn>) => {
 };
 
 describe('workflow planner and real HTTP handlers', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('allows a valid proposal to complete beyond the previous 90-second deadline', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const fixture = interfacePlanningFixtures.short;
+    const model = vi.fn(async (_system, _user, signal: AbortSignal) => {
+      await vi.advanceTimersByTimeAsync(95_000);
+      expect(signal.aborted).toBe(false);
+      return jsonPlan(fixture.plan);
+    });
+    const response = await request(appWithModel(model)).post('/proposal').send({ workflow: fixture.workflow });
+    expect(INTERFACE_PLANNING_TIMEOUT_MS).toBe(180_000);
+    expect(response.status).toBe(200);
+    expect(model).toHaveBeenCalledOnce();
+  });
+
+  it.each(['proposal', 'refine'])('reports %s deadline expiry as a retryable timeout, not an invalid plan', async (route) => {
+    const model = vi.fn((_system, _user, signal: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }));
+    const handlers = createInterfacePlanningHandlers(model, undefined, 15);
+    const app = express();
+    app.use(express.json());
+    app.post('/proposal', handlers.proposal);
+    app.post('/refine', handlers.refine);
+    const fixture = interfacePlanningFixtures.short;
+    const body = route === 'proposal' ? { workflow: fixture.workflow } : { plan: fixture.plan, userMessage: 'Clarify the login fields.' };
+    const response = await request(app).post(`/${route}`).send(body);
+    expect(response.status).toBe(504);
+    expect(response.body.code).toBe('INTERFACE_PLANNING_TIMEOUT');
+    expect(response.body.error).toContain('Please retry');
+    expect(response.body.error).not.toContain('Internal server error');
+    expect(model).toHaveBeenCalledOnce();
+  });
+
+  it('preserves a provider timeout through the planner adapter', async () => {
+    vi.mocked(executeAiChat).mockResolvedValueOnce({ ok: false, status: 504, error: 'AI request timed out.' });
+    await expect(callPlannerModel('Trusted instructions', 'Workflow data')).rejects.toMatchObject({ name: 'InterfacePlanningTimeoutError' });
+  });
+
+  it('cancels provider work when the proposal reader disconnects', async () => {
+    let markStarted!: () => void;
+    let markAborted!: () => void;
+    const started = new Promise<void>(resolve => { markStarted = resolve; });
+    const aborted = new Promise<void>(resolve => { markAborted = resolve; });
+    let providerSignal: AbortSignal | undefined;
+    const model = vi.fn((_system, _user, signal: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      providerSignal = signal;
+      signal.addEventListener('abort', () => {
+        markAborted();
+        reject(signal.reason);
+      }, { once: true });
+      markStarted();
+    }));
+    const server = appWithModel(model).listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Missing test server port');
+      const client = httpRequest({
+        hostname: '127.0.0.1', port: address.port, path: '/proposal', method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      client.on('error', () => {});
+      client.end(JSON.stringify({ workflow: interfacePlanningFixtures.short.workflow }));
+      await started;
+      client.destroy();
+      await aborted;
+      expect(providerSignal?.aborted).toBe(true);
+      expect(model).toHaveBeenCalledOnce();
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
   it('interprets complete descriptions, labeled branches, roles and Specs, not clusters', async () => {
     const fixture = interfacePlanningFixtures.approval;
     const workflow = { ...fixture.workflow, context: 'Specs: manager must explain returned expenses.' };
