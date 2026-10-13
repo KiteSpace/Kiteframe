@@ -31,6 +31,7 @@ import {
   resolveDocumentUpdatedAt,
   stampUpdatedAt,
   writeDocumentContent,
+  isSameDocumentContent,
   type DocKind,
 } from '@shared/documents';
 import { shareUpdateDocsFromWorkflowData } from '@shared/panelDocs';
@@ -79,7 +80,9 @@ const documentContentSchema = z
 
 const saveDocumentSchema = z.object({
   content: documentContentSchema,
+  expectedContent: documentContentSchema.nullable().optional(),
 });
+class DocumentConflict extends Error {}
 
 /**
  * Notes + overview/details (+ optional project name/description columns).
@@ -226,7 +229,14 @@ export function registerDocumentRoutes(app: Express) {
       const result = await storage.mutateProjectWorkflowData(
         req.params.projectUuid,
         userId,
-        (workflowData) => writeDocumentContent(workflowData, docKind, workflowId, content),
+        (workflowData) => {
+          if (parseResult.data.expectedContent !== undefined &&
+              !isSameDocumentContent(readDocumentContent(workflowData, docKind, workflowId) ?? null,
+                parseResult.data.expectedContent)) {
+            throw new DocumentConflict('Spec changed while AI was working. Your edits were kept.');
+          }
+          return writeDocumentContent(workflowData, docKind, workflowId, content);
+        },
       );
 
       if (result.status === 'notFound') return res.status(404).json({ error: 'Project not found' });
@@ -262,6 +272,7 @@ export function registerDocumentRoutes(app: Express) {
         },
       });
     } catch (error) {
+      if (error instanceof DocumentConflict) return res.status(409).json({ error: error.message });
       console.error('Error saving project document:', error);
       res.status(500).json({ error: 'Failed to save document' });
     }

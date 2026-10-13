@@ -26,6 +26,10 @@ import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationB
 import { useServerDocument } from '@/lib/documents/useServerDocument';
 import { formatDate } from '@/lib/utils/formatDate';
 import { announceDocumentArtifact } from '@/lib/chatArtifacts';
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
+import { isAddressableProject, saveDocumentNow } from '@/lib/documents/documentClient';
+import { isSameDocumentContent } from '@shared/documents';
+import { beginBackgroundCommit } from '@/ai/backgroundOperations';
 
 interface ProjectPRDSectionProps {
   projectId: string;
@@ -50,30 +54,16 @@ export function ProjectPRDSection({
   density = 'rail',
   onDocMeta
 }: ProjectPRDSectionProps) {
-  const [prd, setPrd] = useState<ProjectPRD | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isWaitingForCapacity, setIsWaitingForCapacity] = useState(false);
-  const [history, setHistory] = useState<PRDVersion<ProjectPRD>[]>([]);
+  const operationScope = `project-spec:${projectId}`;
+  const [prd, setPrd] = useRetainedAiState<ProjectPRD | null>(operationScope, 'prd', null);
+  const [isGenerating, setIsGenerating] = useRetainedAiState(operationScope, 'generating', false);
+  const [isWaitingForCapacity, setIsWaitingForCapacity] = useRetainedAiState(operationScope, 'waiting', false);
+  const [history, setHistory] = useRetainedAiState<PRDVersion<ProjectPRD>[]>(operationScope, 'history', []);
   const prevUpdateKeyRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const currentProjectIdRef = useRef(projectId);
   const ai = useAi();
   const { toast } = useToast();
   
   const { updateKey } = usePRDGenerationState(projectId);
-
-  useEffect(() => {
-    currentProjectIdRef.current = projectId;
-  }, [projectId]);
-
-  useEffect(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    return () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
-    };
-  }, [projectId]);
 
   const loadFromStorage = useCallback(() => {
     if (projectId) {
@@ -128,11 +118,8 @@ export function ProjectPRDSection({
     }
   }, [updateKey, loadFromStorage]);
 
-  const handleGenerate = useCallback(async () => {
+  const handleGenerate = useBackgroundCallback(operationScope, `Generating ${projectName} Spec`, async (signal) => {
     if (!projectId || !projectName) return;
-
-    const requestProjectId = projectId;
-    const signal = abortControllerRef.current?.signal;
 
     setIsGenerating(true);
     setIsWaitingForCapacity(false);
@@ -140,11 +127,6 @@ export function ProjectPRDSection({
     try {
       const isFirstGeneration = !prd;
       
-      if (prd) {
-        saveProjectPRDVersion(projectId, prd, 'ai-update');
-        saveProjectPRDBackup(projectId, prd);
-      }
-
       const flows = FlowDetection.detectFlows(nodes, edges);
       const workflowModels = flows
         .filter(flow => flow.nodes.length >= 2 && flow.edges.length >= 1)
@@ -165,18 +147,30 @@ export function ProjectPRDSection({
         (status: PRDGenerationStatus) => setIsWaitingForCapacity(status === 'waiting-for-capacity')
       );
 
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current) {
-        console.log('[ProjectPRDSection] Project changed during generation — discarding result');
-        return;
+      if (signal.aborted) return;
+      // Persist the complete batch to the captured document, even with no view.
+      // Never let an obsolete hydration response or an intervening edit win.
+      if (!isSameDocumentContent(loadProjectPRD(projectId), prd)) {
+        throw new Error('The Spec was edited while generation ran. Your edits were kept; retry to regenerate.');
+      }
+      beginBackgroundCommit(signal);
+      if (isAddressableProject(projectId) &&
+          !await saveDocumentNow(projectId, 'project-prd', undefined, newPrd, prd, signal)) {
+        throw new Error('The generated Spec could not be saved to its original project. Retry when it is available.');
+      }
+      if (signal.aborted) return;
+      if (prd) {
+        saveProjectPRDVersion(projectId, prd, 'ai-update');
+        saveProjectPRDBackup(projectId, prd);
       }
       
       if (isFirstGeneration) {
         saveProjectPRDVersion(projectId, newPrd, 'ai-generate');
       }
       
-      persistPrd(newPrd, { immediate: true });
+      saveProjectPRD(projectId, newPrd);
+      prdGenerationBus.notifyPRDUpdated(projectId);
       setPrd(newPrd);
-      onPRDGenerated?.();
 
       // Record it in the conversation as a card, not as its full text.
       announceDocumentArtifact(projectId, {
@@ -195,6 +189,7 @@ export function ProjectPRDSection({
         console.log('[ProjectPRDSection] Generation aborted');
         return;
       }
+      failOperation(operationScope, error);
       toast({
         title: 'Generation failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -204,7 +199,7 @@ export function ProjectPRDSection({
       setIsWaitingForCapacity(false);
       setIsGenerating(false);
     }
-  }, [projectId, projectName, nodes, edges, prd, ai, toast, onPRDGenerated]);
+  }, [projectId, projectName, nodes, edges, prd, ai, toast]);
 
   const handleRestoreVersion = useCallback((version: number) => {
     if (!projectId) return;
@@ -259,6 +254,7 @@ export function ProjectPRDSection({
 
   return (
     <div data-testid="project-prd-section">
+      {!isReadOnly && <BackgroundOperationStatus scope={operationScope} />}
       {!prd && !isGenerating && (
         <div className="text-center py-6">
           <p className="text-sm text-muted-foreground mb-3">

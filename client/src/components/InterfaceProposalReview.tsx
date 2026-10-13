@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
+import { getOperations } from '@/ai/backgroundOperations';
+import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { Loader2, Send, Sparkles, X } from 'lucide-react';
@@ -20,6 +23,7 @@ export interface InterfaceProposalViewProps {
   workflowName?: string;
   workflowDescription?: string;
   sourceProjectId?: string;
+  operationTargetId?: string;
   context?: string;
   nodes: Node[];
   edges: Edge[];
@@ -105,19 +109,18 @@ function UserBubble({ text }: { text: string }) {
 }
 
 export function InterfaceProposalReview({
-  workflowName, workflowDescription = '', sourceProjectId, context = '', nodes, edges, isGenerating,
+  workflowName, workflowDescription = '', sourceProjectId, operationTargetId, context = '', nodes, edges, isGenerating,
   generationFeedback = [], onConfirm, onCancel,
 }: InterfaceProposalViewProps) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'refining' | 'error'>('loading');
-  const [plan, setPlan] = useState<InterfacePlan | null>(null);
-  const [previews, setPreviews] = useState<ProposalPreview[]>([]);
-  const [apiWarnings, setApiWarnings] = useState<string[]>([]);
-  const [error, setError] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const operationScope = `interface-plan:${operationTargetId || sourceProjectId || workflowName}:${nodes.map(node => node.id).sort().join(',')}`;
+  const [status, setStatus] = useRetainedAiState<'loading' | 'ready' | 'refining' | 'error'>(operationScope, 'status', 'loading');
+  const [plan, setPlan] = useRetainedAiState<InterfacePlan | null>(operationScope, 'plan', null);
+  const [previews, setPreviews] = useRetainedAiState<ProposalPreview[]>(operationScope, 'previews', []);
+  const [apiWarnings, setApiWarnings] = useRetainedAiState<string[]>(operationScope, 'warnings', []);
+  const [error, setError] = useRetainedAiState(operationScope, 'error', '');
+  const [messages, setMessages] = useRetainedAiState<ChatMessage[]>(operationScope, 'messages', []);
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const initialAbort = useRef<AbortController | null>(null);
-  const latestInitial = useRef(0);
   const workflowResult = useMemo(() => {
     try {
       return { workflow: workflowToPlanningInput(nodes, edges, workflowName || 'Workflow', workflowDescription, context), error: '' };
@@ -126,11 +129,7 @@ export function InterfaceProposalReview({
     }
   }, [nodes, edges, workflowName, workflowDescription, context]);
 
-  const requestInitial = useCallback(async () => {
-    const requestId = ++latestInitial.current;
-    initialAbort.current?.abort();
-    const controller = new AbortController();
-    initialAbort.current = controller;
+  const requestInitial = useBackgroundCallback(operationScope, 'Interpreting workflow screens', async (signal) => {
     setError('');
     setStatus('loading');
     if (!workflowResult.workflow) {
@@ -139,14 +138,14 @@ export function InterfaceProposalReview({
       return;
     }
     try {
-      const response = await fetch('/api/ai/interface-proposal', {
+      const response = await fetchBackgroundAi('/api/ai/interface-proposal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        signal: controller.signal, body: JSON.stringify({ workflow: workflowResult.workflow, sourceProjectId }),
+        signal, body: JSON.stringify({ workflow: workflowResult.workflow, sourceProjectId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || `Proposal request failed (${response.status}).`);
       const result = readProposal(data);
-      if (requestId !== latestInitial.current || controller.signal.aborted) return;
+      if (signal.aborted) return;
       const pageIds = result.plan.screens.filter((surface) => surface.kind === 'page' && surface.selected).map((surface) => surface.id);
       const initialSelection = pageIds.slice(0, MAX_INTERFACE_PAGES);
       setPlan(selectInterfacePages(result.plan, initialSelection.length ? initialSelection : [result.plan.screens.find((surface) => surface.kind === 'page')!.id]));
@@ -155,22 +154,19 @@ export function InterfaceProposalReview({
       setMessages([{ role: 'assistant', content: result.aiMessage || `I've mapped ${result.plan.screens.filter((item) => item.kind === 'page').length} pages from the workflow. Inspect the reasoning, adjust selection, or refine the proposal in chat.` }]);
       setStatus('ready');
     } catch (err) {
-      if (controller.signal.aborted || requestId !== latestInitial.current) return;
+      if (signal.aborted) return;
+      failOperation(operationScope, err);
       setError(err instanceof Error ? err.message : 'Could not generate a proposal.');
       setStatus('error');
     }
   }, [workflowResult, sourceProjectId]);
 
   useEffect(() => {
-    void requestInitial();
-    return () => {
-      latestInitial.current += 1;
-      initialAbort.current?.abort();
-    };
-  }, [requestInitial]);
+    if (!getOperations().some(op => op.key === operationScope)) void requestInitial();
+  }, [requestInitial, operationScope]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, status]);
 
-  const sendMessage = useCallback(async (retryText?: string) => {
+  const sendMessage = useBackgroundCallback(operationScope, 'Refining workflow screens', async (signal, retryText?: string) => {
     const text = retryText ?? inputValue.trim();
     if (!text || status !== 'ready' || !plan) return;
     const nextMessages = [...messages, { role: 'user' as const, content: text }];
@@ -179,12 +175,13 @@ export function InterfaceProposalReview({
     setStatus('refining');
     setError('');
     try {
-      const response = await fetch('/api/ai/interface-proposal-refine', {
+      const response = await fetchBackgroundAi('/api/ai/interface-proposal-refine', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ plan, userMessage: text }),
+        signal, body: JSON.stringify({ plan, userMessage: text }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || `Refinement failed (${response.status}).`);
+      if (signal.aborted) return;
       const result = readProposal(data);
       // Preserve user intent for surviving pages; never copy mappings from an old version.
       const oldPages = new Map(plan.screens.filter((surface) => surface.kind === 'page').map((surface) => [surface.id, surface.selected]));
@@ -202,6 +199,8 @@ export function InterfaceProposalReview({
       setMessages([...nextMessages, { role: 'assistant', content: result.aiMessage || 'Proposal updated. Review the revised mapping and requirements.' }]);
       setStatus('ready');
     } catch (err) {
+      if (signal.aborted) return;
+      failOperation(operationScope, err);
       setError(err instanceof Error ? err.message : 'Could not refine the proposal.');
       setStatus('ready');
     }
@@ -232,6 +231,7 @@ export function InterfaceProposalReview({
           <button onClick={onCancel} aria-label="Close" className="ml-auto rounded p-1 text-muted-foreground hover:bg-muted"><X size={14} /></button>
         </header>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3" aria-live="polite">
+          <BackgroundOperationStatus scope={operationScope} />
           {messages.map((message, index) => message.role === 'assistant' ? <AiBubble key={index} text={message.content} /> : <UserBubble key={index} text={message.content} />)}
           {status === 'refining' && <div role="status" className="text-xs text-muted-foreground">Updating the proposal…</div>}
           <div ref={chatEndRef} />

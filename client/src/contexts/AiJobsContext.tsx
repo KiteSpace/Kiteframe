@@ -9,6 +9,7 @@ export interface PendingAiJob {
   // navigate back to the originating surface, and by remounted surfaces to
   // re-claim a result that completed while they were unmounted.
   originPath?: string;
+  operationKey?: string;
 }
 
 export interface CompletedAiJob {
@@ -16,6 +17,7 @@ export interface CompletedAiJob {
   label: string;
   taskType?: string;
   originPath?: string;
+  operationKey?: string;
   status: 'completed' | 'failed';
   text?: string;
   error?: string;
@@ -104,6 +106,8 @@ function save(key: string, value: unknown) {
 export function AiJobsProvider({ children }: { children: ReactNode }) {
   const [pendingJobs, setPendingJobs] = useState<PendingAiJob[]>(() => loadPending());
   const [completedJobs, setCompletedJobs] = useState<CompletedAiJob[]>(() => loadCompleted());
+  const completedRef = useRef(completedJobs);
+  completedRef.current = completedJobs;
   const watcherRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => { save(PENDING_KEY, pendingJobs); }, [pendingJobs]);
@@ -116,13 +120,13 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   const consumedRef = useRef<Set<string>>(new Set());
 
   const recordCompleted = useCallback((entry: CompletedAiJob) => {
-    if (consumedRef.current.has(entry.jobId)) return;
-    setCompletedJobs(prev => {
-      if (prev.some(j => j.jobId === entry.jobId)) return prev;
-      const now = Date.now();
-      const fresh = prev.filter(j => now - j.completedAt < COMPLETED_TTL_MS);
-      return [...fresh, entry];
-    });
+    if (entry.operationKey || entry.taskType === 'prd_generation' || consumedRef.current.has(entry.jobId)) return;
+    const prev = completedRef.current;
+    if (prev.some(j => j.jobId === entry.jobId)) return;
+    const now = Date.now();
+    const next = [...prev.filter(j => now - j.completedAt < COMPLETED_TTL_MS), entry];
+    completedRef.current = next;
+    setCompletedJobs(next);
   }, []);
 
   const clearJob = useCallback((jobId: string) => {
@@ -142,7 +146,26 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
     // If the watcher already persisted a completion for this job (race), drop
     // it now so the foreground caller's inline result isn't duplicated by a
     // remount replay.
-    setCompletedJobs(prev => prev.filter(j => j.jobId !== jobId));
+    completedRef.current = completedRef.current.filter(j => j.jobId !== jobId);
+    setCompletedJobs(completedRef.current);
+  }, []);
+
+  useEffect(() => {
+    const clearForOwnerChange = () => {
+      watcherRef.current.forEach((timer, id) => {
+        consumedRef.current.add(id);
+        window.clearTimeout(timer);
+        void fetch(`/api/ai/jobs/${id}`, { method: 'DELETE', credentials: 'include', keepalive: true }).catch(() => {});
+      });
+      watcherRef.current.clear();
+      completedRef.current = [];
+      setPendingJobs([]);
+      setCompletedJobs([]);
+      sessionStorage.removeItem(PENDING_KEY);
+      sessionStorage.removeItem(COMPLETED_KEY);
+    };
+    window.addEventListener('ai-operation-owner-changed', clearForOwnerChange);
+    return () => window.removeEventListener('ai-operation-owner-changed', clearForOwnerChange);
   }, []);
 
   // Background watcher: poll the server until a known job finishes, then move it
@@ -158,7 +181,7 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
           if (!res.ok) {
             recordCompleted({
               jobId: job.jobId, label: job.label, taskType: job.taskType,
-              originPath: job.originPath, status: 'failed',
+              originPath: job.originPath, operationKey: job.operationKey, status: 'failed',
               error: `HTTP ${res.status}`, errorStatus: res.status,
               completedAt: Date.now(),
             });
@@ -169,16 +192,16 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
           if (data.status === 'completed') {
             recordCompleted({
               jobId: job.jobId, label: job.label, taskType: job.taskType,
-              originPath: job.originPath, status: 'completed',
+              originPath: job.originPath, operationKey: job.operationKey, status: 'completed',
               text: data.text ?? '', completedAt: Date.now(),
             });
             clearJob(job.jobId);
             return;
           }
-          if (data.status === 'failed') {
+          if (data.status === 'failed' || data.status === 'cancelled') {
             recordCompleted({
               jobId: job.jobId, label: job.label, taskType: job.taskType,
-              originPath: job.originPath, status: 'failed',
+              originPath: job.originPath, operationKey: job.operationKey, status: 'failed',
               error: data.error, errorStatus: data.errorStatus,
               completedAt: Date.now(),
             });
@@ -189,6 +212,8 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
           // network blip — keep polling
         }
         if (Date.now() - startedAt > STALE_AFTER_MS) {
+          recordCompleted({ ...job, status: 'failed', error: 'AI operation expired. Please retry.',
+            errorStatus: 504, completedAt: Date.now() });
           clearJob(job.jobId);
           return;
         }
@@ -216,23 +241,22 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const takeCompletedJob = useCallback((jobId: string): CompletedAiJob | null => {
-    let found: CompletedAiJob | null = null;
-    setCompletedJobs(prev => {
-      const match = prev.find(j => j.jobId === jobId);
-      if (!match) return prev;
-      found = match;
-      return prev.filter(j => j.jobId !== jobId);
-    });
+    const found = completedRef.current.find(j => j.jobId === jobId) ?? null;
+    if (found) {
+      completedRef.current = completedRef.current.filter(j => j.jobId !== jobId);
+      consumedRef.current.add(jobId);
+      setCompletedJobs(completedRef.current);
+    }
     return found;
   }, []);
 
   const takeCompletedJobsForOrigin = useCallback((originPath: string): CompletedAiJob[] => {
-    let claimed: CompletedAiJob[] = [];
-    setCompletedJobs(prev => {
-      claimed = prev.filter(j => j.originPath === originPath);
-      if (claimed.length === 0) return prev;
-      return prev.filter(j => j.originPath !== originPath);
-    });
+    const claimed = completedRef.current.filter(j => j.originPath === originPath);
+    if (claimed.length) {
+      claimed.forEach(job => consumedRef.current.add(job.jobId));
+      completedRef.current = completedRef.current.filter(j => j.originPath !== originPath);
+      setCompletedJobs(completedRef.current);
+    }
     return claimed;
   }, []);
 

@@ -1,4 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo, type ReactNode, Component, type ErrorInfo, createContext, useContext, isValidElement, cloneElement } from "react";
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
+import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
+import { readOriginalDesign, commitBackgroundDesign, registerDesignSurface } from './backgroundDesign';
 import { partitionSelection, alignArtboardsInState, distributeArtboardsInState, pasteArtboardsInState, type AlignEdge, type DistributeAxis } from "./artboardAlignment";
 import { _multiSelRef, publishMultiSelection, useMultiSelectionIds } from "./multiSelectStore";
 import { Editor, Frame, Element, useEditor, DefaultEventHandlers } from "@craftjs/core";
@@ -300,8 +303,9 @@ interface SaveWatcherProps {
   onBeforeUnloadSave?: (state: string) => void;
 }
 
-function SaveWatcher({ onSave, onBeforeUnloadSave }: SaveWatcherProps) {
-  const { query, store } = useEditor(() => ({}));
+function SaveWatcher({ onSave, onBeforeUnloadSave, designId }: SaveWatcherProps & { designId?: string }) {
+  const { query, store, actions } = useEditor(() => ({}));
+  const applyingAi = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedOnce = useRef(false);
   const pendingSave = useRef<string | null>(null);
@@ -311,7 +315,23 @@ function SaveWatcher({ onSave, onBeforeUnloadSave }: SaveWatcherProps) {
   onBeforeUnloadSaveRef.current = onBeforeUnloadSave;
 
   useEffect(() => {
+    if (!designId) return;
+    return registerDesignSurface(designId, {
+      read: () => query.serialize(),
+      apply: state => {
+        applyingAi.current = true;
+        try {
+          if (timerRef.current) clearTimeout(timerRef.current);
+          pendingSave.current = null;
+          actions.deserialize(state);
+        } finally { applyingAi.current = false; }
+      },
+    });
+  }, [designId, query, actions]);
+
+  useEffect(() => {
     const unsub = (store as unknown as { subscribe: (cb: () => void) => () => void }).subscribe(() => {
+      if (applyingAi.current) return;
       if (!savedOnce.current) { savedOnce.current = true; return; }
       if (timerRef.current) clearTimeout(timerRef.current);
       let serialized: string | null = null;
@@ -7573,6 +7593,7 @@ interface DesignPanelProps {
 }
 
 function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }: DesignPanelProps) {
+  const operationScope = `design:${designId || 'local'}`;
   const { actions, query, selectedNodeId } = useEditor((state) => ({
     selectedNodeId: state.events.selected ? Array.from(state.events.selected)[0] : undefined,
   }));
@@ -7597,13 +7618,17 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<AIMessage[]>(() => {
+  const [messages, setMessages] = useRetainedAiState<AIMessage[]>(operationScope, 'messages', () => {
     if (!designId) return INITIAL_MESSAGES;
     const stored = readDesignChat(designId);
     return stored.length > 0 ? fromTranscriptEntries(stored) : INITIAL_MESSAGES;
+  }, next => {
+    const normalized = normalizeDesignMessages(next);
+    if (designId) saveDesignChat(designId, toTranscriptEntries(normalized));
+    return normalized;
   });
   const [prompt, setPrompt] = useState("");
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [aiStatus, setAiStatus] = useRetainedAiState<"idle" | "loading" | "error">(operationScope, 'status', "idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ── Conversation persistence ───────────────────────────────────────────────
@@ -7749,9 +7774,18 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
     return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
   }, [isResizing]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = useBackgroundCallback(operationScope, 'Updating interface design', async (signal) => {
     const trimmed = prompt.trim();
     if (aiStatus === "loading") return;
+    if (!trimmed && !attachedImage) return;
+    const baseline = query.serialize();
+    const originalRemote = designId ? readOriginalDesign(designId, signal) : Promise.resolve(null);
+    void originalRemote.catch(() => {});
+    const commit = async (next: string) => {
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      if (designId) await commitBackgroundDesign(designId, baseline, await originalRemote, next, signal);
+      else actions.deserialize(next);
+    };
 
     // ── Image attach path: import OR reference-edit based on prompt intent ───
     if (attachedImage) {
@@ -7772,7 +7806,8 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
         try {
           let currentCraftState: string | undefined;
           try { currentCraftState = skeletonizeCraftState(query.serialize() ?? ''); } catch {}
-          const res = await fetch("/api/ai/design-from-image", {
+          const res = await fetchBackgroundAi("/api/ai/design-from-image", {
+            signal,
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -7824,7 +7859,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
                   const hint = describeValidationFailure(postMergeValidation.errors);
                   setMessages((prev) => [...prev, { role: "ai", text: `I couldn't apply that image design — ${hint}` }]);
                 } else {
-                  actions.deserialize(sanitizeCraftState(JSON.stringify(repairedSpread)));
+                  await commit(sanitizeCraftState(JSON.stringify(repairedSpread)));
                   // The incoming state is repaired before the merge, so report
                   // that pass's substitutions plus anything the merge surfaced.
                   const note = describeSubstitutions(importReport) + describeSubstitutions(mergeReport);
@@ -7839,6 +7874,8 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
         } catch (e: any) {
           setAiStatus("error");
           setMessages((prev) => [...prev, { role: "ai", text: `Import failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+          if (!signal.aborted) failOperation(operationScope, e);
+          else setAiStatus("idle");
           setTimeout(() => setAiStatus("idle"), 3000);
         }
         return;
@@ -7880,7 +7917,8 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           }
         } catch { /* ignore */ }
 
-        const res = await fetch("/api/ai/design-edit-from-image", {
+        const res = await fetchBackgroundAi("/api/ai/design-edit-from-image", {
+          signal,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -7915,7 +7953,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
             setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint}` }]);
           } else {
             const spread = spreadArtboardsInState(merged, existingState);
-            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+            await commit(sanitizeCraftState(JSON.stringify(spread)));
             setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas.") + " ✓" + describeSubstitutions(report) }]);
           }
         } else {
@@ -7934,7 +7972,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           } else {
             const mergedForApply = mergeIntoCanvas(fullExisting, parsedForValidation!);
             const spread = spreadArtboardsInState(mergedForApply, fullExisting);
-            actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+            await commit(sanitizeCraftState(JSON.stringify(spread)));
             setMessages((prev) => [...prev, { role: "ai", text: (data.message ?? "Done! I've updated your canvas to match the reference.") + " ✓" + describeSubstitutions(repaired?.report) }]);
           }
         }
@@ -7942,6 +7980,8 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
       } catch (e: any) {
         setAiStatus("error");
         setMessages((prev) => [...prev, { role: "ai", text: `Reference edit failed: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+        if (!signal.aborted) failOperation(operationScope, e);
+        else setAiStatus("idle");
         setTimeout(() => setAiStatus("idle"), 3000);
       }
       return;
@@ -8011,7 +8051,8 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
         !reuseDefaultArtboard &&
         detectNewScreenIntent(trimmed, currentCraftState);
 
-      const res = await fetch("/api/ai/design", {
+      const res = await fetchBackgroundAi("/api/ai/design", {
+        signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -8048,7 +8089,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
           setMessages((prev) => [...prev, { role: "ai", text: `${data.message ?? "I tried to update your design"} — but the result had an issue: ${hint}` }]);
         } else {
           const spread = spreadArtboardsInState(merged, existingState);
-          actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+          await commit(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(existingState as Record<string, any>, merged as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
@@ -8072,7 +8113,7 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
             ? reuseUntouchedDefaultArtboard(fullExistingForReplace, parsedForValidation!)
             : mergeIntoCanvas(fullExistingForReplace, parsedForValidation!);
           const spread = spreadArtboardsInState(mergedForApply, fullExistingForReplace);
-          actions.deserialize(sanitizeCraftState(JSON.stringify(spread)));
+          await commit(sanitizeCraftState(JSON.stringify(spread)));
           const diff = diffCraftStates(fullExistingForReplace as Record<string, any>, parsedForValidation! as Record<string, any>);
           const totalChanges = diff.added.length + diff.modified.length + diff.removed.length;
           void diff; void totalChanges;
@@ -8083,9 +8124,11 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
     } catch (e: any) {
       setAiStatus("error");
       setMessages((prev) => [...prev, { role: "ai", text: `Something went wrong: ${e.message?.slice(0, 120) ?? "Unknown error"}` }]);
+      if (!signal.aborted) failOperation(operationScope, e);
+      else setAiStatus("idle");
       setTimeout(() => setAiStatus("idle"), 3000);
     }
-  };
+  }, [designId, prompt, aiStatus, attachedImage, query, actions, messages, pinned, selectedNodeId]);
 
 
   if (isCollapsed) {
@@ -8592,6 +8635,7 @@ export function DesignEditor({ editable, craftState, notes, notesOpen: notesOpen
         </div>
         {editable && onSave && (
           <SaveWatcher
+            designId={designId}
             onSave={stableSave}
             onBeforeUnloadSave={onBeforeUnloadSave ? stableBeforeUnloadSave : undefined}
           />

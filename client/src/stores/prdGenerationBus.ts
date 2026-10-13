@@ -10,15 +10,18 @@ type PRDGenerationHandler = (event: PRDGenerationEvent) => void;
 
 class PRDGenerationBusImpl {
   private handlers: Set<PRDGenerationHandler> = new Set();
-  private _isGenerating: boolean = false;
-  private _generatingProjectId: string | null = null;
+  private generating = new Map<string, number>();
 
   get isGenerating(): boolean {
-    return this._isGenerating;
+    return this.generating.size > 0;
   }
 
   get generatingProjectId(): string | null {
-    return this._generatingProjectId;
+    return this.generating.keys().next().value ?? null;
+  }
+
+  isGeneratingFor(projectId?: string): boolean {
+    return projectId ? this.generating.has(projectId) : this.isGenerating;
   }
 
   subscribe(handler: PRDGenerationHandler): () => void {
@@ -37,14 +40,14 @@ class PRDGenerationBusImpl {
   }
 
   startGeneration(projectId: string): void {
-    this._isGenerating = true;
-    this._generatingProjectId = projectId;
+    this.generating.set(projectId, (this.generating.get(projectId) ?? 0) + 1);
     this.publish({ type: 'generation-started', projectId });
   }
 
   completeGeneration(projectId: string): void {
-    this._isGenerating = false;
-    this._generatingProjectId = null;
+    const count = (this.generating.get(projectId) ?? 1) - 1;
+    if (count > 0) this.generating.set(projectId, count);
+    else this.generating.delete(projectId);
     this.publish({ type: 'generation-completed', projectId });
   }
 
@@ -60,16 +63,17 @@ class PRDGenerationBusImpl {
 export const prdGenerationBus = new PRDGenerationBusImpl();
 
 export function usePRDGenerationState(projectId?: string) {
-  const [isGenerating, setIsGenerating] = useState(prdGenerationBus.isGenerating);
+  const [isGenerating, setIsGenerating] = useState(prdGenerationBus.isGeneratingFor(projectId));
   const [updateKey, setUpdateKey] = useState(0);
 
   useEffect(() => {
+    setIsGenerating(prdGenerationBus.isGeneratingFor(projectId));
     const unsubscribe = prdGenerationBus.subscribe((event) => {
       if (!projectId || event.projectId === projectId) {
         if (event.type === 'generation-started') {
           setIsGenerating(true);
         } else if (event.type === 'generation-completed') {
-          setIsGenerating(false);
+          setIsGenerating(prdGenerationBus.isGeneratingFor(projectId));
           setUpdateKey(prev => prev + 1);
         } else if (event.type === 'prd-updated' || event.type === 'project-details-updated') {
           setUpdateKey(prev => prev + 1);

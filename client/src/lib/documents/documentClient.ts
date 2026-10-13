@@ -92,13 +92,14 @@ export async function saveDocument(
   workflowId: string | undefined,
   content: any,
   signal?: AbortSignal,
+  expectedContent?: any,
 ): Promise<string | null> {
   try {
     const res = await fetch(documentUrl(projectUuid, docKind, workflowId), {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, expectedContent }),
       signal,
     });
     if (!res.ok) {
@@ -225,10 +226,12 @@ export function saveDocumentNow(
   docKind: DocKind,
   workflowId: string | undefined,
   content: any,
+  expectedContent?: any,
+  signal?: AbortSignal,
 ): Promise<string | null> {
   const key = pendingKey(projectUuid, docKind, workflowId);
   cancelPending(key);
-  return enqueue(key, () => saveDocument(projectUuid, docKind, workflowId, content));
+  return enqueue(key, () => saveDocument(projectUuid, docKind, workflowId, content, signal, expectedContent));
 }
 
 /** Flush every queued save immediately (navigating away, closing a document). */

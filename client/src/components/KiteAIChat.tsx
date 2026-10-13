@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAi } from '../ai/AiProvider';
 import { useCreditsGate } from '@/hooks/useCreditsGate';
 import { useAuth } from '@/hooks/useAuth';
+import { useRetainedAiRef } from '@/ai/useBackgroundOperation';
 import { getQueryFn } from '@/lib/queryClient';
 import type { Node, Edge, CanvasObject } from '../lib/kiteframe/types';
 import { type AiMode, DEFAULT_AI_MODE, AI_MODE_LABELS } from '../ai/types';
@@ -27,7 +28,10 @@ import {
 } from '../lib/ai/buildKiteAIContext';
 import { inferKiteAIRole } from '../lib/ai/inferKiteAIRole';
 import { ChatSendButton, ChatMessageList } from '@/components/chat';
-import { getRouter, extractJSON } from '@/ai/router';
+import { getRouter, getRouter as unscopedRouter, extractJSON } from '@/ai/router';
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
+import { withOperationSignal, signalForOperation } from '@/ai/backgroundOperations';
+import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
 import { DESIGN_SYSTEM_PROMPT_CLIENT } from '@/lib/designGeneration';
 import { 
   MessageCircle, 
@@ -352,8 +356,11 @@ export function KiteAIChatBrain({
   // Used to scope adoption of a pre-project generation exchange to the user who
   // actually generated it (see adoptPendingTranscript).
   const { user: authUser } = useAuth();
+  const operationScope = `chat:${projectId || 'home'}:${generationMode}`;
+  const scopedRouter = withOperationSignal(unscopedRouter(), operationScope);
+  const getRouter = () => scopedRouter;
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useRetainedAiState(operationScope, 'loading', false);
   const [dragActive, setDragActive] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDiffPreview, setShowDiffPreview] = useState<string | null>(null);
@@ -363,27 +370,28 @@ export function KiteAIChatBrain({
   
   // Workflow generation state for assertive first-turn generation
   type WorkflowGenState = 'BASELINE_GENERATED' | 'EXPANDED_WITH_EDGE_CASES' | 'DISCUSSING_EDGE_CASES' | 'SELECTED_EDGE_CASES_APPLIED' | null;
-  const [workflowGenState, setWorkflowGenState] = useState<WorkflowGenState>(null);
-  const [pendingQuickActions, setPendingQuickActions] = useState<QuickActionType[]>([]);
-  const [discussedEdgeCases, setDiscussedEdgeCases] = useState<EdgeCase[]>([]);
+  const [workflowGenState, setWorkflowGenState] = useRetainedAiState<WorkflowGenState>(operationScope, 'workflow-state', null);
+  const [pendingQuickActions, setPendingQuickActions] = useRetainedAiState<QuickActionType[]>(operationScope, 'quick-actions', []);
+  const [discussedEdgeCases, setDiscussedEdgeCases] = useRetainedAiState<EdgeCase[]>(operationScope, 'edge-cases', []);
   
   // Phase Lock: Prevent multiple mutating expansions per proposal lifecycle
   // After first expansion, user must explicitly confirm to mutate again
-  const [hasExpandedOnce, setHasExpandedOnce] = useState(false);
-  const [mutationApproved, setMutationApproved] = useState(false);
+  const [hasExpandedOnce, setHasExpandedOnce] = useRetainedAiState(operationScope, 'expanded', false);
+  const [mutationApproved, setMutationApproved] = useRetainedAiState(operationScope, 'approved', false);
   
   // AUTHORITATIVE WORKFLOW DRAFT - Single source of truth for the current workflow
   // This replaces message-embedded workflow ownership. Preview/Create always use this.
-  const [currentWorkflowDraft, setCurrentWorkflowDraft] = useState<WorkflowDraft | null>(null);
+  const [currentWorkflowDraft, setCurrentWorkflowDraft] = useRetainedAiState<WorkflowDraft | null>(operationScope, 'draft', null);
   
-  const [selectedWorkflowGroup, setSelectedWorkflowGroup] = useState<WorkflowGroup | null>(null);
+  const [selectedWorkflowGroup, setSelectedWorkflowGroup] = useRetainedAiState<WorkflowGroup | null>(operationScope, 'workflow-group', null);
   const selectedWorkflowGroupRef = useRef<WorkflowGroup | null>(null);
-  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  selectedWorkflowGroupRef.current = selectedWorkflowGroup;
+  const [pendingUserMessage, setPendingUserMessage] = useRetainedAiState<string | null>(operationScope, 'pending-prompt', null);
 
   // Optimization session: tracks a server-side session ID so that multi-turn refinements
   // within one optimization conversation only consume a single credit.
   // Cleared on accept, dismiss, or canvas cap block.
-  const [optimizationSessionId, setOptimizationSessionId] = useState<string | null>(null);
+  const [optimizationSessionId, setOptimizationSessionId] = useRetainedAiState<string | null>(operationScope, 'optimization-session', null);
 
   // Inline warning shown when the user clicks "Change" while a draft is pending.
   // Replaced with a two-step "Your current suggestion will be discarded. Confirm?" flow
@@ -399,7 +407,7 @@ export function KiteAIChatBrain({
   
   const { toast } = useToast();
   const readerTarget = useReaderTarget();
-  const aiClient = useAi();
+  const aiClient = withOperationSignal(useAi(), operationScope);
   const promptContextStore = usePromptContextStore();
   const { 
     credits, 
@@ -483,11 +491,13 @@ export function KiteAIChatBrain({
     return WELCOME_COPY;
   }, [isOutOfCredits, isAuthenticated, ctaMessage]);
   
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+  const [messages, setMessages] = useRetainedAiState<ChatMessage[]>(operationScope, 'messages', () => {
     if (!storageKey) {
       return [getDefaultWelcomeMessage()];
     }
     return loadMessagesFromStorage(storageKey) || [getDefaultWelcomeMessage()];
+  }, next => {
+    if (projectId) saveTranscript(projectId, next as unknown as TranscriptEntry[]);
   });
   
   const prevProjectIdRef = useRef<string | undefined>(projectId);
@@ -566,12 +576,13 @@ export function KiteAIChatBrain({
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
   const markJobConsumed = useCallback((jobId: string) => {
-    if (isMountedRef.current) markJobConsumedRaw(jobId);
+    markJobConsumedRaw(jobId);
   }, [markJobConsumedRaw]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originPath = window.location.pathname;
-    const completed = takeCompletedJobsForOrigin(originPath);
+    const completed = takeCompletedJobsForOrigin(originPath).filter(job =>
+      !job.operationKey && job.taskType !== 'prd_generation');
     if (completed.length === 0) return;
     setMessages(prev => [
       ...prev,
@@ -613,8 +624,8 @@ export function KiteAIChatBrain({
 
   // Handle initial prompt injection from Home Prompt
   // Uses the shared handleSend function to maintain single source of truth
-  const initialPromptProcessedRef = useRef<string | null>(null);
-  const attachmentsProcessedRef = useRef(false);
+  const initialPromptProcessedRef = useRetainedAiRef<string | null>(operationScope, 'initial-prompt', null);
+  const attachmentsProcessedRef = useRetainedAiRef(operationScope, 'attachments-processed', false);
   
   // Compute ready attachments count for dependency tracking
   const readyAttachmentsCount = useMemo(() => {
@@ -934,7 +945,7 @@ export function KiteAIChatBrain({
   }, [scopedNodes, scopedEdges, selectedWorkflowGroup]);
 
   // Shared message sending function - accepts optional message override and files for programmatic calls
-  const handleSend = async (
+  const handleSend = useBackgroundCallback(operationScope, 'KiteAI is working', async (signal,
     messageOverride?: string,
     filesOverride?: File[],
     options?: { conversationId?: string },
@@ -1158,7 +1169,8 @@ export function KiteAIChatBrain({
 
           let response: Response;
           try {
-            response = await fetch('/api/ai/analyze-workflow-image', {
+            response = await fetchBackgroundAi('/api/ai/analyze-workflow-image', {
+              signal,
               method: 'POST',
               body: formData,
             });
@@ -1857,6 +1869,8 @@ export function KiteAIChatBrain({
       setMessages(prev => [...prev, assistantMessage]);
 
     } catch (error) {
+      if (signal.aborted) return;
+      failOperation(operationScope, error);
       console.error('AI chat error:', error);
       // For known, user-facing failures (e.g. image analysis errors with a
       // specific reason), show that reason in the chat transcript instead of a
@@ -1880,7 +1894,9 @@ export function KiteAIChatBrain({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId, inputValue, pendingFiles, isLoading, currentNodes, currentEdges, currentCanvasObjects,
+    messages, generationMode, currentWorkflowDraft, optimizationSessionId, isOutOfCredits,
+    onApplyWorkflow, onReplaceWorkflow, onPreviewWorkflow, onCreateWorkflow]);
 
   // UPDATED: Accept uses currentWorkflowDraft (authoritative), not message.workflowProposal
   // In fullscreen mode, calls onCreateWorkflow to create project and navigate
@@ -2304,7 +2320,7 @@ export function KiteAIChatBrain({
   };
 
   // UPDATED: Quick actions now use currentWorkflowDraft (authoritative)
-  const handleQuickAction = useCallback(async (action: QuickActionType) => {
+  const handleQuickAction = useBackgroundCallback(operationScope, 'Updating workflow proposal', async (signal, action: QuickActionType) => {
     if (!currentWorkflowDraft) return;
     
     setIsLoading(true);
@@ -2559,6 +2575,8 @@ export function KiteAIChatBrain({
           break;
       }
     } catch (error) {
+      if (signal.aborted) return;
+      failOperation(operationScope, error);
       console.error('Quick action error:', error);
       toast({ 
         title: 'Error', 
@@ -2571,7 +2589,7 @@ export function KiteAIChatBrain({
   }, [currentWorkflowDraft, discussedEdgeCases, aiClient, toast]);
 
   // UPDATED: Edge case selection uses currentWorkflowDraft (authoritative)
-  const handleEdgeCaseSelection = useCallback(async (selectedIds: string[], selectorMessageId: string, selectorEdgeCases: EdgeCase[]) => {
+  const handleEdgeCaseSelection = useBackgroundCallback(operationScope, 'Expanding selected edge cases', async (signal, selectedIds: string[], selectorMessageId: string, selectorEdgeCases: EdgeCase[]) => {
     if (!currentWorkflowDraft) return;
     
     setIsLoading(true);
@@ -2717,6 +2735,8 @@ export function KiteAIChatBrain({
         },
       }]);
     } catch (error) {
+      if (signal.aborted) return;
+      failOperation(operationScope, error);
       console.error('Edge case selection error:', error);
       toast({ 
         title: 'Error', 
@@ -3348,8 +3368,11 @@ function DiscussionView({
   edges,
   canvasObjects
 }: DiscussionViewProps) {
+  const operationScope = `discussion:${projectId}`;
+  const discussionRouter = withOperationSignal(unscopedRouter(), operationScope);
+  const getRouter = () => discussionRouter;
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useRetainedAiState(operationScope, 'loading', false);
 
   // The discussion thread is persisted per project. Without this it lived only
   // in component state and was thrown away on every tab switch, unmount or
@@ -3363,9 +3386,11 @@ function DiscussionView({
     timestamp: new Date()
   });
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+  const [messages, setMessages] = useRetainedAiState<ChatMessage[]>(operationScope, 'messages', () => {
     if (!discussionStorageKey) return [getDiscussionWelcome()];
     return loadMessagesFromStorage(discussionStorageKey) || [getDiscussionWelcome()];
+  }, next => {
+    if (discussionStorageKey) saveStoredMessages(discussionStorageKey, next as unknown as TranscriptEntry[]);
   });
 
   // Merging save (not a raw overwrite) so a second tab on the same project
@@ -3439,7 +3464,7 @@ Connections:
 ${edgeDescriptions}`;
   }, [nodes, edges]);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useBackgroundCallback(operationScope, 'Discussing shared workflow', async signal => {
     if (!inputValue.trim() || isLoading) return;
     
     const userMessage: ChatMessage = {
@@ -3497,6 +3522,8 @@ ${workflowContext}`;
       
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
+      if (signal.aborted) return;
+      failOperation(operationScope, error);
       const errMsg = error instanceof Error ? error.message : '';
       const isCreditLimit = errMsg.includes('403') && (errMsg.toLowerCase().includes('credit') || errMsg.toLowerCase().includes('limit'));
       if (isCreditLimit) {

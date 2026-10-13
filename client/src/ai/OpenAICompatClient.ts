@@ -1,5 +1,6 @@
 import type { AiClient, AiRequest, AiResponse, AiMessage } from './types';
 import { supportsVision } from './types';
+import { operationForSignal, getOperations } from './backgroundOperations';
 
 function hasImageContent(messages: AiMessage[]): boolean {
   return messages.some(m => {
@@ -39,7 +40,7 @@ function jobLabelFor(taskType: string | undefined): string {
 // the global store so the persistent indicator can show progress and so jobs
 // survive tab navigation.
 type JobHooks = {
-  register: (job: { jobId: string; label: string; taskType?: string; startedAt: number; originPath?: string }) => void;
+  register: (job: { jobId: string; label: string; taskType?: string; startedAt: number; originPath?: string; operationKey?: string }) => void;
   clear: (jobId: string) => void;
   markConsumed: (jobId: string) => void;
 };
@@ -47,6 +48,59 @@ type JobHooks = {
 let jobHooks: JobHooks | null = null;
 export function setAiJobHooks(hooks: JobHooks | null) {
   jobHooks = hooks;
+}
+
+/**
+ * Direct design/vision/planning endpoints use the same owner-checked job store,
+ * but retain their structured result instead of pretending it is chat text.
+ */
+export async function fetchBackgroundAi(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set('X-AI-Background', '1');
+  const response = await fetch(url, { ...init, headers });
+  if (response.status !== 202) return response; // old clients/mocked routes
+  const { jobId } = await response.json();
+  if (!jobId) throw new Error('AI server did not return a job id');
+  const signal = init.signal ?? undefined;
+  const operationKey = operationForSignal(signal);
+  const originPath = getOperations().find(op => op.key === operationKey)?.originPath ?? window.location.pathname;
+  jobHooks?.register({ jobId, label: 'Agent AI', startedAt: Date.now(), originPath,
+    operationKey: operationKey || `structured:${url}`, taskType: url });
+  try {
+    const started = Date.now();
+    while (true) {
+      if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+      if (Date.now() - started > POLL_TIMEOUT_MS) throw new Error('AI operation timed out. Please retry.');
+      const poll = await fetch(`/api/ai/jobs/${jobId}`, { credentials: 'include', signal });
+      const data = await poll.json();
+      if (!poll.ok || data.status === 'failed') {
+        return new Response(JSON.stringify({ error: data.error || 'AI operation failed' }),
+          { status: data.errorStatus || (poll.ok ? 500 : poll.status), headers: { 'Content-Type': 'application/json' } });
+      }
+      if (data.status === 'cancelled') throw new DOMException('Cancelled', 'AbortError');
+      if (data.status === 'completed') {
+        return new Response(JSON.stringify(data.payload), { headers: { 'Content-Type': 'application/json' } });
+      }
+      await waitForPoll(signal);
+    }
+  } catch (error) {
+    if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      await fetch(`/api/ai/jobs/${jobId}`, { method: 'DELETE', keepalive: true }).catch(() => {});
+    }
+    throw error;
+  } finally {
+    jobHooks?.markConsumed(jobId);
+    jobHooks?.clear(jobId);
+  }
+}
+
+function waitForPoll(signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => { clearTimeout(timer); reject(new DOMException('Cancelled', 'AbortError')); };
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', onAbort); resolve(); }, POLL_INTERVAL_MS);
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 const POLL_INTERVAL_MS = 1500;
@@ -101,6 +155,9 @@ export class OpenAICompatClient implements AiClient {
   constructor(private opts: { baseURL: string; apiKey?: string; headers?: Record<string,string>; defaultModel?: string }) {}
 
   async chat(req: AiRequest): Promise<AiResponse> {
+    const operationKey = operationForSignal(req.signal);
+    const originPath = getOperations().find(op => op.key === operationKey)?.originPath ??
+      (typeof window !== 'undefined' ? window.location.pathname : undefined);
     if (req.signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
@@ -178,8 +235,8 @@ export class OpenAICompatClient implements AiClient {
     const startedAt = Date.now();
     // Capture the originating route so the global indicator can navigate the user
     // back here on click, and so a remounted surface can claim the result.
-    const originPath = typeof window !== 'undefined' ? window.location.pathname : undefined;
-    jobHooks?.register({ jobId, label: jobLabelFor(req.taskType), taskType: req.taskType, startedAt, originPath });
+    jobHooks?.register({ jobId, label: jobLabelFor(req.taskType), taskType: req.taskType, startedAt, originPath,
+      operationKey: operationKey || (req.taskType === 'prd_generation' ? 'spec-section' : undefined) });
 
     try {
       const { text } = await pollJob(jobId, req.signal);
@@ -205,6 +262,7 @@ export class OpenAICompatClient implements AiClient {
       }
       throw err;
     } finally {
+      if (operationKey || req.taskType === 'prd_generation') jobHooks?.markConsumed(jobId);
       jobHooks?.clear(jobId);
     }
   }

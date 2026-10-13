@@ -11,9 +11,12 @@ import { formatDate as sharedFormatDate } from '@/lib/utils/formatDate';
 import { useAi } from '@/ai/AiProvider';
 import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
 import { notifyPanelDocsChanged } from '@/lib/kiteframe/utils/prdStorage';
-import { schedulePanelDocsSave } from '@/lib/documents/panelDocsClient';
+import { schedulePanelDocsSave, savePanelDocsNow } from '@/lib/documents/panelDocsClient';
+import { isAddressableProject } from '@/lib/documents/documentClient';
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { getRouter, extractJSON } from '@/ai/router';
+import { beginBackgroundCommit } from '@/ai/backgroundOperations';
 
 interface ProjectDetails {
   name: string;
@@ -267,27 +270,28 @@ function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButto
 }
 
 export function ProjectOverviewSection({ projectId, projectName, onProjectNameChange, nodes = [], edges = [], isReadOnly = false, serverUpdatedAt }: ProjectOverviewSectionProps) {
-  const [details, setDetails] = useState<ProjectDetails>(DEFAULT_DETAILS);
+  const operationScope = `overview:${projectId || 'default'}`;
+  const [details, setDetails] = useRetainedAiState<ProjectDetails>(operationScope, 'details', DEFAULT_DETAILS, next => {
+    if (!projectId || isReadOnly) return;
+    const key = `kiteframe-details-${projectId}`;
+    const prior = localStorage.getItem(key);
+    const content = JSON.stringify(next);
+    if (prior === content) return;
+    const detailsData = JSON.stringify({ ...next, updatedAt: Date.now() });
+    localStorage.setItem(key, detailsData);
+    notifyPanelDocsChanged(projectId);
+    schedulePanelDocsSave(projectId, { detailsData, name: next.name || undefined, description: next.description ?? null });
+  });
   const [newCategory, setNewCategory] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isOpen, setIsOpen] = useState(true);
   const [isCategoriesHovered, setIsCategoriesHovered] = useState(false);
-  const [isGeneratingLocal, setIsGeneratingLocal] = useState(false);
-  const [refinement, setRefinement] = useState<RefinementState>({ field: null, suggested: '', isRefining: false });
+  const [isGeneratingLocal, setIsGeneratingLocal] = useRetainedAiState(operationScope, 'generating', false);
+  const [refinement, setRefinement] = useRetainedAiState<RefinementState>(operationScope, 'refinement', { field: null, suggested: '', isRefining: false });
   const prevProjectId = useRef<string | undefined>(undefined);
   const categoryInputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const aiClient = useAi();
 
-  useEffect(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    setRefinement({ field: null, suggested: '', isRefining: false });
-    return () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
-    };
-  }, [projectId]);
   
   const { isGenerating: isGeneratingFromBus, updateKey } = usePRDGenerationState(projectId);
 
@@ -338,25 +342,6 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
       loadFromStorage();
     }
   }, [updateKey, loadFromStorage]);
-
-  useEffect(() => {
-    if (!storageKey) return;
-    
-    const toSave = { ...details, updatedAt: Date.now() };
-    const detailsData = JSON.stringify(toSave);
-    localStorage.setItem(storageKey, detailsData);
-    if (!isReadOnly && projectId) {
-      notifyPanelDocsChanged(projectId);
-      // Persist independently of canvas autosave so shared viewers see overview
-      // edits without requiring a full project save. No-ops unless projectId is
-      // a real projectUuid (share viewers / local tabs are skipped).
-      schedulePanelDocsSave(projectId, {
-        detailsData,
-        name: details.name || undefined,
-        description: details.description ?? null,
-      });
-    }
-  }, [details, storageKey, isReadOnly, projectId]);
 
   useEffect(() => {
     if (isAddingCategory && categoryInputRef.current) {
@@ -422,11 +407,10 @@ export function ProjectOverviewSection({ projectId, projectName, onProjectNameCh
     }
   }, [storageKey]);
 
-  const generateProjectInfo = useCallback(async () => {
+  const generateProjectInfo = useBackgroundCallback(operationScope, 'Writing project overview', async (signal) => {
     if (!nodes || nodes.length === 0 || !aiClient || !projectId) return;
 
     const requestProjectId = projectId;
-    const signal = abortControllerRef.current?.signal;
 
     setIsGeneratingLocal(true);
     prdGenerationBus.startGeneration(requestProjectId);
@@ -452,27 +436,37 @@ Based on the node labels, descriptions, and connections above, determine what th
         signal,
       });
 
-      if (signal?.aborted || requestProjectId !== prevProjectId.current) {
-        console.log('[ProjectOverviewSection] Project changed during AI fill — discarding result');
-        return;
-      }
+      if (signal.aborted) return;
 
       const jsonStr = extractJSON(response.text);
+      if (!jsonStr) throw new Error('AI did not return a usable project overview. Please retry.');
       if (jsonStr) {
         const parsed = JSON.parse(jsonStr);
         const patch: Partial<ProjectDetails> = {};
-        if (parsed.name) {
+        if (typeof parsed.name === 'string' && parsed.name.trim()) {
           patch.name = parsed.name;
-          updateName(parsed.name);
         }
-        if (parsed.description) {
+        if (typeof parsed.description === 'string' && parsed.description.trim()) {
           patch.description = parsed.description;
-          updateDescription(parsed.description);
         }
         if (Object.keys(patch).length > 0) {
-          persistDetailsPatch(patch);
+          const current = storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : details;
+          if (current.name !== details.name || current.description !== details.description) {
+            throw new Error('The overview was edited while AI was working. Your edits were kept; retry on the latest overview.');
+          }
+          const next = { ...details, ...patch, updatedAt: Date.now() };
+          const detailsData = JSON.stringify(next);
+          beginBackgroundCommit(signal);
+          if (isAddressableProject(projectId) &&
+              !await savePanelDocsNow(projectId, { detailsData, name: next.name, description: next.description })) {
+            throw new Error('Could not save the overview to its original project.');
+          }
+          if (signal.aborted) return;
+          if (storageKey) localStorage.setItem(storageKey, detailsData);
+          setDetails(next);
+          if (patch.name) onProjectNameChange?.(patch.name);
           prdGenerationBus.notifyProjectDetailsUpdated(requestProjectId);
-        }
+        } else throw new Error('AI did not return a usable project overview. Please retry.');
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -480,20 +474,20 @@ Based on the node labels, descriptions, and connections above, determine what th
         return;
       }
       console.error('Error generating project info:', error);
+      failOperation(operationScope, error);
     } finally {
       setIsGeneratingLocal(false);
       prdGenerationBus.completeGeneration(requestProjectId);
     }
   }, [nodes, edges, aiClient, buildWorkflowContext, updateName, updateDescription, projectId, persistDetailsPatch]);
 
-  const refineField = useCallback(async (field: 'name' | 'description') => {
+  const refineField = useBackgroundCallback(operationScope, 'Refining project overview', async (signal, field: 'name' | 'description') => {
     if (!nodes || nodes.length === 0) return;
     
     const currentValue = field === 'name' ? details.name : details.description;
     if (!currentValue.trim()) return;
 
     const requestProjectId = projectId;
-    const signal = abortControllerRef.current?.signal;
 
     setRefinement({ field, suggested: '', isRefining: true });
     
@@ -526,20 +520,17 @@ Return ONLY valid JSON:
         signal,
       });
 
-      if (signal?.aborted || requestProjectId !== prevProjectId.current) {
-        console.log('[ProjectOverviewSection] Project changed during refine — discarding result');
-        return;
-      }
+      if (signal.aborted) return;
 
       const jsonStr = extractJSON(response.text);
       if (jsonStr) {
         const parsed = JSON.parse(jsonStr);
-        if (parsed.refined) {
+        if (typeof parsed.refined === 'string' && parsed.refined.trim()) {
           setRefinement({ field, suggested: parsed.refined, isRefining: false });
           return;
         }
       }
-      setRefinement({ field: null, suggested: '', isRefining: false });
+      throw new Error('AI did not return a usable refinement. Please retry.');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('[ProjectOverviewSection] Refine aborted');
@@ -547,6 +538,7 @@ Return ONLY valid JSON:
         return;
       }
       console.error('Error refining field:', error);
+      failOperation(operationScope, error);
       setRefinement({ field: null, suggested: '', isRefining: false });
     }
   }, [details, nodes, edges, buildWorkflowContext, projectId]);
@@ -589,6 +581,7 @@ Return ONLY valid JSON:
 
   return (
     <section data-testid="project-overview-section">
+      {!isReadOnly && <BackgroundOperationStatus scope={operationScope} />}
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 w-full text-left mb-3 group">
           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}

@@ -101,7 +101,7 @@ export interface IStorage {
   // Designs — craft.js canvas designs
   createDesign(data: InsertDesign): Promise<Design>;
   getDesign(id: string): Promise<Design | undefined>;
-  updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined>;
+  updateDesign(id: string, data: Partial<InsertDesign>, expectedCraftState?: unknown): Promise<Design | undefined>;
   claimDesign(id: string, userId: string): Promise<Design | undefined>;
   listDesignsByUser(userId: string): Promise<DesignSummary[]>;
   enableDesignSharing(id: string, userId: string): Promise<Design | undefined>;
@@ -671,7 +671,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async updateDesign(id: string, data: Partial<InsertDesign>): Promise<Design | undefined> {
+  async updateDesign(id: string, data: Partial<InsertDesign>, expectedCraftState?: unknown): Promise<Design | undefined> {
     const payload: Record<string, unknown> = { updatedAt: new Date() };
     if (data.craftState !== undefined) {
       payload.craftState = typeof data.craftState === "string"
@@ -680,7 +680,10 @@ export class DatabaseStorage implements IStorage {
     }
     if (data.title !== undefined) payload.title = data.title;
     if (data.notes !== undefined) payload.notes = data.notes;
-    const [row] = await db.update(designs).set(payload).where(eq(designs.id, id)).returning();
+    const [row] = await db.update(designs).set(payload).where(and(
+      eq(designs.id, id),
+      ...(expectedCraftState !== undefined ? [eq(designs.craftState, expectedCraftState)] : []),
+    )).returning();
     return row;
   }
 

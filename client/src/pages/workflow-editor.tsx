@@ -1,4 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useRetainedAiState } from '@/ai/useBackgroundOperation';
+import { runBackgroundOperation, retainedCell, failOperation } from '@/ai/backgroundOperations';
+import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
 import { useIsPhone } from "@/hooks/use-mobile";
 import { MobileViewBar } from "@/components/MobileViewBar";
 import { useQuery } from "@tanstack/react-query";
@@ -2302,9 +2305,12 @@ function WorkflowEditorContent({
   const [forcePanelTab, setForcePanelTab] = useState<ProjectPanelTab | null>(null);
   const [designModeTabIds, setDesignModeTabIds] = useState<Set<string>>(new Set());
   const [previousTabId, setPreviousTabId] = useState<string | null>(null);
-  const [isGeneratingInterface, setIsGeneratingInterface] = useState(false);
-  const interfaceGenerationInFlight = useRef(false);
-  const [interfaceGenerationFeedback, setInterfaceGenerationFeedback] = useState<string[]>([]);
+  const interfaceSourceTab = activeTab?.interfaceProposalSourceTabId
+    ? tabs.find(tab => tab.id === activeTab.interfaceProposalSourceTabId) : activeTab;
+  const interfaceGenerationScope = `interface-generate:${interfaceSourceTab
+    ? interfaceSourceTab.projectUuid || interfaceSourceTab.cloudProjectId?.toString() || interfaceSourceTab.id : activeTabId}`;
+  const [isGeneratingInterface] = useRetainedAiState(interfaceGenerationScope, 'generating', false);
+  const [interfaceGenerationFeedback] = useRetainedAiState<string[]>(interfaceGenerationScope, 'feedback', []);
   const [screenPickerOpen, setScreenPickerOpen] = useState(false);
   const [screenPickerClusters, setScreenPickerClusters] = useState<Array<{ name: string; nodes: Node[] }>>([]);
   const [screenPickerSourceTab, setScreenPickerSourceTab] = useState<WorkflowTab | null>(null);
@@ -2565,7 +2571,8 @@ function WorkflowEditorContent({
   );
 
   // Track wireframe generation loading state
-  const [generatingWireframe, setGeneratingWireframe] = useState(false);
+  const wireframeScope = `wireframe:${activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}`;
+  const [generatingWireframe, setGeneratingWireframe] = useRetainedAiState(wireframeScope, 'generating', false);
   const [refineMockupNodeId, setRefineMockupNodeId] = useState<string | null>(null);
 
   // Wireframe generation handler
@@ -2598,6 +2605,7 @@ function WorkflowEditorContent({
 
       try {
         setGeneratingWireframe(true);
+        return await runBackgroundOperation(wireframeScope, `Generating ${node.data?.label || 'node'} wireframe`, async signal => {
 
         // Show loading toast
         toast({
@@ -2606,7 +2614,8 @@ function WorkflowEditorContent({
         });
 
         // Call the wireframe generation API
-        const response = await fetch("/api/generate-wireframe", {
+        const response = await fetchBackgroundAi("/api/generate-wireframe", {
+          signal,
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -2705,6 +2714,7 @@ function WorkflowEditorContent({
             description: "AI-generated mockup added to canvas",
           });
         }
+        });
       } catch (error: any) {
         console.error("Wireframe generation error:", error);
         toast({
@@ -3206,6 +3216,7 @@ function WorkflowEditorContent({
     designId: string,
     title?: string,
     syncMeta?: { syncedAt?: string | null; isStale?: boolean; sourceWorkflowId?: string | null; warnings?: string[] },
+    activate = true,
   ) => {
     // If a tab for this design already exists, just switch to it.
     const existing = tabs.find((t) => t.designId === designId);
@@ -3213,7 +3224,7 @@ function WorkflowEditorContent({
       setTabs((prev) =>
         prev.map((t) => (t.id === existing.id ? { ...t, isOpen: true } : t)),
       );
-      setActiveTabId(existing.id);
+      if (activate) setActiveTabId(existing.id);
       return;
     }
     const newTab: WorkflowTab = {
@@ -3240,7 +3251,7 @@ function WorkflowEditorContent({
       designSourceWorkflowId: syncMeta?.sourceWorkflowId ?? undefined,
     };
     setTabs((prev) => [...prev, newTab]);
-    setActiveTabId(newTab.id);
+    if (activate) setActiveTabId(newTab.id);
   }, [generateTabId, tabs]);
 
   /**
@@ -3258,13 +3269,15 @@ function WorkflowEditorContent({
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
   const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
-    if (interfaceGenerationInFlight.current) return false;
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
       else openCreditsDialog();
       return false;
     }
-    interfaceGenerationInFlight.current = true;
+    const scope = `interface-generate:${tabProjectIdentifier(sourceTab)}`;
+    const setIsGeneratingInterface = retainedCell(scope + '::generating', false).write;
+    const setInterfaceGenerationFeedback = retainedCell<string[]>(scope + '::feedback', []).write;
+    return await runBackgroundOperation(scope, `Generating ${sourceTab.name} interface`, async signal => {
     setIsGeneratingInterface(true);
     setInterfaceGenerationFeedback([]);
     try {
@@ -3285,7 +3298,8 @@ function WorkflowEditorContent({
         plan = interfacePlanSchema.parse(approvedPlan);
       } else {
         // Bulk/stale entry points also use semantic planning, not legacy chunks.
-        const proposalRes = await fetch("/api/ai/interface-proposal", {
+        const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
+          signal,
           method: "POST", credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workflow: workflowToPlanningInput(
@@ -3303,7 +3317,8 @@ function WorkflowEditorContent({
         plan = selectInterfacePages(interpreted, pages.map(s => s.id));
       }
       const prompt = `Generate the approved interface for ${sourceTab.name}: ${plan.summary}`;
-      const genRes = await fetch("/api/ai/design", {
+      const genRes = await fetchBackgroundAi("/api/ai/design", {
+        signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -3312,9 +3327,11 @@ function WorkflowEditorContent({
       if (genRes.status === 401) { openSignup(); return false; }
       const genData = await genRes.json();
       if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      if (signal.aborted) return false;
       const generationWarnings = Array.isArray(genData.warnings) ? genData.warnings.filter((w: unknown) => typeof w === "string") : [];
       setInterfaceGenerationFeedback(generationWarnings);
       const createRes = await fetch("/api/designs", {
+        signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -3336,6 +3353,7 @@ function WorkflowEditorContent({
       if (createRes.status === 401) { openSignup(); return false; }
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+      if (signal.aborted) return false;
 
       // Record the generation in the project's KiteAI thread so the request,
       // the reply, an inline preview of the screens, and the offer to make
@@ -3384,18 +3402,22 @@ function WorkflowEditorContent({
           sourceWorkflowId: createData.sourceWorkflowId ?? null,
           warnings: generationWarnings,
         },
+        activeTabRef.current?.id === sourceTab.id ||
+          activeTabRef.current?.interfaceProposalSourceTabId === sourceTab.id,
       );
       return true;
     } catch (e: unknown) {
+      if (signal.aborted) return false;
+      failOperation(scope, e);
       const msg = e instanceof Error ? e.message : "Could not generate interface";
       setInterfaceGenerationFeedback([msg]);
       toast({ title: "Interface generation failed", description: msg, variant: "destructive" });
       return false;
     } finally {
-      interfaceGenerationInFlight.current = false;
       setIsGeneratingInterface(false);
     }
-  }, [isGeneratingInterface, isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, setIsGeneratingInterface]);
+    }, sourceTab.projectUuid ? `/project/${sourceTab.projectUuid}` : window.location.pathname) ?? false;
+  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast]);
 
   /**
    * Opens a new interface proposal tab for the given workflow tab.
@@ -9349,6 +9371,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 workflowName={srcTab?.name}
                 workflowDescription={srcTab?.metadata.description}
                 sourceProjectId={srcTab?.cloudProjectId}
+                operationTargetId={srcTab?.projectUuid || srcTab?.id}
                 context={srcTab ? collectWorkflowInterfaceContext(srcTab) : ""}
                 nodes={srcTab?.nodes ?? []}
                 edges={srcTab?.edges ?? []}

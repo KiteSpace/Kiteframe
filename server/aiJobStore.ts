@@ -4,6 +4,8 @@ export type AiJobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'canc
 
 export interface AiJobResult {
   text: string;
+  /** Structured design/proposal responses; never replayed as chat text. */
+  payload?: unknown;
   credits?: { remaining: number; cost: number };
 }
 

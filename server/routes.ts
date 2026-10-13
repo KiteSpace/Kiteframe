@@ -67,6 +67,7 @@ import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
 import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
+import { postBackgroundAi } from './backgroundAiRoute';
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
@@ -2266,6 +2267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           jobId: job.id,
           status: 'completed',
           text: job.result?.text ?? '',
+          payload: job.result?.payload,
           credits: job.result?.credits,
         });
       }
@@ -2316,7 +2318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // The following block is intentionally left out — see executeAiChat().
 
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
-  app.post('/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
+  postBackgroundAi(app, '/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
       const wireframeSchema = z.object({
         label: z.string().min(1).max(100),
@@ -2456,7 +2458,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Called before full interface generation so users can review / refine proposals.
   // The client pre-computes screen clusters and sends them; this endpoint generates
   // a description and SVG wireframe thumbnail for each cluster in parallel.
-  app.post('/api/ai/interface-proposal', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/interface-proposal', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
     // Complete workflow requests use the authoritative semantic planner.
     // Retain the old cluster-only request format for older open browser tabs.
     if (req.body && typeof req.body === 'object' && 'workflow' in req.body) return interfacePlanningHandlers.proposal(req, res);
@@ -2556,7 +2558,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // The AI returns a structured diff (rename / modify / remove / add), the server
   // regenerates SVG wireframes for any modified or added screens, and returns
   // the full updated proposal list together with a plain-language summary.
-  app.post('/api/ai/interface-proposal-refine', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/interface-proposal-refine', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
     if (req.body && typeof req.body === 'object' && 'plan' in req.body) return interfacePlanningHandlers.refine(req, res);
     try {
       const screenSchema = z.object({
@@ -2748,7 +2750,7 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // Design generation endpoint — converts a text prompt into a craft.js state JSON
-  app.post('/api/ai/design', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design', aiRateLimiter, async (req: any, res) => {
     try {
       const schema = z.object({
         prompt: z.string().min(1).max(8000),
@@ -2836,7 +2838,7 @@ Only include screens that need changes. "modify" requires both description and d
         messages: [
           ...chatMessages,
         ],
-      }, undefined, { systemPrompt: DESIGN_SYSTEM_PROMPT });
+      }, req.aiOperationSignal, { systemPrompt: DESIGN_SYSTEM_PROMPT });
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
       }
@@ -2940,7 +2942,7 @@ Only include screens that need changes. "modify" requires both description and d
   // ── Design from image (vision) ────────────────────────────────────────────
   // Accepts a base64-encoded screenshot and generates a single Astryx artboard.
   // Reuses the same JSON parsing / response routing as /api/ai/design.
-  app.post('/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
     try {
       const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024; // 10 MB base64 chars
       const imageBase64Raw = typeof req.body?.imageBase64 === 'string' ? req.body.imageBase64 : '';
@@ -2980,7 +2982,7 @@ Only include screens that need changes. "modify" requires both description and d
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      }, undefined, { systemPrompt });
+      }, req.aiOperationSignal, { systemPrompt });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
@@ -3042,7 +3044,7 @@ Only include screens that need changes. "modify" requires both description and d
   // Unlike design-from-image (which always imports a new artboard), this endpoint
   // takes an existing canvas + a user instruction + a reference image and patches
   // the canvas to match the style / layout shown in the image.
-  app.post('/api/ai/design-edit-from-image', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-edit-from-image', aiRateLimiter, async (req: any, res) => {
     try {
       const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024;
       const schema = z.object({
@@ -3090,7 +3092,7 @@ Only include screens that need changes. "modify" requires both description and d
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      }, undefined, { systemPrompt: DESIGN_SYSTEM_PROMPT });
+      }, req.aiOperationSignal, { systemPrompt: DESIGN_SYSTEM_PROMPT });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Reference edit failed' });
@@ -3149,7 +3151,7 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // ── Design from image URL (server-side fetch) ─────────────────────────────
-  app.post('/api/ai/design-from-url', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-url', aiRateLimiter, async (req: any, res) => {
     try {
       const schema = z.object({
         imageUrl: z.string().url('Must be a valid URL').max(2000),
@@ -3213,7 +3215,7 @@ Only include screens that need changes. "modify" requires both description and d
           { role: 'user', content: userContent },
           { role: 'assistant', content: '{' },
         ],
-      }, undefined, { systemPrompt });
+      }, req.aiOperationSignal, { systemPrompt });
 
       if (!result.ok) {
         return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
@@ -3274,7 +3276,7 @@ Only include screens that need changes. "modify" requires both description and d
   // ── Design from Figma frames (vision) ────────────────────────────────────
   // Fetches frame thumbnails from Figma REST API, fans out to vision for each
   // frame (up to 8), and merges all resulting artboards into one craft.js state.
-  app.post('/api/ai/design-from-figma', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-figma', aiRateLimiter, async (req: any, res) => {
     try {
       const schema = z.object({
         fileKey: z.string().min(1),
@@ -3372,7 +3374,7 @@ Only include screens that need changes. "modify" requires both description and d
                 },
                 { role: 'assistant', content: '{' },
               ],
-            }, undefined, { systemPrompt });
+            }, req.aiOperationSignal, { systemPrompt });
             done++;
             if (!aiResult.ok) {
               sendEvent('progress', { done, total, frameName: label, skipped: true });
@@ -4667,7 +4669,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // AI Image-to-Workflow Analysis endpoint
-  app.post("/api/ai/analyze-workflow-image", requireUSOnly, requireAdvancedOrPro, requireCredits, upload.single('image'), async (req, res) => {
+  postBackgroundAi(app, "/api/ai/analyze-workflow-image", requireUSOnly, requireAdvancedOrPro, requireCredits, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
@@ -4699,7 +4701,9 @@ Respond with only the corrected JSON data:`;
       try {
         response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        signal: timeoutController.signal,
+        signal: (req as any).aiOperationSignal
+          ? AbortSignal.any([timeoutController.signal, (req as any).aiOperationSignal])
+          : timeoutController.signal,
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
@@ -8277,7 +8281,7 @@ jane@example.com,Jane,Smith,pro,GroupC
       if (!design.claimedByUserId || design.claimedByUserId !== userId) {
         return res.status(403).json({ error: 'You do not own this design. Claim it first.' });
       }
-      const { craftState, title, notes } = req.body ?? {};
+      const { craftState, title, notes, expectedCraftState } = req.body ?? {};
       const payload: { craftState?: unknown; title?: string | null; notes?: string | null } = {};
       if (craftState !== undefined) {
         let state: unknown = craftState;
@@ -8292,7 +8296,10 @@ jane@example.com,Jane,Smith,pro,GroupC
       }
       if (title !== undefined) payload.title = typeof title === 'string' ? title : null;
       if (notes !== undefined) payload.notes = typeof notes === 'string' ? notes : null;
-      const updated = await storage.updateDesign(req.params.designId, payload as any);
+      const updated = await storage.updateDesign(req.params.designId, payload as any, expectedCraftState);
+      if (!updated && expectedCraftState !== undefined) {
+        return res.status(409).json({ error: 'The design changed while AI was working. Existing edits were preserved.' });
+      }
 
       // Push the change to anyone watching this Interface through its share
       // link, so a viewer sees the owner's edit without refreshing. Sent

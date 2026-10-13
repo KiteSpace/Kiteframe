@@ -57,6 +57,10 @@ import {
 import { usePRDGenerationState, prdGenerationBus } from '@/stores/prdGenerationBus';
 import { useServerDocument } from '@/lib/documents/useServerDocument';
 import { formatDate } from '@/lib/utils/formatDate';
+import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
+import { isAddressableProject, saveDocumentNow } from '@/lib/documents/documentClient';
+import { isSameDocumentContent } from '@shared/documents';
+import { beginBackgroundCommit } from '@/ai/backgroundOperations';
 
 interface WorkflowPRDSectionProps {
   projectId: string;
@@ -184,38 +188,22 @@ export function WorkflowPRDSection({
   onDocMeta
 }: WorkflowPRDSectionProps) {
   const isReader = density === 'reader';
-  const [prd, setPrd] = useState<WorkflowPRD | null>(null);
-  const [history, setHistory] = useState<PRDVersion<WorkflowPRD>[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isWaitingForCapacity, setIsWaitingForCapacity] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [reviewResult, setReviewResult] = useState<PRDReviewResult | null>(null);
+  const operationScope = `workflow-spec:${projectId}:${workflowId}`;
+  const [prd, setPrd] = useRetainedAiState<WorkflowPRD | null>(operationScope, 'prd', null);
+  const [history, setHistory] = useRetainedAiState<PRDVersion<WorkflowPRD>[]>(operationScope, 'history', []);
+  const [isGenerating, setIsGenerating] = useRetainedAiState(operationScope, 'generating', false);
+  const [isWaitingForCapacity, setIsWaitingForCapacity] = useRetainedAiState(operationScope, 'waiting', false);
+  const [isReviewing, setIsReviewing] = useRetainedAiState(operationScope, 'reviewing', false);
+  const [reviewResult, setReviewResult] = useRetainedAiState<PRDReviewResult | null>(operationScope, 'review', null);
   const [isStale, setIsStale] = useState(false);
   const [linkingSectionId, setLinkingSectionId] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [sectionInsights, setSectionInsights] = useState<Record<string, AIInsight[]>>({});
   const [staleSections, setStaleSections] = useState<Record<string, boolean>>({});
-  const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useState<string | null>(null);
-  const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useState<string | null>(null);
+  const [isRegeneratingSectionId, setIsRegeneratingSectionId] = useRetainedAiState<string | null>(operationScope, 'regenerating', null);
+  const [applyingSuggestionSectionId, setApplyingSuggestionSectionId] = useRetainedAiState<string | null>(operationScope, 'applying', null);
   const prevUpdateKeyRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const currentProjectIdRef = useRef(projectId);
-  const currentWorkflowIdRef = useRef(workflowId);
   const { toast } = useToast();
-
-  useEffect(() => {
-    currentProjectIdRef.current = projectId;
-    currentWorkflowIdRef.current = workflowId;
-  }, [projectId, workflowId]);
-
-  useEffect(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-    return () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
-    };
-  }, [projectId, workflowId]);
   const { isAdvanced, isAdmin } = useSubscription();
   const canExportPRD = isAdvanced || isAdmin;
   const prdLinks = usePRDNodeLinks(projectId);
@@ -338,7 +326,23 @@ export function WorkflowPRDSection({
     });
   }, [onDocMeta, prd, workflowName, updatedAt]);
 
-  const handleGenerate = useCallback(async () => {
+  const commitGenerated = async (next: WorkflowPRD, signal: AbortSignal) => {
+    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+    if (!isSameDocumentContent(loadWorkflowPRD(projectId, workflowId), prd)) {
+      throw new Error('The Spec was edited while AI was running. Your edits were kept; retry to update it.');
+    }
+    beginBackgroundCommit(signal);
+    if (isAddressableProject(projectId) &&
+        !await saveDocumentNow(projectId, 'workflow-prd', workflowId, next, prd, signal)) {
+      throw new Error('Could not save the Spec to its original workflow. Retry when the project is available.');
+    }
+    if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+    saveWorkflowPRD(projectId, workflowId, next);
+    prdGenerationBus.notifyPRDUpdated(projectId, workflowId);
+    setPrd(next);
+  };
+
+  const handleGenerate = useBackgroundCallback(operationScope, `Generating ${workflowName} Spec`, async (signal) => {
     if (!workflowId || !projectId) return;
 
     if (nodes.length > 50) {
@@ -348,20 +352,10 @@ export function WorkflowPRDSection({
       });
     }
 
-    const requestProjectId = projectId;
-    const requestWorkflowId = workflowId;
-    const signal = abortControllerRef.current?.signal;
-
     setIsGenerating(true);
     setIsWaitingForCapacity(false);
 
     try {
-      if (prd) {
-        saveWorkflowPRDVersion(projectId, workflowId, prd, 'ai-update');
-        saveWorkflowPRDBackup(projectId, workflowId, prd);
-        toast({ title: 'Backup saved', description: 'Previous spec saved as backup.' });
-      }
-
       const model = extractSemanticWorkflowModel(
         workflowId,
         workflowName,
@@ -378,16 +372,16 @@ export function WorkflowPRDSection({
         (status: PRDGenerationStatus) => setIsWaitingForCapacity(status === 'waiting-for-capacity')
       );
 
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
-        console.log('[WorkflowPRDSection] Project/workflow changed during generation — discarding result');
-        return;
-      }
+      if (signal.aborted) return;
       
       const hash = computeWorkflowHash(nodes, edges);
-      storeHash(projectId, workflowId, hash);
-      
       const sectionHashes = computeAllSectionHashes(nodes, edges);
-      persistPrd({ ...newPrd, hash, sectionHashes }, { immediate: true });
+      await commitGenerated({ ...newPrd, hash, sectionHashes }, signal);
+      if (prd) {
+        saveWorkflowPRDVersion(projectId, workflowId, prd, 'ai-update');
+        saveWorkflowPRDBackup(projectId, workflowId, prd);
+      }
+      storeHash(projectId, workflowId, hash);
       saveSectionHashes(projectId, workflowId, sectionHashes);
       setPrd({ ...newPrd, hash, sectionHashes });
       setIsStale(false);
@@ -418,6 +412,7 @@ export function WorkflowPRDSection({
         console.log('[WorkflowPRDSection] Generation aborted');
         return;
       }
+      failOperation(operationScope, error);
       toast({
         title: 'Generation failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -481,12 +476,8 @@ export function WorkflowPRDSection({
     focusBus.focusEdges([edgeId], { select: true });
   }, []);
 
-  const handleReview = useCallback(async () => {
+  const handleReview = useBackgroundCallback(operationScope, `Reviewing ${workflowName} Spec`, async (signal) => {
     if (!workflowId || !projectId || !prd) return;
-
-    const requestProjectId = projectId;
-    const requestWorkflowId = workflowId;
-    const signal = abortControllerRef.current?.signal;
 
     setIsReviewing(true);
     setReviewResult(null);
@@ -502,10 +493,7 @@ export function WorkflowPRDSection({
       const router = getRouter();
       const result = await reviewPRD(router, model, prd, signal);
 
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
-        console.log('[WorkflowPRDSection] Project/workflow changed during review — discarding result');
-        return;
-      }
+      if (signal.aborted) return;
 
       setReviewResult(result);
 
@@ -519,6 +507,7 @@ export function WorkflowPRDSection({
         console.log('[WorkflowPRDSection] Review aborted');
         return;
       }
+      failOperation(operationScope, error);
       toast({
         title: 'Review failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -545,15 +534,11 @@ export function WorkflowPRDSection({
     }
   }, [projectId, workflowId, toast]);
 
-  const handleApplySuggestion = useCallback(async (suggestion: PRDSuggestion) => {
+  const handleApplySuggestion = useBackgroundCallback(operationScope, 'Improving Spec section', async (signal, suggestion: PRDSuggestion) => {
     if (!prd || !projectId || !workflowId) return;
 
     const section = prd.sections.find(s => s.id === suggestion.sectionId);
     if (!section) return;
-
-    const requestProjectId = projectId;
-    const requestWorkflowId = workflowId;
-    const signal = abortControllerRef.current?.signal;
 
     setApplyingSuggestionSectionId(suggestion.sectionId);
 
@@ -578,23 +563,18 @@ export function WorkflowPRDSection({
         signal,
       });
 
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
-        console.log('[WorkflowPRDSection] Project/workflow changed during apply — discarding result');
-        return;
-      }
+      if (signal.aborted) return;
 
       if (response.text?.trim()) {
         newContent = response.text.trim();
       }
 
       if (!newContent) {
-        toast({ title: 'Apply failed', description: 'Could not generate improved content.', variant: 'destructive' });
-        return;
+        throw new Error('Could not generate improved content.');
       }
 
       const updated = updatePRDSection(prd, suggestion.sectionId, newContent, true) as WorkflowPRD;
-      setPrd(updated);
-      persistPrd(updated);
+      await commitGenerated(updated, signal);
 
       setReviewResult(prev => prev ? {
         ...prev,
@@ -609,23 +589,9 @@ export function WorkflowPRDSection({
         console.log('[WorkflowPRDSection] Apply suggestion aborted');
         return;
       }
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
-        return;
-      }
-      if (suggestion.suggestedContent) {
-        const updated = updatePRDSection(prd, suggestion.sectionId, suggestion.suggestedContent, true) as WorkflowPRD;
-        setPrd(updated);
-        persistPrd(updated);
-        setReviewResult(prev => prev ? {
-          ...prev,
-          suggestions: prev.suggestions.filter(s => 
-            !(s.sectionId === suggestion.sectionId && s.type === suggestion.type)
-          )
-        } : null);
-        toast({ title: 'Applied', description: `Updated ${suggestion.sectionId} section (used suggestion directly).` });
-      } else {
-        toast({ title: 'Apply failed', description: 'Could not apply suggestion.', variant: 'destructive' });
-      }
+      if (signal.aborted) return;
+      failOperation(operationScope, error);
+      toast({ title: 'Apply failed', description: error instanceof Error ? error.message : 'Could not apply suggestion.', variant: 'destructive' });
     } finally {
       setApplyingSuggestionSectionId(null);
     }
@@ -713,7 +679,7 @@ export function WorkflowPRDSection({
     );
   }, [projectId, workflowId, workflowName, prd]);
 
-  const handleRegenerateSection = useCallback(async (sectionId: string) => {
+  const handleRegenerateSection = useBackgroundCallback(operationScope, 'Regenerating Spec section', async (signal, sectionId: string) => {
     if (!prd || !projectId || !workflowId) return;
     
     if (prd.manualEditedAt[sectionId]) {
@@ -723,10 +689,6 @@ export function WorkflowPRDSection({
       if (!confirmed) return;
     }
 
-    const requestProjectId = projectId;
-    const requestWorkflowId = workflowId;
-    const signal = abortControllerRef.current?.signal;
-    
     setIsRegeneratingSectionId(sectionId);
     
     try {
@@ -734,10 +696,7 @@ export function WorkflowPRDSection({
       const router = getRouter();
       const newSection = await generateSingleSection(router, model, sectionId, prd, signal);
 
-      if (signal?.aborted || requestProjectId !== currentProjectIdRef.current || requestWorkflowId !== currentWorkflowIdRef.current) {
-        console.log('[WorkflowPRDSection] Project/workflow changed during section regenerate — discarding');
-        return;
-      }
+      if (signal.aborted) return;
       
       if (newSection) {
         const updatedSections = prd.sections.map(s => 
@@ -755,7 +714,7 @@ export function WorkflowPRDSection({
           sectionHashes: currentHashes
         };
         
-        persistPrd(updatedPrd);
+        await commitGenerated(updatedPrd, signal);
         saveSectionHashes(projectId, workflowId, currentHashes);
         setPrd(updatedPrd);
         setStaleSections(prev => ({ ...prev, [sectionId]: false }));
@@ -767,6 +726,7 @@ export function WorkflowPRDSection({
         console.log('[WorkflowPRDSection] Section regenerate aborted');
         return;
       }
+      failOperation(operationScope, error);
       toast({
         title: 'Regeneration failed',
         description: error instanceof Error ? error.message : 'Unknown error',
@@ -777,16 +737,21 @@ export function WorkflowPRDSection({
     }
   }, [prd, projectId, workflowId, workflowName, nodes, edges, toast]);
 
-  const handleElaborateSection = useCallback(async (sectionId: string): Promise<string | null> => {
+  const handleElaborateSection = useBackgroundCallback(operationScope, 'Expanding Spec section', async (signal, sectionId: string): Promise<string | null> => {
     if (!prd) return null;
     const section = prd.sections.find(s => s.id === sectionId);
     if (!section?.content) return null;
 
-    const signal = abortControllerRef.current?.signal;
     const model = extractSemanticWorkflowModel(workflowId, workflowName, nodes, edges);
     const router = getRouter();
     try {
-      return await elaborateSection(router, model, sectionId, section.content, signal);
+      const expanded = await elaborateSection(router, model, sectionId, section.content, signal);
+      if (expanded) {
+        await commitGenerated(updatePRDSection(prd, sectionId, expanded) as WorkflowPRD, signal);
+        toast({ title: 'Section elaborated', description: 'Content expanded with more detail.' });
+      }
+      // Already saved inside the owned operation; DocSection must not save again.
+      return null;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('[WorkflowPRDSection] Elaborate aborted');
@@ -798,6 +763,7 @@ export function WorkflowPRDSection({
 
   return (
     <div className="flex min-h-full min-w-0 flex-col" data-testid="workflow-prd-section">
+      {!isReadOnly && <BackgroundOperationStatus scope={operationScope} />}
       {isStale && prd && !isReadOnly && (
         <div className="flex items-center gap-2 mb-4 text-xs text-yellow-600 dark:text-yellow-500">
           <AlertTriangle size={12} />
@@ -1032,7 +998,7 @@ export function WorkflowPRDSection({
                   onSave={handleSectionSave}
                   onResetToAI={handleResetSection}
                   onRegenerateSection={handleRegenerateSection}
-                  onElaborate={handleElaborateSection}
+                  onElaborate={async sectionId => await handleElaborateSection(sectionId) ?? null}
                   onDismissInsight={handleDismissInsight}
                   linkedNodes={prdLinks.getLinksForSection(workflowId, section.id)}
                   onLinkNode={() => handleLinkNode(section.id)}

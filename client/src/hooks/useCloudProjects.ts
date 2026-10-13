@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
+import { cancelOperationsForTarget } from '@/ai/backgroundOperations';
 import { useSubscription } from './useSubscription';
 import type { SavedProject } from '@shared/schema';
 
@@ -123,6 +124,10 @@ export function useCloudProjects() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
+      const data: any = queryClient.getQueryData(['/api/projects']);
+      const projects = Array.isArray(data) ? data : data?.projects;
+      const original = projects?.find((project: any) => project.id === projectId || project.projectUuid === projectId);
+      [projectId, original?.projectUuid].filter(Boolean).forEach(cancelOperationsForTarget);
       await apiRequest('DELETE', `/api/projects/${projectId}`);
     },
     onSuccess: () => {

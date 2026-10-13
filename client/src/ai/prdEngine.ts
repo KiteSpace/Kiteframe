@@ -2,6 +2,7 @@ import type { AiClient, AiMessage } from './types';
 import type { AiRouter } from './router';
 import type { SemanticWorkflowModel } from '../lib/kiteframe/utils/extractSemanticWorkflowModel';
 import { normalizeGeneratedPrdSection } from './prdMarkdown';
+import { inheritOperationSignal } from './backgroundOperations';
 
 export interface PRDSection {
   id: string;
@@ -365,6 +366,7 @@ async function generatePrdSections(
   onStatusChange?: (status: PRDGenerationStatus) => void
 ): Promise<PRDSection[]> {
   const batchController = new AbortController();
+  inheritOperationSignal(parentSignal, batchController.signal);
   const abortBatch = () => batchController.abort();
   let waitingSectionCount = 0;
   const updateStatus = (status: PRDGenerationStatus) => {

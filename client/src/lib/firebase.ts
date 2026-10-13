@@ -2,6 +2,7 @@
 // Based on firebase_barebones_javascript integration
 import { initializeApp } from "firebase/app";
 import { initializeAuth, indexedDBLocalPersistence, browserPopupRedirectResolver, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User, onAuthStateChanged, signOut } from "firebase/auth";
+import { setOperationOwner } from '@/ai/backgroundOperations';
 import { getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -40,11 +41,15 @@ export function signInWithGoogleRedirect() {
 }
 
 export function signOutUser() {
+  setOperationOwner(null, true);
   return signOut(auth);
 }
 
 export function onAuthStateChange(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, user => {
+    setOperationOwner(user?.uid ?? null);
+    callback(user);
+  });
 }
 
 // Workflow data types
