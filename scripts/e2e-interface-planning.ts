@@ -148,6 +148,19 @@ try {
   await page.locator('[data-testid="workflow-canvas"]').waitFor({ timeout: 30000 });
   await page.getByRole('button', { name: /generate interface|create interface/i }).first().click();
   await page.getByRole('checkbox', { name: 'Include Sign in' }).waitFor();
+  check('UI Mocks is the initial preview tab', await page.getByRole('tab', { name: 'UI Mocks' }).getAttribute('aria-selected') === 'true');
+  await page.getByRole('tab', { name: 'Analysis', exact: true }).click();
+  for (const title of ['Proposal Summary', 'Assumptions to Review', 'Handled Outside the Interface']) {
+    check(`${title} appears under Analysis`, await page.getByRole('heading', { name: title, exact: true }).isVisible());
+  }
+  const summarySection = page.getByRole('region', { name: 'Proposal Summary', exact: true });
+  await summarySection.hover();
+  await page.waitForTimeout(200);
+  check('section discussion button appears on hover', await page.getByRole('button', { name: 'Add Proposal Summary to chat' }).evaluate(el => getComputedStyle(el).opacity === '1'));
+  await page.getByRole('button', { name: 'Add Proposal Summary to chat' }).click();
+  check('analysis is attached to the chat without an AI request', requests.length === 1 && await page.getByRole('region', { name: 'Analysis added to chat' }).isVisible());
+  await page.screenshot({ path: '/tmp/interface-proposal-analysis-tabs.png' });
+  await page.getByRole('tab', { name: 'UI Mocks', exact: true }).click();
   check('full workflow reaches planning, including descriptions and labeled edges',
     requests[0].body.workflow.nodes[0].description.includes('email') && requests[0].body.workflow.edges[1].label === 'Valid credentials');
   await page.getByText('Inspect rationale, sources & requirements', { exact: true }).first().click();
@@ -156,6 +169,7 @@ try {
   await input.fill('Add a Reports page with Report results and a Download CSV action.');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Include Reports' }).waitFor();
+  check('refinement includes attached analysis context', requests.find(r => r.kind === 'refine')?.body.userMessage.includes('## Proposal Summary'));
   const generate = page.getByRole('button', { name: 'Generate UI', exact: true });
   await generate.click();
   await page.getByText(/Some selected screens were not generated/).first().waitFor();

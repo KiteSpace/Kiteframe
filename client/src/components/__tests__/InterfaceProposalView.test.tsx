@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { setOperationOwner } from '@/ai/backgroundOperations';
 import userEvent from '@testing-library/user-event';
 import { InterfaceProposalView } from '../InterfaceProposalView';
 import type { InterfacePlan } from '@shared/interfacePlan';
@@ -73,6 +74,7 @@ function renderProposal(overrides: Partial<React.ComponentProps<typeof Interface
 }
 
 beforeEach(() => {
+  setOperationOwner(null, true);
   HTMLElement.prototype.scrollIntoView = vi.fn();
   global.fetch = vi.fn(() => new Promise<Response>(() => {})) as typeof fetch;
 });
@@ -80,10 +82,66 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('InterfaceProposalView proposal review', () => {
+  it('defaults to mocks and keeps all analysis sections in the Analysis tab', async () => {
+    global.fetch = vi.fn().mockResolvedValue(previewResponse()) as typeof fetch;
+    renderProposal();
+    await screen.findByText('Page 1');
+    expect(screen.getByRole('tab', { name: 'UI Mocks' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('heading', { name: 'Proposal Summary' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Analysis' }));
+    for (const name of ['Proposal Summary', 'Assumptions to Review', 'Handled Outside the Interface']) {
+      expect(screen.getByRole('heading', { name })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: `Add ${name} to chat` })).toBeEnabled();
+    }
+    expect(screen.queryByRole('checkbox', { name: 'Include Page 1' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'UI Mocks' }));
+    expect(screen.getByRole('checkbox', { name: 'Include Page 1' })).toBeChecked();
+  });
+
+  it('attaches findings without sending, preserves the draft and sends context with the question', async () => {
+    const plan = makePlan();
+    plan.backgroundSteps = [{ nodeIds: ['step-a'], reason: 'Sync reports automatically.' }];
+    global.fetch = vi.fn().mockResolvedValueOnce(previewResponse(plan))
+      .mockResolvedValueOnce(previewResponse(plan, { aiMessage: 'Revised with your findings.' })) as typeof fetch;
+    const user = userEvent.setup();
+    renderProposal();
+    await screen.findByText('Page 1');
+    const input = screen.getByRole('textbox', { name: 'Proposal discussion' });
+    await user.type(input, 'Make unavailable reports visible');
+    await user.click(screen.getByRole('tab', { name: 'Analysis' }));
+    for (const name of ['Proposal Summary', 'Assumptions to Review', 'Handled Outside the Interface', 'Proposal Summary']) {
+      await user.click(screen.getByRole('button', { name: `Add ${name} to chat` }));
+    }
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('Make unavailable reports visible');
+    expect(within(screen.getByRole('region', { name: 'Analysis added to chat' })).getAllByText('Proposal Summary')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText('Revised with your findings.');
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[1][1]?.body as string);
+    expect(body.userMessage).toContain('Make unavailable reports visible');
+    expect(body.userMessage).toContain(plan.summary);
+    expect(body.userMessage).toContain(plan.assumptions[0].question);
+    expect(body.userMessage).toContain('Related steps: Load report');
+    expect(body.userMessage).toContain('Sync reports automatically.');
+    expect(screen.queryByRole('region', { name: 'Analysis added to chat' })).not.toBeInTheDocument();
+  });
+
+  it('allows removing an attached section before sending', async () => {
+    global.fetch = vi.fn().mockResolvedValue(previewResponse()) as typeof fetch;
+    renderProposal();
+    await screen.findByText('Page 1');
+    await userEvent.click(screen.getByRole('tab', { name: 'Analysis' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add Proposal Summary to chat' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Proposal Summary from chat' }));
+    expect(screen.queryByRole('region', { name: 'Analysis added to chat' })).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves full workflow descriptions, actors, ids, and labeled transitions in initial request', async () => {
     global.fetch = vi.fn().mockResolvedValue(previewResponse()) as typeof fetch;
     renderProposal();
-    await screen.findByText('Proposal summary');
+    await screen.findByText('Page 1');
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/ai/interface-proposal');
     expect(body.workflow).toMatchObject({
@@ -99,9 +157,11 @@ describe('InterfaceProposalView proposal review', () => {
   it('renders inspectable rationale, mapped names, transitions, assumptions and questions', async () => {
     global.fetch = vi.fn().mockResolvedValue(previewResponse()) as typeof fetch;
     renderProposal();
-    await screen.findByText('Proposal summary');
+    await screen.findByText('Page 1');
+    await userEvent.click(screen.getByRole('tab', { name: 'Analysis' }));
     expect(screen.getByText('The report is already available to the analyst.')).toBeInTheDocument();
     expect(screen.getByText('Question: Should unavailable reports be selectable here?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'UI Mocks' }));
     await userEvent.click(screen.getByText('Inspect rationale, sources & requirements'));
     expect(screen.getByText('Because source step 1 needs review')).toBeInTheDocument();
     expect(screen.getByText('Load report')).toBeInTheDocument();
@@ -124,7 +184,7 @@ describe('InterfaceProposalView proposal review', () => {
       .mockResolvedValueOnce(previewResponse(refined, { aiMessage: 'Added the requested page.' })) as typeof fetch;
     const user = userEvent.setup();
     const { onConfirm } = renderProposal();
-    await screen.findByText('Proposal summary');
+    await screen.findByText('Page 1');
     await user.type(screen.getByPlaceholderText('Ask to revise the proposal…'), 'Add a dashboard page');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByText('Added the requested page.');
@@ -159,9 +219,10 @@ describe('InterfaceProposalView proposal review', () => {
     const user = userEvent.setup();
     renderProposal();
     expect(await screen.findByText('Temporary upstream outage')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Proposal summary')).toBeInTheDocument();
+    const retry = within(screen.getByRole('heading', { name: 'Proposal could not be loaded' }).closest('section')!).getByRole('button', { name: 'Retry' });
+    expect(retry).toBeInTheDocument();
+    await user.click(retry);
+    expect(await screen.findByText('Page 1')).toBeInTheDocument();
   });
 
   it('retains the existing loading shimmer presentation', () => {

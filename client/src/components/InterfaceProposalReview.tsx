@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useBackgroundCallback, useRetainedAiState, BackgroundOperationStatus, failOperation } from '@/ai/useBackgroundOperation';
 import { getOperations } from '@/ai/backgroundOperations';
 import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Node, Edge } from '@/lib/kiteframe/types';
 import { Loader2, Send, Sparkles, X } from 'lucide-react';
 import {
@@ -18,6 +19,22 @@ import { SkeletonCard, UiGenerationShimmer } from './InterfaceProposalLoading';
 
 type ProposalPreview = { id: string; svgWireframe: string };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type DiscussionSection = { title: string; content: string };
+
+function AnalysisSection({ title, children, onDiscuss, disabled, warning = false }: {
+  title: string; children: ReactNode; onDiscuss: () => void; disabled: boolean; warning?: boolean;
+}) {
+  return <section aria-label={title} className={`group mb-4 rounded-xl border p-4 ${warning ? 'border-amber-300/70 bg-amber-50/50 dark:bg-amber-950/15' : 'border-border bg-card'}`}>
+    <div className="flex items-center gap-3">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      <button type="button" onClick={onDiscuss} disabled={disabled} aria-label={`Add ${title} to chat`} title={`Discuss ${title} with AI`}
+        className="ml-auto rounded-lg p-1.5 text-violet-600 transition-opacity hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-40 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 [@media(hover:none)]:!opacity-100">
+        <Sparkles size={15} />
+      </button>
+    </div>
+    {children}
+  </section>;
+}
 
 export interface InterfaceProposalViewProps {
   workflowName?: string;
@@ -120,6 +137,9 @@ export function InterfaceProposalReview({
   const [error, setError] = useRetainedAiState(operationScope, 'error', '');
   const [messages, setMessages] = useRetainedAiState<ChatMessage[]>(operationScope, 'messages', []);
   const [inputValue, setInputValue] = useState('');
+  const [previewTab, setPreviewTab] = useState('mocks');
+  const [discussionSections, setDiscussionSections] = useRetainedAiState<DiscussionSection[]>(operationScope, 'discussion-sections', []);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const workflowResult = useMemo(() => {
     try {
@@ -167,10 +187,14 @@ export function InterfaceProposalReview({
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, status]);
 
   const sendMessage = useBackgroundCallback(operationScope, 'Refining workflow screens', async (signal, retryText?: string) => {
-    const text = retryText ?? inputValue.trim();
-    if (!text || status !== 'ready' || !plan) return;
+    const question = retryText ?? inputValue.trim();
+    if (!question || status !== 'ready' || !plan) return;
+    const text = !retryText && discussionSections.length
+      ? `${question}\n\nAnalysis sections selected for discussion:\n${discussionSections.map(section => `## ${section.title}\n${section.content}`).join('\n\n')}`
+      : question;
     const nextMessages = [...messages, { role: 'user' as const, content: text }];
     setInputValue('');
+    setDiscussionSections([]);
     setMessages(nextMessages);
     setStatus('refining');
     setError('');
@@ -204,7 +228,12 @@ export function InterfaceProposalReview({
       setError(err instanceof Error ? err.message : 'Could not refine the proposal.');
       setStatus('ready');
     }
-  }, [inputValue, status, plan, messages]);
+  }, [inputValue, status, plan, messages, discussionSections]);
+
+  const addSectionToChat = (title: string, content: string) => {
+    setDiscussionSections(current => [...current.filter(section => section.title !== title), { title, content }]);
+    inputRef.current?.focus();
+  };
 
   const togglePage = useCallback((pageId: string) => {
     setPlan((current) => {
@@ -236,9 +265,17 @@ export function InterfaceProposalReview({
           {status === 'refining' && <div role="status" className="text-xs text-muted-foreground">Updating the proposal…</div>}
           <div ref={chatEndRef} />
         </div>
-        <form className="flex flex-shrink-0 items-end gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}>
-          <textarea value={inputValue} onChange={(event) => setInputValue(event.target.value)} placeholder="Ask to revise the proposal…" rows={1} disabled={status !== 'ready'} className="min-h-9 max-h-24 min-w-0 flex-1 resize-y rounded-xl border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50" />
+        <form className="flex flex-shrink-0 flex-col gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}>
+          {!!discussionSections.length && <div role="region" aria-label="Analysis added to chat" aria-live="polite" className="max-h-40 space-y-2 overflow-auto">
+            {discussionSections.map(section => <div key={section.title} className="rounded-lg border border-violet-200 bg-violet-50/50 p-2 text-xs dark:border-violet-800 dark:bg-violet-950/20">
+              <div className="flex items-center gap-1.5"><Sparkles size={12} className="shrink-0 text-violet-600" /><span className="min-w-0 flex-1 font-medium">{section.title}</span><button type="button" aria-label={`Remove ${section.title} from chat`} onClick={() => setDiscussionSections(current => current.filter(item => item.title !== section.title))} className="rounded p-1 hover:bg-muted"><X size={12} /></button></div>
+              <details className="mt-1 text-muted-foreground"><summary className="cursor-pointer">View findings</summary><p className="mt-1 whitespace-pre-wrap">{section.content}</p></details>
+            </div>)}
+          </div>}
+          <div className="flex items-end gap-2">
+          <textarea ref={inputRef} value={inputValue} onChange={(event) => setInputValue(event.target.value)} aria-label="Proposal discussion" placeholder="Ask to revise the proposal…" rows={1} disabled={status !== 'ready'} className="min-h-9 max-h-24 min-w-0 flex-1 resize-y rounded-xl border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50" />
           <button type="submit" aria-label="Send" disabled={!inputValue.trim() || status !== 'ready'} className="flex-shrink-0 rounded-lg bg-muted p-2 text-muted-foreground hover:bg-accent disabled:opacity-40"><Send size={13} /></button>
+          </div>
         </form>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
@@ -250,7 +287,14 @@ export function InterfaceProposalReview({
             <button onClick={() => plan && onConfirm(selectInterfacePages(plan, selectedPages.map((surface) => surface.id)))} disabled={!plan || !selectedPages.length || status !== 'ready'} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={12} />Generate UI</button>
           </div>
         </header>
-        <div className="flex-1 overflow-auto p-5">
+        <Tabs value={previewTab} onValueChange={setPreviewTab} className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-border px-5 py-2">
+            <TabsList aria-label="UI generation preview">
+              <TabsTrigger value="mocks">UI Mocks</TabsTrigger>
+              <TabsTrigger value="analysis">Analysis</TabsTrigger>
+            </TabsList>
+          </div>
+        <div className="min-h-0 flex-1 overflow-auto p-5">
           {status === 'loading' && <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 150, 300, 450, 600, 750].map((delay) => <SkeletonCard key={delay} delay={delay} />)}</div>}
           {status === 'error' && <section role="alert" className="mx-auto max-w-xl rounded-xl border border-destructive/40 bg-card p-5"><h2 className="text-sm font-semibold text-foreground">Proposal could not be loaded</h2><p className="mt-2 text-sm text-muted-foreground">{error}</p><button onClick={() => void requestInitial()} className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-xs text-white">Retry</button></section>}
           {status !== 'loading' && status !== 'error' && plan && <>
@@ -260,10 +304,21 @@ export function InterfaceProposalReview({
               <details className="mt-2"><summary className="cursor-pointer select-none">Inspect the context excerpt sent</summary><pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-sans">{plan?.workflow.context || context}</pre></details>
             </section>}
             {(generationFeedback.length > 0 || apiWarnings.length > 0 || inspectInterfacePlan(plan).warnings.length > 0) && <section aria-label="Coverage warnings" className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-100"><h2 className="mb-1 font-semibold">Review notes</h2><ul className="list-disc space-y-1 pl-4">{[...generationFeedback, ...apiWarnings, ...inspectInterfacePlan(plan).warnings].map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></section>}
-            <div className="mb-4 rounded-xl border border-border bg-card p-4"><h2 className="text-sm font-semibold">Proposal summary</h2><p className="mt-1 text-sm text-muted-foreground">{plan.summary}</p></div>
-            {!!plan.assumptions.length && <section aria-label="Assumptions and questions" className="mb-4 rounded-xl border border-amber-300/70 bg-amber-50/50 p-4 dark:bg-amber-950/15"><h2 className="text-sm font-semibold">Assumptions to review</h2><ul className="mt-2 space-y-2 text-xs text-muted-foreground">{plan.assumptions.map((assumption, index) => <li key={`${assumption.text}-${index}`}><p className="font-medium text-foreground">{assumption.text}</p>{assumption.question && <p className="mt-0.5">Question: {assumption.question}</p>}{!!assumption.nodeIds.length && <p className="mt-0.5">Related steps: {idFor(plan, assumption.nodeIds, 'node').join(', ')}</p>}</li>)}</ul></section>}
-            {!plan.assumptions.length && <p className="mb-3 text-xs text-muted-foreground">No open assumptions. Advisory coverage notes do not block generation.</p>}
-            {!!plan.backgroundSteps.length && <section aria-label="Background workflow steps" className="mb-4 rounded-xl border border-border bg-card p-4"><h2 className="text-sm font-semibold">Handled outside the interface</h2><ul className="mt-2 space-y-1 text-xs text-muted-foreground">{plan.backgroundSteps.map((step, index) => <li key={`${step.nodeIds.join('-')}-${index}`}><span className="font-medium text-foreground">{idFor(plan, step.nodeIds, 'node').join(', ')}</span> — {step.reason}</li>)}</ul></section>}
+            <TabsContent value="analysis" className="mt-0">
+              <AnalysisSection title="Proposal Summary" disabled={status !== 'ready'} onDiscuss={() => addSectionToChat('Proposal Summary', plan.summary)}>
+                <p className="mt-1 text-sm text-muted-foreground">{plan.summary}</p>
+              </AnalysisSection>
+              <AnalysisSection title="Assumptions to Review" warning disabled={status !== 'ready'} onDiscuss={() => addSectionToChat('Assumptions to Review', plan.assumptions.map(assumption => [
+                assumption.text, assumption.question ? `Question: ${assumption.question}` : '',
+                assumption.nodeIds.length ? `Related steps: ${idFor(plan, assumption.nodeIds, 'node').join(', ')}` : '',
+              ].filter(Boolean).join('\n')).join('\n\n') || 'No open assumptions.')}>
+                {plan.assumptions.length ? <ul className="mt-2 space-y-2 text-xs text-muted-foreground">{plan.assumptions.map((assumption, index) => <li key={`${assumption.text}-${index}`}><p className="font-medium text-foreground">{assumption.text}</p>{assumption.question && <p className="mt-0.5">Question: {assumption.question}</p>}{!!assumption.nodeIds.length && <p className="mt-0.5">Related steps: {idFor(plan, assumption.nodeIds, 'node').join(', ')}</p>}</li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No open assumptions. Advisory coverage notes do not block generation.</p>}
+              </AnalysisSection>
+              <AnalysisSection title="Handled Outside the Interface" disabled={status !== 'ready'} onDiscuss={() => addSectionToChat('Handled Outside the Interface', plan.backgroundSteps.map(step => `${idFor(plan, step.nodeIds, 'node').join(', ')} — ${step.reason}`).join('\n\n') || 'No workflow steps are handled outside the interface.')}>
+                {plan.backgroundSteps.length ? <ul className="mt-2 space-y-1 text-xs text-muted-foreground">{plan.backgroundSteps.map((step, index) => <li key={`${step.nodeIds.join('-')}-${index}`}><span className="font-medium text-foreground">{idFor(plan, step.nodeIds, 'node').join(', ')}</span> — {step.reason}</li>)}</ul> : <p className="mt-2 text-xs text-muted-foreground">No workflow steps are handled outside the interface.</p>}
+              </AnalysisSection>
+            </TabsContent>
+            <TabsContent value="mocks" className="mt-0">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {plan.screens.filter((surface) => surface.kind === 'page').map((page) => {
                 const preview = previews.find((item) => item.id === page.id);
@@ -280,8 +335,10 @@ export function InterfaceProposalReview({
                 </article>;
               })}
             </div>
+            </TabsContent>
           </>}
         </div>
+        </Tabs>
       </main>
     </div>
   );
