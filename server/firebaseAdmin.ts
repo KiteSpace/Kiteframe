@@ -1,6 +1,7 @@
-import admin from 'firebase-admin';
+import { applicationDefault, cert, getApps, initializeApp, type App } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
-let firebaseApp: admin.app.App | null = null;
+let firebaseApp: App | null = null;
 let isInitialized = false;
 let adminSdkAvailable = false;
 let initializationError: string | null = null;
@@ -13,7 +14,7 @@ export interface DecodedFirebaseToken {
   email_verified?: boolean;
 }
 
-export function initializeFirebaseAdmin(): admin.app.App | null {
+export function initializeFirebaseAdmin(): App | null {
   if (isInitialized) {
     return firebaseApp;
   }
@@ -40,22 +41,23 @@ export function initializeFirebaseAdmin(): admin.app.App | null {
 
   try {
     // Check if already initialized (e.g., in test environments)
-    if (admin.apps.length > 0) {
-      firebaseApp = admin.apps[0];
+    const apps = getApps();
+    if (apps.length > 0) {
+      firebaseApp = apps[0];
       adminSdkAvailable = true;
       console.log('Firebase Admin already initialized, reusing existing app');
       return firebaseApp;
     }
     
     if (serviceAccountKey) {
-      firebaseApp = admin.initializeApp({
+      firebaseApp = initializeApp({
         projectId,
-        credential: admin.credential.cert(JSON.parse(serviceAccountKey)),
+        credential: cert(JSON.parse(serviceAccountKey)),
       });
     } else {
-      firebaseApp = admin.initializeApp({
+      firebaseApp = initializeApp({
         projectId,
-        credential: admin.credential.applicationDefault(),
+        credential: applicationDefault(),
       });
     }
     
@@ -80,7 +82,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<DecodedFir
 
   try {
     // Verify token with revocation check for security
-    const decodedToken = await admin.auth().verifyIdToken(idToken, true);
+    const decodedToken = await getAuth(firebaseApp).verifyIdToken(idToken, true);
     return {
       uid: decodedToken.uid,
       email: decodedToken.email,
@@ -94,7 +96,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<DecodedFir
   }
 }
 
-export function getFirebaseAdmin(): admin.app.App | null {
+export function getFirebaseAdmin(): App | null {
   return firebaseApp;
 }
 

@@ -1036,10 +1036,12 @@ export default function AdminAnalytics({ authHeader }: { authHeader: string }) {
                             fill={getCountryColor(countryCode)}
                             stroke="#FFFFFF"
                             strokeWidth={0.5}
-                            style={{
-                              default: { outline: 'none' },
-                              hover: { outline: 'none', fill: '#6366F1' },
-                              pressed: { outline: 'none' },
+                            style={{ outline: 'none' }}
+                            onMouseEnter={(event) => {
+                              event.currentTarget.style.fill = '#6366F1';
+                            }}
+                            onMouseLeave={(event) => {
+                              event.currentTarget.style.removeProperty('fill');
                             }}
                             data-testid={`map-country-${countryCode}`}
                           />

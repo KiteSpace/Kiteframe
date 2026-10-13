@@ -49,3 +49,4 @@
 - [Floating toolbar collision bounds](floating-toolbar-collision-bounds.md) — clamp the union of the toolbar and absolute submenus, then re-route if clamping collides with endpoint handles.
 - [Interface plan calibration](interface-plan-calibration.md) — valid mappings can hide invented scope; calibrate task boundaries and time budgets with bounded live comparisons.
 - [AI navigation contract](ai-navigation-contract.md) — switching views is not cancellation; session continuation is separate from refresh recovery and needs signed-in flow verification.
+- [Dependency remediation](dependency-remediation.md) — guarded brace-parser replacement rationale and Vitest optional-peer version alignment.
