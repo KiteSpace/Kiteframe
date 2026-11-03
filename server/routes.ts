@@ -3489,6 +3489,9 @@ Only include screens that need changes. "modify" requires both description and d
   app.post('/api/ai/test', isAuthenticated, aiRateLimiter, requireCredits, async (req, res) => {
     try {
       const { provider, apiKey, customEndpoint } = req.body;
+      if (provider && provider !== 'anthropic') {
+        return res.status(400).json({ error: 'Only Claude models are supported.' });
+      }
       if (customEndpoint !== undefined && customEndpoint !== null && customEndpoint !== '') {
         if (typeof customEndpoint !== 'string') {
           return res.status(400).json({ error: 'Invalid endpoint' });
@@ -3520,6 +3523,9 @@ Only include screens that need changes. "modify" requires both description and d
             model = 'claude-haiku-4-5-20251001';
         }
         console.log('Default model set to:', model);
+      }
+      if (typeof model !== 'string' || !model.startsWith('claude-')) {
+        return res.status(400).json({ error: 'Only Claude models are supported.' });
       }
       
       // For Anthropic, always use environment key. For others, require API key unless it's ollama/kiteframe

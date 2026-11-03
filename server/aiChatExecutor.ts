@@ -175,14 +175,16 @@ export async function executeAiChat(
 
     if (!activeProvider) {
       if (activeModel && activeModel.includes('claude')) activeProvider = 'anthropic';
-      else if (activeModel && (activeModel.includes('gpt') || activeModel.includes('o1'))) activeProvider = 'openai';
       else activeProvider = 'anthropic';
     }
 
     if (activeProvider === 'anthropic') {
       activeApiKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
-    } else if (activeProvider === 'openai') {
-      activeApiKey = process.env.OPENAI_API_KEY;
+    }
+
+    // Kiteframe only runs Claude models; other providers and user-supplied endpoints are refused.
+    if (activeProvider !== 'anthropic' || !activeModel?.startsWith('claude-')) {
+      return { ok: false, status: 400, error: 'Only Claude models are supported.' };
     }
 
     if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
