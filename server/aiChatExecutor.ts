@@ -1,4 +1,5 @@
 import { sanitizeAiPrompt, MAX_AI_PROMPT_CHARS } from "./utils/sanitize";
+import { safeFetch, parsePublicUrl, UnsafeUrlError } from './lib/safeFetch';
 
 export interface AiChatExecResult {
   ok: boolean;
@@ -21,6 +22,15 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   vision_ingestion: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
 };
+
+const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
+const MAX_OUTPUT_TOKENS = 16000;
+
+function clampMaxTokens(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), MAX_OUTPUT_TOKENS);
+}
 
 const COMPLEXITY_KEYWORDS = /\b(if|when|unless|condition|loop|retry|branch|parallel|decision|fallback|alternative|exception|error handling|multiple|either|otherwise|in case|depends on|based on|check whether|validate|approval|escalat)\b/i;
 
@@ -158,7 +168,10 @@ export async function executeAiChat(
 
     let activeProvider = resolvedProvider || provider;
     let activeApiKey = clientApiKey;
-    const activeModel = resolvedModel || model;
+    let activeModel = resolvedModel || model;
+    if (!clientApiKey && (resolvedProvider || provider || 'anthropic') === 'anthropic' && activeModel && !SERVER_KEY_MODELS.has(activeModel)) {
+      activeModel = 'claude-haiku-4-5-20251001';
+    }
 
     if (!activeProvider) {
       if (activeModel && activeModel.includes('claude')) activeProvider = 'anthropic';
@@ -207,24 +220,31 @@ export async function executeAiChat(
       const systemPrompt = systemParts.join('\n\n');
       requestBody = {
         model: activeModel,
-        max_tokens: maxTokens || 1024,
+        max_tokens: clampMaxTokens(maxTokens, 1024),
         ...(systemPrompt ? { system: systemPrompt } : {}),
         messages: anthropicMessages,
       };
     } else if (activeProvider === 'ollama') {
       const { customEndpoint } = body;
-      endpoint = `${customEndpoint || 'http://localhost:11434'}/v1/chat/completions`;
+      if (!customEndpoint && !process.env.OLLAMA_URL) {
+        return { ok: false, status: 400, error: 'Ollama endpoint is required' };
+      }
+      if (customEndpoint) {
+        try { parsePublicUrl(customEndpoint); } catch (e: any) { return { ok: false, status: 400, error: e?.message || 'Endpoint not allowed' }; }
+      }
+      endpoint = `${(customEndpoint || process.env.OLLAMA_URL).replace(/\/$/, '')}/v1/chat/completions`;
       headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: maxTokens, stream: false };
+      requestBody = { model: activeModel, messages, temperature, max_tokens: clampMaxTokens(maxTokens, 4096), stream: false };
     } else if (activeProvider === 'kiteframe') {
       endpoint = 'https://kiteline-ai.replit.app/v1/chat/completions';
       headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: maxTokens, stream: false };
+      requestBody = { model: activeModel, messages, temperature, max_tokens: clampMaxTokens(maxTokens, 4096), stream: false };
     } else if (activeProvider === 'custom') {
       const { customEndpoint } = body;
       if (!customEndpoint) {
         return { ok: false, status: 400, error: 'Custom endpoint is required for custom provider' };
       }
+      try { parsePublicUrl(customEndpoint); } catch (e: any) { return { ok: false, status: 400, error: e?.message || 'Endpoint not allowed' }; }
       const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
       const isCustomOpenAI = customEndpoint.includes('api.openai.com');
       const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
@@ -234,13 +254,13 @@ export async function executeAiChat(
         ...(isCustomOllama ? {} : { 'Authorization': `Bearer ${activeApiKey}` }),
       };
       if (isCustomOpenAI && isGpt5Model) {
-        requestBody = { model: activeModel, messages, max_completion_tokens: maxTokens };
+        requestBody = { model: activeModel, messages, max_completion_tokens: clampMaxTokens(maxTokens, 4096) };
       } else {
         requestBody = {
           model: activeModel,
           messages,
           temperature,
-          max_tokens: maxTokens,
+          max_tokens: clampMaxTokens(maxTokens, 4096),
           ...(isCustomOllama ? { stream: false } : {}),
         };
       }
@@ -255,16 +275,32 @@ export async function executeAiChat(
       requestBody = {
         model: activeModel || 'claude-haiku-4-5-20251001',
         messages,
-        max_tokens: maxTokens || 1024,
+        max_tokens: clampMaxTokens(maxTokens, 1024),
       };
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-      signal,
-    });
+    const usesUserEndpoint = (activeProvider === 'ollama' || activeProvider === 'custom') && !!body.customEndpoint;
+    let response: any;
+    if (usesUserEndpoint) {
+      try {
+        response = await safeFetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody),
+          timeoutMs: 120000,
+          maxBytes: 10 * 1024 * 1024,
+        });
+      } catch (e: any) {
+        return { ok: false, status: 400, error: e instanceof UnsafeUrlError ? e.message : `${activeProvider} endpoint unreachable` };
+      }
+    } else {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+        signal,
+      });
+    }
 
     if (!response.ok) {
       const errText = await response.text();
@@ -284,7 +320,6 @@ export async function executeAiChat(
         ok: false,
         status: response.status,
         error: `${activeProvider} API error: ${response.status}`,
-        details: errText,
         activeProvider,
         activeModel,
       };

@@ -101,10 +101,14 @@ export class WebhookHandlers {
       stripeSubscriptionId: subscription.id,
     });
 
-    await creditService.syncUserCreditsWithTier(
-      user.id,
-      subscriptionTier as 'free' | 'advanced' | 'pro',
-    );
+    // Only re-grant credits when the tier actually changes; subscription.updated fires for many
+    // unrelated reasons (payment method, metadata, renewals) and must not refill the balance.
+    if ((user as any).subscriptionTier !== subscriptionTier) {
+      await creditService.syncUserCreditsWithTier(
+        user.id,
+        subscriptionTier as 'free' | 'advanced' | 'pro',
+      );
+    }
 
     console.log(`[Webhook] Updated user ${user.id}: tier=${subscriptionTier}, status=${subscriptionStatus}, credits synced (event: ${event.type})`);
   }

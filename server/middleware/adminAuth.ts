@@ -5,6 +5,13 @@ import { logAdminLogin } from "./auditLog";
 const ADMIN_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const activeAdminSessions = new Map<string, { expiresAt: number; username: string }>();
 
+function safeEqual(a: unknown, b: string): boolean {
+  if (typeof a !== 'string') return false;
+  const ha = crypto.createHash('sha256').update(a).digest();
+  const hb = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
 function generateSecureToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -27,18 +34,20 @@ export async function adminLogin(
 ): Promise<void> {
   const { username, password } = req.body;
 
-  const expectedUsername = process.env.ADMIN_USERNAME || 'admin';
+  const expectedUsername = process.env.ADMIN_USERNAME;
   const expectedPassword = process.env.ADMIN_PASSWORD;
 
-  if (!expectedPassword) {
-    console.error('ADMIN_PASSWORD environment variable not set');
+  if (!expectedUsername || !expectedPassword) {
+    console.error('ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set');
     res.status(500).json({ 
       error: "Admin access not configured" 
     });
     return;
   }
 
-  if (username === expectedUsername && password === expectedPassword) {
+  const usernameOk = safeEqual(username, expectedUsername);
+  const passwordOk = safeEqual(password, expectedPassword);
+  if (usernameOk && passwordOk) {
     const token = generateSecureToken();
     const expiresAt = Date.now() + ADMIN_TOKEN_EXPIRY_MS;
     
@@ -88,35 +97,6 @@ export function requireAdminAuth(
       error: "Session expired. Please login again." 
     });
     return;
-  }
-  
-  if (authHeader?.startsWith('Basic ')) {
-    const base64Credentials = authHeader.slice(6);
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    const [username, password] = credentials.split(':');
-
-    const expectedUsername = process.env.ADMIN_USERNAME || 'admin';
-    const expectedPassword = process.env.ADMIN_PASSWORD;
-
-    if (!expectedPassword) {
-      console.error('ADMIN_PASSWORD environment variable not set');
-      res.status(500).json({ 
-        error: "Admin access not configured" 
-      });
-      return;
-    }
-
-    if (username === expectedUsername && password === expectedPassword) {
-      (req as any).adminUser = username;
-      next();
-      return;
-    } else {
-      console.warn('Failed admin login attempt:', { username, ip: req.ip });
-      res.status(401).json({ 
-        error: "Invalid credentials" 
-      });
-      return;
-    }
   }
   
   res.status(401).json({ 

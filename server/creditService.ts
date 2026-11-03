@@ -139,10 +139,12 @@ export class CreditService {
     return TIER_DAILY_CREDITS.free;
   }
 
-  async deductCreditAtomic(userIdentifier: string, creditCost: number = 1, isAuthenticated: boolean = true): Promise<{ success: boolean; remainingCredits: number; isUnlimited?: boolean; creditCost: number }> {
+  async deductCreditAtomic(userIdentifier: string, creditCost: number = 1, isAuthenticated: boolean = true, honorReservations: boolean = false): Promise<{ success: boolean; remainingCredits: number; isUnlimited?: boolean; creditCost: number }> {
     try {
       const dailyCredits = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
 
+      // Synchronous callers must not spend credits that admitted async jobs have reserved.
+      const required = creditCost + (honorReservations ? this.getReservedCredits(userIdentifier) : 0);
       const result = await db.transaction(async (tx) => {
         const current = await tx.query.userCredits.findFirst({
           where: eq(userCredits.userIdentifier, userIdentifier),
@@ -155,7 +157,7 @@ export class CreditService {
             isUnlimited: false,
             lastResetAt: new Date(),
           });
-          if (dailyCredits < creditCost) {
+          if (dailyCredits < required) {
             throw new Error('INSUFFICIENT_CREDITS');
           }
         }
@@ -169,7 +171,7 @@ export class CreditService {
         }
 
         if (fresh && this.shouldResetCredits(fresh.lastResetAt)) {
-          if (dailyCredits < creditCost) {
+          if (dailyCredits < required) {
             throw new Error('INSUFFICIENT_CREDITS');
           }
 
@@ -192,7 +194,7 @@ export class CreditService {
           })
           .where(and(
             eq(userCredits.userIdentifier, userIdentifier),
-            sql`${userCredits.credits} >= ${creditCost}`
+            sql`${userCredits.credits} >= ${required}`
           ))
           .returning({ credits: userCredits.credits, isUnlimited: userCredits.isUnlimited });
 

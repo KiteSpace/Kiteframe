@@ -6304,6 +6304,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   const [showImportModal, setShowImportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [activeShareId, setActiveShareId] = useState<string | null>(null);
+
+  // Comments are keyed by the DB's projectUuid, which differs from the local tab.projectUuid. Until the
+  // server value is known (unsaved tab, or cloud list not yet refreshed) there are no comments to load.
+  const commentWorkflowId: string | null = activeTab?.cloudProjectId
+    ? (cloudProjects.find((p) => p.id === activeTab.cloudProjectId)?.projectUuid ?? null)
+    : (activeShareId ? activeTab?.projectUuid ?? null : null);
   const [isShareLocked, setIsShareLocked] = useState(false);
   const [commentPlacing, setCommentPlacing] = useState(false);
   const [shareViewerCount, setShareViewerCount] = useState(0);
@@ -14620,10 +14626,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                     // projectUuid (≠ the local tab.projectUuid used for localStorage).
                     // resolveCommentAuth looks up by projectUuid in the DB, so we
                     // must pass the server's value, not the local tab id.
-                    activeTab?.cloudProjectId
-                      ? (cloudProjects.find((p) => p.id === activeTab.cloudProjectId)?.projectUuid
-                          ?? activeTab?.projectUuid)
-                      : activeTab?.projectUuid
+                    commentWorkflowId
                   }
                   shareId={activeShareId ?? undefined}
                   isAuthenticated={isAuthenticated || !!serverUser}
@@ -14697,10 +14700,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 projectName={activeTab?.name}
                 onOpenWorkflowImport={() => setShowImportModal(true)}
                 commentWorkflowId={
-                  activeTab?.cloudProjectId
-                    ? (cloudProjects.find((p) => p.id === activeTab.cloudProjectId)?.projectUuid
-                        ?? activeTab?.projectUuid)
-                    : activeTab?.projectUuid
+                  commentWorkflowId
                 }
                 commentShareId={activeShareId ?? undefined}
                 onProjectNameChange={(name) => updateActiveTab({ name })}

@@ -158,3 +158,15 @@ export const externalApiRateLimiter = rateLimit({
   keyGenerator: getExternalApiKey,
   validate: { keyGeneratorIpFallback: false }
 });
+
+export const adminApiRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: {
+    error: 'Too many admin requests. Please try again later.',
+    retryAfter: 900
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false },
+});
