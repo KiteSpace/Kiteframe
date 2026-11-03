@@ -103,7 +103,7 @@ export class WebhookHandlers {
 
     // Only re-grant credits when the tier actually changes; subscription.updated fires for many
     // unrelated reasons (payment method, metadata, renewals) and must not refill the balance.
-    if ((user as any).subscriptionTier !== subscriptionTier) {
+    if (user.subscriptionTier !== subscriptionTier) {
       await creditService.syncUserCreditsWithTier(
         user.id,
         subscriptionTier as 'free' | 'advanced' | 'pro',
