@@ -3488,206 +3488,46 @@ Only include screens that need changes. "modify" requires both description and d
   // AI Test endpoint - validate API key and model compatibility
   app.post('/api/ai/test', isAuthenticated, aiRateLimiter, requireCredits, async (req, res) => {
     try {
-      const { provider, apiKey, customEndpoint } = req.body;
-      if (provider && provider !== 'anthropic') {
+      const provider = 'anthropic';
+      const { apiKey } = req.body;
+      if (req.body.provider && req.body.provider !== 'anthropic') {
         return res.status(400).json({ error: 'Only Claude models are supported.' });
       }
-      if (customEndpoint !== undefined && customEndpoint !== null && customEndpoint !== '') {
-        if (typeof customEndpoint !== 'string') {
-          return res.status(400).json({ error: 'Invalid endpoint' });
-        }
-        try {
-          parsePublicUrl(customEndpoint);
-        } catch (e: any) {
-          return res.status(400).json({ error: e?.message || 'Endpoint not allowed' });
-        }
-      }
-      
-      // Set default models for each provider
+
       let model = req.body.model;
-      console.log('Test model received:', { model, type: typeof model, provider });
-      
       if (!model || model === 'undefined' || model === 'null' || (typeof model === 'string' && model.trim() === '')) {
-        console.log('Setting default model for provider:', provider);
-        switch (provider) {
-          case 'anthropic':
-            model = 'claude-haiku-4-5-20251001';
-            break;
-          case 'kiteframe':
-            model = 'llama3.2:3b';
-            break;
-          case 'ollama':
-            model = 'llama3.2:3b';
-            break;
-          default:
-            model = 'claude-haiku-4-5-20251001';
-        }
-        console.log('Default model set to:', model);
+        model = 'claude-haiku-4-5-20251001';
       }
       if (typeof model !== 'string' || !model.startsWith('claude-')) {
         return res.status(400).json({ error: 'Only Claude models are supported.' });
       }
-      
-      // For Anthropic, always use environment key. For others, require API key unless it's ollama/kiteframe
-      let finalApiKey = apiKey;
-      if (provider === 'anthropic' && !finalApiKey) {
-        finalApiKey = process.env.ANTHROPIC_API_KEY;
-        if (!finalApiKey) {
-          return res.status(500).json({ error: 'Anthropic API key not configured on server' });
-        }
-      } else if (!finalApiKey && provider !== 'ollama' && provider !== 'kiteframe') {
-        return res.status(400).json({ error: 'API key is required for testing' });
-      }
 
-      // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
-      // Skip validation for Ollama and Kiteframe which don't need API keys
-      let cleanApiKey = '';
-      if (provider !== 'ollama' && provider !== 'kiteframe' && finalApiKey) {
-        cleanApiKey = finalApiKey.trim();
-        console.log('API Key validation:', { 
-          length: cleanApiKey.length, 
-          firstChar: cleanApiKey.charCodeAt(0),
-          lastChar: cleanApiKey.charCodeAt(cleanApiKey.length - 1),
-          hasNonASCII: !/^[\x20-\x7E]*$/.test(cleanApiKey)
-        });
-        
-        if (!/^[\x20-\x7E]*$/.test(cleanApiKey)) {
-          return res.status(400).json({ 
-            error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.' 
-          });
-        }
+      const testApiKey = (typeof apiKey === 'string' ? apiKey.trim() : '') || process.env.ANTHROPIC_API_KEY;
+      if (!testApiKey) {
+        return res.status(500).json({ error: 'Anthropic API key not configured on server' });
       }
-
-      // Additional provider-specific validation using cleaned key
-      if (provider === 'anthropic' && cleanApiKey && !cleanApiKey.startsWith('sk-ant-')) {
-        return res.status(400).json({ 
-          error: 'Anthropic API keys should start with "sk-ant-"' 
+      if (!/^[\x20-\x7E]*$/.test(testApiKey)) {
+        return res.status(400).json({
+          error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.'
         });
       }
-
-      // Use cleaned API key for requests (or already set environment key for OpenAI)
-      const testApiKey = cleanApiKey || finalApiKey;
-
-      let testUrl: string;
-      let headers: Record<string, string>;
-
-      // Configure endpoints and headers based on provider
-      switch (provider) {
-        case 'anthropic':
-          testUrl = 'https://api.anthropic.com/v1/messages';
-          headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': testApiKey,
-            'anthropic-version': '2023-06-01'
-          };
-          break;
-        case 'ollama':
-          const ollamaEndpoint = customEndpoint || process.env.OLLAMA_URL;
-          if (!ollamaEndpoint) {
-            return res.status(400).json({ error: 'Ollama endpoint is required' });
-          }
-          testUrl = `${ollamaEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-          headers = {
-            'Content-Type': 'application/json'
-            // Ollama doesn't require Authorization for local usage
-          };
-          break;
-        case 'kiteframe':
-          testUrl = 'https://kiteline-ai.replit.app/v1/chat/completions';
-          headers = {
-            'Content-Type': 'application/json'
-            // Kiteframe managed service - no auth required
-          };
-          break;
-        case 'custom':
-          if (!customEndpoint) {
-            return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
-          }
-          // Auto-detect if this is an Ollama endpoint by checking if it needs auth
-          const isOllamaEndpoint = customEndpoint.includes('ollama') || !finalApiKey;
-          testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-          headers = {
-            'Content-Type': 'application/json',
-            ...(isOllamaEndpoint ? {} : { 'Authorization': `Bearer ${finalApiKey}` })
-          };
-          break;
-        default:
-          return res.status(400).json({ error: 'Unsupported provider' });
+      if (!testApiKey.startsWith('sk-ant-')) {
+        return res.status(400).json({ error: 'Anthropic API keys should start with "sk-ant-"' });
       }
 
-      // Make test request with provider-specific format
-      let requestBody: any;
-      if (provider === 'anthropic') {
-        requestBody = {
+      const response: any = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': testApiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
           model,
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }]
-        };
-      } else if (provider === 'ollama') {
-        requestBody = {
-          model,
-          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-          max_tokens: 10,
-          temperature: 0.1,
-          stream: false
-        };
-      } else if (provider === 'kiteframe') {
-        // For KitelineAI, first check if model is available and load if needed
-        console.log('KitelineAI model check for:', model);
-        try {
-          const tagsResponse = await fetch('https://kiteline-ai.replit.app/api/tags');
-          const tagsData = await tagsResponse.json();
-          const availableModels = tagsData.models?.map((m: any) => m.name) || [];
-          console.log('Available KitelineAI models:', availableModels);
-          
-          if (!availableModels.includes(model)) {
-            return res.status(404).json({ 
-              error: `Model ${model} not available on KitelineAI. Available models: ${availableModels.join(', ')}` 
-            });
-          }
-        } catch (tagsError) {
-          console.warn('Could not check KitelineAI model availability:', tagsError);
-        }
-        
-        requestBody = {
-          model,
-          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-          max_tokens: 10,
-          temperature: 0.1,
-          stream: false
-        };
-      } else {
-        // Custom or unknown provider - use OpenAI-compatible format
-        {
-          requestBody = {
-            model,
-            messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-            max_tokens: 10,
-            temperature: 0.1
-          };
-        }
-      }
-
-      let response: any;
-      if ((provider === 'ollama' || provider === 'custom') && customEndpoint) {
-        try {
-          response = await safeFetch(testUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(requestBody),
-            timeoutMs: 30000,
-            maxBytes: 1024 * 1024,
-          });
-        } catch (e: any) {
-          return res.status(400).json({ error: e instanceof UnsafeUrlError ? e.message : 'Endpoint unreachable' });
-        }
-      } else {
-        response = await fetch(testUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody)
-        });
-      }
+        })
+      });
 
       if (!response.ok) {
         const error = await response.text();
@@ -3746,11 +3586,7 @@ Only include screens that need changes. "modify" requires both description and d
       const json = await response.json();
       let responseText = '';
       
-      if (provider === 'anthropic') {
-        responseText = json.content?.[0]?.text || '';
-      } else {
-        responseText = json.choices?.[0]?.message?.content || '';
-      }
+      responseText = json.content?.[0]?.text || '';
 
       res.json({ 
         success: true, 
@@ -3761,26 +3597,6 @@ Only include screens that need changes. "modify" requires both description and d
 
     } catch (error: any) {
       console.error('AI test error:', error);
-      
-      // Handle Ollama and Kiteframe-specific connection errors
-      if (req.body.provider === 'ollama' || req.body.provider === 'kiteframe') {
-        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
-          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-          return res.status(400).json({ 
-            error: `${serviceName} service not available. ${req.body.provider === 'ollama' ? 'Please start Ollama with: ollama serve' : 'Please try again later or contact support.'}` 
-          });
-        }
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-          return res.status(400).json({ 
-            error: `Cannot connect to ${serviceName}. Make sure it is running on the configured endpoint.` 
-          });
-        }
-        const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-        return res.status(400).json({ 
-          error: `${serviceName} connection failed. Ensure the service is running and accessible.` 
-        });
-      }
       
       // Handle specific Unicode/ByteString encoding errors
       if (error instanceof TypeError && error.message.includes('ByteString')) {

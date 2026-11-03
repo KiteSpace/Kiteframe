@@ -1,5 +1,4 @@
 import { sanitizeAiPrompt, MAX_AI_PROMPT_CHARS } from "./utils/sanitize";
-import { safeFetch, parsePublicUrl, UnsafeUrlError } from './lib/safeFetch';
 
 export interface AiChatExecResult {
   ok: boolean;
@@ -187,7 +186,7 @@ export async function executeAiChat(
       return { ok: false, status: 400, error: 'Only Claude models are supported.' };
     }
 
-    if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
+    if (!activeApiKey) {
       return {
         ok: false,
         status: 401,
@@ -199,110 +198,39 @@ export async function executeAiChat(
     let headers: Record<string, string>;
     let requestBody: any;
 
-    if (activeProvider === 'anthropic') {
-      endpoint = 'https://api.anthropic.com/v1/messages';
-      headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': activeApiKey!,
-        'anthropic-version': '2023-06-01',
-      };
-      const systemParts: string[] = [];
-      const anthropicMessages = messages.filter((msg: any) => {
-        if (msg.role === 'system') {
-          const content = typeof msg.content === 'string'
-            ? msg.content
-            : Array.isArray(msg.content)
-              ? msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
-              : '';
-          if (content) systemParts.push(content);
-          return false;
-        }
-        return true;
-      });
-      const systemPrompt = systemParts.join('\n\n');
-      requestBody = {
-        model: activeModel,
-        max_tokens: clampMaxTokens(maxTokens, 1024),
-        ...(systemPrompt ? { system: systemPrompt } : {}),
-        messages: anthropicMessages,
-      };
-    } else if (activeProvider === 'ollama') {
-      const { customEndpoint } = body;
-      if (!customEndpoint && !process.env.OLLAMA_URL) {
-        return { ok: false, status: 400, error: 'Ollama endpoint is required' };
+    endpoint = 'https://api.anthropic.com/v1/messages';
+    headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': activeApiKey!,
+      'anthropic-version': '2023-06-01',
+    };
+    const systemParts: string[] = [];
+    const anthropicMessages = messages.filter((msg: any) => {
+      if (msg.role === 'system') {
+        const content = typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
+            : '';
+        if (content) systemParts.push(content);
+        return false;
       }
-      if (customEndpoint) {
-        try { parsePublicUrl(customEndpoint); } catch (e: any) { return { ok: false, status: 400, error: e?.message || 'Endpoint not allowed' }; }
-      }
-      endpoint = `${(customEndpoint || process.env.OLLAMA_URL).replace(/\/$/, '')}/v1/chat/completions`;
-      headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: clampMaxTokens(maxTokens, 4096), stream: false };
-    } else if (activeProvider === 'kiteframe') {
-      endpoint = 'https://kiteline-ai.replit.app/v1/chat/completions';
-      headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: clampMaxTokens(maxTokens, 4096), stream: false };
-    } else if (activeProvider === 'custom') {
-      const { customEndpoint } = body;
-      if (!customEndpoint) {
-        return { ok: false, status: 400, error: 'Custom endpoint is required for custom provider' };
-      }
-      try { parsePublicUrl(customEndpoint); } catch (e: any) { return { ok: false, status: 400, error: e?.message || 'Endpoint not allowed' }; }
-      const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
-      const isCustomOpenAI = customEndpoint.includes('api.openai.com');
-      const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
-      endpoint = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-      headers = {
-        'Content-Type': 'application/json',
-        ...(isCustomOllama ? {} : { 'Authorization': `Bearer ${activeApiKey}` }),
-      };
-      if (isCustomOpenAI && isGpt5Model) {
-        requestBody = { model: activeModel, messages, max_completion_tokens: clampMaxTokens(maxTokens, 4096) };
-      } else {
-        requestBody = {
-          model: activeModel,
-          messages,
-          temperature,
-          max_tokens: clampMaxTokens(maxTokens, 4096),
-          ...(isCustomOllama ? { stream: false } : {}),
-        };
-      }
-    } else {
-      endpoint = 'https://api.anthropic.com/v1/messages';
-      const fallbackKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
-      headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': fallbackKey || '',
-        'anthropic-version': '2023-06-01',
-      };
-      requestBody = {
-        model: activeModel || 'claude-haiku-4-5-20251001',
-        messages,
-        max_tokens: clampMaxTokens(maxTokens, 1024),
-      };
-    }
+      return true;
+    });
+    const systemPrompt = systemParts.join('\n\n');
+    requestBody = {
+      model: activeModel,
+      max_tokens: clampMaxTokens(maxTokens, 1024),
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: anthropicMessages,
+    };
 
-    const usesUserEndpoint = (activeProvider === 'ollama' || activeProvider === 'custom') && !!body.customEndpoint;
-    let response: any;
-    if (usesUserEndpoint) {
-      try {
-        response = await safeFetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody),
-          timeoutMs: 120000,
-          maxBytes: 10 * 1024 * 1024,
-        });
-      } catch (e: any) {
-        return { ok: false, status: 400, error: e instanceof UnsafeUrlError ? e.message : `${activeProvider} endpoint unreachable` };
-      }
-    } else {
-      response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody),
-        signal,
-      });
-    }
+    const response: any = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal,
+    });
 
     if (!response.ok) {
       const errText = await response.text();
@@ -329,11 +257,7 @@ export async function executeAiChat(
 
     const json = await response.json();
     let responseText = '';
-    if (activeProvider === 'anthropic') {
-      responseText = json.content?.[0]?.text || '';
-    } else {
-      responseText = json.choices?.[0]?.message?.content || '';
-    }
+    responseText = json.content?.[0]?.text || '';
 
     return {
       ok: true,
@@ -351,22 +275,6 @@ export async function executeAiChat(
       return { ok: false, status: 499, error: 'Cancelled by client' };
     }
     console.error('executeAiChat error:', error);
-    if (body?.provider === 'ollama' || body?.provider === 'kiteframe') {
-      const serviceName = body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') ||
-          (error instanceof TypeError && error.message?.includes('fetch'))) {
-        return {
-          ok: false,
-          status: 400,
-          error: `${serviceName} service not available. ${body.provider === 'ollama' ? 'Please start Ollama locally with: ollama serve' : 'Please try again later or contact support.'}`,
-        };
-      }
-      return {
-        ok: false,
-        status: 400,
-        error: `${serviceName} connection failed. Ensure the service is running and accessible.`,
-      };
-    }
     return { ok: false, status: 500, error: 'Internal server error' };
   }
 }

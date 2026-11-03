@@ -98,8 +98,7 @@ export default function ViewOnlyViewer() {
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (settings.provider === 'custom' && settings.customEndpoint) baseURL = settings.customEndpoint;
-        if (settings.model && settings.model !== 'custom') defaultModel = settings.model;
+        if (typeof settings.model === 'string' && settings.model.startsWith('claude-')) defaultModel = settings.model;
       } catch {
         // Ignore parse errors
       }
