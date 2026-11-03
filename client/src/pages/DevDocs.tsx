@@ -306,7 +306,7 @@ function ArchitectureDiagram() {
           />
           <DiagramBox 
             title="AI Services" 
-            items={['OpenAI GPT-4o', 'Ollama (KitelineAI)', 'Vision Pipeline', 'Workflow Generation']}
+            items={['Anthropic Claude', 'Vision Pipeline', 'Workflow Generation', 'Credit Metering']}
             color="pink"
           />
         </div>
@@ -2147,14 +2147,6 @@ function DocumentationContent({ sectionId }: { sectionId: string }) {
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">KitelineAI</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Dedicated Ollama service for privacy-focused AI processing. Runs on Replit Autoscale with optimized models (Gemma2 2B, Llama 3.2 3B).
-              </CardContent>
-            </Card>
           </div>
         </div>
       );
@@ -2412,29 +2404,20 @@ export type InsertUser = z.infer<typeof insertUserSchema>;`} />
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Cpu className="w-5 h-5 text-purple-500" />
-                  OpenAI
+                  Anthropic Claude
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Primary AI provider using GPT-4o for workflow generation, PRD creation, and image analysis. Standard privacy tier.
+                The only AI provider. Claude Haiku, Sonnet and Opus power workflow generation, PRD creation, chat and image analysis.
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">KitelineAI (Ollama)</CardTitle>
+                <CardTitle className="text-lg">Server-side calls</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Self-hosted Ollama service for maximum privacy. Runs on Replit Autoscale with Gemma2 2B and Llama 3.2 3B models optimized for fast startup.
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">API Compatibility</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Both providers use OpenAI-compatible API format, allowing seamless switching between cloud and local AI.
+                The browser never calls a model directly. Requests go to the server's AI job API, which checks credits and calls the Anthropic Messages API with the server's key. Non-Claude models and custom endpoints are rejected.
               </CardContent>
             </Card>
           </div>
@@ -2473,7 +2456,6 @@ export type InsertUser = z.infer<typeof insertUserSchema>;`} />
                 <div>@neondatabase/serverless</div>
                 <div>passport: ^0.7.x</div>
                 <div>stripe: latest</div>
-                <div>openai: latest</div>
                 <div>zod: ^3.x</div>
                 <div>multer: latest</div>
               </CardContent>
@@ -2614,7 +2596,7 @@ export class MemStorage implements IStorage {
                   <li>User input enters KiteAI state machine</li>
                   <li>Actionability scoring evaluates completeness</li>
                   <li>PM depth guards validate reasoning quality</li>
-                  <li>Request sent to AI provider (OpenAI/Ollama)</li>
+                  <li>Request sent to Claude through the server's AI job API</li>
                   <li>Response parsed into workflow nodes/edges</li>
                   <li>Canvas renders generated workflow</li>
                 </ol>
@@ -3303,7 +3285,7 @@ kiteFrameCore.use(myCustomPlugin);`} />
               <div><strong>Vision Pipeline:</strong> Unified processing for images, Figma, and text</div>
               <div><strong>Actionability Scoring:</strong> Evaluates input completeness for generation</div>
               <div><strong>PM Depth Guards:</strong> Ensures meaningful product decisions in workflows</div>
-              <div><strong>Provider System:</strong> Abstracts OpenAI and Ollama behind common interface</div>
+              <div><strong>AI Router:</strong> Picks a Claude model per task type and sends every request through the server</div>
             </CardContent>
           </Card>
           
@@ -3621,61 +3603,36 @@ export function validatePMDepth(workflow: Workflow): ValidationResult {
     case 'ai-providers':
       return (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold mb-4">AI Providers</h2>
+          <h2 className="text-2xl font-bold mb-4">AI Provider</h2>
           
           <p className="text-muted-foreground mb-4">
-            The AI provider system abstracts different AI services behind a common interface.
+            Kiteframe runs on Anthropic Claude only. The server rejects any other provider, model or custom endpoint.
           </p>
           
           <div className="grid gap-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">OpenAI (Standard Privacy)</CardTitle>
+                <CardTitle className="text-lg">Claude models</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Uses GPT-4o for highest quality generation. Data processed by OpenAI servers.
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">KitelineAI (Maximum Privacy)</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Self-hosted Ollama on Replit Autoscale. Data processed but never stored.
-                Uses Gemma2 2B and Llama 3.2 3B optimized for fast cold starts.
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Local Ollama</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                Connect to locally-running Ollama instance. Full data sovereignty.
+                Haiku 4.5 (fast), Sonnet 4.5 (recommended) and Opus 4.5 (most capable). Users pick a model for general chat in AI Settings; workflow generation uses a system-recommended model.
               </CardContent>
             </Card>
           </div>
           
-          <CodeBlock code={`// AI Provider Context
-interface AIProviderConfig {
-  type: 'openai' | 'ollama-kitelineai' | 'ollama-local' | 'ollama-custom';
-  model?: string;
-  endpoint?: string;
-  apiKey?: string;
-}
-
-// All providers use OpenAI-compatible API
-const response = await fetch(\`\${endpoint}/v1/chat/completions\`, {
+          <CodeBlock code={`// Server: every AI request goes to the Anthropic Messages API
+const response = await fetch('https://api.anthropic.com/v1/messages', {
   method: 'POST',
-  headers: { 
+  headers: {
     'Content-Type': 'application/json',
-    'Authorization': \`Bearer \${apiKey}\`
+    'x-api-key': process.env.ANTHROPIC_API_KEY,
+    'anthropic-version': '2023-06-01',
   },
   body: JSON.stringify({
-    model,
+    model, // must start with 'claude-'
+    max_tokens,
+    system,
     messages,
-    stream: true,
   }),
 });`} />
         </div>
