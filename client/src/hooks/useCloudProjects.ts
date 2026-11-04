@@ -156,17 +156,25 @@ export function useCloudProjects() {
     }
   }, [hasCloudAccess, createProjectMutation]);
 
-  // Last server updatedAt we saved or loaded per project, sent back so the server can reject stale overwrites.
-  const lastUpdatedAt = useRef(new Map<string, string>());
+  // Project revision this tab last saw per project, sent back so the server rejects saves over newer work.
+  // Taken from the first project list we load, then only from our own saves.
+  const knownRev = useRef(new Map<string, number>());
+  useEffect(() => {
+    for (const project of data?.projects ?? []) {
+      if (!knownRev.current.has(project.id) && typeof project.rev === 'number') {
+        knownRev.current.set(project.id, project.rev);
+      }
+    }
+  }, [data?.projects]);
   const updateProject = useCallback(async (params: UpdateProjectParams): Promise<SavedProject | null> => {
     if (!hasCloudAccess) return null;
     try {
-      const baseUpdatedAt = lastUpdatedAt.current.get(String(params.id));
+      const baseRev = knownRev.current.get(String(params.id));
       const result = await updateProjectMutation.mutateAsync(
-        baseUpdatedAt ? ({ ...params, baseUpdatedAt } as UpdateProjectParams) : params,
+        baseRev !== undefined ? ({ ...params, baseRev } as UpdateProjectParams) : params,
       );
-      if (result?.project?.updatedAt) {
-        lastUpdatedAt.current.set(String(params.id), String(result.project.updatedAt));
+      if (typeof result?.project?.rev === 'number') {
+        knownRev.current.set(String(params.id), result.project.rev);
       }
       return result.project;
     } catch (e) {

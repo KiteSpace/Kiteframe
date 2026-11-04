@@ -224,6 +224,7 @@ function ensureJobsTable(): Promise<unknown> {
         updated_at timestamptz NOT NULL DEFAULT now()
       )`,
     )
+    .then(() => pool.query(`CREATE INDEX IF NOT EXISTS ai_jobs_updated_at_idx ON ai_jobs (updated_at)`))
     .catch((error: unknown) => {
       jobsTableReady = null;
       throw error;
@@ -327,7 +328,8 @@ export async function requestRemoteCancel(id: string): Promise<void> {
   await pool.query(`UPDATE ai_jobs SET cancel_requested = true WHERE id = $1`, [id]);
 }
 
-// Owners pick up cancels requested on other instances and clean old rows.
+// Owners poll for cancels requested on other instances, only while they run jobs.
+// Old rows are cleaned every 10 minutes.
 if (!useMemoryStore) {
   setInterval(async () => {
     try {
@@ -348,9 +350,17 @@ if (!useMemoryStore) {
           }
         }
       }
-      await pool.query(`DELETE FROM ai_jobs WHERE updated_at < now() - interval '1 day'`);
     } catch (error) {
       console.error('[aiJobStore] shared job sync failed:', error);
     }
   }, 2000).unref?.();
+
+  setInterval(async () => {
+    try {
+      await ensureJobsTable();
+      await pool.query(`DELETE FROM ai_jobs WHERE updated_at < now() - interval '1 day'`);
+    } catch (error) {
+      console.error('[aiJobStore] old job cleanup failed:', error);
+    }
+  }, 10 * 60 * 1000).unref?.();
 }

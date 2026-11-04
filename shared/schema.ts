@@ -209,6 +209,7 @@ export const savedProjects = pgTable("saved_projects", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   lastSharedAt: timestamp("last_shared_at"), // When sharing was last enabled
+  rev: integer("rev").notNull().default(0), // Bumped by full project saves; stale saves get 409
 }, (table) => [
   index("IDX_saved_projects_user").on(table.userId),
   index("IDX_saved_projects_folder").on(table.folderId),

@@ -197,6 +197,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Added outside drizzle-kit so deploys don't need a manual db:push.
+  try {
+    const { pool } = await import("./db");
+    await pool.query("ALTER TABLE saved_projects ADD COLUMN IF NOT EXISTS rev integer NOT NULL DEFAULT 0");
+  } catch (error) {
+    console.error("Failed to add saved_projects.rev column:", error);
+  }
   const server = await registerRoutes(app);
 
   // Seed feature flags in the background — non-blocking so port opens immediately

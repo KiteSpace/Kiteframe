@@ -41,6 +41,12 @@ import {
 import { db } from "./db";
 import { eq, desc, and, inArray, isNotNull, sql, lt } from "drizzle-orm";
 
+/** Full project saves bump `rev`; passing `expectedRev` makes the write fail if another save landed first. */
+export interface SavedProjectWriteOptions {
+  expectedRev?: number;
+  bumpRev?: boolean;
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
@@ -56,7 +62,7 @@ export interface IStorage {
   disableProjectSharing(id: string, userId: string): Promise<SavedProject | undefined>;
   setProjectShareLock(id: string, userId: string, locked: boolean): Promise<SavedProject | undefined>;
   createSavedProject(project: InsertSavedProject): Promise<SavedProject>;
-  updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined>;
+  updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>, opts?: SavedProjectWriteOptions): Promise<SavedProject | undefined>;
   mutateProjectWorkflowData(
     projectUuid: string,
     userId: string,
@@ -276,14 +282,22 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateSavedProject(id: string, userId: string, data: Partial<InsertSavedProject>): Promise<SavedProject | undefined> {
+  async updateSavedProject(
+    id: string,
+    userId: string,
+    data: Partial<InsertSavedProject>,
+    opts: SavedProjectWriteOptions = {},
+  ): Promise<SavedProject | undefined> {
+    const conditions = [eq(savedProjects.id, id), eq(savedProjects.userId, userId)];
+    if (opts.expectedRev !== undefined) conditions.push(eq(savedProjects.rev, opts.expectedRev));
     const [updated] = await db
       .update(savedProjects)
       .set({
         ...data,
         updatedAt: new Date(),
+        ...(opts.bumpRev ? { rev: sql`${savedProjects.rev} + 1` } : {}),
       })
-      .where(and(eq(savedProjects.id, id), eq(savedProjects.userId, userId)))
+      .where(and(...conditions))
       .returning();
     return updated;
   }

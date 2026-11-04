@@ -763,13 +763,12 @@ export async function setupAuth(app: Express) {
   function isAllowedOriginDomain(domain: string, callbackHost: string): boolean {
     const host = String(domain).toLowerCase();
     if (!/^[a-z0-9.-]+(:[0-9]+)?$/.test(host)) return false;
-    const extra = (process.env.ALLOWED_AUTH_DOMAINS || process.env.REPLIT_DOMAINS || '')
-      .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+    const extra = [process.env.ALLOWED_AUTH_DOMAINS, process.env.REPLIT_DOMAINS, process.env.REPLIT_DEV_DOMAIN]
+      .join(',').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
     return (
       host === callbackHost.toLowerCase() ||
       extra.includes(host) ||
-      host === 'kiteframe.space' || host.endsWith('.kiteframe.space') ||
-      host.endsWith('.replit.app') || host.endsWith('.replit.dev')
+      host === 'kiteframe.space' || host.endsWith('.kiteframe.space')
     );
   }
 

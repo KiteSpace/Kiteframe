@@ -1458,14 +1458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const { baseUpdatedAt } = req.body ?? {};
-      if (baseUpdatedAt) {
-        const current = await storage.getSavedProject(id, userId);
-        const base = new Date(baseUpdatedAt).getTime();
-        if (current?.updatedAt && !Number.isNaN(base) && new Date(current.updatedAt).getTime() > base) {
-          return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
-        }
-      }
+      const baseRev = Number.isInteger(req.body?.baseRev) ? (req.body.baseRev as number) : undefined;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
       // Sanitize all input data
@@ -1494,9 +1487,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderId,
         tags: sanitizedTags,
         isPublic,
-      });
+      }, { expectedRev: baseRev, bumpRev: true });
 
       if (!project) {
+        const current = baseRev !== undefined ? await storage.getSavedProject(id, userId) : undefined;
+        if (current) {
+          return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
+        }
         return res.status(404).json({ error: 'Project not found' });
       }
 
@@ -1889,6 +1886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Not authorized to edit this project' });
       }
 
+      const baseRev = Number.isInteger(req.body?.baseRev) ? (req.body.baseRev as number) : undefined;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
       
       // Sanitize all input data
@@ -1912,9 +1910,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderId,
         tags: sanitizedTags,
         isPublic,
-      });
+      }, { expectedRev: baseRev, bumpRev: true });
 
       if (!updated) {
+        if (baseRev !== undefined) {
+          const current = await storage.getSavedProject(project.id, userId);
+          if (current) {
+            return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
+          }
+        }
         return res.status(404).json({ error: 'Project not found' });
       }
 
@@ -3770,7 +3774,7 @@ Respond with only the corrected JSON data:`;
   // Uploaded images stay readable by URL so share links work logged out, but only
   // for upload IDs, never served as active content, and private ACLs are honored.
   app.get("/objects/:objectPath(*)", async (req, res) => {
-    if (!/^\/objects\/uploads\/[0-9a-f-]{36}$/i.test(req.path)) {
+    if (!/^\/objects\/uploads\/[0-9a-f-]{36}(\.(jpe?g|png|gif|webp|bin))?$/i.test(req.path)) {
       return res.sendStatus(404);
     }
     const objectStorageService = new ObjectStorageService();
@@ -4110,6 +4114,9 @@ Respond with only the corrected JSON data:`;
       if (!auth.authorized) {
         return res.status(403).json({ error: 'Not allowed to update this comment' });
       }
+      if (!auth.isOwner && !auth.userId) {
+        return res.status(401).json({ error: 'Sign in to update comments on this project' });
+      }
 
       const updated = await storage.setCommentResolved(id, isResolved);
       (app as any).broadcastCommentEvent?.(existing.workflowId, 'resolve', updated);
@@ -4140,6 +4147,9 @@ Respond with only the corrected JSON data:`;
       const auth = await resolveCommentAuth(req, existing.workflowId);
       if (!auth.authorized) {
         return res.status(403).json({ error: 'Not allowed to update this comment' });
+      }
+      if (!auth.isOwner && !auth.userId) {
+        return res.status(401).json({ error: 'Sign in to update comments on this project' });
       }
 
       const updated = await storage.setCommentPosition(id, positionX, positionY);
