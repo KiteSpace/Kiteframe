@@ -105,6 +105,11 @@ export class ObjectStorageService {
       // Set appropriate headers
       res.set({
         "Content-Type": metadata.contentType || "application/octet-stream",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        ...(String(metadata.contentType || '').match(/^image\/(png|jpeg|gif|webp)$/)
+          ? {}
+          : { "Content-Disposition": "attachment" }),
         "Content-Length": metadata.size,
         "Cache-Control": `${
           isPublic ? "public" : "private"
@@ -211,7 +216,7 @@ export class ObjectStorageService {
     const privateObjectDir = this.getPrivateObjectDir();
     const objectId = randomUUID();
     const rawExt = originalFilename.split('.').pop()?.toLowerCase() || 'bin';
-    const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(rawExt) ? rawExt : 'bin';
+    const safeExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(rawExt) ? rawExt : 'bin';
     const objectName = `uploads/${objectId}.${safeExt}`;
     const fullPath = privateObjectDir.replace(/\/$/, '') + '/' + objectName;
     const { bucketName, objectName: gcObjectName } = parseObjectPath(fullPath);

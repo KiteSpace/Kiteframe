@@ -42,38 +42,12 @@ export class GeolocationService {
     );
   }
 
+  /** Client IP as resolved by Express using the `trust proxy` setting; raw client-supplied forwarding headers are never read. */
   getUserIP(req: Request): string {
-    const forwardedFor = req.headers['x-forwarded-for'];
-    if (forwardedFor) {
-      const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-      const clientIP = ips.split(',')[0].trim();
-      
-      // Validate it's not a private IP (could be spoofed)
-      if (!this.isPrivateIP(clientIP)) {
-        return clientIP;
-      }
-    }
-    
-    const realIP = req.headers['x-real-ip'];
-    if (realIP && typeof realIP === 'string' && !this.isPrivateIP(realIP)) {
-      return realIP;
-    }
-    
-    return req.socket.remoteAddress || req.ip || '127.0.0.1';
+    return req.ip || req.socket.remoteAddress || 'unknown';
   }
 
   async getCountryCode(req: Request): Promise<GeolocationResult> {
-    // Method 1: Use Cloudflare's cf-ipcountry header (most reliable on Replit)
-    const cfCountry = req.headers['cf-ipcountry'];
-    if (cfCountry && typeof cfCountry === 'string' && cfCountry !== 'XX') {
-      console.log(`🌍 Region check: ${cfCountry} (Cloudflare header)`);
-      return {
-        country: cfCountry,
-        ip: this.getUserIP(req),
-        source: 'cloudflare'
-      };
-    }
-
     // Method 2: Check if it's a local/private IP
     const ip = this.getUserIP(req);
     if (this.isPrivateIP(ip)) {
@@ -149,14 +123,12 @@ export class GeolocationService {
         reason: isUS ? 'US access granted' : 'Non-US location detected'
       };
     } catch (error) {
-      // Fail-open: Allow access when geolocation check fails
-      // This prevents legitimate US users from being blocked by API issues
-      console.error('⚠️ Region check failed, allowing access (fail-open):', error);
+      console.error('⚠️ Region check failed, denying access (fail-closed):', error);
       return {
-        allowed: true,
+        allowed: false,
         country: 'UNKNOWN',
         source: 'unknown',
-        reason: 'Geolocation verification failed - access granted (fail-open)'
+        reason: 'Geolocation verification failed - access denied'
       };
     }
   }

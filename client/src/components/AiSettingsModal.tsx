@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,10 +11,8 @@ import { Bot, Loader2 } from 'lucide-react';
 interface AiSettings {
   provider: string;
   model: string;
-  customModel?: string;
   apiKey: string;
   temperature: number;
-  customEndpoint?: string;
 }
 
 interface AiSettingsModalProps {
@@ -36,9 +33,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (Fast)' },
       { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (Recommended)' },
       { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (Most Capable)' },
-    ],
-    custom: [
-      { value: 'custom', label: 'Custom Model' }
     ]
   };
 
@@ -60,12 +54,13 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         const fixedSettings = { ...parsed };
 
         // Migrate any GPT/OpenAI settings to Claude
-        if (!fixedSettings.provider || fixedSettings.provider === 'openai' || fixedSettings.provider === 'kiteframe') {
+        if (fixedSettings.provider !== 'anthropic') {
           fixedSettings.provider = 'anthropic';
           fixedSettings.model = 'claude-sonnet-4-5-20250929';
           fixedSettings.apiKey = '';
-          fixedSettings.customEndpoint = '';
         }
+        delete fixedSettings.customEndpoint;
+        delete fixedSettings.customModel;
 
         // Fix invalid model names
         if (fixedSettings.provider === 'anthropic' && (
@@ -84,80 +79,26 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
     }
   }, []);
 
-  const handleProviderChange = (provider: string) => {
-    const currentModels = modelOptions[provider as keyof typeof modelOptions] || modelOptions.custom;
-    const defaultModel = currentModels[0]?.value || 'custom';
-
-    setSettings(prev => ({
-      ...prev,
-      provider,
-      model: defaultModel,
-      customModel: provider === 'custom' ? prev.customModel : '',
-      customEndpoint: provider === 'custom' ? prev.customEndpoint || '' : ''
-    }));
-  };
-
   const handleModelChange = (model: string) => {
-    setSettings(prev => ({
-      ...prev,
-      model,
-      customModel: model === 'custom' ? prev.customModel || '' : ''
-    }));
+    setSettings(prev => ({ ...prev, model }));
   };
 
   const handleSave = () => {
-    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
-      toast({
-        title: "Custom Endpoint Required",
-        description: "Please specify a custom API endpoint when using custom provider.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (settings.model === 'custom' && !settings.customModel?.trim()) {
-      toast({
-        title: "Custom Model Required",
-        description: "Please specify a custom model name when using custom model option.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     onSave(settings);
   };
 
   const handleQuickTest = async () => {
-    if (settings.provider === 'custom' && !settings.customEndpoint?.trim()) {
-      toast({
-        title: "Custom Endpoint Required",
-        description: "Please enter your custom API endpoint to test the connection.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (settings.model === 'custom' && !settings.customModel?.trim()) {
-      toast({
-        title: "Custom Model Required",
-        description: "Please specify a custom model name first.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsTestingApi(true);
     try {
-      const modelToTest = settings.model === 'custom' ? settings.customModel : settings.model;
+      const modelToTest = settings.model;
 
       const response = await fetch('/api/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider: settings.provider,
+          provider: 'anthropic',
           model: modelToTest || undefined,
-          apiKey: settings.apiKey,
-          customEndpoint: settings.customEndpoint
+          apiKey: settings.apiKey
         })
       });
 
@@ -166,7 +107,7 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
       if (response.ok && result.success) {
         toast({
           title: "Connection Successful",
-          description: `${settings.provider.toUpperCase()} API is working correctly with ${modelToTest}!`,
+          description: `Claude is working correctly with ${modelToTest}!`,
           variant: "default"
         });
       } else {
@@ -198,71 +139,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Privacy Level</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {/* Maximum Privacy */}
-              <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'custom'
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-green-300'
-              }`}
-              onClick={() => handleProviderChange('custom')}
-              >
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-green-800 dark:text-green-200">Maximum Privacy</h3>
-                    <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                      Data stays on your machine or private server. Zero external data sharing.
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Custom Endpoint • Your own server
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Standard Privacy */}
-              <div className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                settings.provider === 'anthropic'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
-              }`}
-              onClick={() => handleProviderChange('anthropic')}
-              >
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-blue-800 dark:text-blue-200">Standard Privacy</h3>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Convenient cloud AI with established privacy policies.
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Anthropic Claude • Enterprise-grade safety
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="provider">Select Provider</Label>
-            <Select
-              value={settings.provider}
-              onValueChange={handleProviderChange}
-            >
-              <SelectTrigger data-testid="select-ai-provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-                <SelectItem value="custom">Custom Endpoint</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {settings.provider === 'anthropic' && (
             <div className="space-y-2">
               <Label>Model</Label>
@@ -288,77 +164,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
             </div>
           )}
 
-          {settings.provider === 'custom' && (
-            <div className="space-y-2">
-              <Label htmlFor="model">Model</Label>
-              <Select
-                value={settings.model}
-                onValueChange={handleModelChange}
-              >
-                <SelectTrigger data-testid="select-ai-model">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(modelOptions[settings.provider as keyof typeof modelOptions] || []).map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {settings.model === 'custom' && (
-            <div className="space-y-2">
-              <Label htmlFor="customModel">Custom Model Name</Label>
-              <Input
-                id="customModel"
-                placeholder="e.g., llama3, mistral, custom-model"
-                value={settings.customModel || ''}
-                onChange={(e) => setSettings(prev => ({ ...prev, customModel: e.target.value }))}
-                data-testid="input-custom-model"
-              />
-            </div>
-          )}
-
-          {settings.provider === 'custom' && (
-            <div className="space-y-2">
-              <Label htmlFor="customEndpoint">Custom Endpoint</Label>
-              <Input
-                id="customEndpoint"
-                placeholder="https://your-ollama-server.com"
-                value={settings.customEndpoint || ''}
-                onChange={(e) => setSettings(prev => ({ ...prev, customEndpoint: e.target.value }))}
-                data-testid="input-custom-endpoint"
-              />
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                <p>Examples:</p>
-                <p>• <code>https://ollama.your-domain.com</code> (recommended)</p>
-                <p>• <code>http://192.168.1.100:11434</code> (local network)</p>
-                <p>• <code>https://your-server.ngrok.io</code> (tunnel)</p>
-              </div>
-            </div>
-          )}
-
-          {settings.provider === 'custom' && (
-            <div className="space-y-2">
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  🔒 Private Endpoint Mode
-                </p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Connect to your own AI service for complete data control
-                </p>
-                <div className="text-xs text-green-600 dark:text-green-400 mt-2 space-y-1">
-                  <div>• <strong>Recommended:</strong> Your own Ollama server</div>
-                  <div>• <strong>Alternative:</strong> Other self-hosted AI services</div>
-                  <div>• <strong>Format:</strong> https://your-server.com (no /v1 needed)</div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {settings.provider === 'anthropic' && (
             <div className="space-y-2">
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
@@ -374,26 +179,6 @@ export function AiSettingsModal({ onClose, onSave }: AiSettingsModalProps) {
                   <div>• No API key needed — automatically configured</div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {settings.provider !== 'anthropic' && (
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">
-                API Key
-                {settings.provider === 'custom' && ' (Custom Provider)'}
-              </Label>
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="Enter your API key"
-                value={settings.apiKey}
-                onChange={(e) => setSettings(prev => ({ ...prev, apiKey: e.target.value }))}
-                data-testid="input-api-key"
-              />
-              <p className="text-xs text-muted-foreground">
-                Keys are stored temporarily for demo purposes only
-              </p>
             </div>
           )}
 

@@ -94,7 +94,7 @@ export function HomeHero({
     (e: React.KeyboardEvent) => {
       if (
         e.key === "Enter" &&
-        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
         isReadyToSend() &&
         !isGenerating &&
         !isDisabled

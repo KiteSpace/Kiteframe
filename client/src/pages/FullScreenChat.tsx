@@ -20,13 +20,9 @@ export default function FullScreenChat() {
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (settings.provider === "custom" && settings.customEndpoint) {
-          baseURL = settings.customEndpoint;
+        if (typeof settings.model === "string" && settings.model.startsWith("claude-")) {
+          defaultModel = settings.model;
         }
-        defaultModel =
-          settings.model === "custom" && settings.customModel
-            ? settings.customModel
-            : settings.model || defaultModel;
       } catch (e) {
         console.warn("Failed to parse saved AI settings");
       }

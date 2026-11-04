@@ -9,7 +9,6 @@ const INITIAL_FLAGS = [
   { key: 'ai.insightsSurfacing', name: 'Insights Surfacing', description: 'Test Flight diagnostics in Insights tab', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.prdGeneration', name: 'PRD Generation', description: 'AI-powered PRD from workflow', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.gpt5Routing', name: 'GPT-5 Routing', description: 'Enable GPT-5.1 for workflow reasoning', category: 'ai', status: 'ga', defaultEnabled: true },
-  { key: 'ai.ollamaProvider', name: 'Ollama Provider', description: 'Enable Ollama/KitelineAI provider', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.semanticEnforcement', name: 'Semantic Enforcement', description: 'Detect claim/structure mismatches', category: 'ai', status: 'ga', defaultEnabled: true },
   
   // AI Stabilization - Critical for dev environment

@@ -63,6 +63,7 @@ import crypto from 'crypto';
 import dns from 'dns';
 import { eq, desc, and, or, isNotNull, isNull, sql, ilike, gte, lte, inArray } from "drizzle-orm";
 import { handleBugReport } from "./bug-report";
+import { safeFetch, parsePublicUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
@@ -72,7 +73,7 @@ import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
 import { logBetaAction, logCodeAction, logBanAction } from "./middleware/auditLog";
 import { requireHttps } from "./middleware/httpsEnforce";
-import { adminLoginRateLimiter } from "./middleware/rateLimiter";
+import { adminLoginRateLimiter, adminApiRateLimiter } from "./middleware/rateLimiter";
 import { unlockCodes } from "@shared/schema";
 import { analyticsService } from "./analyticsService";
 import { geolocationService } from "./geolocation";
@@ -459,6 +460,15 @@ function validateWorkflowStructure(data: any): { isValid: boolean; errors: strin
   };
 }
 
+/** Detects PNG/JPEG/GIF/WebP from magic bytes; returns null for anything else (including SVG). */
+function sniffRasterImageMime(buf: Buffer): string | null {
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length >= 6 && /^GIF8[79]a$/.test(buf.subarray(0, 6).toString('latin1'))) return 'image/gif';
+  if (buf.length >= 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  return null;
+}
+
 /** Returns true if the IPv4/IPv6 address is in a private/reserved range. */
 function isPrivateIp(ip: string): boolean {
   const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
@@ -628,6 +638,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { uid, email, name, picture } = decodedToken;
+      if (!email || (decodedToken as any).email_verified !== true) {
+        return res.status(403).json({ error: 'email_not_verified', message: 'Please verify your email address before signing in.' });
+      }
       
       // Find or create user in database
       let user = await storage.getUserByEmail(email || '');
@@ -1931,7 +1944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/view/:shareUuid', viewSharedProjectHandler);
 
   // AI Health Check endpoint - test connectivity to Anthropic Claude models
-  app.get('/api/ai/health', async (req, res) => {
+  app.get('/api/ai/health', isAuthenticated, async (req, res) => {
     const models = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929'];
     const results: Record<string, { success: boolean; error?: string; responseTime?: number }> = {};
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -2000,7 +2013,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // request body, and the credit middleware (requireCredits) registers it atomically after
   // deducting the credit. This POST route exists as a fallback for any path that bypasses
   // the credit middleware (e.g. admin/group-bypass users) and needs a registered session.
-  app.post('/api/ai/optimization-session', async (req, res) => {
+  app.post('/api/ai/optimization-session', isAuthenticated, aiRateLimiter, async (req, res) => {
     try {
       const userIdentifier = creditService.getUserIdentifier(req);
       const sessionId = createOptimizationSession(userIdentifier);
@@ -2011,7 +2024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/ai/optimization-session/:id', async (req, res) => {
+  app.delete('/api/ai/optimization-session/:id', isAuthenticated, async (req, res) => {
     try {
       const userIdentifier = creditService.getUserIdentifier(req);
       const owner = getOptimizationSessionOwner(req.params.id);
@@ -2073,7 +2086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // AI Chat endpoint - proxy for AI models with dynamic provider routing
-  app.post('/api/ai/chat', aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
+  app.post('/api/ai/chat', isAuthenticated, aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
       const { taskType } = req.body;
       const result = await executeAiChat(req.body);
@@ -2118,7 +2131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET  /api/ai/jobs/:jobId -> poll job status; on success/failure returns the final result.
   // Credits are charged ONLY after the AI call succeeds. Jobs survive client tab navigation
   // because they live in server memory keyed by jobId.
-  app.post('/api/ai/job', aiRateLimiter, requireUSOnly, async (req, res) => {
+  app.post('/api/ai/job', isAuthenticated, aiRateLimiter, requireUSOnly, async (req, res) => {
     try {
       // Concurrency gate FIRST so we never reserve credits for a request we'll
       // immediately reject (otherwise a 429 would leak the reservation).
@@ -2318,7 +2331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // The following block is intentionally left out — see executeAiChat().
 
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
-  postBackgroundAi(app, '/api/generate-wireframe', aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
+  postBackgroundAi(app, '/api/generate-wireframe', isAuthenticated, aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
       const wireframeSchema = z.object({
         label: z.string().min(1).max(100),
@@ -2458,7 +2471,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // Called before full interface generation so users can review / refine proposals.
   // The client pre-computes screen clusters and sends them; this endpoint generates
   // a description and SVG wireframe thumbnail for each cluster in parallel.
-  postBackgroundAi(app, '/api/ai/interface-proposal', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/interface-proposal', isAuthenticated, aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
     // Complete workflow requests use the authoritative semantic planner.
     // Retain the old cluster-only request format for older open browser tabs.
     if (req.body && typeof req.body === 'object' && 'workflow' in req.body) return interfacePlanningHandlers.proposal(req, res);
@@ -2558,7 +2571,7 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
   // The AI returns a structured diff (rename / modify / remove / add), the server
   // regenerates SVG wireframes for any modified or added screens, and returns
   // the full updated proposal list together with a plain-language summary.
-  postBackgroundAi(app, '/api/ai/interface-proposal-refine', aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/interface-proposal-refine', isAuthenticated, aiRateLimiter, requireUSOnly, requireCredits, async (req: any, res) => {
     if (req.body && typeof req.body === 'object' && 'plan' in req.body) return interfacePlanningHandlers.refine(req, res);
     try {
       const screenSchema = z.object({
@@ -2750,7 +2763,7 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // Design generation endpoint — converts a text prompt into a craft.js state JSON
-  postBackgroundAi(app, '/api/ai/design', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
       const schema = z.object({
         prompt: z.string().min(1).max(8000),
@@ -2942,7 +2955,7 @@ Only include screens that need changes. "modify" requires both description and d
   // ── Design from image (vision) ────────────────────────────────────────────
   // Accepts a base64-encoded screenshot and generates a single Astryx artboard.
   // Reuses the same JSON parsing / response routing as /api/ai/design.
-  postBackgroundAi(app, '/api/ai/design-from-image', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-image', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
       const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024; // 10 MB base64 chars
       const imageBase64Raw = typeof req.body?.imageBase64 === 'string' ? req.body.imageBase64 : '';
@@ -3044,7 +3057,7 @@ Only include screens that need changes. "modify" requires both description and d
   // Unlike design-from-image (which always imports a new artboard), this endpoint
   // takes an existing canvas + a user instruction + a reference image and patches
   // the canvas to match the style / layout shown in the image.
-  postBackgroundAi(app, '/api/ai/design-edit-from-image', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-edit-from-image', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
       const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024;
       const schema = z.object({
@@ -3151,7 +3164,7 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // ── Design from image URL (server-side fetch) ─────────────────────────────
-  postBackgroundAi(app, '/api/ai/design-from-url', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-url', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
       const schema = z.object({
         imageUrl: z.string().url('Must be a valid URL').max(2000),
@@ -3276,7 +3289,7 @@ Only include screens that need changes. "modify" requires both description and d
   // ── Design from Figma frames (vision) ────────────────────────────────────
   // Fetches frame thumbnails from Figma REST API, fans out to vision for each
   // frame (up to 8), and merges all resulting artboards into one craft.js state.
-  postBackgroundAi(app, '/api/ai/design-from-figma', aiRateLimiter, async (req: any, res) => {
+  postBackgroundAi(app, '/api/ai/design-from-figma', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
       const schema = z.object({
         fileKey: z.string().min(1),
@@ -3473,173 +3486,47 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // AI Test endpoint - validate API key and model compatibility
-  app.post('/api/ai/test', aiRateLimiter, async (req, res) => {
+  app.post('/api/ai/test', isAuthenticated, aiRateLimiter, requireCredits, async (req, res) => {
     try {
-      const { provider, apiKey, customEndpoint } = req.body;
-      
-      // Set default models for each provider
+      const provider = 'anthropic';
+      const { apiKey } = req.body;
+      if (req.body.provider && req.body.provider !== 'anthropic') {
+        return res.status(400).json({ error: 'Only Claude models are supported.' });
+      }
+
       let model = req.body.model;
-      console.log('Test model received:', { model, type: typeof model, provider });
-      
       if (!model || model === 'undefined' || model === 'null' || (typeof model === 'string' && model.trim() === '')) {
-        console.log('Setting default model for provider:', provider);
-        switch (provider) {
-          case 'anthropic':
-            model = 'claude-haiku-4-5-20251001';
-            break;
-          case 'kiteframe':
-            model = 'llama3.2:3b';
-            break;
-          case 'ollama':
-            model = 'llama3.2:3b';
-            break;
-          default:
-            model = 'claude-haiku-4-5-20251001';
-        }
-        console.log('Default model set to:', model);
+        model = 'claude-haiku-4-5-20251001';
       }
-      
-      // For Anthropic, always use environment key. For others, require API key unless it's ollama/kiteframe
-      let finalApiKey = apiKey;
-      if (provider === 'anthropic' && !finalApiKey) {
-        finalApiKey = process.env.ANTHROPIC_API_KEY;
-        if (!finalApiKey) {
-          return res.status(500).json({ error: 'Anthropic API key not configured on server' });
-        }
-      } else if (!finalApiKey && provider !== 'ollama' && provider !== 'kiteframe') {
-        return res.status(400).json({ error: 'API key is required for testing' });
+      if (typeof model !== 'string' || !model.startsWith('claude-')) {
+        return res.status(400).json({ error: 'Only Claude models are supported.' });
       }
 
-      // Clean and validate API key format - must be ASCII only (no emojis or special Unicode characters)
-      // Skip validation for Ollama and Kiteframe which don't need API keys
-      let cleanApiKey = '';
-      if (provider !== 'ollama' && provider !== 'kiteframe' && finalApiKey) {
-        cleanApiKey = finalApiKey.trim();
-        console.log('API Key validation:', { 
-          length: cleanApiKey.length, 
-          firstChar: cleanApiKey.charCodeAt(0),
-          lastChar: cleanApiKey.charCodeAt(cleanApiKey.length - 1),
-          hasNonASCII: !/^[\x20-\x7E]*$/.test(cleanApiKey)
-        });
-        
-        if (!/^[\x20-\x7E]*$/.test(cleanApiKey)) {
-          return res.status(400).json({ 
-            error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.' 
-          });
-        }
+      const testApiKey = (typeof apiKey === 'string' ? apiKey.trim() : '') || process.env.ANTHROPIC_API_KEY;
+      if (!testApiKey) {
+        return res.status(500).json({ error: 'Anthropic API key not configured on server' });
       }
-
-      // Additional provider-specific validation using cleaned key
-      if (provider === 'anthropic' && cleanApiKey && !cleanApiKey.startsWith('sk-ant-')) {
-        return res.status(400).json({ 
-          error: 'Anthropic API keys should start with "sk-ant-"' 
+      if (!/^[\x20-\x7E]*$/.test(testApiKey)) {
+        return res.status(400).json({
+          error: 'Invalid API key format. API keys should only contain standard ASCII characters (no emojis or special symbols). Please re-copy your API key.'
         });
       }
-
-      // Use cleaned API key for requests (or already set environment key for OpenAI)
-      const testApiKey = cleanApiKey || finalApiKey;
-
-      let testUrl: string;
-      let headers: Record<string, string>;
-
-      // Configure endpoints and headers based on provider
-      switch (provider) {
-        case 'anthropic':
-          testUrl = 'https://api.anthropic.com/v1/messages';
-          headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': testApiKey,
-            'anthropic-version': '2023-06-01'
-          };
-          break;
-        case 'ollama':
-          const ollamaEndpoint = customEndpoint || 'http://localhost:11434';
-          testUrl = `${ollamaEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-          headers = {
-            'Content-Type': 'application/json'
-            // Ollama doesn't require Authorization for local usage
-          };
-          break;
-        case 'kiteframe':
-          testUrl = 'https://kiteline-ai.replit.app/v1/chat/completions';
-          headers = {
-            'Content-Type': 'application/json'
-            // Kiteframe managed service - no auth required
-          };
-          break;
-        case 'custom':
-          if (!customEndpoint) {
-            return res.status(400).json({ error: 'Custom endpoint is required for custom provider' });
-          }
-          // Auto-detect if this is an Ollama endpoint by checking if it needs auth
-          const isOllamaEndpoint = customEndpoint.includes('ollama') || !finalApiKey;
-          testUrl = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-          headers = {
-            'Content-Type': 'application/json',
-            ...(isOllamaEndpoint ? {} : { 'Authorization': `Bearer ${finalApiKey}` })
-          };
-          break;
-        default:
-          return res.status(400).json({ error: 'Unsupported provider' });
+      if (!testApiKey.startsWith('sk-ant-')) {
+        return res.status(400).json({ error: 'Anthropic API keys should start with "sk-ant-"' });
       }
 
-      // Make test request with provider-specific format
-      let requestBody: any;
-      if (provider === 'anthropic') {
-        requestBody = {
+      const response: any = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': testApiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
           model,
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }]
-        };
-      } else if (provider === 'ollama') {
-        requestBody = {
-          model,
-          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-          max_tokens: 10,
-          temperature: 0.1,
-          stream: false
-        };
-      } else if (provider === 'kiteframe') {
-        // For KitelineAI, first check if model is available and load if needed
-        console.log('KitelineAI model check for:', model);
-        try {
-          const tagsResponse = await fetch('https://kiteline-ai.replit.app/api/tags');
-          const tagsData = await tagsResponse.json();
-          const availableModels = tagsData.models?.map((m: any) => m.name) || [];
-          console.log('Available KitelineAI models:', availableModels);
-          
-          if (!availableModels.includes(model)) {
-            return res.status(404).json({ 
-              error: `Model ${model} not available on KitelineAI. Available models: ${availableModels.join(', ')}` 
-            });
-          }
-        } catch (tagsError) {
-          console.warn('Could not check KitelineAI model availability:', tagsError);
-        }
-        
-        requestBody = {
-          model,
-          messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-          max_tokens: 10,
-          temperature: 0.1,
-          stream: false
-        };
-      } else {
-        // Custom or unknown provider - use OpenAI-compatible format
-        {
-          requestBody = {
-            model,
-            messages: [{ role: 'user', content: 'Reply with just "Hello!" to test.' }],
-            max_tokens: 10,
-            temperature: 0.1
-          };
-        }
-      }
-
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody)
+        })
       });
 
       if (!response.ok) {
@@ -3699,11 +3586,7 @@ Only include screens that need changes. "modify" requires both description and d
       const json = await response.json();
       let responseText = '';
       
-      if (provider === 'anthropic') {
-        responseText = json.content?.[0]?.text || '';
-      } else {
-        responseText = json.choices?.[0]?.message?.content || '';
-      }
+      responseText = json.content?.[0]?.text || '';
 
       res.json({ 
         success: true, 
@@ -3714,26 +3597,6 @@ Only include screens that need changes. "modify" requires both description and d
 
     } catch (error: any) {
       console.error('AI test error:', error);
-      
-      // Handle Ollama and Kiteframe-specific connection errors
-      if (req.body.provider === 'ollama' || req.body.provider === 'kiteframe') {
-        if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
-          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-          return res.status(400).json({ 
-            error: `${serviceName} service not available. ${req.body.provider === 'ollama' ? 'Please start Ollama with: ollama serve' : 'Please try again later or contact support.'}` 
-          });
-        }
-        if (error instanceof TypeError && error.message.includes('fetch')) {
-          const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-          return res.status(400).json({ 
-            error: `Cannot connect to ${serviceName}. Make sure it is running on the configured endpoint.` 
-          });
-        }
-        const serviceName = req.body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-        return res.status(400).json({ 
-          error: `${serviceName} connection failed. Ensure the service is running and accessible.` 
-        });
-      }
       
       // Handle specific Unicode/ByteString encoding errors
       if (error instanceof TypeError && error.message.includes('ByteString')) {
@@ -3782,7 +3645,7 @@ Only include screens that need changes. "modify" requires both description and d
   });
 
   // AI-powered workflow correction endpoint
-  app.post('/api/workflow/ai-correct', async (req, res) => {
+  app.post('/api/workflow/ai-correct', isAuthenticated, aiRateLimiter, requireCredits, async (req, res) => {
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
@@ -3906,13 +3769,13 @@ Respond with only the corrected JSON data:`;
     }
   });
 
-  app.post("/api/objects/upload", async (req, res) => {
+  app.post("/api/objects/upload", isAuthenticated, uploadRateLimiter, async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     res.json({ uploadURL });
   });
 
-  app.put("/api/images", async (req, res) => {
+  app.put("/api/images", isAuthenticated, async (req, res) => {
     if (!req.body.imageURL) {
       return res.status(400).json({ error: "imageURL is required" });
     }
@@ -4312,15 +4175,19 @@ Respond with only the corrected JSON data:`;
   });
 
   // Image upload endpoint — stores files in object storage so base64 never enters localStorage
-  app.post('/api/upload-image', upload.single('image'), async (req, res) => {
+  app.post('/api/upload-image', isAuthenticated, uploadRateLimiter, upload.single('image'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
+    }
+    const sniffedMime = sniffRasterImageMime(req.file.buffer);
+    if (!sniffedMime) {
+      return res.status(400).json({ error: 'Only PNG, JPEG, GIF and WebP images are allowed' });
     }
     try {
       const objectStorageService = new ObjectStorageService();
       const url = await objectStorageService.uploadBuffer(
         req.file.buffer,
-        req.file.mimetype,
+        sniffedMime,
         req.file.originalname,
       );
       res.json({ url });
@@ -4343,7 +4210,7 @@ Respond with only the corrected JSON data:`;
       }
       
       // Get IP and user agent for anonymization
-      const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || '';
+      const ip = req.ip || req.socket.remoteAddress || '';
       const userAgent = req.headers['user-agent'] || '';
       
       // Create anonymized visitor hash (no personal data stored)
@@ -4458,7 +4325,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // Open Graph metadata fetching for link previews
-  app.post('/api/og-metadata', async (req, res) => {
+  app.post('/api/og-metadata', isAuthenticated, generalRateLimiter, async (req, res) => {
     try {
       const { url } = req.body;
       
@@ -4466,64 +4333,31 @@ Respond with only the corrected JSON data:`;
         return res.status(400).json({ error: 'URL is required' });
       }
 
-      // Validate URL format
-      let parsedUrl: URL;
+      let response;
       try {
-        parsedUrl = new URL(url);
-        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-          return res.status(400).json({ error: 'Only HTTP/HTTPS URLs are supported' });
-        }
-      } catch {
-        return res.status(400).json({ error: 'Invalid URL format' });
+        response = await safeFetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; KiteframeBot/1.0; +https://kiteframe.app)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml',
+          },
+          timeoutMs: 5000,
+          maxBytes: 2 * 1024 * 1024,
+        });
+      } catch (e: any) {
+        return res.status(400).json({ error: e instanceof UnsafeUrlError ? e.message : 'Failed to fetch URL' });
       }
-
-      // SSRF protection: Block private/local network addresses
-      const hostname = parsedUrl.hostname.toLowerCase();
-      const blockedPatterns = [
-        /^localhost$/i,
-        /^127\./,
-        /^10\./,
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-        /^192\.168\./,
-        /^0\./,
-        /^169\.254\./,  // Link-local
-        /^::1$/,
-        /^fc00:/i,      // IPv6 private
-        /^fe80:/i,      // IPv6 link-local
-        /\.local$/i,
-        /\.internal$/i,
-        /\.localhost$/i,
-      ];
-
-      if (blockedPatterns.some(pattern => pattern.test(hostname))) {
-        return res.status(400).json({ error: 'URL not allowed' });
-      }
-
-      // Fetch the URL with a timeout
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; KiteframeBot/1.0; +https://kiteframe.app)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
+      const parsedUrl = new URL(response.url);
 
       if (!response.ok) {
         return res.status(400).json({ error: `Failed to fetch URL: ${response.status}` });
       }
 
-      const contentType = response.headers.get('content-type') || '';
+      const contentType = response.headers['content-type'] || '';
       if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
         return res.status(400).json({ error: 'URL does not return HTML content' });
       }
 
-      const html = await response.text();
+      const html = response.text();
 
       // Extract Open Graph and meta tags
       const metadata: {
@@ -4615,7 +4449,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // SMTP Configuration info (GET)
-  app.get('/api/smtp-config', (req, res) => {
+  app.get('/api/smtp-config', requireHttps, requireAdminAuth, (req, res) => {
     res.json({
       config: {
         host: process.env.SMTP_HOST,
@@ -4627,7 +4461,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // SMTP Test endpoint to verify email credentials
-  app.post('/api/test-smtp', async (req, res) => {
+  app.post('/api/test-smtp', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       const nodemailer = await import('nodemailer');
       
@@ -4638,9 +4472,6 @@ Respond with only the corrected JSON data:`;
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false
         }
       });
 
@@ -4669,7 +4500,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // AI Image-to-Workflow Analysis endpoint
-  postBackgroundAi(app, "/api/ai/analyze-workflow-image", requireUSOnly, requireAdvancedOrPro, requireCredits, upload.single('image'), async (req, res) => {
+  postBackgroundAi(app, "/api/ai/analyze-workflow-image", isAuthenticated, aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No image file provided" });
@@ -5093,6 +4924,8 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
   });
 
   // Admin: Manually trigger tier mismatch repair across all users
+  app.use('/internal', adminApiRateLimiter);
+
   app.post('/internal/x9k7m2p4/resync-tiers', requireHttps, requireAdminAuth, async (req, res) => {
     try {
       await WebhookHandlers.fixMismatchedTiers();
@@ -6348,7 +6181,7 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
 
   // ============= TABLE API PROXY =============
   // Proxy endpoint for table API data fetching (avoids CORS issues)
-  app.post("/api/table/fetch", async (req, res) => {
+  app.post("/api/table/fetch", isAuthenticated, generalRateLimiter, async (req, res) => {
     try {
       const { 
         url, 
@@ -6365,31 +6198,11 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
         return res.status(400).json({ error: 'URL is required' });
       }
       
-      // Security: validate URL
-      let parsedUrl: URL;
+      // Security: http(s) only, public addresses only (re-checked at connect time and on every redirect)
       try {
-        parsedUrl = new URL(url);
-      } catch {
-        return res.status(400).json({ error: 'Invalid URL format' });
-      }
-      
-      // Block private network addresses (SSRF protection)
-      const hostname = parsedUrl.hostname.toLowerCase();
-      const blockedPatterns = [
-        /^localhost$/i,
-        /^127\./,
-        /^10\./,
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-        /^192\.168\./,
-        /^0\.0\.0\.0$/,
-        /^::1$/,
-        /^fe80:/i,
-        /\.local$/i,
-        /\.internal$/i,
-      ];
-      
-      if (blockedPatterns.some(pattern => pattern.test(hostname))) {
-        return res.status(400).json({ error: 'Private network addresses are not allowed' });
+        parsePublicUrl(url);
+      } catch (e: any) {
+        return res.status(400).json({ error: e?.message || 'URL not allowed' });
       }
       
       // Validate method
@@ -6439,32 +6252,30 @@ Position nodes 250px apart. Use confidence 70+ only if you can clearly identify 
       }
       
       // Perform the fetch with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), Math.min(timeout, 30000));
-      
       let response;
       try {
-        response = await fetch(url, {
-          method: normalizedMethod,
+        response = await safeFetch(url, {
+          method: normalizedMethod as 'GET' | 'POST',
           headers: requestHeaders,
-          signal: controller.signal,
+          timeoutMs: Math.min(Number(timeout) || 30000, 30000),
+          maxBytes: 5 * 1024 * 1024,
         });
-      } finally {
-        clearTimeout(timeoutId);
+      } catch (e: any) {
+        return res.status(400).json({ error: e instanceof UnsafeUrlError ? e.message : 'Failed to fetch API data' });
       }
       
       if (!response.ok) {
         return res.status(response.status).json({ 
-          error: `API returned status ${response.status}: ${response.statusText}` 
+          error: `API returned status ${response.status}` 
         });
       }
       
-      const contentType = response.headers.get('content-type') || '';
+      const contentType = response.headers['content-type'] || '';
       if (!contentType.includes('application/json')) {
         return res.status(400).json({ error: 'API must return JSON content' });
       }
       
-      let jsonData = await response.json();
+      let jsonData = response.json();
       
       // Navigate to the specified data path if provided
       if (responseDataPath && typeof responseDataPath === 'string') {
@@ -8087,15 +7898,26 @@ jane@example.com,Jane,Smith,pro,GroupC
   // POST /api/designs/generate — authenticated users create a design entity from AI-generated JSON
   // Uses a lazy "system" API key so the entity FK constraint is satisfied without an external key.
   const SYS_DESIGN_KEY_ID = 'sys-internal-design';
+  let sysDesignKeyRotated = false;
   async function getOrCreateSystemDesignKey(): Promise<string> {
     const existing = await db.select({ id: externalApiKeys.id })
       .from(externalApiKeys).where(eq(externalApiKeys.id, SYS_DESIGN_KEY_ID)).limit(1);
-    if (existing.length > 0) return SYS_DESIGN_KEY_ID;
+    // The key only satisfies the FK. Its hash is derived from random bytes that are never stored, so no
+    // presented API key can match it; rows created with the old guessable hash are rotated on first use.
+    const unusableHash = crypto.createHash('sha256').update(crypto.randomBytes(32)).digest('hex');
+    if (existing.length > 0) {
+      if (!sysDesignKeyRotated) {
+        await db.update(externalApiKeys).set({ keyHash: unusableHash }).where(eq(externalApiKeys.id, SYS_DESIGN_KEY_ID));
+        sysDesignKeyRotated = true;
+      }
+      return SYS_DESIGN_KEY_ID;
+    }
     await db.insert(externalApiKeys).values({
       id: SYS_DESIGN_KEY_ID,
       name: 'Internal system key – AI-generated designs',
-      keyHash: crypto.createHash('sha256').update('sys-internal-kiteframe-designs').digest('hex'),
+      keyHash: unusableHash,
     });
+    sysDesignKeyRotated = true;
     return SYS_DESIGN_KEY_ID;
   }
 

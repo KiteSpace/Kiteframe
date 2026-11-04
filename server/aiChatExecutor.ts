@@ -22,6 +22,15 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
 };
 
+const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
+const MAX_OUTPUT_TOKENS = 16000;
+
+function clampMaxTokens(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), MAX_OUTPUT_TOKENS);
+}
+
 const COMPLEXITY_KEYWORDS = /\b(if|when|unless|condition|loop|retry|branch|parallel|decision|fallback|alternative|exception|error handling|multiple|either|otherwise|in case|depends on|based on|check whether|validate|approval|escalat)\b/i;
 
 function isSimpleWorkflowPrompt(msgs: any[]): boolean {
@@ -158,21 +167,26 @@ export async function executeAiChat(
 
     let activeProvider = resolvedProvider || provider;
     let activeApiKey = clientApiKey;
-    const activeModel = resolvedModel || model;
+    let activeModel = resolvedModel || model;
+    if (!clientApiKey && (resolvedProvider || provider || 'anthropic') === 'anthropic' && activeModel && !SERVER_KEY_MODELS.has(activeModel)) {
+      activeModel = 'claude-haiku-4-5-20251001';
+    }
 
     if (!activeProvider) {
       if (activeModel && activeModel.includes('claude')) activeProvider = 'anthropic';
-      else if (activeModel && (activeModel.includes('gpt') || activeModel.includes('o1'))) activeProvider = 'openai';
       else activeProvider = 'anthropic';
     }
 
     if (activeProvider === 'anthropic') {
       activeApiKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
-    } else if (activeProvider === 'openai') {
-      activeApiKey = process.env.OPENAI_API_KEY;
     }
 
-    if (!activeApiKey && activeProvider !== 'ollama' && activeProvider !== 'kiteframe') {
+    // Kiteframe only runs Claude models; other providers and user-supplied endpoints are refused.
+    if (activeProvider !== 'anthropic' || !activeModel?.startsWith('claude-')) {
+      return { ok: false, status: 400, error: 'Only Claude models are supported.' };
+    }
+
+    if (!activeApiKey) {
       return {
         ok: false,
         status: 401,
@@ -184,82 +198,34 @@ export async function executeAiChat(
     let headers: Record<string, string>;
     let requestBody: any;
 
-    if (activeProvider === 'anthropic') {
-      endpoint = 'https://api.anthropic.com/v1/messages';
-      headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': activeApiKey!,
-        'anthropic-version': '2023-06-01',
-      };
-      const systemParts: string[] = [];
-      const anthropicMessages = messages.filter((msg: any) => {
-        if (msg.role === 'system') {
-          const content = typeof msg.content === 'string'
-            ? msg.content
-            : Array.isArray(msg.content)
-              ? msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
-              : '';
-          if (content) systemParts.push(content);
-          return false;
-        }
-        return true;
-      });
-      const systemPrompt = systemParts.join('\n\n');
-      requestBody = {
-        model: activeModel,
-        max_tokens: maxTokens || 1024,
-        ...(systemPrompt ? { system: systemPrompt } : {}),
-        messages: anthropicMessages,
-      };
-    } else if (activeProvider === 'ollama') {
-      const { customEndpoint } = body;
-      endpoint = `${customEndpoint || 'http://localhost:11434'}/v1/chat/completions`;
-      headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: maxTokens, stream: false };
-    } else if (activeProvider === 'kiteframe') {
-      endpoint = 'https://kiteline-ai.replit.app/v1/chat/completions';
-      headers = { 'Content-Type': 'application/json' };
-      requestBody = { model: activeModel, messages, temperature, max_tokens: maxTokens, stream: false };
-    } else if (activeProvider === 'custom') {
-      const { customEndpoint } = body;
-      if (!customEndpoint) {
-        return { ok: false, status: 400, error: 'Custom endpoint is required for custom provider' };
+    endpoint = 'https://api.anthropic.com/v1/messages';
+    headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': activeApiKey!,
+      'anthropic-version': '2023-06-01',
+    };
+    const systemParts: string[] = [];
+    const anthropicMessages = messages.filter((msg: any) => {
+      if (msg.role === 'system') {
+        const content = typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
+            : '';
+        if (content) systemParts.push(content);
+        return false;
       }
-      const isCustomOllama = customEndpoint.includes('ollama') || !activeApiKey;
-      const isCustomOpenAI = customEndpoint.includes('api.openai.com');
-      const isGpt5Model = activeModel && (activeModel.includes('gpt-5') || activeModel.startsWith('gpt-5'));
-      endpoint = `${customEndpoint.replace(/\/$/, '')}/v1/chat/completions`;
-      headers = {
-        'Content-Type': 'application/json',
-        ...(isCustomOllama ? {} : { 'Authorization': `Bearer ${activeApiKey}` }),
-      };
-      if (isCustomOpenAI && isGpt5Model) {
-        requestBody = { model: activeModel, messages, max_completion_tokens: maxTokens };
-      } else {
-        requestBody = {
-          model: activeModel,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-          ...(isCustomOllama ? { stream: false } : {}),
-        };
-      }
-    } else {
-      endpoint = 'https://api.anthropic.com/v1/messages';
-      const fallbackKey = activeApiKey || process.env.ANTHROPIC_API_KEY;
-      headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': fallbackKey || '',
-        'anthropic-version': '2023-06-01',
-      };
-      requestBody = {
-        model: activeModel || 'claude-haiku-4-5-20251001',
-        messages,
-        max_tokens: maxTokens || 1024,
-      };
-    }
+      return true;
+    });
+    const systemPrompt = systemParts.join('\n\n');
+    requestBody = {
+      model: activeModel,
+      max_tokens: clampMaxTokens(maxTokens, 1024),
+      ...(systemPrompt ? { system: systemPrompt } : {}),
+      messages: anthropicMessages,
+    };
 
-    const response = await fetch(endpoint, {
+    const response: any = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
@@ -284,7 +250,6 @@ export async function executeAiChat(
         ok: false,
         status: response.status,
         error: `${activeProvider} API error: ${response.status}`,
-        details: errText,
         activeProvider,
         activeModel,
       };
@@ -292,11 +257,7 @@ export async function executeAiChat(
 
     const json = await response.json();
     let responseText = '';
-    if (activeProvider === 'anthropic') {
-      responseText = json.content?.[0]?.text || '';
-    } else {
-      responseText = json.choices?.[0]?.message?.content || '';
-    }
+    responseText = json.content?.[0]?.text || '';
 
     return {
       ok: true,
@@ -314,22 +275,6 @@ export async function executeAiChat(
       return { ok: false, status: 499, error: 'Cancelled by client' };
     }
     console.error('executeAiChat error:', error);
-    if (body?.provider === 'ollama' || body?.provider === 'kiteframe') {
-      const serviceName = body.provider === 'kiteframe' ? 'Kiteframe' : 'Ollama';
-      if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') ||
-          (error instanceof TypeError && error.message?.includes('fetch'))) {
-        return {
-          ok: false,
-          status: 400,
-          error: `${serviceName} service not available. ${body.provider === 'ollama' ? 'Please start Ollama locally with: ollama serve' : 'Please try again later or contact support.'}`,
-        };
-      }
-      return {
-        ok: false,
-        status: 400,
-        error: `${serviceName} connection failed. Ensure the service is running and accessible.`,
-      };
-    }
     return { ok: false, status: 500, error: 'Internal server error' };
   }
 }

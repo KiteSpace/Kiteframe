@@ -29,10 +29,10 @@ function getUserSettings(): { provider: string; model: string } | null {
     if (saved) {
       const settings = JSON.parse(saved);
       return {
-        provider: settings.provider || 'anthropic',
-        model: settings.model === 'custom' && settings.customModel 
-          ? settings.customModel 
-          : settings.model || 'claude-sonnet-4-5-20250929',
+        provider: 'anthropic',
+        model: typeof settings.model === 'string' && settings.model.startsWith('claude-')
+          ? settings.model
+          : 'claude-sonnet-4-5-20250929',
       };
     }
   } catch (e) {

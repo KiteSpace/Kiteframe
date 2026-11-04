@@ -1,4 +1,4 @@
-export type AiModel = 'claude-haiku-4-5-20251001' | 'claude-sonnet-4-5-20250929' | 'claude-opus-4-5-20251101' | 'custom';
+export type AiModel = 'claude-haiku-4-5-20251001' | 'claude-sonnet-4-5-20250929' | 'claude-opus-4-5-20251101';
 
 export type AiMode = 'ADVISE' | 'EDIT' | 'GENERATE';
 

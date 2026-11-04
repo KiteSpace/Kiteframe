@@ -163,19 +163,14 @@ export class OpenAICompatClient implements AiClient {
     }
     const savedSettings = localStorage.getItem('ai_settings');
     let currentModel = req.model || this.opts.defaultModel || 'claude-sonnet-4-5-20250929';
-    let provider = req.provider || 'anthropic';
+    const provider = 'anthropic';
     let apiKey = null;
 
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (!req.model) {
-          currentModel = settings.model === 'custom' && settings.customModel
-            ? settings.customModel
-            : settings.model || currentModel;
-        }
-        if (!req.provider) {
-          provider = settings.provider || 'anthropic';
+        if (!req.model && typeof settings.model === 'string' && settings.model.startsWith('claude-')) {
+          currentModel = settings.model;
         }
         apiKey = settings.apiKey;
       } catch (e) {

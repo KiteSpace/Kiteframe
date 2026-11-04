@@ -160,7 +160,7 @@ export async function requireCredits(
     const isAuthenticated = creditService.isAuthenticatedUser(req);
     await creditService.getOrCreateUserCredits(userIdentifier, isAuthenticated);
     
-    const deductResult = await creditService.deductCreditAtomic(userIdentifier, creditCost, isAuthenticated);
+    const deductResult = await creditService.deductCreditAtomic(userIdentifier, creditCost, isAuthenticated, true);
     
     if (!deductResult.success) {
       res.status(403).json({
