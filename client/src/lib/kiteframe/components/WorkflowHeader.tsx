@@ -3,6 +3,7 @@ import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDo
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
+import { useProjectWorkflowNames } from '../../../stores/layersStateManager';
 import { useNodeToWorkflow } from '../../../stores/nodeToWorkflowStore';
 import { workflowThemes, type WorkflowTheme } from '../../../lib/themes';
 import {
@@ -97,13 +98,31 @@ export function WorkflowHeader({
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const justDraggedRef = useRef(false);
   
-  const workflowNames = useWorkflowNames();
+  const legacyWorkflowNames = useWorkflowNames();
+  const workflowNames = useProjectWorkflowNames();
   const nodeToWorkflow = useNodeToWorkflow();
   
   // Try to get workflow name from the first node in the flow
   const firstNodeId = flowNodes.length > 0 ? flowNodes[0].id : null;
   const workflowNameFromNode = firstNodeId ? nodeToWorkflow.getWorkflowNameForNode(firstNodeId) : null;
-  const workflowName = workflowNameFromNode || workflowNames.get(flowId) || 'Workflow';
+  // Names live in the Layers panel's per-project store, keyed by its workflow group id (`wf:…`),
+  // so a rename in either place shows in both.
+  const workflowGroupId = firstNodeId ? nodeToWorkflow.getWorkflowGroupIdForNode(firstNodeId) : null;
+  const workflowName =
+    (workflowGroupId && workflowNames.get(workflowGroupId)) ||
+    workflowNames.get(flowId) ||
+    workflowNameFromNode ||
+    legacyWorkflowNames.get(flowId) ||
+    'Workflow';
+
+  // A badge rename made before the Layers panel mapped this workflow is stored under flowId;
+  // copy it to the group id once that mapping exists so the Layers panel shows it too.
+  const flowIdName = workflowNames.get(flowId);
+  useEffect(() => {
+    if (workflowGroupId && flowIdName && !workflowNames.get(workflowGroupId)) {
+      workflowNames.set(workflowGroupId, flowIdName);
+    }
+  }, [workflowGroupId, flowIdName]);
   
   const [nameValue, setNameValue] = useState(workflowName);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -180,7 +199,11 @@ export function WorkflowHeader({
   const handleNameSubmit = () => {
     const trimmedName = nameValue.trim() || 'Workflow';
     setIsEditingName(false);
-    workflowNames.set(flowId, trimmedName);
+    try {
+      workflowNames.set(workflowGroupId ?? flowId, trimmedName);
+    } catch {
+      setNameValue(workflowName);
+    }
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
@@ -189,7 +212,7 @@ export function WorkflowHeader({
       handleNameSubmit();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      setNameValue(settings.name);
+      setNameValue(workflowName);
       setIsEditingName(false);
     }
   };
@@ -266,6 +289,7 @@ export function WorkflowHeader({
               onBlur={handleNameSubmit}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
+              maxLength={50}
               className="bg-transparent border-none outline-none text-sm font-medium w-32"
               data-testid={`workflow-name-input-${flowId}`}
             />
