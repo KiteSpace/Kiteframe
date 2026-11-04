@@ -3994,6 +3994,9 @@ Respond with only the corrected JSON data:`;
         return res.status(403).json({ error: 'Not allowed to comment on this project' });
       }
       const userId = auth.userId;
+      if (!auth.isOwner && !userId) {
+        return res.status(401).json({ error: 'Sign in to comment on this project' });
+      }
 
       // If this is a reply, make sure the parent exists, belongs to the same
       // project, and is itself a root comment (threads are single-level).

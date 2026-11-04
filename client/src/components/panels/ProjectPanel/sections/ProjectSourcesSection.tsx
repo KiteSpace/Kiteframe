@@ -21,9 +21,10 @@ interface Source {
 
 interface ProjectSourcesSectionProps {
   projectId?: string;
+  isReadOnly?: boolean;
 }
 
-export function ProjectSourcesSection({ projectId }: ProjectSourcesSectionProps) {
+export function ProjectSourcesSection({ projectId, isReadOnly = false }: ProjectSourcesSectionProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -136,7 +137,7 @@ export function ProjectSourcesSection({ projectId }: ProjectSourcesSectionProps)
               Sources
             </h2>
           </CollapsibleTrigger>
-          {!isAdding && (
+          {!isReadOnly && !isAdding && (
             <Button 
               variant="ghost" 
               size="sm" 
@@ -206,15 +207,17 @@ export function ProjectSourcesSection({ projectId }: ProjectSourcesSectionProps)
                     >
                       <ExternalLink size={10} />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 text-destructive hover:text-destructive"
-                      onClick={() => removeSource(source.id)}
-                      data-testid={`button-remove-${source.id}`}
-                    >
-                      <Trash2 size={10} />
-                    </Button>
+                    {!isReadOnly && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-destructive hover:text-destructive"
+                        onClick={() => removeSource(source.id)}
+                        data-testid={`button-remove-${source.id}`}
+                      >
+                        <Trash2 size={10} />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
