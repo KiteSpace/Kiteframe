@@ -2991,6 +2991,12 @@ function WorkflowEditorContent({
     setViewport({ x: cw / 2 - ((minX + maxX) / 2) * zoom, y: ch / 2 - ((minY + maxY) / 2) * zoom, zoom });
   }, [nodes, setViewport]);
 
+  useEffect(() => {
+    if (lastSyncError) {
+      toast({ title: "Cloud save failed", description: lastSyncError, variant: "destructive" });
+    }
+  }, [lastSyncError, toast]);
+
   // Fit a freshly loaded project into the visible canvas (the area left of the side panel).
   const pendingFitRef = useRef(false);
   useEffect(() => {

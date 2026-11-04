@@ -118,6 +118,10 @@ export function useCloudProjects() {
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         setIsCloudConnected(false);
         setLastSyncError('Failed to update project - check your network');
+      } else if (error.message.startsWith('409')) {
+        setLastSyncError('This project was changed somewhere else. Reload to get the latest version.');
+      } else {
+        setLastSyncError(`Failed to save project: ${error.message}`);
       }
     },
   });

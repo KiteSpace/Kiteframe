@@ -1456,6 +1456,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
+      const { baseUpdatedAt } = req.body ?? {};
+      if (baseUpdatedAt) {
+        const current = await storage.getSavedProject(id, userId);
+        const base = new Date(baseUpdatedAt).getTime();
+        if (current?.updatedAt && !Number.isNaN(base) && new Date(current.updatedAt).getTime() > base) {
+          return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
+        }
+      }
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
       // Sanitize all input data
