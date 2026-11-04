@@ -84,7 +84,7 @@ import { getBillingAccountAvailability } from "./accountBilling";
 import { WebhookHandlers } from "./webhookHandlers";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
-import { csrfProtection } from "./middleware/csrf";
+import { csrfProtection, csrfOriginGuard } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
 import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
@@ -95,6 +95,7 @@ import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { registerExternalWorkflowRoutes } from "./externalWorkflowRoutes";
 import { registerDocumentRoutes } from "./documentRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
+import { getObjectAclPolicy } from "./objectAcl";
 
 // Initialize Firebase Admin on module load
 initializeFirebaseAdmin();
@@ -590,6 +591,7 @@ async function fetchRemoteImage(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.use('/api', csrfOriginGuard);
   // Wire the AI job store's stale-cleanup release callback to the credit
   // service so timed-out jobs return their held reservation to the user.
   setReservationReleaseCallback((userIdentifier, amount) => {
@@ -3765,12 +3767,29 @@ Respond with only the corrected JSON data:`;
   });
 
   // Object storage routes for image uploads
+  // Uploaded images stay readable by URL so share links work logged out, but only
+  // for upload IDs, never served as active content, and private ACLs are honored.
   app.get("/objects/:objectPath(*)", async (req, res) => {
+    if (!/^\/objects\/uploads\/[0-9a-f-]{36}$/i.test(req.path)) {
+      return res.sendStatus(404);
+    }
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(
         req.path,
       );
+      const aclPolicy = await getObjectAclPolicy(objectFile);
+      if (
+        aclPolicy?.visibility === "private" &&
+        !(await objectStorageService.canAccessObjectEntity({
+          userId: (req as any).user?.claims?.sub,
+          objectFile,
+        }))
+      ) {
+        return res.sendStatus(404);
+      }
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error checking object access:", error);
@@ -3867,7 +3886,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // Chat Messages API (Collaboration Pro)
-  app.post('/api/chat/messages', csrfProtection, chatRateLimiter, async (req, res) => {
+  app.post('/api/chat/messages', isAuthenticated, csrfProtection, chatRateLimiter, async (req, res) => {
     try {
       const { roomId, message, messageType, metadata } = req.body;
       
@@ -3895,7 +3914,7 @@ Respond with only the corrected JSON data:`;
     }
   });
 
-  app.get('/api/chat/messages/:roomId', async (req, res) => {
+  app.get('/api/chat/messages/:roomId', isAuthenticated, async (req, res) => {
     try {
       const { roomId } = req.params;
       
@@ -8454,35 +8473,6 @@ jane@example.com,Jane,Smith,pro,GroupC
         
         // Handle different message types
         switch (message.type) {
-          case 'join_room':
-            // Handle room join
-            ws.send(JSON.stringify({
-              type: 'room_joined',
-              roomId: message.roomId
-            }));
-            break;
-          case 'chat_message':
-            // Broadcast chat message to all clients in room
-            wss.clients.forEach((client) => {
-              if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                  type: 'chat_message',
-                  message: message
-                }));
-              }
-            });
-            break;
-          case 'cursor_update':
-            // Broadcast cursor position to all clients in room
-            wss.clients.forEach((client) => {
-              if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                  type: 'cursor_update',
-                  cursor: message.cursor
-                }));
-              }
-            });
-            break;
           case 'subscribe_share':
             // Subscribe to a share for live updates.
             // Tamper-proofing: only honor (and count) a subscription when the

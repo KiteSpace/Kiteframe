@@ -494,7 +494,7 @@ export async function setupAuth(app: Express) {
 
     app.get('/api/auth/google',
       authRateLimiter,
-      passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })
+      passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account', state: true } as any)
     );
 
     app.get('/api/auth/google/callback',
@@ -628,7 +628,7 @@ export async function setupAuth(app: Express) {
 
     app.get('/api/auth/github',
       authRateLimiter,
-      passport.authenticate('github', { scope: ['user:email'] })
+      passport.authenticate('github', { scope: ['user:email'], state: true } as any)
     );
 
     app.get('/api/auth/github/callback',
@@ -758,6 +758,21 @@ export async function setupAuth(app: Express) {
     });
   }
 
+  // The OAuth state carries the domain to return to; only our own domains are
+  // accepted so a forged state can't redirect users off-site.
+  function isAllowedOriginDomain(domain: string, callbackHost: string): boolean {
+    const host = String(domain).toLowerCase();
+    if (!/^[a-z0-9.-]+(:[0-9]+)?$/.test(host)) return false;
+    const extra = (process.env.ALLOWED_AUTH_DOMAINS || process.env.REPLIT_DOMAINS || '')
+      .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+    return (
+      host === callbackHost.toLowerCase() ||
+      extra.includes(host) ||
+      host === 'kiteframe.space' || host.endsWith('.kiteframe.space') ||
+      host.endsWith('.replit.app') || host.endsWith('.replit.dev')
+    );
+  }
+
   app.get("/api/login", authRateLimiter, (req, res, next) => {
     const strategyName = ensureStrategy(req.hostname);
     
@@ -784,7 +799,7 @@ export async function setupAuth(app: Express) {
       const stateParam = req.query.state as string;
       if (stateParam) {
         const stateData = JSON.parse(Buffer.from(stateParam, 'base64url').toString());
-        if (stateData.originDomain) {
+        if (stateData.originDomain && isAllowedOriginDomain(stateData.originDomain, hostname)) {
           originDomain = stateData.originDomain;
         }
       }
@@ -798,7 +813,6 @@ export async function setupAuth(app: Express) {
       strategyName,
       protocol: req.protocol,
       originalUrl: req.originalUrl,
-      query: req.query,
       sessionID: req.sessionID,
       REPLIT_DEPLOYMENT: process.env.REPLIT_DEPLOYMENT,
     });
