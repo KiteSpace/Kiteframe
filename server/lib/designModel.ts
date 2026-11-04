@@ -48,7 +48,8 @@ export async function runDesignModel(o: RunDesignModelOptions): Promise<RunDesig
       provider: 'anthropic',
       taskType: o.v2 ? o.taskType.v2 : o.taskType.legacy,
       maxTokens: o.maxTokens,
-      ...(typeof o.temperature === 'number' ? { temperature: o.temperature } : {}),
+      // Current (v2) models reject `temperature`.
+        ...(!o.v2 && typeof o.temperature === 'number' ? { temperature: o.temperature } : {}),
       messages: prefill ? [...o.messages, { role: 'assistant', content: '{' }] : o.messages,
     },
     o.signal,
