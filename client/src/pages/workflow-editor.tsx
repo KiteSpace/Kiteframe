@@ -2991,6 +2991,41 @@ function WorkflowEditorContent({
     setViewport({ x: cw / 2 - ((minX + maxX) / 2) * zoom, y: ch / 2 - ((minY + maxY) / 2) * zoom, zoom });
   }, [nodes, setViewport]);
 
+  // Fit a freshly loaded project into the visible canvas (the area left of the side panel).
+  const pendingFitRef = useRef(false);
+  useEffect(() => {
+    if (!pendingFitRef.current || nodes.length === 0) return;
+    const frame = requestAnimationFrame(() => {
+      const canvas = document.querySelector(".kiteframe-canvas") as HTMLElement | null;
+      const rect = canvas?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return;
+      pendingFitRef.current = false;
+      const panel = document.querySelector('[data-testid="project-panel"]') as HTMLElement | null;
+      const panelLeft = panel?.getBoundingClientRect().left;
+      const visibleWidth =
+        panelLeft && panelLeft > rect.left && panelLeft < rect.right ? panelLeft - rect.left : rect.width;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach((node) => {
+        const w = (node.style?.width ?? node.width ?? 200) as number;
+        const h = (node.style?.height ?? node.height ?? 100) as number;
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + w);
+        maxY = Math.max(maxY, node.position.y + h);
+      });
+      const padding = 64;
+      const toolbarInset = 72;
+      const fitWidth = visibleWidth - toolbarInset;
+      const zoom = Math.max(0.1, Math.min(1, fitWidth / (maxX - minX + padding * 2), rect.height / (maxY - minY + padding * 2)));
+      setViewport({
+        x: toolbarInset + fitWidth / 2 - ((minX + maxX) / 2) * zoom,
+        y: rect.height / 2 - ((minY + maxY) / 2) * zoom,
+        zoom,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [nodes, setViewport]);
+
   // Helper function to calculate viewport-centered position with sequential offset
   const getViewportCenteredPosition = useCallback(() => {
     // Use common canvas dimensions (matching WorkflowCanvas)
@@ -6812,6 +6847,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     projectLoadedRef.current = projectUuid;
     let cancelled = false;
 
+    pendingFitRef.current = true;
     fetch(`/api/project/${projectUuid}`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
