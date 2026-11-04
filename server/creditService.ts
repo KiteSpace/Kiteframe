@@ -4,6 +4,7 @@ import { eq, and, sql } from "drizzle-orm";
 import type { Request } from "express";
 import { geolocationService } from "./geolocation";
 import { analyticsService } from "./analyticsService";
+import { pool as reservationPool } from './db';
 
 export const TIER_DAILY_CREDITS = {
   free: 25,
@@ -144,7 +145,7 @@ export class CreditService {
       const dailyCredits = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
 
       // Synchronous callers must not spend credits that admitted async jobs have reserved.
-      const required = creditCost + (honorReservations ? this.getReservedCredits(userIdentifier) : 0);
+      const required = creditCost + (honorReservations ? await this.getReservedCredits(userIdentifier) : 0);
       const result = await db.transaction(async (tx) => {
         const current = await tx.query.userCredits.findFirst({
           where: eq(userCredits.userIdentifier, userIdentifier),
@@ -340,10 +341,38 @@ export class CreditService {
   // before any deduction has happened.
   //
   // Reservations are released on success (after deduction) or on failure/timeout.
+  // Holds live in Postgres so they count on every instance. Rows untouched for
+  // 30 minutes are treated as abandoned (e.g. an instance died mid-job).
+  // Tests have no database and use the in-memory map.
   private reservations: Map<string, number> = new Map();
+  private reservationsTableReady: Promise<unknown> | null = null;
+  private get useMemoryReservations() {
+    return process.env.NODE_ENV === 'test' || !!process.env.VITEST;
+  }
+  private ensureReservationsTable(): Promise<unknown> {
+    this.reservationsTableReady ??= reservationPool
+      .query(
+        `CREATE TABLE IF NOT EXISTS credit_reservations (
+          user_identifier text PRIMARY KEY,
+          amount integer NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now()
+        )`,
+      )
+      .catch((error: unknown) => {
+        this.reservationsTableReady = null;
+        throw error;
+      });
+    return this.reservationsTableReady!;
+  }
 
-  getReservedCredits(userIdentifier: string): number {
-    return this.reservations.get(userIdentifier) || 0;
+  async getReservedCredits(userIdentifier: string): Promise<number> {
+    if (this.useMemoryReservations) return this.reservations.get(userIdentifier) || 0;
+    await this.ensureReservationsTable();
+    const { rows } = await reservationPool.query(
+      `SELECT amount FROM credit_reservations WHERE user_identifier = $1 AND updated_at > now() - interval '30 minutes'`,
+      [userIdentifier],
+    );
+    return rows[0]?.amount ?? 0;
   }
 
   // Atomically check available = remaining - reserved, then add `cost` to the
@@ -354,20 +383,46 @@ export class CreditService {
     isAuthenticated: boolean = true,
   ): Promise<{ ok: boolean; available: number }> {
     const remaining = await this.getRemainingCredits(userIdentifier, isAuthenticated);
-    const reserved = this.getReservedCredits(userIdentifier);
-    const available = remaining - reserved;
-    if (available < cost) {
-      return { ok: false, available };
+    if (this.useMemoryReservations) {
+      const reserved = this.reservations.get(userIdentifier) || 0;
+      const available = remaining - reserved;
+      if (available < cost) return { ok: false, available };
+      this.reservations.set(userIdentifier, reserved + cost);
+      return { ok: true, available: available - cost };
     }
-    this.reservations.set(userIdentifier, reserved + cost);
-    return { ok: true, available: available - cost };
+    if (cost > remaining) return { ok: false, available: remaining - (await this.getReservedCredits(userIdentifier)) };
+    await this.ensureReservationsTable();
+    const { rows } = await reservationPool.query(
+      `INSERT INTO credit_reservations AS r (user_identifier, amount, updated_at) VALUES ($1, $2, now())
+       ON CONFLICT (user_identifier) DO UPDATE SET
+         amount = CASE WHEN r.updated_at < now() - interval '30 minutes' THEN EXCLUDED.amount ELSE r.amount + EXCLUDED.amount END,
+         updated_at = now()
+       WHERE (CASE WHEN r.updated_at < now() - interval '30 minutes' THEN 0 ELSE r.amount END) + EXCLUDED.amount <= $3
+       RETURNING amount`,
+      [userIdentifier, cost, remaining],
+    );
+    if (rows.length === 0) {
+      return { ok: false, available: remaining - (await this.getReservedCredits(userIdentifier)) };
+    }
+    return { ok: true, available: remaining - rows[0].amount };
   }
 
   releaseReservation(userIdentifier: string, cost: number): void {
-    const current = this.reservations.get(userIdentifier) || 0;
-    const next = Math.max(0, current - cost);
-    if (next === 0) this.reservations.delete(userIdentifier);
-    else this.reservations.set(userIdentifier, next);
+    if (this.useMemoryReservations) {
+      const current = this.reservations.get(userIdentifier) || 0;
+      const next = Math.max(0, current - cost);
+      if (next === 0) this.reservations.delete(userIdentifier);
+      else this.reservations.set(userIdentifier, next);
+      return;
+    }
+    this.ensureReservationsTable()
+      .then(() =>
+        reservationPool.query(
+          `UPDATE credit_reservations SET amount = GREATEST(amount - $2, 0), updated_at = now() WHERE user_identifier = $1`,
+          [userIdentifier, cost],
+        ),
+      )
+      .catch((error) => console.error('[creditService] reservation release failed:', error));
   }
 
   getCreditsForTier(tier: keyof typeof TIER_DAILY_CREDITS): number {

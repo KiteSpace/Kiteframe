@@ -39,7 +39,7 @@ export function attachJobAbortController(id: string, controller: AbortController
 // Cancel a still-active job: signal the upstream provider call to abort and
 // transition the job to `cancelled` so the reservation is released and no
 // credits are deducted. Returns the released reservedAmount when ok.
-export function cancelJob(id: string): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
+function cancelJobLocal(id: string): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
   const job = jobs.get(id);
   if (!job) return { ok: false, reason: 'unknown' };
   if (job.status !== 'pending' && job.status !== 'running') {
@@ -107,7 +107,7 @@ export function getActiveJobCount(userIdentifier: string): number {
   return userActiveCount.get(userIdentifier) || 0;
 }
 
-export function createJob(opts: {
+function createJobLocal(opts: {
   userIdentifier: string;
   taskType?: string;
   label?: string;
@@ -141,7 +141,7 @@ export function getJob(id: string): AiJob | null {
   return jobs.get(id) || null;
 }
 
-export function setJobRunning(id: string): void {
+function setJobRunningLocal(id: string): void {
   const job = jobs.get(id);
   if (!job || job.status !== 'pending') return;
   job.status = 'running';
@@ -154,7 +154,7 @@ export function setJobRunning(id: string): void {
 // while the worker was still running. The caller MUST treat ok:false as "do
 // not deduct credits, do not record success" so timed-out jobs cannot be
 // resurrected and charged.
-export function tryFinalizeSuccess(id: string, result: AiJobResult): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
+function tryFinalizeSuccessLocal(id: string, result: AiJobResult): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
   const job = jobs.get(id);
   if (!job) return { ok: false, reason: 'unknown' };
   if (job.status !== 'pending' && job.status !== 'running') {
@@ -173,7 +173,7 @@ export function tryFinalizeSuccess(id: string, result: AiJobResult): { ok: true;
 // reservedAmount. ok:false when the job is already terminal (cleanStale beat
 // us) — caller must NOT release reservation again in that case (cleanStale
 // already did).
-export function tryFinalizeFailure(id: string, error: string, errorStatus: number = 500): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
+function tryFinalizeFailureLocal(id: string, error: string, errorStatus: number = 500): { ok: true; reservedAmount: number } | { ok: false; reason: 'unknown' | 'already-terminal' } {
   const job = jobs.get(id);
   if (!job) return { ok: false, reason: 'unknown' };
   if (job.status !== 'pending' && job.status !== 'running') {
@@ -191,10 +191,166 @@ export function tryFinalizeFailure(id: string, error: string, errorStatus: numbe
 
 // Legacy entry points retained for callers that don't care about the
 // terminal-safety guarantee. Prefer the tryFinalize* variants above.
-export function completeJob(id: string, result: AiJobResult): void {
+function completeJobLocal(id: string, result: AiJobResult): void {
   tryFinalizeSuccess(id, result);
 }
 
-export function failJob(id: string, error: string, errorStatus: number = 500): void {
+function failJobLocal(id: string, error: string, errorStatus: number = 500): void {
   tryFinalizeFailure(id, error, errorStatus);
+}
+
+// ---- Shared job state (Postgres) ----
+// The instance that admitted a job owns its in-memory record and upstream call.
+// Every state change is written through to ai_jobs so polls, concurrency limits
+// and cancels work from any instance. Tests have no database and stay in memory.
+const useMemoryStore = process.env.NODE_ENV === 'test' || !!process.env.VITEST;
+// Loaded lazily so importing the job store never requires DATABASE_URL (unit tests).
+const pool = {
+  query: async (text: string, params?: unknown[]) => (await import('./db')).pool.query(text, params),
+};
+let jobsTableReady: Promise<unknown> | null = null;
+function ensureJobsTable(): Promise<unknown> {
+  jobsTableReady ??= pool
+    .query(
+      `CREATE TABLE IF NOT EXISTS ai_jobs (
+        id text PRIMARY KEY,
+        user_identifier text NOT NULL,
+        status text NOT NULL,
+        result jsonb,
+        error text,
+        error_status integer,
+        cancel_requested boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )`,
+    )
+    .catch((error: unknown) => {
+      jobsTableReady = null;
+      throw error;
+    });
+  return jobsTableReady!;
+}
+
+function persistJob(job: AiJob | null | undefined): void {
+  if (useMemoryStore || !job) return;
+  const snapshot = {
+    id: job.id,
+    user: job.userIdentifier,
+    status: job.status,
+    result: job.result ? JSON.stringify(job.result) : null,
+    error: job.error ?? null,
+    errorStatus: job.errorStatus ?? null,
+  };
+  ensureJobsTable()
+    .then(() =>
+      pool.query(
+        `INSERT INTO ai_jobs (id, user_identifier, status, result, error, error_status, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())
+         ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, result = EXCLUDED.result,
+           error = EXCLUDED.error, error_status = EXCLUDED.error_status, updated_at = now()`,
+        [snapshot.id, snapshot.user, snapshot.status, snapshot.result, snapshot.error, snapshot.errorStatus],
+      ),
+    )
+    .catch((error) => console.error('[aiJobStore] persist failed:', error));
+}
+
+export const createJob = (...args: Parameters<typeof createJobLocal>) => {
+  const job = createJobLocal(...args);
+  persistJob(job);
+  return job;
+};
+export const setJobRunning = (id: string) => { setJobRunningLocal(id); persistJob(jobs.get(id)); };
+export const tryFinalizeSuccess = (...args: Parameters<typeof tryFinalizeSuccessLocal>) => {
+  const r = tryFinalizeSuccessLocal(...args); persistJob(jobs.get(args[0])); return r;
+};
+export const tryFinalizeFailure = (...args: Parameters<typeof tryFinalizeFailureLocal>) => {
+  const r = tryFinalizeFailureLocal(...args); persistJob(jobs.get(args[0])); return r;
+};
+export const completeJob = (...args: Parameters<typeof completeJobLocal>) => {
+  completeJobLocal(...args); persistJob(jobs.get(args[0]));
+};
+export const failJob = (...args: Parameters<typeof failJobLocal>) => {
+  failJobLocal(...args); persistJob(jobs.get(args[0]));
+};
+export const cancelJob = (...args: Parameters<typeof cancelJobLocal>) => {
+  const r = cancelJobLocal(...args); persistJob(jobs.get(args[0])); return r;
+};
+
+export function isLocalJob(id: string): boolean {
+  return jobs.has(id);
+}
+
+/** Looks up a job on this instance, then in Postgres for jobs owned by another instance. */
+export async function getJobShared(id: string): Promise<AiJob | null> {
+  const local = getJob(id);
+  if (local || useMemoryStore) return local;
+  await ensureJobsTable();
+  const { rows } = await pool.query(
+    `SELECT id, user_identifier, status, result, error, error_status, created_at, updated_at FROM ai_jobs WHERE id = $1`,
+    [id],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  const updatedAt = new Date(row.updated_at).getTime();
+  const stale = (row.status === 'pending' || row.status === 'running') && Date.now() - updatedAt > RUNNING_TIMEOUT_MS;
+  return {
+    id: row.id,
+    userIdentifier: row.user_identifier,
+    creditCost: 0,
+    reservedAmount: 0,
+    status: stale ? 'failed' : row.status,
+    result: row.result ?? undefined,
+    error: stale ? 'AI operation timed out' : row.error ?? undefined,
+    errorStatus: stale ? 504 : row.error_status ?? undefined,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt,
+  };
+}
+
+/** Active (pending/running) jobs for a user across all instances. */
+export async function getActiveJobCountShared(userIdentifier: string): Promise<number> {
+  const local = getActiveJobCount(userIdentifier);
+  if (useMemoryStore) return local;
+  await ensureJobsTable();
+  const { rows } = await pool.query(
+    `SELECT count(*)::int AS n FROM ai_jobs
+     WHERE user_identifier = $1 AND status IN ('pending', 'running')
+       AND updated_at > now() - ($2::bigint * interval '1 millisecond')`,
+    [userIdentifier, RUNNING_TIMEOUT_MS],
+  );
+  return Math.max(local, rows[0]?.n ?? 0);
+}
+
+/** Asks the owning instance to cancel a job it is running. */
+export async function requestRemoteCancel(id: string): Promise<void> {
+  await ensureJobsTable();
+  await pool.query(`UPDATE ai_jobs SET cancel_requested = true WHERE id = $1`, [id]);
+}
+
+// Owners pick up cancels requested on other instances and clean old rows.
+if (!useMemoryStore) {
+  setInterval(async () => {
+    try {
+      const running = Array.from(jobs.values())
+        .filter((j) => j.status === 'pending' || j.status === 'running')
+        .map((j) => j.id);
+      if (running.length > 0) {
+        await ensureJobsTable();
+        const { rows } = await pool.query(
+          `SELECT id FROM ai_jobs WHERE cancel_requested AND id = ANY($1::text[])`,
+          [running],
+        );
+        for (const { id } of rows) {
+          const job = jobs.get(id);
+          const result = cancelJob(id);
+          if (result.ok && result.reservedAmount > 0 && job && releaseReservationCallback) {
+            releaseReservationCallback(job.userIdentifier, result.reservedAmount);
+          }
+        }
+      }
+      await pool.query(`DELETE FROM ai_jobs WHERE updated_at < now() - interval '1 day'`);
+    } catch (error) {
+      console.error('[aiJobStore] shared job sync failed:', error);
+    }
+  }, 2000).unref?.();
 }

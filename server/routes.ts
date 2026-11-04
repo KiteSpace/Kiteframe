@@ -67,7 +67,7 @@ import { safeFetch, parsePublicUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
-import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
+import { getJobShared, getActiveJobCountShared, isLocalJob, requestRemoteCancel, createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
 import { postBackgroundAi } from './backgroundAiRoute';
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
@@ -2144,7 +2144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Concurrency gate FIRST so we never reserve credits for a request we'll
       // immediately reject (otherwise a 429 would leak the reservation).
       const userIdentifierForGate = creditService.getUserIdentifier(req);
-      const active = getActiveJobCount(userIdentifierForGate);
+      const active = await getActiveJobCountShared(userIdentifierForGate);
       if (active >= MAX_CONCURRENT_JOBS_PER_USER) {
         return res.status(429).json({
           error: `Too many concurrent AI operations (${active}/${MAX_CONCURRENT_JOBS_PER_USER}). Wait for one to finish before starting another.`,
@@ -2273,7 +2273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
     try {
-      const job = getJob(req.params.jobId);
+      const job = await getJobShared(req.params.jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found or expired' });
       }
@@ -2313,7 +2313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // can't cancel someone else's jobs.
   app.delete('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
     try {
-      const job = getJob(req.params.jobId);
+      const job = await getJobShared(req.params.jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found or expired' });
       }
@@ -2323,6 +2323,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
         return res.json({ jobId: job.id, status: job.status });
+      }
+      if (!isLocalJob(job.id)) {
+        await requestRemoteCancel(job.id);
+        return res.json({ jobId: job.id, status: 'cancelled' });
       }
       const result = cancelJob(job.id);
       if (result.ok && result.reservedAmount > 0) {
