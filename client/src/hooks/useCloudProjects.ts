@@ -156,10 +156,18 @@ export function useCloudProjects() {
     }
   }, [hasCloudAccess, createProjectMutation]);
 
+  // Last server updatedAt we saved or loaded per project, sent back so the server can reject stale overwrites.
+  const lastUpdatedAt = useRef(new Map<string, string>());
   const updateProject = useCallback(async (params: UpdateProjectParams): Promise<SavedProject | null> => {
     if (!hasCloudAccess) return null;
     try {
-      const result = await updateProjectMutation.mutateAsync(params);
+      const baseUpdatedAt = lastUpdatedAt.current.get(String(params.id));
+      const result = await updateProjectMutation.mutateAsync(
+        baseUpdatedAt ? ({ ...params, baseUpdatedAt } as UpdateProjectParams) : params,
+      );
+      if (result?.project?.updatedAt) {
+        lastUpdatedAt.current.set(String(params.id), String(result.project.updatedAt));
+      }
       return result.project;
     } catch (e) {
       console.error('Failed to update project:', e);
