@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown, WandSparkles, Loader2 } from 'lucide-react';
+import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown, WandSparkles, Loader2, Focus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
@@ -56,6 +56,7 @@ interface WorkflowHeaderProps {
   settings: FlowSettings;
   position: { x: number; y: number };
   scale: number;
+  onFocusWorkflow?: () => void;
   onSettingsChange: (flowId: string, settings: FlowSettings) => void;
   onResetStatuses: (flowId: string) => void;
   onThemeChange?: (flowId: string) => void;
@@ -74,6 +75,7 @@ export function WorkflowHeader({
   settings,
   position,
   scale,
+  onFocusWorkflow,
   onSettingsChange,
   onResetStatuses,
   onThemeChange,
@@ -213,9 +215,9 @@ export function WorkflowHeader({
     position: 'absolute',
     left: position.x,
     top: position.y - headerOffset,
-    zIndex: 1000,
+    zIndex: isOpen ? 1001 : 1000,
     // Use inverse scale to keep UI readable at any zoom level
-    transform: `scale(${1 / scale})`,
+    transform: `scale(calc(1 / var(--kf-zoom, ${scale})))`,
     transformOrigin: 'bottom left',
   };
 
@@ -242,7 +244,12 @@ export function WorkflowHeader({
         >
           <span 
             onMouseDown={handleGripMouseDown}
-            title="Drag workflow"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              onFocusWorkflow?.();
+            }}
+            title="Drag workflow · double-click to focus"
             className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
             <GripVertical 
@@ -284,6 +291,23 @@ export function WorkflowHeader({
             className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 min-w-[200px] z-[1001]"
             data-testid={`workflow-dropdown-${flowId}`}
           >
+            {onFocusWorkflow && (
+              <>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onFocusWorkflow();
+                  }}
+                  className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors"
+                  data-testid={`workflow-focus-${flowId}`}
+                >
+                  <Focus size={14} />
+                  Focus workflow
+                </button>
+                <div className="border-t border-gray-200 dark:border-gray-600 my-2" />
+              </>
+            )}
+
             <div className="flex items-center justify-between gap-3 mb-2">
               <Switch
                 checked={settings.statusTrackingEnabled}
