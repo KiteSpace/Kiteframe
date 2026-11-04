@@ -20,6 +20,7 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   prd_generation: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   vision_ingestion: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
+  wireframe: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
 };
 
 const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
@@ -221,6 +222,7 @@ export async function executeAiChat(
     requestBody = {
       model: activeModel,
       max_tokens: clampMaxTokens(maxTokens, 1024),
+      ...(typeof temperature === 'number' && temperature >= 0 && temperature <= 1 ? { temperature } : {}),
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: anthropicMessages,
     };

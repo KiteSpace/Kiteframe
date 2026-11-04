@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { findFreeRect, resolveMockSource, decodeSvgDataUrl, encodeSvgDataUrl, withId, withoutId, MOCK_NODE_WIDTH, MOCK_NODE_HEIGHT } from "@/lib/mockPlacement";
 import { useRetainedAiState } from '@/ai/useBackgroundOperation';
 import { runBackgroundOperation, retainedCell, failOperation } from '@/ai/backgroundOperations';
 import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
@@ -2569,15 +2570,15 @@ function WorkflowEditorContent({
     [activeTabId],
   );
 
-  // Track wireframe generation loading state
+  // Track wireframe generation per source node so several mocks can run at once
   const wireframeScope = `wireframe:${activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}`;
-  const [generatingWireframe, setGeneratingWireframe] = useRetainedAiState(wireframeScope, 'generating', false);
+  const [generatingWireframeIds, setGeneratingWireframeIds] = useRetainedAiState<string[]>(wireframeScope, 'generatingIds', []);
   const [refineMockupNodeId, setRefineMockupNodeId] = useState<string | null>(null);
 
   // Wireframe generation handler
   useEffect(() => {
     const handleGenerateWireframe = async (event: any) => {
-      const { nodeId, node } = event.detail;
+      const { node } = event.detail;
 
       // Check credits before AI operation
       if (isOutOfCredits) {
@@ -2591,28 +2592,24 @@ function WorkflowEditorContent({
         return;
       }
 
-      if (!node || generatingWireframe) {
-        // Ignore if already generating or no node provided
-        if (generatingWireframe) {
-          toast({
-            title: "Please wait",
-            description: "Wireframe generation in progress...",
-          });
-        }
+      if (!node) return;
+      if (generatingWireframeIds.includes(node.id)) {
+        toast({
+          title: "Please wait",
+          description: `A wireframe for "${node.data?.label || "this step"}" is already being generated.`,
+        });
         return;
       }
 
       try {
-        setGeneratingWireframe(true);
-        return await runBackgroundOperation(wireframeScope, `Generating ${node.data?.label || 'node'} wireframe`, async signal => {
+        setGeneratingWireframeIds(ids => withId(ids, node.id));
+        return await runBackgroundOperation(`${wireframeScope}:${node.id}`, `Generating ${node.data?.label || 'node'} wireframe`, async signal => {
 
-        // Show loading toast
         toast({
           title: "Generating wireframe...",
           description: `Creating mockup for "${node.data?.label || "node"}"`,
         });
 
-        // Call the wireframe generation API
         const response = await fetchBackgroundAi("/api/generate-wireframe", {
           signal,
           method: "POST",
@@ -2627,6 +2624,9 @@ function WorkflowEditorContent({
         });
 
         if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Too many AI jobs are running. Wait for one to finish, then try again.");
+          }
           const errorData = await response
             .json()
             .catch(() => ({ error: "Failed to generate wireframe" }));
@@ -2634,18 +2634,19 @@ function WorkflowEditorContent({
         }
 
         const { svg } = await response.json();
+        const svgDataUrl = encodeSvgDataUrl(svg);
 
-        // Convert SVG to data URL with proper encoding for non-ASCII characters
-        const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+        // Read the latest tab state: the canvas may have changed while generating
+        const currentTab = tabsRef.current.find((tab) => tab.id === activeTabId);
+        if (!currentTab) return;
+        const currentNodes = currentTab.nodes;
+        const currentEdges = currentTab.edges;
+        const sourceNode = currentNodes.find((n) => n.id === node.id) ?? node;
 
-        // Create a new image node next to the source node
         const newImageNode: Node = {
           id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: "image",
-          position: {
-            x: node.position.x + (node.width || 200) + 50, // Position to the right with some spacing
-            y: node.position.y,
-          },
+          position: findFreeRect(currentNodes, sourceNode, { width: MOCK_NODE_WIDTH, height: MOCK_NODE_HEIGHT }),
           data: {
             label: `${node.data?.label || "Node"} Mockup`,
             description: "AI-generated wireframe",
@@ -2655,8 +2656,8 @@ function WorkflowEditorContent({
             imageSize: "contain",
             isMockup: true,
           },
-          width: 400,
-          height: 300,
+          width: MOCK_NODE_WIDTH,
+          height: MOCK_NODE_HEIGHT,
         };
 
         // Create auto-connection edge from source node to wireframe mockup
@@ -2679,40 +2680,26 @@ function WorkflowEditorContent({
           interactable: true,
         };
 
-        // Add the new image node and edge to the canvas
-        const currentTab = tabs.find((tab) => tab.id === activeTabId);
-        if (currentTab) {
-          const currentNodes = currentTab.nodes;
-          const currentEdges = currentTab.edges;
+        const currentState = {
+          nodes: currentNodes,
+          edges: currentEdges,
+          canvasObjects: currentTab.canvasObjects || [],
+          viewport: currentTab.viewport,
+        };
+        const newHistory = currentTab.history.slice(0, currentTab.historyIndex + 1);
+        newHistory.push(currentState);
 
-          // Save to history first
-          const currentState = {
-            nodes: currentNodes,
-            edges: currentEdges,
-            canvasObjects: currentTab.canvasObjects || [],
-            viewport: currentTab.viewport,
-          };
+        updateActiveTab({
+          nodes: [...currentNodes, newImageNode],
+          edges: [...currentEdges, newEdge],
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+        });
 
-          // Add to history
-          const newHistory = currentTab.history.slice(
-            0,
-            currentTab.historyIndex + 1,
-          );
-          newHistory.push(currentState);
-
-          // Update with new node and edge
-          updateActiveTab({
-            nodes: [...currentNodes, newImageNode],
-            edges: [...currentEdges, newEdge],
-            history: newHistory,
-            historyIndex: newHistory.length - 1,
-          });
-
-          toast({
-            title: "Wireframe generated!",
-            description: "AI-generated mockup added to canvas",
-          });
-        }
+        toast({
+          title: "Wireframe generated!",
+          description: "AI-generated mockup added to canvas",
+        });
         });
       } catch (error: any) {
         console.error("Wireframe generation error:", error);
@@ -2723,7 +2710,7 @@ function WorkflowEditorContent({
           variant: "destructive",
         });
       } finally {
-        setGeneratingWireframe(false);
+        setGeneratingWireframeIds(ids => withoutId(ids, node.id));
       }
     };
 
@@ -2731,7 +2718,7 @@ function WorkflowEditorContent({
     return () => {
       window.removeEventListener("generateWireframe", handleGenerateWireframe);
     };
-  }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
+  }, [activeTabId, toast, updateActiveTab, generatingWireframeIds, wireframeScope]);
 
   // Sync subscription tier to window global so deep components (PropertiesCard) can access it
   useEffect(() => {
@@ -9417,7 +9404,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onOpenDesign={openDesignTab}
-            isGenerating={generatingWireframe}
+            isGenerating={generatingWireframeIds.length > 0}
             hasCloudAccess={hasCloudAccess}
           />
           
@@ -17460,45 +17447,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             if (!nodeId) return;
             const targetNode = nodes.find(n => n.id === nodeId);
             if (!targetNode) return;
+            const source = resolveMockSource(nodes, edges, nodeId);
+            const currentSvg = decodeSvgDataUrl(targetNode.data?.src);
 
-            const response = await fetch("/api/generate-wireframe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                label: targetNode.data?.label || "Mockup",
-                description: targetNode.data?.description || "",
-                nodeType: targetNode.type || "image",
-                refinementPrompt: prompt,
-              }),
-            });
+            setGeneratingWireframeIds(ids => withId(ids, nodeId));
+            try {
+              const applied = await runBackgroundOperation(`${wireframeScope}:${nodeId}`, `Refining ${source.label} mockup`, async signal => {
+                const response = await fetchBackgroundAi("/api/generate-wireframe", {
+                  signal,
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ...source,
+                    refinementPrompt: prompt,
+                    ...(currentSvg && currentSvg.length <= 20000 ? { currentSvg } : {}),
+                  }),
+                });
 
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ error: "Failed to refine mockup" }));
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: "Failed to refine mockup" }));
+                  throw new Error(response.status === 429
+                    ? "Too many AI jobs are running. Wait for one to finish, then try again."
+                    : errorData.error || "Could not update the mockup. Please try again.");
+                }
+
+                const { svg } = await response.json();
+                saveToHistory("Refine mockup");
+                setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, data: { ...n.data, src: encodeSvgDataUrl(svg) } } : n));
+                return true;
+              });
+              if (!applied) return;
+              setRefineMockupNodeId(null);
+              toast({
+                title: "Mockup updated",
+                description: "Your refinement has been applied.",
+              });
+            } catch (error: any) {
               toast({
                 title: "Refinement failed",
-                description: errorData.error || "Could not update the mockup. Please try again.",
+                description: error?.message || "Could not update the mockup. Please try again.",
                 variant: "destructive",
               });
-              throw new Error(errorData.error || "Failed to refine mockup");
+              throw error;
+            } finally {
+              setGeneratingWireframeIds(ids => withoutId(ids, nodeId));
             }
-
-            const { svg } = await response.json();
-            const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
-
-            saveToHistory("Refine mockup");
-
-            setNodes(prev => prev.map(n => {
-              if (n.id === nodeId) {
-                return { ...n, data: { ...n.data, src: svgDataUrl } };
-              }
-              return n;
-            }));
-            setRefineMockupNodeId(null);
-
-            toast({
-              title: "Mockup updated",
-              description: "Your refinement has been applied.",
-            });
           }}
           onRefineMockupCancel={() => setRefineMockupNodeId(null)}
           onGenerateWorkflow={async () => {

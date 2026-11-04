@@ -67,6 +67,8 @@ import { safeFetch, parsePublicUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
+import { buildWireframePrompt, validateWireframeSvg, fallbackWireframeSvg, WIREFRAME_SYSTEM_PROMPT, MAX_CURRENT_SVG_CHARS, type WireframeValidation } from "./lib/wireframe";
+import { createStageTimer } from "./lib/stageTiming";
 import { getJobShared, getActiveJobCountShared, isLocalJob, requestRemoteCancel, createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
 import { postBackgroundAi } from './backgroundAiRoute';
 import { creditService } from "./creditService";
@@ -2351,11 +2353,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wireframe Generation endpoint - generate SVG wireframes for workflow nodes
   postBackgroundAi(app, '/api/generate-wireframe', isAuthenticated, aiRateLimiter, requireUSOnly, requireAdvancedOrPro, requireCredits, async (req, res) => {
     try {
+      const timer = createStageTimer('wireframe');
       const wireframeSchema = z.object({
         label: z.string().min(1).max(100),
         nodeType: z.string().min(1).max(50),
         description: z.string().max(300).optional(),
         refinementPrompt: z.string().max(500).optional(),
+        currentSvg: z.string().max(MAX_CURRENT_SVG_CHARS)
+          .refine((v) => v.trimStart().toLowerCase().startsWith('<svg'), 'currentSvg must start with <svg')
+          .optional(),
       });
 
       const parsed = wireframeSchema.safeParse(req.body);
@@ -2363,95 +2369,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid request', details: parsed.error.issues });
       }
 
-      const { label, description, nodeType, refinementPrompt } = parsed.data;
+      const { label, description, nodeType, refinementPrompt, currentSvg } = parsed.data;
 
       const sanitize = (value: string, maxLength: number) =>
         String(value).replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLength);
 
       const safeLabel = sanitize(label, 100);
-      const safeNodeType = sanitize(nodeType, 50);
-      const safeDescription = description ? sanitize(description, 300) : 'No description provided';
       const safeRefinementPrompt = refinementPrompt ? sanitize(refinementPrompt, 500) : null;
-
-      // Create prompt for wireframe generation
-      const prompt = safeRefinementPrompt
-        ? `Modify the existing SVG wireframe mockup for a UI component representing "${safeLabel}" based on the user's requested change.
-
-Node Type: ${safeNodeType}
-Description: ${safeDescription}
-Requested change: ${safeRefinementPrompt}
-
-Requirements:
-- Generate ONLY the updated SVG code, no explanations
-- Use a 400x300 viewBox
-- Use simple shapes (rectangles, circles, lines, text)
-- Use grayscale colors (#333, #666, #999, #ddd, #f5f5f5)
-- Apply the requested change while keeping the overall wireframe style consistent
-- Make it look like a professional wireframe mockup
-- Keep it simple and clean
-
-Return ONLY the SVG code starting with <svg> and ending with </svg>.`
-        : `Create a simple, clean SVG wireframe mockup for a UI component representing "${safeLabel}".
-
-Node Type: ${safeNodeType}
-Description: ${safeDescription}
-
-Requirements:
-- Generate ONLY the SVG code, no explanations
-- Use a 400x300 viewBox
-- Use simple shapes (rectangles, circles, lines, text)
-- Use grayscale colors (#333, #666, #999, #ddd, #f5f5f5)
-- Include placeholder text and UI elements appropriate for this type of component
-- Make it look like a professional wireframe mockup
-- Keep it simple and clean
-
-Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
-
-      // Use Anthropic Claude to generate the wireframe
-      const endpoint = 'https://api.anthropic.com/v1/messages';
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      
-      if (!apiKey) {
-        return res.status(401).json({ error: 'AI API key not configured' });
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5-20250929',
-          system: 'You are a UI/UX designer that creates clean, simple SVG wireframes. Always return ONLY SVG code, nothing else.',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
-        })
+      const prompt = buildWireframePrompt({
+        label: safeLabel,
+        nodeType: sanitize(nodeType, 50),
+        description: description ? sanitize(description, 300) : '',
+        refinementPrompt: safeRefinementPrompt,
+        currentSvg: safeRefinementPrompt && currentSvg ? currentSvg.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') : null,
       });
+      timer.mark('prompt_build', { refine: !!safeRefinementPrompt, withCurrentSvg: !!(safeRefinementPrompt && currentSvg) });
 
-      if (!response.ok) {
-        const error = await response.text();
-        console.error('Anthropic wireframe generation error:', error);
-        return res.status(response.status).json({ 
-          error: 'Failed to generate wireframe',
-          details: error
-        });
+      const signal: AbortSignal | undefined = (req as any).aiOperationSignal;
+      let svg: string | null = null;
+      let rejection = '';
+      let model: string | undefined;
+      let promptTokens = 0;
+      let completionTokens = 0;
+      for (let attempt = 1; attempt <= 2 && !svg; attempt++) {
+        const content = attempt === 1
+          ? prompt
+          : `${prompt}\n\nYour previous answer was rejected: ${rejection} Return a complete, valid SVG that follows every requirement.`;
+        const result = await executeAiChat(
+          { provider: 'anthropic', taskType: 'wireframe', maxTokens: 4000, temperature: 0.2, messages: [{ role: 'user', content }] },
+          signal,
+          { systemPrompt: WIREFRAME_SYSTEM_PROMPT },
+        );
+        if (!result.ok) {
+          if (result.status === 499 || signal?.aborted) return res.status(499).json({ error: 'Cancelled' });
+          console.error('Wireframe generation failed:', result.status, result.error);
+          return res.status(result.status === 504 ? 504 : 502).json({ error: 'Could not generate the wireframe. Please try again.' });
+        }
+        model = result.activeModel;
+        promptTokens += result.json?.usage?.input_tokens || 0;
+        completionTokens += result.json?.usage?.output_tokens || 0;
+        const stopReason = result.json?.stop_reason;
+        const check: WireframeValidation = stopReason === 'max_tokens'
+          ? { ok: false, error: 'The SVG was cut off before it finished. Use fewer elements.' }
+          : stopReason === 'refusal'
+            ? { ok: false, error: 'The request was refused.' }
+            : validateWireframeSvg(result.text || '');
+        timer.mark(`model_attempt_${attempt}`, { stopReason, valid: check.ok, rejection: check.ok ? undefined : check.error, tokensIn: result.json?.usage?.input_tokens, tokensOut: result.json?.usage?.output_tokens });
+        if (check.ok) svg = check.svg;
+        else rejection = check.error;
       }
+      const usedFallback = !svg;
+      if (usedFallback) console.warn('Wireframe validation failed twice, using fallback:', rejection);
 
-      const json = await response.json();
-      const svgContent = json.content?.[0]?.text || '';
-      
-      // Extract SVG from response (in case there's extra text)
-      const svgMatch = svgContent.match(/<svg[\s\S]*<\/svg>/i);
-      const svg = svgMatch ? svgMatch[0] : svgContent;
-      
       // Track analytics
       const userIdentifier = creditService.getUserIdentifier(req);
       let country: string | undefined;
@@ -2463,22 +2432,18 @@ Return ONLY the SVG code starting with <svg> and ending with </svg>.`;
       }
       analyticsService.trackAIRequest(userIdentifier, country, 'anthropic').catch(console.error);
 
-      // Log AI usage metrics for wireframe generation
-      const wireframeUsage = json.usage;
-      if (wireframeUsage) {
-        const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
-        const wireframeCreditInfo = req.creditDeducted;
-        logAiUsage({
-          userId: userId || undefined,
-          feature: 'workflow_reasoning',
-          model: 'claude-sonnet-4-5-20250929',
-          promptTokens: wireframeUsage.input_tokens || 0,
-          completionTokens: wireframeUsage.output_tokens || 0,
-          creditsCharged: wireframeCreditInfo?.creditCost,
-        }).catch(console.error);
-      }
-      
-      res.json({ svg });
+      const userId = (req as any).user?.claims?.sub || (req as any).user?.id;
+      logAiUsage({
+        userId: userId || undefined,
+        feature: 'wireframe',
+        model: model || 'claude-sonnet-4-5-20250929',
+        promptTokens,
+        completionTokens,
+        creditsCharged: req.creditDeducted?.creditCost,
+      }).catch(console.error);
+
+      timer.mark('done', { usedFallback, promptTokens, completionTokens });
+      res.json(usedFallback ? { svg: fallbackWireframeSvg(safeLabel), warning: 'fallback' } : { svg });
     } catch (error: any) {
       console.error('Wireframe generation error:', error);
       res.status(500).json({ error: 'Internal server error' });

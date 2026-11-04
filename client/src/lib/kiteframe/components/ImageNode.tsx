@@ -532,8 +532,8 @@ const ImageNodeComponent: React.FC<ImageNodeComponentProps> = ({
             {node.data.description && (
               <span id={`${node.id}-description`} className="sr-only">{node.data.description}</span>
             )}
-            {node.data.filename && (
-              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
+            {node.data.filename && !node.data.isMockup && (
+              <div data-testid="image-filename-caption" className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
                 {node.data.filename}
               </div>
             )}
