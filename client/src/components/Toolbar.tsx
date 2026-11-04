@@ -18,7 +18,6 @@ interface EditorSettings {
 }
 
 interface ToolbarProps {
-  onOpenAiSettings: () => void;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
   editorSettings?: EditorSettings;
@@ -29,7 +28,6 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
-  onOpenAiSettings,
   isDarkMode,
   onToggleDarkMode,
   editorSettings,

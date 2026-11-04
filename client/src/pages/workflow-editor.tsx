@@ -51,7 +51,6 @@ import { NodeTypesPopout } from "@/components/NodeTypesPopout";
 import { ShapesPopout } from "@/components/ShapesPopout";
 import { TextTypePopout } from "@/components/TextTypePopout";
 import { Toolbar } from "@/components/Toolbar";
-import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { InterfaceProposalView } from "@/components/InterfaceProposalView";
 import { pruneUnreachableCraftNodes, sanitizeCraftState, repairCraftStateJson } from "@/design/resolver";
@@ -6296,7 +6295,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [core, tabs, activeTabId, updateActiveTab]);
 
   // Other UI state
-  const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [featureUpsell, setFeatureUpsell] = useState<{ featureName: string; requiredTier: 'advanced' | 'pro'; description: string } | null>(null);
   const [generatorPrompt, setGeneratorPrompt] = useState("");
@@ -8612,7 +8610,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       <TrialBanner />
       {/* Header with Tabs */}
       <Toolbar
-        onOpenAiSettings={() => setShowAiModal(true)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
         editorSettings={editorSettings}
@@ -15192,21 +15189,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Modals */}
-      {showAiModal && (
-        <AiSettingsModal
-          onClose={() => setShowAiModal(false)}
-          onSave={(settings) => {
-            // Save AI settings to localStorage
-            localStorage.setItem("ai_settings", JSON.stringify(settings));
-            if (settings.apiKey) {
-              localStorage.setItem("custom_api_key", settings.apiKey);
-            }
-            setShowAiModal(false);
-            // Update the AI client with new settings
-            onAiSettingsChange?.();
-          }}
-        />
-      )}
       {showAiGenerator && (
         <AiWorkflowGenerator
           onClose={() => {
