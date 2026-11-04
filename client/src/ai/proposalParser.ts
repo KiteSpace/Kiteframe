@@ -168,6 +168,8 @@ function validateProposal(proposal: unknown): { valid: boolean; errors: string[]
       const node = p.nodes[i] as Record<string, unknown>;
       if (!node.id || typeof node.id !== 'string') {
         errors.push(`Node at index ${i} missing valid "id"`);
+      } else if (nodeIds.has(node.id)) {
+        errors.push(`Duplicate node id "${node.id}"`);
       } else {
         nodeIds.add(node.id);
       }

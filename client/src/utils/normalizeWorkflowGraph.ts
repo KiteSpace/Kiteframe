@@ -4,6 +4,8 @@ type NormalizeInput = {
   timestamp: number
 }
 
+export const MAX_GENERATED_NODES = 200
+
 export function normalizeWorkflowGraph({
   nodes,
   edges,
@@ -13,22 +15,48 @@ export function normalizeWorkflowGraph({
     throw new Error('normalizeWorkflowGraph: nodes must be an array')
   }
 
-  const normalizedNodes = nodes.map((node, index) => ({
-    ...node,
-    id: node.id || `node-${index + 1}`,
-  }))
+  // AI output is untrusted: drop non-objects, cap the size, make ids unique and
+  // give every node a finite position so the canvas can always render it.
+  const seenIds = new Set<string>()
+  const normalizedNodes = nodes
+    .filter((node) => node && typeof node === 'object' && !Array.isArray(node))
+    .slice(0, MAX_GENERATED_NODES)
+    .map((node, index) => {
+      let id = typeof node.id === 'string' && node.id ? node.id : `node-${index + 1}`
+      while (seenIds.has(id)) id = `${id}-${index + 1}`
+      seenIds.add(id)
+      const x = Number(node.position?.x)
+      const y = Number(node.position?.y)
+      return {
+        ...node,
+        id,
+        position: {
+          x: Number.isFinite(x) ? x : (index % 4) * 320,
+          y: Number.isFinite(y) ? y : Math.floor(index / 4) * 220,
+        },
+      }
+    })
 
   const nodeIds = new Set(normalizedNodes.map((n) => n.id))
+  const edgeKeys = new Set<string>()
 
   let normalizedEdges = Array.isArray(edges)
-    ? edges.filter(
-        (edge) =>
-          edge &&
-          edge.source &&
-          edge.target &&
-          nodeIds.has(edge.source) &&
-          nodeIds.has(edge.target),
-      )
+    ? edges.filter((edge) => {
+        if (
+          !edge ||
+          typeof edge.source !== 'string' ||
+          typeof edge.target !== 'string' ||
+          edge.source === edge.target ||
+          !nodeIds.has(edge.source) ||
+          !nodeIds.has(edge.target)
+        ) {
+          return false
+        }
+        const key = `${edge.source}->${edge.target}`
+        if (edgeKeys.has(key)) return false
+        edgeKeys.add(key)
+        return true
+      })
     : []
 
   if (normalizedEdges.length === 0 && normalizedNodes.length > 1) {
