@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageCircle, Check, Trash2, Send, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -65,7 +66,7 @@ export function CommentsOverlay({
   isAuthenticated = false,
   placing = false,
   onPlacingChange,
-  viewport,
+  viewport: committedViewport,
   onViewportChange,
   containerRef,
 }: CommentsOverlayProps) {
@@ -95,6 +96,30 @@ export function CommentsOverlay({
     position: { x: number; y: number };
   } | null>(null);
   const suppressPinClickRef = useRef(false);
+
+  // Wheel zoom moves the canvas directly and only commits `viewport` once it settles,
+  // so follow the live viewport in between.
+  const [liveViewport, setLiveViewport] = useState<Viewport | null>(null);
+  useEffect(() => {
+    const onLive = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { viewport: Viewport; container: Element } | undefined;
+      if (detail && containerRef.current?.contains(detail.container)) setLiveViewport(detail.viewport);
+    };
+    window.addEventListener('kiteframe:viewport-live', onLive);
+    return () => window.removeEventListener('kiteframe:viewport-live', onLive);
+  }, [containerRef]);
+  useEffect(() => {
+    setLiveViewport(null);
+  }, [committedViewport]);
+  const viewport = liveViewport ?? committedViewport;
+
+  // Pins render inside the canvas world so they move with its transform and stack
+  // under workflow badges (z-index 1000).
+  const [worldEl, setWorldEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = containerRef.current?.querySelector<HTMLElement>('.kiteframe-world') ?? null;
+    if (el !== worldEl) setWorldEl(el);
+  });
 
   // Convert a world coordinate to a screen position within the canvas container.
   const toScreen = useCallback(
@@ -180,6 +205,7 @@ export function CommentsOverlay({
     const dismissWhenOutside = (event: PointerEvent) => {
       const target = event.target instanceof Node ? event.target : null;
       if (target && overlayRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest('[data-comment-pin]')) return;
       setDraft(null);
       setSelectedId(null);
     };
@@ -276,12 +302,13 @@ export function CommentsOverlay({
       data-testid="comments-overlay"
     >
       {/* Comment pins */}
-      {threads.map(({ root, replies }) => {
+      {(() => {
+      const pins = threads.map(({ root, replies }) => {
         if (root.positionX == null || root.positionY == null) return null;
         const draggedPosition = dragPositions[root.id];
         const position = draggedPosition ?? { x: root.positionX, y: root.positionY };
         const pos = toScreen(position.x, position.y);
-        if (pos.x < -40 || pos.y < -40 || pos.x > containerW + 40 || pos.y > containerH + 40) {
+        if (!worldEl && (pos.x < -40 || pos.y < -40 || pos.x > containerW + 40 || pos.y > containerH + 40)) {
           return null;
         }
         const resolved = !!root.isResolved;
@@ -290,10 +317,19 @@ export function CommentsOverlay({
           <button
             key={root.id}
             type="button"
-            className={`absolute flex items-center justify-center rounded-full rounded-bl-none shadow-md transition-transform hover:scale-110 ${
+            className={`absolute flex items-center justify-center rounded-full rounded-bl-none shadow-md ${
               resolved ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground'
             } ${isSelected ? 'ring-2 ring-offset-1 ring-primary' : ''}`}
-            style={{
+            style={worldEl ? {
+              left: position.x,
+              top: position.y,
+              width: 28,
+              height: 28,
+              transform: `scale(calc(1 / var(--kf-zoom, ${viewport.zoom}))) translate(-2px, -28px)`,
+              transformOrigin: '0 0',
+              zIndex: 900,
+              pointerEvents: 'auto',
+            } : {
               left: pos.x,
               top: pos.y,
               width: 28,
@@ -324,6 +360,7 @@ export function CommentsOverlay({
               setDraft(null);
             }}
             data-testid={`comment-pin-${root.id}`}
+            data-comment-pin=""
           >
             {resolved ? (
               <Check size={14} />
@@ -334,7 +371,9 @@ export function CommentsOverlay({
             )}
           </button>
         );
-      })}
+      });
+      return worldEl ? createPortal(pins, worldEl) : pins;
+      })()}
 
       {/* Draft new-comment input */}
       {draft && (() => {

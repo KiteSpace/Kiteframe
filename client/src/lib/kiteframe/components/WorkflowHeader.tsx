@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown, WandSparkles, Loader2 } from 'lucide-react';
+import { GripVertical, Palette, Trash2, LayoutGrid, Shuffle, ArrowRight, ArrowDown, ChevronDown, WandSparkles, Loader2, Focus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { FlowSettings, Flow } from '../utils/FlowDetection';
 import { useWorkflowNames } from '../../../stores/workflowNameStore';
+import { useProjectWorkflowNames } from '../../../stores/layersStateManager';
 import { useNodeToWorkflow } from '../../../stores/nodeToWorkflowStore';
 import { workflowThemes, type WorkflowTheme } from '../../../lib/themes';
 import {
@@ -56,6 +57,7 @@ interface WorkflowHeaderProps {
   settings: FlowSettings;
   position: { x: number; y: number };
   scale: number;
+  onFocusWorkflow?: () => void;
   onSettingsChange: (flowId: string, settings: FlowSettings) => void;
   onResetStatuses: (flowId: string) => void;
   onThemeChange?: (flowId: string) => void;
@@ -74,6 +76,7 @@ export function WorkflowHeader({
   settings,
   position,
   scale,
+  onFocusWorkflow,
   onSettingsChange,
   onResetStatuses,
   onThemeChange,
@@ -95,13 +98,31 @@ export function WorkflowHeader({
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const justDraggedRef = useRef(false);
   
-  const workflowNames = useWorkflowNames();
+  const legacyWorkflowNames = useWorkflowNames();
+  const workflowNames = useProjectWorkflowNames();
   const nodeToWorkflow = useNodeToWorkflow();
   
   // Try to get workflow name from the first node in the flow
   const firstNodeId = flowNodes.length > 0 ? flowNodes[0].id : null;
   const workflowNameFromNode = firstNodeId ? nodeToWorkflow.getWorkflowNameForNode(firstNodeId) : null;
-  const workflowName = workflowNameFromNode || workflowNames.get(flowId) || 'Workflow';
+  // Names live in the Layers panel's per-project store, keyed by its workflow group id (`wf:…`),
+  // so a rename in either place shows in both.
+  const workflowGroupId = firstNodeId ? nodeToWorkflow.getWorkflowGroupIdForNode(firstNodeId) : null;
+  const workflowName =
+    (workflowGroupId && workflowNames.get(workflowGroupId)) ||
+    workflowNames.get(flowId) ||
+    workflowNameFromNode ||
+    legacyWorkflowNames.get(flowId) ||
+    'Workflow';
+
+  // A badge rename made before the Layers panel mapped this workflow is stored under flowId;
+  // copy it to the group id once that mapping exists so the Layers panel shows it too.
+  const flowIdName = workflowNames.get(flowId);
+  useEffect(() => {
+    if (workflowGroupId && flowIdName && !workflowNames.get(workflowGroupId)) {
+      workflowNames.set(workflowGroupId, flowIdName);
+    }
+  }, [workflowGroupId, flowIdName]);
   
   const [nameValue, setNameValue] = useState(workflowName);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -178,7 +199,11 @@ export function WorkflowHeader({
   const handleNameSubmit = () => {
     const trimmedName = nameValue.trim() || 'Workflow';
     setIsEditingName(false);
-    workflowNames.set(flowId, trimmedName);
+    try {
+      workflowNames.set(workflowGroupId ?? flowId, trimmedName);
+    } catch {
+      setNameValue(workflowName);
+    }
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
@@ -187,7 +212,7 @@ export function WorkflowHeader({
       handleNameSubmit();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      setNameValue(settings.name);
+      setNameValue(workflowName);
       setIsEditingName(false);
     }
   };
@@ -213,9 +238,9 @@ export function WorkflowHeader({
     position: 'absolute',
     left: position.x,
     top: position.y - headerOffset,
-    zIndex: 1000,
+    zIndex: isOpen ? 1001 : 1000,
     // Use inverse scale to keep UI readable at any zoom level
-    transform: `scale(${1 / scale})`,
+    transform: `scale(calc(1 / var(--kf-zoom, ${scale})))`,
     transformOrigin: 'bottom left',
   };
 
@@ -242,7 +267,12 @@ export function WorkflowHeader({
         >
           <span 
             onMouseDown={handleGripMouseDown}
-            title="Drag workflow"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              onFocusWorkflow?.();
+            }}
+            title="Drag workflow · double-click to focus"
             className={`${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
             <GripVertical 
@@ -259,6 +289,7 @@ export function WorkflowHeader({
               onBlur={handleNameSubmit}
               onKeyDown={handleNameKeyDown}
               onClick={(e) => e.stopPropagation()}
+              maxLength={50}
               className="bg-transparent border-none outline-none text-sm font-medium w-32"
               data-testid={`workflow-name-input-${flowId}`}
             />
@@ -284,6 +315,23 @@ export function WorkflowHeader({
             className="absolute top-full left-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 min-w-[200px] z-[1001]"
             data-testid={`workflow-dropdown-${flowId}`}
           >
+            {onFocusWorkflow && (
+              <>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    onFocusWorkflow();
+                  }}
+                  className="flex items-center gap-2 w-full text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1.5 transition-colors"
+                  data-testid={`workflow-focus-${flowId}`}
+                >
+                  <Focus size={14} />
+                  Focus workflow
+                </button>
+                <div className="border-t border-gray-200 dark:border-gray-600 my-2" />
+              </>
+            )}
+
             <div className="flex items-center justify-between gap-3 mb-2">
               <Switch
                 checked={settings.statusTrackingEnabled}

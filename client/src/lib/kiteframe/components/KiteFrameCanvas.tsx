@@ -1642,7 +1642,9 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       viewportRef.current = next;
       if (worldRef.current) {
         worldRef.current.style.transform = worldTransform(next);
+        worldRef.current.style.setProperty('--kf-zoom', String(next.zoom));
       }
+      window.dispatchEvent(new CustomEvent('kiteframe:viewport-live', { detail: { viewport: next, container } }));
 
       if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
       wheelIdleTimer.current = setTimeout(() => {
@@ -3359,8 +3361,38 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
     return cleanupKeydown;
   }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
 
+  const worldViewport = wheelViewport.current ?? viewport;
   const worldStyle = {
-    transform: worldTransform(wheelViewport.current ?? viewport),
+    transform: worldTransform(worldViewport),
+    '--kf-zoom': String(worldViewport.zoom),
+  } as React.CSSProperties;
+
+  // Zoom to fit a box (e.g. one workflow) into the canvas area left of the side panel.
+  const focusBox = (box: { x: number; y: number; width: number; height: number }) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const panel = document.querySelector('[data-testid="project-panel"]') as HTMLElement | null;
+    const panelLeft = panel?.getBoundingClientRect().left;
+    const visibleWidth =
+      panelLeft && panelLeft > rect.left && panelLeft < rect.right ? panelLeft - rect.left : rect.width;
+    const toolbarInset = 72;
+    const padding = 64;
+    const headerSpace = 48;
+    const fitWidth = Math.max(100, visibleWidth - toolbarInset);
+    const top = box.y - headerSpace;
+    const height = box.height + headerSpace;
+    const zoom = Math.max(
+      minZoom,
+      Math.min(1.5, maxZoom, fitWidth / (box.width + padding * 2), rect.height / (height + padding * 2)),
+    );
+    if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+    wheelIdleTimer.current = null;
+    wheelViewport.current = null;
+    setViewportRef.current({
+      x: toolbarInset + fitWidth / 2 - (box.x + box.width / 2) * zoom,
+      y: rect.height / 2 - (top + height / 2) * zoom,
+      zoom,
+    });
   };
 
   // Canvas object click handler for selection
@@ -3776,6 +3808,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
                 settings={flowSettings}
                 position={headerPosition}
                 scale={viewport.zoom}
+                onFocusWorkflow={() => focusBox(flow.boundingBox)}
                 onSettingsChange={(flowId, settings) => {
                   props.onFlowSettingsChange?.(flowId, settings);
                 }}

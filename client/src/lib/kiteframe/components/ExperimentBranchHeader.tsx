@@ -94,7 +94,7 @@ export function ExperimentBranchHeader({
         left: position.x,
         top: position.y - headerOffset,
         zIndex: 1000,
-        transform: `scale(${1 / scale})`,
+        transform: `scale(calc(1 / var(--kf-zoom, ${scale})))`,
         transformOrigin: 'bottom left',
         backgroundColor: '#f3e8ff',
       }}

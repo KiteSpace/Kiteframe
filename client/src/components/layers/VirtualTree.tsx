@@ -20,13 +20,21 @@ const InnerElementWithPadding = forwardRef<HTMLDivElement, React.HTMLProps<HTMLD
 );
 InnerElementWithPadding.displayName = 'InnerElementWithPadding';
 
-export function VirtualTree({ rows, Row }:{ rows:any[], Row:(p:any)=>JSX.Element }){
+// Callers pass `Row` as an inline function, so it is called rather than mounted as a
+// component; mounting it would remount every row (and drop row state such as an open
+// rename input) whenever the panel re-renders.
+type RowRenderer = (p: any) => JSX.Element;
+const VirtualItem = ({ index, style, data }: { index: number; style: any; data: { rows: any[]; Row: RowRenderer } }) => (
+  <div style={style}>{data.Row(data.rows[index])}</div>
+);
+
+export function VirtualTree({ rows, Row }:{ rows:any[], Row:RowRenderer }){
   if (!FixedSizeList) {
     return (
       <div className="overflow-y-auto" style={{ height: 520 }}>
         {rows.map((row, index) => (
           <div key={index} style={{ height: 28 }}>
-            <Row {...row} />
+            {Row(row)}
           </div>
         ))}
         <div style={{ height: BOTTOM_PADDING }} />
@@ -41,12 +49,9 @@ export function VirtualTree({ rows, Row }:{ rows:any[], Row:(p:any)=>JSX.Element
       itemSize={28} 
       width={'100%'}
       innerElementType={InnerElementWithPadding}
+      itemData={{ rows, Row }}
     >
-      {({index, style}: {index: number, style: any}) => (
-        <div style={style}>
-          <Row {...rows[index]} />
-        </div>
-      )}
+      {VirtualItem}
     </FixedSizeList>
   );
 }
