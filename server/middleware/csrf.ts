@@ -58,3 +58,19 @@ export function csrfProtectionForApi(req: Request, res: Response, next: NextFunc
   
   return csrfProtection(req, res, next);
 }
+
+// Applied to every /api route: browsers always send Origin on cross-site
+// POST/PUT/PATCH/DELETE, so a present-but-foreign Origin is rejected. Requests
+// without Origin (webhooks, server-to-server) pass; routes that must come from
+// the app itself still use the stricter csrfProtection.
+export function csrfOriginGuard(req: Request, res: Response, next: NextFunction): void {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || !req.headers.origin) {
+    return next();
+  }
+  if (!isValidOrigin(req.headers.origin, req.hostname)) {
+    console.warn(`CSRF blocked: origin=${req.headers.origin}, hostname=${req.hostname}, path=${req.path}`);
+    res.status(403).json({ error: 'Request blocked: invalid origin' });
+    return;
+  }
+  next();
+}

@@ -67,7 +67,7 @@ import { safeFetch, parsePublicUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
 import { executeAiChat } from "./aiChatExecutor";
-import { createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
+import { getJobShared, getActiveJobCountShared, isLocalJob, requestRemoteCancel, createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
 import { postBackgroundAi } from './backgroundAiRoute';
 import { creditService } from "./creditService";
 import { requireAdminAuth, adminLogin, adminLogout, refreshAdminSession } from "./middleware/adminAuth";
@@ -84,7 +84,7 @@ import { getBillingAccountAvailability } from "./accountBilling";
 import { WebhookHandlers } from "./webhookHandlers";
 import { getStripePublishableKey } from "./stripeClient";
 import { aiRateLimiter, authRateLimiter, projectRateLimiter, uploadRateLimiter, sensitiveRateLimiter, waitlistRateLimiter, creditUnlockRateLimiter, chatRateLimiter, generalRateLimiter } from "./middleware/rateLimiter";
-import { csrfProtection } from "./middleware/csrf";
+import { csrfProtection, csrfOriginGuard } from "./middleware/csrf";
 import { logAiUsage, getUserUsageSummary, getUserUsageTimeSeries, getUserUsageEvents, type UsageLogParams } from "./aiUsageService";
 import { sendBetaApprovalEmail, sendContactEmail, sendDocsAccessEmail } from "./emailService";
 import { sanitizeAiPrompt, sanitizeAiResponse, sanitizeWorkflowContent, sanitizeText, sanitizeNodeLabel } from "./utils/sanitize";
@@ -95,6 +95,7 @@ import { registerFeatureFlagRoutes } from "./featureFlagRoutes";
 import { registerExternalWorkflowRoutes } from "./externalWorkflowRoutes";
 import { registerDocumentRoutes } from "./documentRoutes";
 import { verifyFirebaseIdToken, initializeFirebaseAdmin, isAdminSdkAvailable, getInitializationError } from "./firebaseAdmin";
+import { getObjectAclPolicy } from "./objectAcl";
 
 // Initialize Firebase Admin on module load
 initializeFirebaseAdmin();
@@ -590,6 +591,7 @@ async function fetchRemoteImage(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.use('/api', csrfOriginGuard);
   // Wire the AI job store's stale-cleanup release callback to the credit
   // service so timed-out jobs return their held reservation to the user.
   setReservationReleaseCallback((userIdentifier, amount) => {
@@ -1456,6 +1458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
+      const baseRev = Number.isInteger(req.body?.baseRev) ? (req.body.baseRev as number) : undefined;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
 
       // Sanitize all input data
@@ -1484,9 +1487,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderId,
         tags: sanitizedTags,
         isPublic,
-      });
+      }, { expectedRev: baseRev, bumpRev: true });
 
       if (!project) {
+        const current = baseRev !== undefined ? await storage.getSavedProject(id, userId) : undefined;
+        if (current) {
+          return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
+        }
         return res.status(404).json({ error: 'Project not found' });
       }
 
@@ -1879,6 +1886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Not authorized to edit this project' });
       }
 
+      const baseRev = Number.isInteger(req.body?.baseRev) ? (req.body.baseRev as number) : undefined;
       const { name, description, workflowData, thumbnail, folderId, tags, isPublic } = req.body;
       
       // Sanitize all input data
@@ -1902,9 +1910,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         folderId,
         tags: sanitizedTags,
         isPublic,
-      });
+      }, { expectedRev: baseRev, bumpRev: true });
 
       if (!updated) {
+        if (baseRev !== undefined) {
+          const current = await storage.getSavedProject(project.id, userId);
+          if (current) {
+            return res.status(409).json({ error: 'This project was changed somewhere else. Reload to get the latest version.', project: current });
+          }
+        }
         return res.status(404).json({ error: 'Project not found' });
       }
 
@@ -2136,7 +2150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Concurrency gate FIRST so we never reserve credits for a request we'll
       // immediately reject (otherwise a 429 would leak the reservation).
       const userIdentifierForGate = creditService.getUserIdentifier(req);
-      const active = getActiveJobCount(userIdentifierForGate);
+      const active = await getActiveJobCountShared(userIdentifierForGate);
       if (active >= MAX_CONCURRENT_JOBS_PER_USER) {
         return res.status(429).json({
           error: `Too many concurrent AI operations (${active}/${MAX_CONCURRENT_JOBS_PER_USER}). Wait for one to finish before starting another.`,
@@ -2265,7 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
     try {
-      const job = getJob(req.params.jobId);
+      const job = await getJobShared(req.params.jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found or expired' });
       }
@@ -2305,7 +2319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // can't cancel someone else's jobs.
   app.delete('/api/ai/jobs/:jobId', requireUSOnly, async (req, res) => {
     try {
-      const job = getJob(req.params.jobId);
+      const job = await getJobShared(req.params.jobId);
       if (!job) {
         return res.status(404).json({ error: 'Job not found or expired' });
       }
@@ -2315,6 +2329,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
         return res.json({ jobId: job.id, status: job.status });
+      }
+      if (!isLocalJob(job.id)) {
+        await requestRemoteCancel(job.id);
+        return res.json({ jobId: job.id, status: 'cancelled' });
       }
       const result = cancelJob(job.id);
       if (result.ok && result.reservedAmount > 0) {
@@ -3753,12 +3771,29 @@ Respond with only the corrected JSON data:`;
   });
 
   // Object storage routes for image uploads
+  // Uploaded images stay readable by URL so share links work logged out, but only
+  // for upload IDs, never served as active content, and private ACLs are honored.
   app.get("/objects/:objectPath(*)", async (req, res) => {
+    if (!/^\/objects\/uploads\/[0-9a-f-]{36}(\.(jpe?g|png|gif|webp|bin))?$/i.test(req.path)) {
+      return res.sendStatus(404);
+    }
     const objectStorageService = new ObjectStorageService();
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(
         req.path,
       );
+      const aclPolicy = await getObjectAclPolicy(objectFile);
+      if (
+        aclPolicy?.visibility === "private" &&
+        !(await objectStorageService.canAccessObjectEntity({
+          userId: (req as any).user?.claims?.sub,
+          objectFile,
+        }))
+      ) {
+        return res.sendStatus(404);
+      }
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error checking object access:", error);
@@ -3855,7 +3890,7 @@ Respond with only the corrected JSON data:`;
   });
 
   // Chat Messages API (Collaboration Pro)
-  app.post('/api/chat/messages', csrfProtection, chatRateLimiter, async (req, res) => {
+  app.post('/api/chat/messages', isAuthenticated, csrfProtection, chatRateLimiter, async (req, res) => {
     try {
       const { roomId, message, messageType, metadata } = req.body;
       
@@ -3883,7 +3918,7 @@ Respond with only the corrected JSON data:`;
     }
   });
 
-  app.get('/api/chat/messages/:roomId', async (req, res) => {
+  app.get('/api/chat/messages/:roomId', isAuthenticated, async (req, res) => {
     try {
       const { roomId } = req.params;
       
@@ -3994,6 +4029,9 @@ Respond with only the corrected JSON data:`;
         return res.status(403).json({ error: 'Not allowed to comment on this project' });
       }
       const userId = auth.userId;
+      if (!auth.isOwner && !userId) {
+        return res.status(401).json({ error: 'Sign in to comment on this project' });
+      }
 
       // If this is a reply, make sure the parent exists, belongs to the same
       // project, and is itself a root comment (threads are single-level).
@@ -4076,6 +4114,9 @@ Respond with only the corrected JSON data:`;
       if (!auth.authorized) {
         return res.status(403).json({ error: 'Not allowed to update this comment' });
       }
+      if (!auth.isOwner && !auth.userId) {
+        return res.status(401).json({ error: 'Sign in to update comments on this project' });
+      }
 
       const updated = await storage.setCommentResolved(id, isResolved);
       (app as any).broadcastCommentEvent?.(existing.workflowId, 'resolve', updated);
@@ -4106,6 +4147,9 @@ Respond with only the corrected JSON data:`;
       const auth = await resolveCommentAuth(req, existing.workflowId);
       if (!auth.authorized) {
         return res.status(403).json({ error: 'Not allowed to update this comment' });
+      }
+      if (!auth.isOwner && !auth.userId) {
+        return res.status(401).json({ error: 'Sign in to update comments on this project' });
       }
 
       const updated = await storage.setCommentPosition(id, positionX, positionY);
@@ -8439,35 +8483,6 @@ jane@example.com,Jane,Smith,pro,GroupC
         
         // Handle different message types
         switch (message.type) {
-          case 'join_room':
-            // Handle room join
-            ws.send(JSON.stringify({
-              type: 'room_joined',
-              roomId: message.roomId
-            }));
-            break;
-          case 'chat_message':
-            // Broadcast chat message to all clients in room
-            wss.clients.forEach((client) => {
-              if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                  type: 'chat_message',
-                  message: message
-                }));
-              }
-            });
-            break;
-          case 'cursor_update':
-            // Broadcast cursor position to all clients in room
-            wss.clients.forEach((client) => {
-              if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                  type: 'cursor_update',
-                  cursor: message.cursor
-                }));
-              }
-            });
-            break;
           case 'subscribe_share':
             // Subscribe to a share for live updates.
             // Tamper-proofing: only honor (and count) a subscription when the

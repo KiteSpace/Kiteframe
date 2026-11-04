@@ -130,9 +130,10 @@ interface InlineEditFieldProps {
   multiline?: boolean;
   testId: string;
   isReadOnly?: boolean;
+  emptyText?: string;
 }
 
-function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButton = false, isRefineDisabled = false, className, multiline = false, testId, isReadOnly = false }: InlineEditFieldProps) {
+function InlineEditField({ value, placeholder, emptyText, onSave, onRefine, showRefineButton = false, isRefineDisabled = false, className, multiline = false, testId, isReadOnly = false }: InlineEditFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isHovered, setIsHovered] = useState(false);
@@ -180,7 +181,7 @@ function InlineEditField({ value, placeholder, onSave, onRefine, showRefineButto
         className={cn("rounded-md", !value && "italic text-muted-foreground", className)}
         data-testid={testId}
       >
-        {value || placeholder}
+        {value || emptyText || placeholder}
       </div>
     );
   }
@@ -629,6 +630,7 @@ Return ONLY valid JSON:
                 <InlineEditField
                   value={details.name}
                   placeholder="Click to add project name..."
+                  emptyText="Untitled"
                   onSave={updateName}
                   onRefine={() => refineField('name')}
                   showRefineButton={!isReadOnly && hasNodes}
@@ -654,6 +656,7 @@ Return ONLY valid JSON:
                 <InlineEditField
                   value={details.description}
                   placeholder="Click to add a description..."
+                  emptyText="No description"
                   onSave={updateDescription}
                   onRefine={() => refineField('description')}
                   showRefineButton={!isReadOnly && hasNodes}

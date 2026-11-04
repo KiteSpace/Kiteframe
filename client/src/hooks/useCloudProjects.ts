@@ -118,6 +118,10 @@ export function useCloudProjects() {
       if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         setIsCloudConnected(false);
         setLastSyncError('Failed to update project - check your network');
+      } else if (error.message.startsWith('409')) {
+        setLastSyncError('This project was changed somewhere else. Reload to get the latest version.');
+      } else {
+        setLastSyncError(`Failed to save project: ${error.message}`);
       }
     },
   });
@@ -152,10 +156,26 @@ export function useCloudProjects() {
     }
   }, [hasCloudAccess, createProjectMutation]);
 
+  // Project revision this tab last saw per project, sent back so the server rejects saves over newer work.
+  // Taken from the first project list we load, then only from our own saves.
+  const knownRev = useRef(new Map<string, number>());
+  useEffect(() => {
+    for (const project of data?.projects ?? []) {
+      if (!knownRev.current.has(project.id) && typeof project.rev === 'number') {
+        knownRev.current.set(project.id, project.rev);
+      }
+    }
+  }, [data?.projects]);
   const updateProject = useCallback(async (params: UpdateProjectParams): Promise<SavedProject | null> => {
     if (!hasCloudAccess) return null;
     try {
-      const result = await updateProjectMutation.mutateAsync(params);
+      const baseRev = knownRev.current.get(String(params.id));
+      const result = await updateProjectMutation.mutateAsync(
+        baseRev !== undefined ? ({ ...params, baseRev } as UpdateProjectParams) : params,
+      );
+      if (typeof result?.project?.rev === 'number') {
+        knownRev.current.set(String(params.id), result.project.rev);
+      }
       return result.project;
     } catch (e) {
       console.error('Failed to update project:', e);

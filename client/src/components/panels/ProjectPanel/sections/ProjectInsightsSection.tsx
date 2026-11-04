@@ -33,6 +33,7 @@ interface ProjectInsightsSectionProps {
   projectId: string;
   nodes: Node[];
   edges: Edge[];
+  isReadOnly?: boolean;
 }
 
 interface CrossWorkflowAnalysis {
@@ -133,10 +134,11 @@ function InsightCategory({
   );
 }
 
-export function ProjectInsightsSection({ 
-  projectId, 
-  nodes, 
-  edges 
+export function ProjectInsightsSection({
+  projectId,
+  nodes,
+  edges,
+  isReadOnly = false,
 }: ProjectInsightsSectionProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<CrossWorkflowAnalysis | null>(null);
@@ -292,21 +294,23 @@ Only include genuine issues. Be concise (under 100 chars per item).`
             </span>
           )}
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-[10px]"
-          onClick={handleAnalyze}
-          disabled={isAnalyzing}
-          data-testid="analyze-cross-workflow"
-        >
-          {isAnalyzing ? (
-            <Loader2 size={10} className="mr-1 animate-spin" />
-          ) : (
-            <RefreshCw size={10} className="mr-1" />
-          )}
-          Analyze
-        </Button>
+        {!isReadOnly && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={handleAnalyze}
+            disabled={isAnalyzing}
+            data-testid="analyze-cross-workflow"
+          >
+            {isAnalyzing ? (
+              <Loader2 size={10} className="mr-1 animate-spin" />
+            ) : (
+              <RefreshCw size={10} className="mr-1" />
+            )}
+            Analyze
+          </Button>
+        )}
       </header>
 
       {totalInsights === 0 && !hasAnalysis && !isAnalyzing && (

@@ -51,7 +51,6 @@ import { NodeTypesPopout } from "@/components/NodeTypesPopout";
 import { ShapesPopout } from "@/components/ShapesPopout";
 import { TextTypePopout } from "@/components/TextTypePopout";
 import { Toolbar } from "@/components/Toolbar";
-import { AiSettingsModal } from "@/components/AiSettingsModal";
 import { AiWorkflowGenerator } from "@/components/AiWorkflowGenerator";
 import { InterfaceProposalView } from "@/components/InterfaceProposalView";
 import { pruneUnreachableCraftNodes, sanitizeCraftState, repairCraftStateJson } from "@/design/resolver";
@@ -2990,6 +2989,47 @@ function WorkflowEditorContent({
     const ch = window.innerHeight;
     const zoom = Math.max(0.1, Math.min(1.5, Math.min(cw / (maxX - minX + padding * 2), ch / (maxY - minY + padding * 2))));
     setViewport({ x: cw / 2 - ((minX + maxX) / 2) * zoom, y: ch / 2 - ((minY + maxY) / 2) * zoom, zoom });
+  }, [nodes, setViewport]);
+
+  useEffect(() => {
+    if (lastSyncError) {
+      toast({ title: "Cloud save failed", description: lastSyncError, variant: "destructive" });
+    }
+  }, [lastSyncError, toast]);
+
+  // Fit a freshly loaded project into the visible canvas (the area left of the side panel).
+  const pendingFitRef = useRef(false);
+  useEffect(() => {
+    if (!pendingFitRef.current || nodes.length === 0) return;
+    const frame = requestAnimationFrame(() => {
+      const canvas = document.querySelector(".kiteframe-canvas") as HTMLElement | null;
+      const rect = canvas?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return;
+      pendingFitRef.current = false;
+      const panel = document.querySelector('[data-testid="project-panel"]') as HTMLElement | null;
+      const panelLeft = panel?.getBoundingClientRect().left;
+      const visibleWidth =
+        panelLeft && panelLeft > rect.left && panelLeft < rect.right ? panelLeft - rect.left : rect.width;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach((node) => {
+        const w = (node.style?.width ?? node.width ?? 200) as number;
+        const h = (node.style?.height ?? node.height ?? 100) as number;
+        minX = Math.min(minX, node.position.x);
+        minY = Math.min(minY, node.position.y);
+        maxX = Math.max(maxX, node.position.x + w);
+        maxY = Math.max(maxY, node.position.y + h);
+      });
+      const padding = 64;
+      const toolbarInset = 72;
+      const fitWidth = visibleWidth - toolbarInset;
+      const zoom = Math.max(0.1, Math.min(1, fitWidth / (maxX - minX + padding * 2), rect.height / (maxY - minY + padding * 2)));
+      setViewport({
+        x: toolbarInset + fitWidth / 2 - ((minX + maxX) / 2) * zoom,
+        y: rect.height / 2 - ((minY + maxY) / 2) * zoom,
+        zoom,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [nodes, setViewport]);
 
   // Helper function to calculate viewport-centered position with sequential offset
@@ -6296,7 +6336,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
   }, [core, tabs, activeTabId, updateActiveTab]);
 
   // Other UI state
-  const [showAiModal, setShowAiModal] = useState(false);
   const [showAiGenerator, setShowAiGenerator] = useState(false);
   const [featureUpsell, setFeatureUpsell] = useState<{ featureName: string; requiredTier: 'advanced' | 'pro'; description: string } | null>(null);
   const [generatorPrompt, setGeneratorPrompt] = useState("");
@@ -6814,6 +6853,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     projectLoadedRef.current = projectUuid;
     let cancelled = false;
 
+    pendingFitRef.current = true;
     fetch(`/api/project/${projectUuid}`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
@@ -7803,6 +7843,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     return [];
   }, []);
 
+  // Thumbnails are cached per tab and only regenerated when its nodes or edges change,
+  // so viewport-only changes (zoom, pan) don't redraw every thumbnail on autosave.
+  const thumbnailCache = useRef(
+    new Map<string, { nodes: unknown; edges: unknown; thumbnail: ReturnType<typeof generateWorkflowThumbnail> }>(),
+  );
+
   // Auto-save to local storage when tabs change (with thumbnail generation)
   // Skip in view mode to avoid polluting localStorage
   useEffect(() => {
@@ -7810,11 +7856,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (tabs.length > 0) {
       const timer = setTimeout(() => {
         // Generate thumbnails and update lastModified for each tab before saving
-        const tabsWithThumbnails = tabs.map((tab) => ({
-          ...tab,
-          thumbnail: generateWorkflowThumbnail(tab.nodes, tab.edges),
-          lastModified: tab.lastModified || Date.now(),
-        }));
+        const tabsWithThumbnails = tabs.map((tab) => {
+          const cached = thumbnailCache.current.get(tab.id);
+          const thumbnail =
+            cached && cached.nodes === tab.nodes && cached.edges === tab.edges
+              ? cached.thumbnail
+              : generateWorkflowThumbnail(tab.nodes, tab.edges);
+          thumbnailCache.current.set(tab.id, { nodes: tab.nodes, edges: tab.edges, thumbnail });
+          return {
+            ...tab,
+            thumbnail,
+            lastModified: tab.lastModified || Date.now(),
+          };
+        });
         saveToLocalStorage(tabsWithThumbnails);
       }, 1000); // Debounce saves by 1 second
 
@@ -8598,7 +8652,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       <TrialBanner />
       {/* Header with Tabs */}
       <Toolbar
-        onOpenAiSettings={() => setShowAiModal(true)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={toggleDarkMode}
         editorSettings={editorSettings}
@@ -15178,21 +15231,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
       )}
 
       {/* Modals */}
-      {showAiModal && (
-        <AiSettingsModal
-          onClose={() => setShowAiModal(false)}
-          onSave={(settings) => {
-            // Save AI settings to localStorage
-            localStorage.setItem("ai_settings", JSON.stringify(settings));
-            if (settings.apiKey) {
-              localStorage.setItem("custom_api_key", settings.apiKey);
-            }
-            setShowAiModal(false);
-            // Update the AI client with new settings
-            onAiSettingsChange?.();
-          }}
-        />
-      )}
       {showAiGenerator && (
         <AiWorkflowGenerator
           onClose={() => {

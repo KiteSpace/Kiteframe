@@ -574,7 +574,13 @@ export default function ViewOnlyViewer() {
               onReset={handleReset}
               onGoHome={handleGoHome}
               commentModeActive={commentPlacing}
-              onToggleCommentMode={() => setCommentPlacing((p) => !p)}
+              onToggleCommentMode={() => {
+                if (!user) {
+                  window.location.href = '/signin';
+                  return;
+                }
+                setCommentPlacing((p) => !p);
+              }}
             />
 
             <CommentsOverlay

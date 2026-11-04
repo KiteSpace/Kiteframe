@@ -3,6 +3,7 @@ import type { Express, Request, RequestHandler, Response } from 'express';
 import {
   createJob, attachJobAbortController, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER,
   setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, cancelJob,
+  getActiveJobCountShared,
 } from './aiJobStore';
 import { creditService } from './creditService';
 
@@ -13,13 +14,17 @@ import { creditService } from './creditService';
  */
 export function postBackgroundAi(app: Express, path: string, ...handlers: RequestHandler[]) {
   const handler = handlers.pop()!;
-  const gate: RequestHandler = (req, res, next) => {
-    if (req.get('X-AI-Background') === '1' &&
-        getActiveJobCount(creditService.getUserIdentifier(req)) >= MAX_CONCURRENT_JOBS_PER_USER) {
-      res.status(429).json({ error: 'Too many concurrent AI operations. Wait for one to finish.' });
-      return;
+  const gate: RequestHandler = async (req, res, next) => {
+    try {
+      if (req.get('X-AI-Background') === '1' &&
+          (await getActiveJobCountShared(creditService.getUserIdentifier(req))) >= MAX_CONCURRENT_JOBS_PER_USER) {
+        res.status(429).json({ error: 'Too many concurrent AI operations. Wait for one to finish.' });
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
     }
-    next();
   };
   app.post(path, gate, ...handlers, (req: Request, res: Response, next) => {
     if (req.get('X-AI-Background') !== '1') return handler(req, res, next);

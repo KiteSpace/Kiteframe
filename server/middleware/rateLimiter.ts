@@ -1,5 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import type { Request } from 'express';
+import { pgStore } from './pgRateLimitStore';
 
 const getClientKey = (req: Request): string => {
   const user = req.user as any;
@@ -9,6 +10,8 @@ const getClientKey = (req: Request): string => {
 };
 
 export const aiRateLimiter = rateLimit({
+  store: pgStore('aiRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 20,
   message: {
@@ -23,6 +26,8 @@ export const aiRateLimiter = rateLimit({
 });
 
 export const authRateLimiter = rateLimit({
+  store: pgStore('authRateLimiter'),
+  passOnStoreError: true,
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: {
@@ -35,6 +40,8 @@ export const authRateLimiter = rateLimit({
 });
 
 export const projectRateLimiter = rateLimit({
+  store: pgStore('projectRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 60,
   message: {
@@ -48,6 +55,8 @@ export const projectRateLimiter = rateLimit({
 });
 
 export const uploadRateLimiter = rateLimit({
+  store: pgStore('uploadRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 10,
   message: {
@@ -61,6 +70,8 @@ export const uploadRateLimiter = rateLimit({
 });
 
 export const generalRateLimiter = rateLimit({
+  store: pgStore('generalRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 100,
   message: {
@@ -75,6 +86,8 @@ export const generalRateLimiter = rateLimit({
 });
 
 export const sensitiveRateLimiter = rateLimit({
+  store: pgStore('sensitiveRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: {
@@ -88,6 +101,8 @@ export const sensitiveRateLimiter = rateLimit({
 });
 
 export const adminLoginRateLimiter = rateLimit({
+  store: pgStore('adminLoginRateLimiter'),
+  passOnStoreError: true,
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: {
@@ -101,6 +116,8 @@ export const adminLoginRateLimiter = rateLimit({
 });
 
 export const waitlistRateLimiter = rateLimit({
+  store: pgStore('waitlistRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: {
@@ -113,6 +130,8 @@ export const waitlistRateLimiter = rateLimit({
 });
 
 export const creditUnlockRateLimiter = rateLimit({
+  store: pgStore('creditUnlockRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: {
@@ -126,6 +145,8 @@ export const creditUnlockRateLimiter = rateLimit({
 });
 
 export const chatRateLimiter = rateLimit({
+  store: pgStore('chatRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 30,
   message: {
@@ -147,6 +168,8 @@ const getExternalApiKey = (req: Request): string => {
 };
 
 export const externalApiRateLimiter = rateLimit({
+  store: pgStore('externalApiRateLimiter'),
+  passOnStoreError: true,
   windowMs: 60 * 1000,
   max: 30,
   message: {
@@ -160,6 +183,8 @@ export const externalApiRateLimiter = rateLimit({
 });
 
 export const adminApiRateLimiter = rateLimit({
+  store: pgStore('adminApiRateLimiter'),
+  passOnStoreError: true,
   windowMs: 15 * 60 * 1000,
   max: 300,
   message: {

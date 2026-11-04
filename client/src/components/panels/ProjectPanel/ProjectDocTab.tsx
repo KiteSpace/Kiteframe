@@ -376,9 +376,9 @@ export function ProjectDocTab({
                   {standaloneNodes.map(node => <p key={node.nodeId} className="mt-1 text-xs text-muted-foreground">{node.label}</p>)}
                 </section>
               )}
-              <ProjectInsightsSection projectId={projectId || 'default'} nodes={nodes} edges={edges} />
+              <ProjectInsightsSection projectId={projectId || 'default'} nodes={nodes} edges={edges} isReadOnly={isReadOnly} />
               <ProjectNotesSection projectId={projectId} isReadOnly={isReadOnly} />
-              <ProjectSourcesSection projectId={projectId} />
+              <ProjectSourcesSection projectId={projectId} isReadOnly={isReadOnly} />
             </>
           )}
 

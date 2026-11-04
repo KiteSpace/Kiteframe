@@ -113,7 +113,7 @@ interface WorkflowCanvasProps {
   isGeneratingInterface?: boolean;
 }
 
-export function WorkflowCanvas({
+function WorkflowCanvasComponent({
   nodes,
   edges,
   canvasObjects = [],
@@ -750,3 +750,5 @@ export function WorkflowCanvas({
     </div>
   );
 }
+
+export const WorkflowCanvas = React.memo(WorkflowCanvasComponent);
