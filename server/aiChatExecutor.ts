@@ -21,6 +21,11 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   vision_ingestion: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
   wireframe: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  // Design + planner. The *_v2 tiers run behind the design_ai_v2 flag; they reject assistant prefill.
+  design: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  design_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
+  interface_planning: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  interface_planning_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
 };
 
 const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
@@ -53,11 +58,11 @@ function isSimpleWorkflowPrompt(msgs: any[]): boolean {
 const MAX_CONTENT_DEPTH = 6;
 
 /** Shared per-message allowance, so many small blocks cannot outflank a per-block cap. */
-interface TextBudget { left: number }
+interface TextBudget { left: number; clean: boolean }
 
 function takeFromBudget(text: string, budget: TextBudget): string {
   if (budget.left <= 0) return '';
-  const cleaned = sanitizeAiPrompt(text);
+  const cleaned = budget.clean ? sanitizeAiPrompt(text) : text;
   const out = cleaned.length > budget.left ? cleaned.slice(0, budget.left) : cleaned;
   budget.left -= out.length;
   return out;
@@ -100,8 +105,8 @@ function sanitizeContentNode(node: unknown, budget: TextBudget, depth: number): 
  *
  * Image blocks are the sole exception and are passed through untouched.
  */
-function sanitizeMessageContent(content: unknown): unknown {
-  return sanitizeContentNode(content, { left: MAX_AI_PROMPT_CHARS }, 0);
+function sanitizeMessageContent(content: unknown, clean = true): unknown {
+  return sanitizeContentNode(content, { left: MAX_AI_PROMPT_CHARS, clean }, 0);
 }
 
 /**
@@ -112,6 +117,15 @@ function sanitizeMessageContent(content: unknown): unknown {
 export interface AiChatInternalOptions {
   /** Trusted system prompt. Only route handlers may supply this. */
   systemPrompt?: string;
+  /** Trusted system prompt as ordered blocks; takes precedence over `systemPrompt`. */
+  systemBlocks?: string[];
+  /** Mark the first system block as a prompt-cache breakpoint (static prefix). */
+  cacheSystem?: boolean;
+  /**
+   * Skip the chat prompt-injection filter (it strips code fences and phrases like "you are now").
+   * For design/wireframe routes that build their own prompts; the length budget still applies.
+   */
+  rawUserText?: boolean;
 }
 
 export async function executeAiChat(
@@ -159,7 +173,7 @@ export async function executeAiChat(
     const sanitizedMessages = (body.messages || []).map((msg: any) => ({
       ...msg,
       role: msg?.role === 'assistant' ? 'assistant' : 'user',
-      content: sanitizeMessageContent(msg?.content),
+      content: sanitizeMessageContent(msg?.content, !internal?.rawUserText),
     }));
 
     const messages = trustedSystemPrompt
@@ -226,6 +240,14 @@ export async function executeAiChat(
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: anthropicMessages,
     };
+    const trustedBlocks = (internal?.systemBlocks || []).filter((b) => typeof b === 'string' && b.length > 0);
+    if (trustedBlocks.length > 0) {
+      requestBody.system = trustedBlocks.map((text, i) => ({
+        type: 'text',
+        text,
+        ...(internal?.cacheSystem && i === 0 ? { cache_control: { type: 'ephemeral' } } : {}),
+      }));
+    }
 
     const response: any = await fetch(endpoint, {
       method: 'POST',
@@ -259,7 +281,9 @@ export async function executeAiChat(
 
     const json = await response.json();
     let responseText = '';
-    responseText = json.content?.[0]?.text || '';
+    responseText = Array.isArray(json.content)
+      ? json.content.filter((b: any) => b?.type === 'text').map((b: any) => b.text || '').join('')
+      : '';
 
     return {
       ok: true,

@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { interfacePlanSchema, planningWorkflowSchema, type PlanningWorkflow } from '@shared/interfacePlan';
 import { buildPlanPreviews, interpretWorkflow, InterfacePlanningTimeoutError, type PlannerModel } from './lib/interfacePlanner';
+import { createStageTimer } from './lib/stageTiming';
 
 // A complete plan (including its one permitted repair) can exceed 90 seconds.
 // Keep a bounded deadline, and stop provider work when its reader disconnects.
@@ -27,12 +28,17 @@ export function createInterfacePlanningHandlers(
   callModel?: PlannerModel,
   loadOwnedContext?: (projectId: string, req: Request) => Promise<string>,
   timeoutMs = INTERFACE_PLANNING_TIMEOUT_MS,
+  /** Per-request planner model (feature flags, stage timing). Ignored when `callModel` is set. */
+  modelForRequest?: (req: Request, timer: ReturnType<typeof createStageTimer>) => Promise<PlannerModel>,
 ) {
   async function planForReader(
+    req: Request,
     res: Response,
     workflow: PlanningWorkflow,
+    stageTimer: ReturnType<typeof createStageTimer>,
     options: { previousPlan?: z.infer<typeof interfacePlanSchema>; userMessage?: string } = {},
   ) {
+    const model = callModel || (modelForRequest ? await modelForRequest(req, stageTimer) : undefined);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new DOMException('Planning deadline exceeded', 'TimeoutError')), timeoutMs);
     timer.unref?.();
@@ -41,7 +47,9 @@ export function createInterfacePlanningHandlers(
     };
     res.once('close', onClose);
     try {
-      return await interpretWorkflow(workflow, { ...options, callModel, signal: controller.signal });
+      const result = await interpretWorkflow(workflow, { ...options, callModel: model, signal: controller.signal });
+      stageTimer.mark('interpret', { screens: result.plan.screens.length });
+      return result;
     } catch (error) {
       if (controller.signal.reason?.name === 'TimeoutError') throw new InterfacePlanningTimeoutError();
       throw error;
@@ -55,13 +63,17 @@ export function createInterfacePlanningHandlers(
       workflow: planningWorkflowSchema, sourceProjectId: z.string().min(1).max(200).optional(),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid workflow context. Include all steps, descriptions, and labeled connections within the supported limits.' });
+    const timer = createStageTimer('interface_planning');
     try {
       if (!parsed.data.workflow.context && parsed.data.sourceProjectId && loadOwnedContext) {
         parsed.data.workflow.context = await loadOwnedContext(parsed.data.sourceProjectId, req);
       }
-      const result = await planForReader(res, parsed.data.workflow);
+      timer.mark('context', { nodes: parsed.data.workflow.nodes.length, contextChars: parsed.data.workflow.context?.length ?? 0 });
+      const result = await planForReader(req, res, parsed.data.workflow, timer);
       if (res.destroyed) return;
-      return res.json({ ...result, previews: buildPlanPreviews(result.plan) });
+      const previews = buildPlanPreviews(result.plan);
+      timer.mark('previews');
+      return res.json({ ...result, previews });
     } catch (error) {
       return planningFailure(res, error, 'Could not interpret the workflow. Please retry.');
     }
@@ -71,8 +83,9 @@ export function createInterfacePlanningHandlers(
       plan: interfacePlanSchema, userMessage: z.string().min(1).max(4000),
     }).safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid refinement request. Keep your message under 4,000 characters.' });
+    const timer = createStageTimer('interface_planning_refine');
     try {
-      const result = await planForReader(res, parsed.data.plan.workflow, {
+      const result = await planForReader(req, res, parsed.data.plan.workflow, timer, {
         previousPlan: parsed.data.plan, userMessage: parsed.data.userMessage,
       });
       if (res.destroyed) return;

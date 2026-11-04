@@ -31,7 +31,42 @@ const interfacePlanningHandlers = createInterfacePlanningHandlers(undefined, asy
   if (!project) throw new Error('The source project was not found or is not accessible.');
   const docs = extractSharePanelDocs(project.workflowData);
   return formatInterfaceSpecs(docs.prdData, docs.workflowPRDs || []);
-});
+}, undefined, async (req, timer) => createPlannerModel({
+  v2: await isDesignAiV2(req),
+  timer,
+  onResult: (result) => logDesignUsage(req, 'interface_planning', result),
+}));
+
+/** Image types the Anthropic API accepts. */
+const AI_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+
+const DESIGN_TASK = { legacy: 'design', v2: 'design_v2' };
+
+/** Flag `design_ai_v2`: current model, no prefill, cached system prompt. Off on any lookup error. */
+async function isDesignAiV2(req: any): Promise<boolean> {
+  const userId = req?.user ? getUserIdFromRequest(req.user) : undefined;
+  if (!userId) return false;
+  try {
+    return await featureFlagService.isEnabled(userId, DESIGN_AI_V2_FLAG);
+  } catch {
+    return false;
+  }
+}
+
+function logDesignUsage(req: any, feature: UsageLogParams['feature'], result: RunDesignModelResult, isVision = false) {
+  if (!result.usage) return;
+  const userId = req?.user?.claims?.sub || req?.user?.id;
+  const u = result.usage;
+  logAiUsage({
+    userId: userId || undefined,
+    feature,
+    model: result.model || 'unknown',
+    promptTokens: u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens,
+    completionTokens: u.outputTokens,
+    creditsCharged: req?.creditDeducted?.creditCost,
+    isVision,
+  }).catch(console.error);
+}
 import { db } from "./db";
 import { 
   collaborationRooms, 
@@ -69,6 +104,9 @@ import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, prech
 import { executeAiChat } from "./aiChatExecutor";
 import { buildWireframePrompt, validateWireframeSvg, fallbackWireframeSvg, WIREFRAME_SYSTEM_PROMPT, MAX_CURRENT_SVG_CHARS, type WireframeValidation } from "./lib/wireframe";
 import { createStageTimer } from "./lib/stageTiming";
+import { runDesignModel, DESIGN_AI_V2_FLAG, type RunDesignModelResult } from "./lib/designModel";
+import { createPlannerModel } from "./lib/interfacePlanner";
+import { featureFlagService } from "./featureFlagService";
 import { getJobShared, getActiveJobCountShared, isLocalJob, requestRemoteCancel, createJob, getJob, setJobRunning, tryFinalizeSuccess, tryFinalizeFailure, getActiveJobCount, MAX_CONCURRENT_JOBS_PER_USER, setReservationReleaseCallback, attachJobAbortController, cancelJob } from "./aiJobStore";
 import { postBackgroundAi } from './backgroundAiRoute';
 import { creditService } from "./creditService";
@@ -2391,14 +2429,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let model: string | undefined;
       let promptTokens = 0;
       let completionTokens = 0;
-      for (let attempt = 1; attempt <= 2 && !svg; attempt++) {
+      // Spec 0.6 (strict validation, retry, fallback, temperature 0.2) rolls out behind design_ai_v2.
+      const strictOutput = await isDesignAiV2(req);
+      const maxAttempts = strictOutput ? 2 : 1;
+      for (let attempt = 1; attempt <= maxAttempts && !svg; attempt++) {
         const content = attempt === 1
           ? prompt
           : `${prompt}\n\nYour previous answer was rejected: ${rejection} Return a complete, valid SVG that follows every requirement.`;
         const result = await executeAiChat(
-          { provider: 'anthropic', taskType: 'wireframe', maxTokens: 4000, temperature: 0.2, messages: [{ role: 'user', content }] },
+          { provider: 'anthropic', taskType: 'wireframe', maxTokens: 4000, temperature: strictOutput ? 0.2 : 0.7, messages: [{ role: 'user', content }] },
           signal,
-          { systemPrompt: WIREFRAME_SYSTEM_PROMPT },
+          { systemPrompt: WIREFRAME_SYSTEM_PROMPT, rawUserText: true },
         );
         if (!result.ok) {
           if (result.status === 499 || signal?.aborted) return res.status(499).json({ error: 'Cancelled' });
@@ -2409,7 +2450,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         promptTokens += result.json?.usage?.input_tokens || 0;
         completionTokens += result.json?.usage?.output_tokens || 0;
         const stopReason = result.json?.stop_reason;
-        const check: WireframeValidation = stopReason === 'max_tokens'
+        const legacySvg = strictOutput ? null : /<svg[\s\S]*<\/svg>/i.exec(result.text || '');
+        const check: WireframeValidation = !strictOutput
+          ? (legacySvg ? { ok: true, svg: legacySvg[0] } : { ok: false, error: 'No complete <svg>...</svg> element found.' })
+          : stopReason === 'max_tokens'
           ? { ok: false, error: 'The SVG was cut off before it finished. Use fewer elements.' }
           : stopReason === 'refusal'
             ? { ok: false, error: 'The request was refused.' }
@@ -2417,6 +2461,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timer.mark(`model_attempt_${attempt}`, { stopReason, valid: check.ok, rejection: check.ok ? undefined : check.error, tokensIn: result.json?.usage?.input_tokens, tokensOut: result.json?.usage?.output_tokens });
         if (check.ok) svg = check.svg;
         else rejection = check.error;
+      }
+      if (!svg && !strictOutput) {
+        console.error('Wireframe response had no SVG:', rejection);
+        return res.status(502).json({ error: 'Could not generate the wireframe. Please try again.' });
       }
       const usedFallback = !svg;
       if (usedFallback) console.warn('Wireframe validation failed twice, using fallback:', rejection);
@@ -2748,6 +2796,7 @@ Only include screens that need changes. "modify" requires both description and d
   // Design generation endpoint — converts a text prompt into a craft.js state JSON
   postBackgroundAi(app, '/api/ai/design', isAuthenticated, aiRateLimiter, requireCredits, async (req: any, res) => {
     try {
+      const timer = createStageTimer('design');
       const schema = z.object({
         prompt: z.string().min(1).max(8000),
         interfacePlan: interfacePlanSchema.optional(),
@@ -2825,48 +2874,35 @@ Only include screens that need changes. "modify" requires both description and d
         }
       }
       chatMessages.push({ role: 'user', content: userMessage });
-      chatMessages.push({ role: 'assistant', content: '{' });
-
-      const result = await executeAiChat({
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929',
+      timer.mark('prompt_build', { source: source ?? 'chat', promptChars: userMessage.length, turns: chatMessages.length });
+      const modelResult = await runDesignModel({
+        v2: await isDesignAiV2(req),
+        taskType: DESIGN_TASK,
+        systemBlocks: [DESIGN_SYSTEM_PROMPT],
+        messages: chatMessages,
         maxTokens,
-        messages: [
-          ...chatMessages,
-        ],
-      }, req.aiOperationSignal, { systemPrompt: DESIGN_SYSTEM_PROMPT });
-      if (!result.ok) {
-        return res.status(result.status || 500).json({ error: result.error || 'AI generation failed' });
-      }
-      // Detect truncation: if the model hit its token limit the JSON is cut off
-      const stopReason = result.json?.stop_reason;
-      if (stopReason === 'max_tokens') {
-        console.error('[design] response truncated by max_tokens limit (source=%s)', source ?? 'chat');
-        const errorMessage = isWorkflowGeneration
-          ? 'This workflow has too many screens to generate at once — try splitting it into smaller workflows or reducing the number of steps'
-          : 'Design was too complex — try a simpler prompt with fewer components';
-        return res.status(500).json({ error: errorMessage });
-      }
-      // Reconstruct: prefill started with '{', model continues from there
-      const raw = ('{' + (result.text || '')).trim();
-      const jsonEnd = raw.lastIndexOf('}');
-      if (jsonEnd === -1) {
-        return res.status(500).json({ error: 'AI returned incomplete response — try rephrasing your prompt' });
-      }
-      const jsonStr = raw.slice(0, jsonEnd + 1);
-      let parsedResponse: any;
-      try {
-        parsedResponse = JSON.parse(jsonStr);
-      } catch {
-        // Repair common AI JSON issues: trailing commas before } or ]
-        const repaired = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-        try {
-          parsedResponse = JSON.parse(repaired);
-        } catch (parseErr2) {
-          console.error('[design] parse failed after repair. First 800 chars:', jsonStr.slice(0, 800));
-          return res.status(500).json({ error: 'AI returned invalid JSON — try rephrasing your prompt' });
+        signal: req.aiOperationSignal,
+        timer,
+      });
+      logDesignUsage(req, 'design', modelResult);
+      if (!modelResult.ok) {
+        if (modelResult.reason === 'upstream') {
+          return res.status(modelResult.status).json({ error: modelResult.error });
         }
+        if (modelResult.reason === 'max_tokens') {
+          console.error('[design] response truncated by max_tokens limit (source=%s)', source ?? 'chat');
+          const errorMessage = isWorkflowGeneration
+            ? 'This workflow has too many screens to generate at once — try splitting it into smaller workflows or reducing the number of steps'
+            : 'Design was too complex — try a simpler prompt with fewer components';
+          return res.status(500).json({ error: errorMessage });
+        }
+        return res.status(500).json({
+          error: modelResult.reason === 'incomplete'
+            ? 'AI returned incomplete response — try rephrasing your prompt'
+            : 'AI returned invalid JSON — try rephrasing your prompt',
+        });
       }
+      const parsedResponse: any = modelResult.value;
 
       // Route based on response type
       const responseType = parsedResponse?.type;
@@ -2921,7 +2957,9 @@ Only include screens that need changes. "modify" requires both description and d
         (interfacePlan ? pruneUnreachableCraftNodes(repairCraftState(craftStateObj)) : craftStateObj) as CraftState,
       )));
       console.log('[artboard-trace] ai/design: after layout+wrap', JSON.stringify(summarizeArtboards(finalState)));
+      timer.mark('layout_wrap');
       const coverage = interfacePlan ? inspectGeneratedInterface(interfacePlan, finalState) : { errors: [], warnings: [] };
+      timer.mark('coverage', { errors: coverage.errors.length, warnings: coverage.warnings.length });
       if (coverage.errors.length) {
         return res.status(422).json({
           error: `Some selected screens were not generated correctly. Your plan is preserved; retry Generate. ${coverage.errors.join(' ')}`,
@@ -2945,7 +2983,7 @@ Only include screens that need changes. "modify" requires both description and d
       console.log(`[design-from-image] imageBase64 length: ${imageBase64Raw.length} chars (~${(imageBase64Raw.length * 3 / 4 / 1024).toFixed(0)} KB raw)`);
       const schema = z.object({
         imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_CHARS, `Image payload must be under 10 MB. Please use a smaller image.`),
-        mimeType: z.string().default('image/png'),
+        mimeType: z.enum(AI_IMAGE_MIME_TYPES, { errorMap: () => ({ message: 'Use a PNG, JPEG, WebP or GIF image.' }) }).default('image/png'),
         frameLabel: z.string().max(200).optional().default('Screen 1'),
         currentCraftState: z.string().max(40000).optional(),
       });
@@ -2956,8 +2994,6 @@ Only include screens that need changes. "modify" requires both description and d
         return res.status(400).json({ error: msg });
       }
       const { imageBase64, mimeType, frameLabel, currentCraftState } = parsed.data;
-
-      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
 
       const userContent: any[] = [
         {
@@ -2970,37 +3006,26 @@ Only include screens that need changes. "modify" requires both description and d
         },
       ];
 
-      const result = await executeAiChat({
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929',
+      const modelResult = await runDesignModel({
+        v2: await isDesignAiV2(req),
+        taskType: DESIGN_TASK,
+        systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
+        messages: [{ role: 'user', content: userContent }],
         maxTokens: 12000,
-        messages: [
-          { role: 'user', content: userContent },
-          { role: 'assistant', content: '{' },
-        ],
-      }, req.aiOperationSignal, { systemPrompt });
-
-      if (!result.ok) {
-        return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
-      }
-      if (result.json?.stop_reason === 'max_tokens') {
-        return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
-      }
-
-      const raw = ('{' + (result.text || '')).trim();
-      const jsonEnd = raw.lastIndexOf('}');
-      if (jsonEnd === -1) {
-        return res.status(500).json({ error: 'AI returned incomplete response' });
-      }
-      let parsedResponse: any;
-      try {
-        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
-      } catch {
-        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
-        try { parsedResponse = JSON.parse(repaired); } catch {
-          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        signal: req.aiOperationSignal,
+        timer: createStageTimer('design_from_image'),
+      });
+      logDesignUsage(req, 'design', modelResult, true);
+      if (!modelResult.ok) {
+        if (modelResult.reason === 'upstream') {
+          return res.status(modelResult.status).json({ error: modelResult.error || 'Vision generation failed' });
         }
+        if (modelResult.reason === 'max_tokens') {
+          return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
+        }
+        return res.status(500).json({ error: modelResult.reason === 'incomplete' ? 'AI returned incomplete response' : 'AI returned invalid JSON' });
       }
+      const parsedResponse: any = modelResult.value;
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
@@ -3045,7 +3070,7 @@ Only include screens that need changes. "modify" requires both description and d
       const MAX_IMAGE_BASE64_CHARS = 10 * 1024 * 1024;
       const schema = z.object({
         imageBase64: z.string().min(1).max(MAX_IMAGE_BASE64_CHARS, 'Image payload must be under 10 MB. Please use a smaller image.'),
-        mimeType: z.string().default('image/png'),
+        mimeType: z.enum(AI_IMAGE_MIME_TYPES, { errorMap: () => ({ message: 'Use a PNG, JPEG, WebP or GIF image.' }) }).default('image/png'),
         prompt: z.string().min(1).max(4000),
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
@@ -3080,37 +3105,26 @@ Only include screens that need changes. "modify" requires both description and d
         { type: 'text', text: textContent },
       ];
 
-      const result = await executeAiChat({
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929',
+      const modelResult = await runDesignModel({
+        v2: await isDesignAiV2(req),
+        taskType: DESIGN_TASK,
+        systemBlocks: [DESIGN_SYSTEM_PROMPT],
+        messages: [{ role: 'user', content: userContent }],
         maxTokens: 16000,
-        messages: [
-          { role: 'user', content: userContent },
-          { role: 'assistant', content: '{' },
-        ],
-      }, req.aiOperationSignal, { systemPrompt: DESIGN_SYSTEM_PROMPT });
-
-      if (!result.ok) {
-        return res.status(result.status || 500).json({ error: result.error || 'Reference edit failed' });
-      }
-      if (result.json?.stop_reason === 'max_tokens') {
-        return res.status(500).json({ error: 'Design was too complex — try a simpler reference image or prompt' });
-      }
-
-      const raw = ('{' + (result.text || '')).trim();
-      const jsonEnd = raw.lastIndexOf('}');
-      if (jsonEnd === -1) {
-        return res.status(500).json({ error: 'AI returned incomplete response' });
-      }
-      let parsedResponse: any;
-      try {
-        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
-      } catch {
-        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
-        try { parsedResponse = JSON.parse(repaired); } catch {
-          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        signal: req.aiOperationSignal,
+        timer: createStageTimer('design_edit_from_image'),
+      });
+      logDesignUsage(req, 'design', modelResult, true);
+      if (!modelResult.ok) {
+        if (modelResult.reason === 'upstream') {
+          return res.status(modelResult.status).json({ error: modelResult.error || 'Reference edit failed' });
         }
+        if (modelResult.reason === 'max_tokens') {
+          return res.status(500).json({ error: 'Design was too complex — try a simpler reference image or prompt' });
+        }
+        return res.status(500).json({ error: modelResult.reason === 'incomplete' ? 'AI returned incomplete response' : 'AI returned invalid JSON' });
       }
+      const parsedResponse: any = modelResult.value;
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
@@ -3194,7 +3208,6 @@ Only include screens that need changes. "modify" requires both description and d
       }
 
       const imageBase64 = imageBuffer.toString('base64');
-      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
       const userContent: any[] = [
         { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
         {
@@ -3203,37 +3216,26 @@ Only include screens that need changes. "modify" requires both description and d
         },
       ];
 
-      const result = await executeAiChat({
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929',
+      const modelResult = await runDesignModel({
+        v2: await isDesignAiV2(req),
+        taskType: DESIGN_TASK,
+        systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
+        messages: [{ role: 'user', content: userContent }],
         maxTokens: 12000,
-        messages: [
-          { role: 'user', content: userContent },
-          { role: 'assistant', content: '{' },
-        ],
-      }, req.aiOperationSignal, { systemPrompt });
-
-      if (!result.ok) {
-        return res.status(result.status || 500).json({ error: result.error || 'Vision generation failed' });
-      }
-      if (result.json?.stop_reason === 'max_tokens') {
-        return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
-      }
-
-      const raw = ('{' + (result.text || '')).trim();
-      const jsonEnd = raw.lastIndexOf('}');
-      if (jsonEnd === -1) {
-        return res.status(500).json({ error: 'AI returned incomplete response' });
-      }
-      let parsedResponse: any;
-      try {
-        parsedResponse = JSON.parse(raw.slice(0, jsonEnd + 1));
-      } catch {
-        const repaired = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1');
-        try { parsedResponse = JSON.parse(repaired); } catch {
-          return res.status(500).json({ error: 'AI returned invalid JSON' });
+        signal: req.aiOperationSignal,
+        timer: createStageTimer('design_from_url'),
+      });
+      logDesignUsage(req, 'design', modelResult, true);
+      if (!modelResult.ok) {
+        if (modelResult.reason === 'upstream') {
+          return res.status(modelResult.status).json({ error: modelResult.error || 'Vision generation failed' });
         }
+        if (modelResult.reason === 'max_tokens') {
+          return res.status(500).json({ error: 'Design was too complex — try a simpler screenshot' });
+        }
+        return res.status(500).json({ error: modelResult.reason === 'incomplete' ? 'AI returned incomplete response' : 'AI returned invalid JSON' });
       }
+      const parsedResponse: any = modelResult.value;
 
       const responseType = parsedResponse?.type;
       if (responseType === 'message') {
@@ -3333,8 +3335,6 @@ Only include screens that need changes. "modify" requires both description and d
       const total = frameIds.length;
       let done = 0;
 
-      const systemPrompt = DESIGN_SYSTEM_PROMPT + '\n\n' + DESIGN_VISION_PROMPT_EXTENSION;
-
       // 3. Fan out: download each thumbnail image and call Claude vision
       const frameResults = await Promise.all(
         frameIds.map(async (frameId, idx) => {
@@ -3356,33 +3356,26 @@ Only include screens that need changes. "modify" requires both description and d
             const base64 = Buffer.from(buffer).toString('base64');
             const mimeType = imgRes.headers.get('content-type') || 'image/png';
 
-            const aiResult = await executeAiChat({
-              provider: 'anthropic',
-              model: 'claude-sonnet-4-5-20250929',
-              maxTokens: 8000,
-              messages: [
-                {
-                  role: 'user',
-                  content: [
+            const frameResult = await runDesignModel({
+              v2: await isDesignAiV2(req),
+              taskType: DESIGN_TASK,
+              systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
+              messages: [{ role: 'user', content: [
                     { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
                     { type: 'text', text: `Analyze this Figma frame and generate Astryx craft.js state.\nFrame label: "${label}"` },
-                  ],
-                },
-                { role: 'assistant', content: '{' },
-              ],
-            }, req.aiOperationSignal, { systemPrompt });
+              ] }],
+              maxTokens: 8000,
+              signal: req.aiOperationSignal,
+              timer: createStageTimer('design_from_figma'),
+            });
+            logDesignUsage(req, 'design', frameResult, true);
             done++;
-            if (!aiResult.ok) {
+            if (!frameResult.ok) {
               sendEvent('progress', { done, total, frameName: label, skipped: true });
               return null;
             }
             sendEvent('progress', { done, total, frameName: label });
-            const raw = ('{' + (aiResult.text || '')).trim();
-            const jsonEnd = raw.lastIndexOf('}');
-            if (jsonEnd === -1) return null;
-            let parsedFrame: any;
-            try { parsedFrame = JSON.parse(raw.slice(0, jsonEnd + 1)); }
-            catch { const rep = raw.slice(0, jsonEnd + 1).replace(/,(\s*[}\]])/g, '$1'); try { parsedFrame = JSON.parse(rep); } catch { return null; } }
+            const parsedFrame: any = frameResult.value;
             const craftState = parsedFrame?.type === 'state' ? parsedFrame.craftState : (parsedFrame?.type ? null : parsedFrame);
             if (!craftState || typeof craftState !== 'object') return null;
             return { craftState, label };
@@ -4530,7 +4523,10 @@ Respond with only the corrected JSON data:`;
 
       // Convert image buffer to base64
       const base64Image = req.file.buffer.toString('base64');
-      const mediaType = (req.file.mimetype as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp') || 'image/jpeg';
+      const mediaType = sniffRasterImageMime(req.file.buffer);
+      if (!mediaType || !(AI_IMAGE_MIME_TYPES as readonly string[]).includes(mediaType)) {
+        return res.status(400).json({ error: 'Use a PNG, JPEG, WebP or GIF image.' });
+      }
 
       // Analyze image with Claude Sonnet Vision (with a hard timeout so the
       // request can't hang indefinitely and leave the user staring at a spinner)

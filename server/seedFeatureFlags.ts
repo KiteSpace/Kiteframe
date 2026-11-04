@@ -17,6 +17,7 @@ const INITIAL_FLAGS = [
   // Phase 7: Unified Conversation Engine
   { key: 'ai.unifiedConversationEngine', name: 'Unified Conversation Engine', description: 'Use useKiteAIConversation across all chat surfaces', category: 'ai', status: 'ga', defaultEnabled: true },
   { key: 'ai.pmDepthGuardsChat', name: 'PM Depth Guards (Chat)', description: 'PM depth guards in chat - warn/log only when OFF', category: 'ai', status: 'ga', defaultEnabled: true },
+  { key: 'design_ai_v2', name: 'Design AI v2', description: 'Design + interface planner on the current Claude model with prompt caching and no prefill', category: 'ai', status: 'beta', defaultEnabled: false },
   { key: 'ai.clarificationLoopsChat', name: 'Clarification Loops (Chat)', description: 'Auto-trigger clarification loops in chat', category: 'ai', status: 'ga', defaultEnabled: true },
   
   // Phase 6.5: Merge vs Branch Intent Detection
