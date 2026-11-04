@@ -7803,6 +7803,12 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     return [];
   }, []);
 
+  // Thumbnails are cached per tab and only regenerated when its nodes or edges change,
+  // so viewport-only changes (zoom, pan) don't redraw every thumbnail on autosave.
+  const thumbnailCache = useRef(
+    new Map<string, { nodes: unknown; edges: unknown; thumbnail: ReturnType<typeof generateWorkflowThumbnail> }>(),
+  );
+
   // Auto-save to local storage when tabs change (with thumbnail generation)
   // Skip in view mode to avoid polluting localStorage
   useEffect(() => {
@@ -7810,11 +7816,19 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
     if (tabs.length > 0) {
       const timer = setTimeout(() => {
         // Generate thumbnails and update lastModified for each tab before saving
-        const tabsWithThumbnails = tabs.map((tab) => ({
-          ...tab,
-          thumbnail: generateWorkflowThumbnail(tab.nodes, tab.edges),
-          lastModified: tab.lastModified || Date.now(),
-        }));
+        const tabsWithThumbnails = tabs.map((tab) => {
+          const cached = thumbnailCache.current.get(tab.id);
+          const thumbnail =
+            cached && cached.nodes === tab.nodes && cached.edges === tab.edges
+              ? cached.thumbnail
+              : generateWorkflowThumbnail(tab.nodes, tab.edges);
+          thumbnailCache.current.set(tab.id, { nodes: tab.nodes, edges: tab.edges, thumbnail });
+          return {
+            ...tab,
+            thumbnail,
+            lastModified: tab.lastModified || Date.now(),
+          };
+        });
         saveToLocalStorage(tabsWithThumbnails);
       }, 1000); // Debounce saves by 1 second
 

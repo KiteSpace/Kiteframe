@@ -635,7 +635,7 @@ const EdgeLabelEditor: React.FC<{
   );
 };
 
-export const ConnectionEdge: React.FC<{ 
+const ConnectionEdgeComponent: React.FC<{ 
   edge: Edge; 
   sourceNode: Node; 
   targetNode: Node;
@@ -1403,3 +1403,5 @@ export const ConnectionEdge: React.FC<{
     </g>
   );
 };
+
+export const ConnectionEdge = React.memo(ConnectionEdgeComponent);

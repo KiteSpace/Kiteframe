@@ -762,6 +762,9 @@ type ConnectingState = {
   eligible: boolean; // can connect source -> hoverTargetId?
 };
 
+const worldTransform = (v: { x: number; y: number; zoom: number }) =>
+  `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
+
 export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const telemetry = useTelemetry();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -869,6 +872,22 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   const viewportRef = useRef(viewport);
   useEffect(() => { nodesRef.current = props.nodes; }, [props.nodes]);
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+
+  // Wheel zoom runs outside React: deltas are batched per animation frame and written
+  // straight to the world element, then committed to the viewport once the gesture settles.
+  const worldRef = useRef<HTMLDivElement>(null);
+  const wheelViewport = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const wheelInput = useRef({ deltaY: 0, clientX: 0, clientY: 0 });
+  const wheelFrame = useRef<number | null>(null);
+  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setViewportRef = useRef(setViewport);
+  setViewportRef.current = setViewport;
+  const telemetryRef = useRef(telemetry);
+  telemetryRef.current = telemetry;
+  useEffect(() => () => {
+    if (wheelFrame.current !== null) cancelAnimationFrame(wheelFrame.current);
+    if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+  }, []);
 
   // Touch interaction refs (iPad / pointer events)
   const touchPointers = useRef<Map<number, { x: number; y: number; type: string }>>(new Map());
@@ -1598,28 +1617,49 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
       return;
     }
     
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const old = viewport;
-    const newZoom = zoomAroundPoint(
-      old.zoom,
-      e.deltaY * 0.00225,
-      minZoom,
-      maxZoom,
-    );
-    const mouseWorld = clientToWorld(e.clientX, e.clientY, old, rect);
-    const newX = e.clientX - rect.left - mouseWorld.x * newZoom;
-    const newY = e.clientY - rect.top - mouseWorld.y * newZoom;
-    setViewport({ x: newX, y: newY, zoom: newZoom });
+    const input = wheelInput.current;
+    input.deltaY += e.deltaY;
+    input.clientX = e.clientX;
+    input.clientY = e.clientY;
+    if (wheelFrame.current !== null) return;
 
-    // Track viewport zoom
-    telemetry.track(TelemetryEventType.VIEWPORT_UPDATE, {
-      category: "viewport",
-      action: "zoom",
-      value: newZoom,
-      metadata: { zoom: newZoom, method: "wheel" },
+    wheelFrame.current = requestAnimationFrame(() => {
+      wheelFrame.current = null;
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const base = wheelViewport.current ?? viewportRef.current;
+      const { deltaY, clientX, clientY } = wheelInput.current;
+      wheelInput.current.deltaY = 0;
+      const newZoom = zoomAroundPoint(base.zoom, deltaY * 0.00225, minZoom, maxZoom);
+      const mouseWorld = clientToWorld(clientX, clientY, base, rect);
+      const next = {
+        x: clientX - rect.left - mouseWorld.x * newZoom,
+        y: clientY - rect.top - mouseWorld.y * newZoom,
+        zoom: newZoom,
+      };
+      wheelViewport.current = next;
+      viewportRef.current = next;
+      if (worldRef.current) {
+        worldRef.current.style.transform = worldTransform(next);
+      }
+
+      if (wheelIdleTimer.current) clearTimeout(wheelIdleTimer.current);
+      wheelIdleTimer.current = setTimeout(() => {
+        wheelIdleTimer.current = null;
+        const settled = wheelViewport.current;
+        if (!settled) return;
+        wheelViewport.current = null;
+        setViewportRef.current(settled);
+        telemetryRef.current.track(TelemetryEventType.VIEWPORT_UPDATE, {
+          category: "viewport",
+          action: "zoom",
+          value: settled.zoom,
+          metadata: { zoom: settled.zoom, method: "wheel" },
+        });
+      }, 150);
     });
-  }, [viewport, setViewport, props.disableWheelZoom, telemetry]);
+  }, [props.disableWheelZoom, minZoom, maxZoom]);
   
   // Attach wheel event listener with { passive: false } to allow preventDefault
   useEffect(() => {
@@ -3320,7 +3360,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
   }, [props.nodes, props.canvasObjects, props.onNodesChange, props.onCanvasObjectsChange]);
 
   const worldStyle = {
-    transform: `translate(${Math.round(viewport.x)}px, ${Math.round(viewport.y)}px) scale(${viewport.zoom})`,
+    transform: worldTransform(wheelViewport.current ?? viewport),
   };
 
   // Canvas object click handler for selection
@@ -3506,7 +3546,7 @@ export const KiteFrameCanvas: React.FC<Props> = (props) => {
           props.onCanvasClick?.();
         }}
       >
-        <div className="kiteframe-world" style={worldStyle}>
+        <div className="kiteframe-world" ref={worldRef} style={worldStyle}>
           {/* Existing edges - edges connected to dragged node hidden during drag for performance */}
           <svg
             className="kiteframe-edge-layer"
