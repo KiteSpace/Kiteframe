@@ -1,4 +1,5 @@
 import { sanitizeAiPrompt, MAX_AI_PROMPT_CHARS } from "./utils/sanitize";
+import { markAiAttempt, markAiCompleted } from './aiBillingContext';
 
 export interface AiChatExecResult {
   ok: boolean;
@@ -271,12 +272,14 @@ export async function executeAiChat(
       }));
     }
 
+    markAiAttempt();
     const response: any = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
       signal,
     });
+    if (response.ok) markAiCompleted();
 
     if (!response.ok) {
       const errText = await response.text();

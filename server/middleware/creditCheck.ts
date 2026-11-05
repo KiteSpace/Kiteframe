@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { aiBilling, type AiBilling } from '../aiBillingContext';
 import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
@@ -176,11 +177,15 @@ export async function requireCredits(
       userIdentifier,
       remainingCredits: deductResult.remainingCredits,
       creditCost,
+      deductedAt: new Date(),
     };
-    // A failed, rejected or abandoned call is refunded (background jobs refund in postBackgroundAi).
+    const billing: AiBilling = { attempted: false, completed: false };
+    req.aiBilling = billing;
+    aiBilling.enterWith(billing);
+    // Refunded only if Claude was called and never returned a response (background jobs refund in
+    // postBackgroundAi). A client disconnect is not refunded: the upstream call still completes.
     if (req.get('X-AI-Background') !== '1') {
       res.once('finish', () => { if (res.statusCode >= 400) void refundDeductedCredit(req); });
-      res.once('close', () => { if (!res.writableEnded) void refundDeductedCredit(req); });
     }
 
     // If the client sent a session ID for a workflow_reasoning turn, register it now
@@ -463,22 +468,30 @@ export { getUserGroupAccessControls, MergedAccessControls };
 declare global {
   namespace Express {
     interface Request {
+      aiBilling?: AiBilling;
       creditDeducted?: {
         userIdentifier: string;
         remainingCredits: number;
         creditCost: number;
+        deductedAt?: Date;
       };
     }
   }
 }
 
-/** Give back the credit `requireCredits` took for this request, at most once. */
-export async function refundDeductedCredit(req: Request): Promise<void> {
+/**
+ * Give back the credit `requireCredits` took, at most once, only when no Claude response was
+ * billed: the upstream call failed or was aborted, or a cancelled job never reached Claude.
+ * Output we reject after Claude replied (truncated, invalid JSON, coverage errors) stays charged.
+ */
+export async function refundDeductedCredit(req: Request, opts: { cancelled?: boolean } = {}): Promise<void> {
   const d = req.creditDeducted as (NonNullable<Request['creditDeducted']> & { refunded?: boolean }) | undefined;
   if (!d || d.refunded || !d.creditCost || d.remainingCredits >= 999999) return;
+  const b = req.aiBilling;
+  if (!b || b.completed || !(b.attempted || opts.cancelled)) return;
   d.refunded = true;
   try {
-    await creditService.refundCredit(d.userIdentifier, d.creditCost);
+    await creditService.refundCredit(d.userIdentifier, d.creditCost, d.deductedAt);
     console.log(`Credit refunded (cost: ${d.creditCost}). User: ${d.userIdentifier}`);
   } catch (error) {
     console.error('Credit refund failed:', error);

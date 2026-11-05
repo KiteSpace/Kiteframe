@@ -61,8 +61,9 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       response.emit('close');
       return response;
     };
+    let cancelled = false;
     controller.signal.addEventListener('abort', () => {
-      if (!response.writableEnded) void refundDeductedCredit(req);
+      if (!response.writableEnded) cancelled = true;
       response.destroyed = true;
       clearTimeout(deadline);
       response.emit('close');
@@ -81,6 +82,9 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
     }).catch(error => {
       response.status(500);
       response.json({ error: error instanceof Error ? error.message : 'AI action failed' });
+    }).finally(() => {
+      // Decided after the handler settles, so a reply that arrived as Stop was pressed stays charged.
+      if (cancelled) void refundDeductedCredit(req, { cancelled: true });
     });
   });
 }

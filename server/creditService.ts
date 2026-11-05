@@ -216,13 +216,15 @@ export class CreditService {
     }
   }
 
-  async refundCredit(userIdentifier: string, creditCost: number = 1): Promise<void> {
+  /** With `deductedAt`, skips the refund if the daily reset ran since, so it can't exceed the tier cap. */
+  async refundCredit(userIdentifier: string, creditCost: number = 1, deductedAt?: Date): Promise<void> {
+    const match = eq(userCredits.userIdentifier, userIdentifier);
     await db.update(userCredits)
       .set({ 
         credits: sql`${userCredits.credits} + ${creditCost}`,
         updatedAt: new Date(),
       })
-      .where(eq(userCredits.userIdentifier, userIdentifier));
+      .where(deductedAt ? and(match, sql`${userCredits.lastResetAt} <= ${deductedAt.toISOString()}::timestamp`) : match);
   }
 
   async redeemUnlockCode(code: string, userIdentifier: string, country?: string): Promise<{ success: boolean; message: string; credits?: number; isUnlimited?: boolean }> {

@@ -151,6 +151,8 @@ import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
 /** Finished pages of a per-page generation, keyed by scope + plan, so Generate again retries only failed pages. */
 const batchPageResults = new Map<string, Map<string, PageResult>>();
+/** Plans from the stale-banner/picker paths, so Back then Generate doesn't run (and charge) the planner again. */
+const plannedInterfaces = new Map<string, InterfacePlan>();
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
@@ -3303,7 +3305,7 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
-  const [creditConfirm, setCreditConfirm] = useState<{ credits: number; reused: boolean } | null>(null);
+  const [creditConfirm, setCreditConfirm] = useState<{ credits: number; reused: boolean; note?: string } | null>(null);
   const creditConfirmResolve = useRef<((ok: boolean) => void) | null>(null);
   const settleCreditConfirm = useCallback((ok: boolean) => {
     creditConfirmResolve.current?.(ok);
@@ -3311,10 +3313,10 @@ function WorkflowEditorContent({
     setCreditConfirm(null);
   }, []);
   /** Asks before a per-page run, which charges 1 credit per page still to generate. */
-  const confirmCredits = useCallback((credits: number, reused: boolean) => new Promise<boolean>((resolve) => {
+  const confirmCredits = useCallback((credits: number, reused: boolean, note?: string) => new Promise<boolean>((resolve) => {
     creditConfirmResolve.current?.(false);
     creditConfirmResolve.current = resolve;
-    setCreditConfirm({ credits, reused });
+    setCreditConfirm({ credits, reused, note });
   }), []);
 
   const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
@@ -3345,22 +3347,31 @@ function WorkflowEditorContent({
         : `${baseName} v${linkedDesignTabs.length + 1}`;
 
       let plan: InterfacePlan;
+      let plannedHere = false;
       if (approvedPlan && !Array.isArray(approvedPlan)) {
         plan = interfacePlanSchema.parse(approvedPlan);
       } else {
         // Bulk/stale entry points also use semantic planning, not legacy chunks.
-        const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
-          signal,
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workflow: workflowToPlanningInput(
-            sourceTab.nodes, sourceTab.edges, sourceTab.name, sourceTab.metadata.description,
-            collectWorkflowInterfaceContext(sourceTab),
-          ), sourceProjectId: sourceTab.cloudProjectId }),
-        });
-        const proposalData = await proposalRes.json();
-        if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
-        const interpreted = interfacePlanSchema.parse(proposalData.plan);
+        plannedHere = true;
+        const planningBody = JSON.stringify({ workflow: workflowToPlanningInput(
+          sourceTab.nodes, sourceTab.edges, sourceTab.name, sourceTab.metadata.description,
+          collectWorkflowInterfaceContext(sourceTab),
+        ), sourceProjectId: sourceTab.cloudProjectId });
+        const planKey = `${scope}::${planningBody}`;
+        let interpreted = plannedInterfaces.get(planKey);
+        if (!interpreted) {
+          const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
+            signal,
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: planningBody,
+          });
+          const proposalData = await proposalRes.json();
+          if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
+          interpreted = interfacePlanSchema.parse(proposalData.plan);
+          if (plannedInterfaces.size >= 20) plannedInterfaces.clear();
+          plannedInterfaces.set(planKey, interpreted);
+        }
         const pages = interpreted.screens.filter(s => s.kind === "page");
         if (pages.length > MAX_GENERATED_SCREENS) {
           throw new Error(`This workflow needs ${pages.length} pages. Open its interface proposal and choose up to ${MAX_GENERATED_SCREENS} pages before generating.`);
@@ -3375,7 +3386,8 @@ function WorkflowEditorContent({
         const completed = batchPageResults.get(batchKey) ?? new Map<string, PageResult>();
         batchPageResults.set(batchKey, completed);
         const credits = pagesToGenerate(plan, completed);
-        if (!(await confirmCredits(credits, credits < pageCount))) return false;
+        if (!(await confirmCredits(credits, credits < pageCount,
+          plannedHere ? "The page plan is kept, so going Back won't charge for planning again." : undefined))) return false;
         const outcome = await generateInterfacePages(plan, {
           signal, completed, onProgress: setPageProgress,
           generatePage: async (pagePlan, pageBrief, pageSignal) => {
@@ -15918,7 +15930,8 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             <AlertDialogTitle>Generate {creditConfirm?.credits} page{creditConfirm?.credits === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
               This uses {creditConfirm?.credits} credit{creditConfirm?.credits === 1 ? "" : "s"}, 1 per page.
-              {creditConfirm?.reused ? " Pages already generated are reused." : ""} Failed or cancelled pages are refunded.
+              {creditConfirm?.reused ? " Pages already generated are reused." : ""} A page is refunded only if Claude can't be reached or you stop it before Claude replies.
+              {creditConfirm?.note ? ` ${creditConfirm.note}` : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

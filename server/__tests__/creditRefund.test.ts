@@ -12,19 +12,35 @@ import { refundDeductedCredit } from '../middleware/creditCheck';
 
 describe('refundDeductedCredit', () => {
   beforeEach(() => refundCredit.mockClear());
+  const deducted = (extra: object = {}) => ({ userIdentifier: 'user:1', remainingCredits: 4, creditCost: 1, deductedAt: new Date(0), ...extra });
 
-  it('refunds the deducted cost once', async () => {
-    const req: any = { creditDeducted: { userIdentifier: 'user:1', remainingCredits: 4, creditCost: 1 } };
+  it('refunds once when Claude was called and never returned a response', async () => {
+    const req: any = { creditDeducted: deducted(), aiBilling: { attempted: true, completed: false } };
     await refundDeductedCredit(req);
     await refundDeductedCredit(req);
     expect(refundCredit).toHaveBeenCalledTimes(1);
-    expect(refundCredit).toHaveBeenCalledWith('user:1', 1);
+    expect(refundCredit).toHaveBeenCalledWith('user:1', 1, new Date(0));
   });
 
-  it('skips requests with nothing deducted, zero cost or unlimited credits', async () => {
-    await refundDeductedCredit({} as any);
-    await refundDeductedCredit({ creditDeducted: { userIdentifier: 'u', remainingCredits: 3, creditCost: 0 } } as any);
-    await refundDeductedCredit({ creditDeducted: { userIdentifier: 'u', remainingCredits: 999999, creditCost: 1 } } as any);
+  it('keeps the charge when Claude replied and we rejected the output, or the cancel came after the reply', async () => {
+    await refundDeductedCredit({ creditDeducted: deducted(), aiBilling: { attempted: true, completed: true } } as any);
+    await refundDeductedCredit({ creditDeducted: deducted(), aiBilling: { attempted: true, completed: true } } as any, { cancelled: true });
+    expect(refundCredit).not.toHaveBeenCalled();
+  });
+
+  it('refunds a cancel before any model call, but not a plain error before one', async () => {
+    await refundDeductedCredit({ creditDeducted: deducted(), aiBilling: { attempted: false, completed: false } } as any);
+    expect(refundCredit).not.toHaveBeenCalled();
+    await refundDeductedCredit({ creditDeducted: deducted(), aiBilling: { attempted: false, completed: false } } as any, { cancelled: true });
+    expect(refundCredit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips requests with nothing deducted, zero cost, unlimited credits or no billing state', async () => {
+    const billing = { attempted: true, completed: false };
+    await refundDeductedCredit({ aiBilling: billing } as any);
+    await refundDeductedCredit({ creditDeducted: deducted({ creditCost: 0 }), aiBilling: billing } as any);
+    await refundDeductedCredit({ creditDeducted: deducted({ remainingCredits: 999999 }), aiBilling: billing } as any);
+    await refundDeductedCredit({ creditDeducted: deducted() } as any);
     expect(refundCredit).not.toHaveBeenCalled();
   });
 });
@@ -33,10 +49,11 @@ describe('postBackgroundAi refunds', () => {
   it('refunds when the wrapped handler fails, not when it succeeds', async () => {
     vi.resetModules();
     const refund = vi.fn();
+    const controllers: AbortController[] = [];
     vi.doMock('../middleware/creditCheck', () => ({ refundDeductedCredit: refund }));
     vi.doMock('../aiJobStore', () => ({
       createJob: () => ({ id: 'job-1' }),
-      attachJobAbortController: vi.fn(),
+      attachJobAbortController: (_id: string, c: AbortController) => { controllers.push(c); },
       setJobRunning: vi.fn(),
       tryFinalizeSuccess: vi.fn(),
       tryFinalizeFailure: vi.fn(),
@@ -50,6 +67,8 @@ describe('postBackgroundAi refunds', () => {
     const app: any = { post: (path: string, ...handlers: any[]) => { routes[path] = handlers; } };
     postBackgroundAi(app, '/fail', async (_req: any, res: any) => { res.status(502).json({ error: 'bad' }); });
     postBackgroundAi(app, '/ok', async (_req: any, res: any) => { res.json({ ok: true }); });
+    let finishSlow!: () => void;
+    postBackgroundAi(app, '/slow', async () => { await new Promise<void>((r) => { finishSlow = r; }); });
 
     const run = async (path: string) => {
       const req: any = { get: (h: string) => (h === 'X-AI-Background' ? '1' : undefined), headers: { 'x-ai-background': '1' }, body: {} };
@@ -69,5 +88,13 @@ describe('postBackgroundAi refunds', () => {
     refund.mockClear();
     await run('/ok');
     expect(refund).not.toHaveBeenCalled();
+
+    const slowReq = await run('/slow');
+    controllers[controllers.length - 1].abort();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(refund).not.toHaveBeenCalled();
+    finishSlow();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(refund).toHaveBeenCalledWith(slowReq, { cancelled: true });
   });
 });
