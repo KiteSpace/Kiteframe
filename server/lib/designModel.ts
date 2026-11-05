@@ -42,7 +42,8 @@ export type RunDesignModelResult =
 
 export async function runDesignModel(o: RunDesignModelOptions): Promise<RunDesignModelResult> {
   const blocks = o.systemBlocks.filter((b) => b && b.length > 0);
-  const prefill = !o.v2;
+  // Prefill only when this helper parses the JSON itself: callers taking raw text (the planner) never see the `{`.
+  const prefill = !o.v2 && o.parseJson !== false;
   const result = await executeAiChat(
     {
       provider: 'anthropic',

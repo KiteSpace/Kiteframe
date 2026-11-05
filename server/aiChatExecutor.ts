@@ -28,6 +28,9 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   interface_planning_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
 };
 
+/** Task types only server routes may use; `/api/ai/chat` rejects them (they pick flagged models). */
+export const INTERNAL_ONLY_TASK_TYPES = new Set(['design', 'design_v2', 'interface_planning', 'interface_planning_v2', 'wireframe', 'spec_summary']);
+
 const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
 const MAX_OUTPUT_TOKENS = 16000;
 
@@ -236,7 +239,8 @@ export async function executeAiChat(
     requestBody = {
       model: activeModel,
       max_tokens: clampMaxTokens(maxTokens, 1024),
-      ...(typeof temperature === 'number' && temperature >= 0 && temperature <= 1 ? { temperature } : {}),
+      // Only trusted server routes (which pass `internal`) may set temperature.
+      ...(internal && typeof temperature === 'number' && temperature >= 0 && temperature <= 1 ? { temperature } : {}),
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: anthropicMessages,
     };

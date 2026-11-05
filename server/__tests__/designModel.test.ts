@@ -61,6 +61,14 @@ describe('runDesignModel', () => {
     expect(internal).toEqual({ systemBlocks: ['STATIC CATALOG', 'VISION EXT', DESIGN_JSON_ONLY_RULE], cacheSystem: true, rawUserText: true });
   });
 
+  it('legacy raw-text callers (the planner) get no prefill, so the reply keeps its opening brace', async () => {
+    executeAiChat.mockResolvedValue({ ok: true, status: 200, text: '{"screens":[]}', json: { stop_reason: 'end_turn' }, activeModel: 'm' });
+    const r = await runDesignModel({ ...base, v2: false, parseJson: false });
+    const [body] = executeAiChat.mock.calls[0];
+    expect(body.messages.at(-1).role).toBe('user');
+    expect(r.ok && JSON.parse((r as any).text ?? (r as any).value)).toEqual({ screens: [] });
+  });
+
   it('maps truncation and upstream failures without leaking details', async () => {
     executeAiChat.mockResolvedValueOnce({ ok: true, status: 200, text: '{"a":', json: { stop_reason: 'max_tokens' } });
     expect(await runDesignModel({ ...base, v2: true })).toMatchObject({ ok: false, reason: 'max_tokens' });

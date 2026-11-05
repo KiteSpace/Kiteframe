@@ -101,8 +101,8 @@ import { handleBugReport } from "./bug-report";
 import { safeFetch, parsePublicUrl, UnsafeUrlError } from "./lib/safeFetch";
 import { requireUSOnly } from "./middleware/regionLock";
 import { requireCredits, requireAdvancedOrPro, getUserGroupAccessControls, precheckCreditsForJob, deductCreditsAfterSuccess, releasePrecheckReservation } from "./middleware/creditCheck";
-import { executeAiChat } from "./aiChatExecutor";
-import { buildWireframePrompt, validateWireframeSvg, fallbackWireframeSvg, WIREFRAME_SYSTEM_PROMPT, MAX_CURRENT_SVG_CHARS, type WireframeValidation } from "./lib/wireframe";
+import { executeAiChat, INTERNAL_ONLY_TASK_TYPES } from "./aiChatExecutor";
+import { buildWireframePrompt, validateWireframeSvg, WIREFRAME_SYSTEM_PROMPT, MAX_CURRENT_SVG_CHARS, type WireframeValidation } from "./lib/wireframe";
 import { createStageTimer } from "./lib/stageTiming";
 import { runDesignModel, DESIGN_AI_V2_FLAG, type RunDesignModelResult } from "./lib/designModel";
 import { createPlannerModel } from "./lib/interfacePlanner";
@@ -2143,6 +2143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/ai/chat', isAuthenticated, aiRateLimiter, requireUSOnly, requireCredits, async (req, res) => {
     try {
       const { taskType } = req.body;
+      if (INTERNAL_ONLY_TASK_TYPES.has(taskType)) return res.status(400).json({ error: 'Unsupported task type.' });
       const result = await executeAiChat(req.body);
       if (!result.ok) {
         return res.status(result.status).json({
@@ -2462,12 +2463,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (check.ok) svg = check.svg;
         else rejection = check.error;
       }
-      if (!svg && !strictOutput) {
-        console.error('Wireframe response had no SVG:', rejection);
+      if (!svg) {
+        // Error rather than a placeholder: a refine must keep the user's current mock, and no credits are charged.
+        console.error('Wireframe output failed validation:', rejection);
+        timer.mark('done', { valid: false, promptTokens, completionTokens });
         return res.status(502).json({ error: 'Could not generate the wireframe. Please try again.' });
       }
-      const usedFallback = !svg;
-      if (usedFallback) console.warn('Wireframe validation failed twice, using fallback:', rejection);
 
       // Track analytics
       const userIdentifier = creditService.getUserIdentifier(req);
@@ -2490,8 +2491,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         creditsCharged: req.creditDeducted?.creditCost,
       }).catch(console.error);
 
-      timer.mark('done', { usedFallback, promptTokens, completionTokens });
-      res.json(usedFallback ? { svg: fallbackWireframeSvg(safeLabel), warning: 'fallback' } : { svg });
+      timer.mark('done', { promptTokens, completionTokens });
+      res.json({ svg });
     } catch (error: any) {
       console.error('Wireframe generation error:', error);
       res.status(500).json({ error: 'Internal server error' });
