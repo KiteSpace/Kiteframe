@@ -5,10 +5,9 @@ import {
 } from "./externalWorkflowPrompt";
 import { validateExternalDesign, designJsonSchema } from "./designSchema";
 import {
-  DESIGN_SYSTEM_PROMPT,
-  DESIGN_JSON_SCHEMA,
-  DESIGN_FEW_SHOT_EXAMPLES,
-} from "./designPrompt";
+  EXTERNAL_DESIGN_SYSTEM_PROMPT,
+  EXTERNAL_DESIGN_FEW_SHOT_EXAMPLES,
+} from "./externalDesignPrompt";
 
 export type UrlEntityType = "workflows" | "designs";
 export type DbEntityType = "workflow" | "design";
@@ -46,10 +45,11 @@ export function getPromptTemplateForType(dbType: DbEntityType) {
   }
   if (dbType === "design") {
     return {
-      version: "1.0.0",
-      system_prompt: DESIGN_SYSTEM_PROMPT,
-      output_schema: DESIGN_JSON_SCHEMA,
-      few_shot_examples: DESIGN_FEW_SHOT_EXAMPLES,
+      // Must match what the submit routes validate (legacy flat format).
+      version: "1.1.0",
+      system_prompt: EXTERNAL_DESIGN_SYSTEM_PROMPT,
+      output_schema: designJsonSchema,
+      few_shot_examples: EXTERNAL_DESIGN_FEW_SHOT_EXAMPLES,
     };
   }
   throw { status: 400, message: `Unknown entity type: ${dbType}` };
