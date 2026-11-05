@@ -18,7 +18,7 @@ describe('creditService.refundCredit', () => {
     expect(q.sql).toContain('"last_reset_at" <= ');
     expect(q.params).toEqual(expect.arrayContaining(['user:1', deductedAt.toISOString()]));
     const credits = dialect.sqlToQuery(captured.pop() as any);
-    expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2, .*"credits"\)\)$/);
+    expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2::integer, .*"credits"\)\)$/);
     expect(credits.params).toEqual([1, 150]);
   });
 
@@ -27,7 +27,7 @@ describe('creditService.refundCredit', () => {
     await creditService.refundCredit('user:1', 1, new Date(), true, 13);
     captured.pop();
     const credits = new PgDialect().sqlToQuery(captured.pop() as any);
-    expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2, \$3\)\)$/);
-    expect(credits.params).toEqual([1, 3, 13]);
+    expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2::integer, .*"credits"\)\)$/);
+    expect(credits.params).toEqual([1, 13]);
   });
 });
