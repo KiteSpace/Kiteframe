@@ -26,6 +26,8 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   design_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
   interface_planning: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   interface_planning_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
+  // Condenses over-budget Specs sections for the planner.
+  spec_summary: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: false },
 };
 
 /** Task types only server routes may use; `/api/ai/chat` rejects them (they pick flagged models). */

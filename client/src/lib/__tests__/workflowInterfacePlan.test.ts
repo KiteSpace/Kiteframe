@@ -20,14 +20,15 @@ describe('workflow planning context', () => {
     expect(context).toContain('Membership and invoices');
     expect(context).not.toContain('generatedAt');
   });
-  it('marks oversized Specs as an excerpt rather than silently dropping text', () => {
+  it('condenses oversized Specs per section instead of cutting the JSON', () => {
     saveProjectPRD('project', {
       projectId: 'project', projectName: 'Large Specs', sections: [{ id: 'large', title: 'Large', content: 'x'.repeat(20000) }],
       manualEditedAt: {}, generatedAt: 1, version: 1,
     });
     const context = collectWorkflowInterfaceContext({ id: 'tab', name: 'Workflow', projectUuid: 'project' });
     expect(context.length).toBeLessThanOrEqual(MAX_INTERFACE_CONTEXT_CHARS);
-    expect(context).toMatch(/^\[CONTEXT EXCERPT/);
+    expect(context).toMatch(/^\[CONTEXT CONDENSED/);
+    expect(JSON.parse(context.slice(context.indexOf('\n') + 1)).projectSpec.sections[0]).toMatchObject({ title: 'Large', condensed: true });
   });
   it('never silently clips a source step description', () => {
     expect(() => workflowToPlanningInput([{

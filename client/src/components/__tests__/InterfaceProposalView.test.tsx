@@ -1,3 +1,4 @@
+import { buildPlanningContext } from '@shared/interfacePlan';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { setOperationOwner } from '@/ai/backgroundOperations';
@@ -241,5 +242,19 @@ describe('InterfaceProposalView proposal review', () => {
     expect(screen.getByText(/Specs context was excerpted to fit the planning budget/)).toBeInTheDocument();
     const request = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
     expect(request.workflow.context).toBe(excerpt);
+  });
+  it('lists condensed Specs sections instead of the generic excerpt warning', async () => {
+    const big = (word: string) => `${word} rule. `.repeat(900);
+    const { context: condensed } = buildPlanningContext(
+      { projectName: 'Billing', sections: [{ title: 'Pricing', content: big('Pricing') }] },
+      [{ workflowName: 'Invoices', sections: [{ title: 'Fields', content: big('Fields') }] }],
+    );
+    const plan = makePlan();
+    plan.workflow.context = condensed;
+    global.fetch = vi.fn().mockResolvedValue(previewResponse(plan)) as typeof fetch;
+    renderProposal({ context: condensed });
+    expect(await screen.findByRole('note', { name: 'Specs context condensed' })).toBeInTheDocument();
+    expect(screen.getByText('Billing › Pricing')).toBeInTheDocument();
+    expect(screen.queryByRole('note', { name: 'Specs context excerpt warning' })).not.toBeInTheDocument();
   });
 });

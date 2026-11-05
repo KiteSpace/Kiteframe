@@ -25,6 +25,7 @@ export function workflowToPlanningInput(
 export function collectWorkflowInterfaceContext(tab: {
   id: string; name: string; projectUuid?: string | null; cloudProjectId?: string | null;
   metadata?: { description?: string };
+  nodes?: Array<{ data?: { label?: unknown } }>;
 }): string {
   const keys = Array.from(new Set([tab.projectUuid, tab.cloudProjectId, tab.id].filter(Boolean))) as string[];
   let projectSpec: unknown = null;
@@ -38,5 +39,6 @@ export function collectWorkflowInterfaceContext(tab: {
       if (spec && !workflowSpecs.has(workflowId)) workflowSpecs.set(workflowId, spec);
     }
   }
-  return formatInterfaceSpecs(projectSpec, Array.from(workflowSpecs.values()));
+  const nodeLabels = (tab.nodes || []).map((n) => (typeof n.data?.label === 'string' ? n.data.label : '')).filter(Boolean);
+  return formatInterfaceSpecs(projectSpec, Array.from(workflowSpecs.values()), nodeLabels);
 }
