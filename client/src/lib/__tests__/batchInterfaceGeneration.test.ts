@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { InterfacePlan } from '@shared/interfacePlan';
-import { generateInterfacePages, type PageResult } from '../batchInterfaceGeneration';
+import { generateInterfacePages, pagesToGenerate, type PageResult } from '../batchInterfaceGeneration';
 
 function makePlan(pageCount = 1, extraPages: InterfacePlan['screens'] = []): InterfacePlan {
   const pages = Array.from({ length: pageCount }, (_, index) => ({
@@ -77,5 +77,15 @@ describe('generateInterfacePages', () => {
     expect(generatePage).toHaveBeenCalledTimes(1);
     expect(out.cancelled).toBe(true);
     expect(out.failed.every((r) => r.status === 'cancelled')).toBe(true);
+  });
+});
+
+describe('pagesToGenerate', () => {
+  it('counts 1 credit per selected page, and only the unfinished pages on a retry', () => {
+    const plan = makePlan(4);
+    const pages = plan.screens.filter((s) => s.kind === 'page');
+    expect(pagesToGenerate(plan)).toBe(pages.length);
+    const completed = new Map<string, PageResult>([[pages[0].id, { craftState: '{}', warnings: [] }]]);
+    expect(pagesToGenerate(plan, completed)).toBe(pages.length - 1);
   });
 });

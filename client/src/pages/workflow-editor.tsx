@@ -145,7 +145,7 @@ import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
 import { interfacePlanSchema, selectInterfacePages, type InterfacePlan } from "@shared/interfacePlan";
 import { collectWorkflowInterfaceContext, workflowToPlanningInput } from "@/lib/workflowInterfacePlan";
-import { generateInterfacePages, MOCK_WORKFLOW_BATCH_FLAG, type PageRun, type PageResult } from "@/lib/batchInterfaceGeneration";
+import { generateInterfacePages, pagesToGenerate, MOCK_WORKFLOW_BATCH_FLAG, type PageRun, type PageResult } from "@/lib/batchInterfaceGeneration";
 import { selectedInterfaceSurfaces } from "@shared/interfacePlan";
 import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
@@ -3303,6 +3303,14 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
+  /** Credits a per-page Generate UI run will charge, or null when it is a single design call. */
+  const estimateInterfaceCredits = useCallback((sourceTab: WorkflowTab, approvedPlan: InterfacePlan): number | null => {
+    const plan = interfacePlanSchema.parse(approvedPlan);
+    if (!isFlagEnabled(MOCK_WORKFLOW_BATCH_FLAG) || selectedInterfaceSurfaces(plan).filter((s) => s.kind === "page").length <= 1) return null;
+    const scope = `interface-generate:${tabProjectIdentifier(sourceTab)}`;
+    return pagesToGenerate(plan, batchPageResults.get(`${scope}::${JSON.stringify(plan)}`));
+  }, [isFlagEnabled]);
+
   const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
@@ -9477,6 +9485,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 isGenerating={isGeneratingInterface}
                 generationFeedback={interfaceGenerationFeedback}
                 pageProgress={interfacePageProgress}
+                creditEstimate={srcTab ? (plan) => estimateInterfaceCredits(srcTab, plan) : undefined}
                 onConfirm={async (plan) => {
                   if (!srcTab) return;
                   const proposalTabId = activeTab.id;

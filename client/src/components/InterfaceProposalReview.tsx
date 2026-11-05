@@ -10,6 +10,7 @@ import {
   interfacePlanSchema,
   inspectInterfacePlan,
   selectInterfacePages,
+  selectedInterfaceSurfaces,
   MAX_INTERFACE_PAGES,
   type InterfacePlan,
   type InterfaceSurface,
@@ -55,6 +56,8 @@ export interface InterfaceProposalViewProps {
   pageProgress?: PageRun[];
   generationFeedback?: string[];
   onConfirm: (plan: InterfacePlan) => void;
+  /** Credits the run will charge for this plan; when set, Generate asks for confirmation first. */
+  creditEstimate?: (plan: InterfacePlan) => number | null;
   onCancel: () => void;
 }
 
@@ -135,7 +138,7 @@ function UserBubble({ text }: { text: string }) {
 
 export function InterfaceProposalReview({
   workflowName, workflowDescription = '', sourceProjectId, operationTargetId, context = '', nodes, edges, isGenerating,
-  generationFeedback = [], pageProgress = [], onConfirm, onCancel,
+  generationFeedback = [], pageProgress = [], onConfirm, onCancel, creditEstimate,
 }: InterfaceProposalViewProps) {
   const operationScope = `interface-plan:${operationTargetId || sourceProjectId || workflowName}:${nodes.map(node => node.id).sort().join(',')}`;
   const [status, setStatus] = useRetainedAiState<'loading' | 'ready' | 'refining' | 'error'>(operationScope, 'status', 'loading');
@@ -147,6 +150,7 @@ export function InterfaceProposalReview({
   const [messages, setMessages] = useRetainedAiState<ChatMessage[]>(operationScope, 'messages', []);
   const [inputValue, setInputValue] = useState('');
   const [previewTab, setPreviewTab] = useState('mocks');
+  const [pendingRun, setPendingRun] = useState<{ plan: InterfacePlan; credits: number } | null>(null);
   const [discussionSections, setDiscussionSections] = useRetainedAiState<DiscussionSection[]>(operationScope, 'discussion-sections', []);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -260,6 +264,13 @@ export function InterfaceProposalReview({
 
   if (isGenerating) return <div className="h-full w-full flex overflow-hidden bg-background"><aside className="w-72 border-r border-border bg-card p-4"><h2 className="text-sm font-semibold">KiteAI</h2></aside><div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center gap-3 border-b border-border px-5 text-sm font-medium">Generating your UI</header>{pageProgress.length > 0 && <ol aria-label="Page progress" className="flex flex-wrap gap-2 border-b border-border px-5 py-2 text-xs">{pageProgress.map((run) => <li key={run.screenId} className={`rounded-full border px-2.5 py-1 ${run.status === 'done' ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : run.status === 'failed' ? 'border-destructive/50 text-destructive' : run.status === 'running' ? 'border-violet-300 text-violet-700 dark:text-violet-300' : 'border-border text-muted-foreground'}`}>{run.name} · {PAGE_STATUS_LABEL[run.status]}</li>)}</ol>}<UiGenerationShimmer /></div></div>;
 
+  const requestGenerate = () => {
+    if (!plan) return;
+    const approved = selectInterfacePages(plan, selectedPages.map((surface) => surface.id));
+    const credits = creditEstimate?.(approved) ?? null;
+    if (credits === null) onConfirm(approved);
+    else setPendingRun({ plan: approved, credits });
+  };
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
       <aside className="flex h-full w-72 flex-shrink-0 flex-col border-r border-border bg-card">
@@ -293,9 +304,18 @@ export function InterfaceProposalReview({
           {plan && plan.screens.filter((surface) => surface.kind === 'page').length > MAX_INTERFACE_PAGES && <span className="text-[11px] text-muted-foreground">Choose up to {MAX_INTERFACE_PAGES} pages · dialogs and inline surfaces follow their parent</span>}
           <div className="ml-auto flex items-center gap-2">
             <button onClick={onCancel} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">Cancel</button>
-            <button onClick={() => plan && onConfirm(selectInterfacePages(plan, selectedPages.map((surface) => surface.id)))} disabled={!plan || !selectedPages.length || status !== 'ready'} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={12} />Generate UI</button>
+            <button onClick={requestGenerate} disabled={!plan || !selectedPages.length || status !== 'ready' || !!pendingRun} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={12} />Generate UI</button>
           </div>
         </header>
+        {pendingRun && (
+          <div role="alertdialog" aria-label="Confirm credits" className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-border bg-violet-50 px-5 py-2 text-xs dark:bg-violet-950/30">
+            <span>This uses <strong>{pendingRun.credits} credit{pendingRun.credits === 1 ? '' : 's'}</strong> (1 per page{pendingRun.credits < selectedInterfaceSurfaces(pendingRun.plan).filter((s) => s.kind === 'page').length ? '; finished pages are reused' : ''}).</span>
+            <div className="ml-auto flex items-center gap-2">
+              <button onClick={() => setPendingRun(null)} className="rounded-lg border border-border px-3 py-1.5 text-muted-foreground hover:bg-muted">Back</button>
+              <button onClick={() => { const run = pendingRun; setPendingRun(null); onConfirm(run.plan); }} className="rounded-lg bg-violet-600 px-3 py-1.5 text-white hover:bg-violet-700">Generate · {pendingRun.credits} credit{pendingRun.credits === 1 ? '' : 's'}</button>
+            </div>
+          </div>
+        )}
         <Tabs value={previewTab} onValueChange={setPreviewTab} className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 border-b border-border px-5 py-2">
             <TabsList aria-label="UI generation preview">

@@ -9,6 +9,11 @@ export const PAGE_CONCURRENCY = 3;
 export interface PageRun { screenId: string; name: string; status: PageStatus; error?: string }
 export interface PageResult { craftState: string; warnings: string[] }
 
+/** Pages a per-page run would still generate (1 credit each); finished pages from an earlier run are reused. */
+export function pagesToGenerate(plan: InterfacePlan, completed?: Map<string, PageResult>): number {
+  return selectedInterfaceSurfaces(plan).filter((s) => s.kind === 'page' && !completed?.has(s.id)).length;
+}
+
 /**
  * One generation per selected page (page 1 first to warm the prompt cache, then 3 at a time).
  * Pages already in `completed` are reused, so running again retries only the failed pages.
