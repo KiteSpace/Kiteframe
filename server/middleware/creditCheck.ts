@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import type { AiBilling } from '../aiBillingContext';
 import { creditService, getCreditCost } from "../creditService";
 import { db } from "../db";
 import { userGroupMemberships, userGroups, users } from "@shared/schema";
@@ -176,7 +177,15 @@ export async function requireCredits(
       userIdentifier,
       remainingCredits: deductResult.remainingCredits,
       creditCost,
+      deductedAt: new Date(),
+      isAuthenticated,
     };
+    req.aiBilling = { attempted: false, completed: false };
+    // Refunded only if Claude was called and never returned a response (background jobs refund in
+    // postBackgroundAi). A client disconnect is not refunded: the upstream call still completes.
+    if (req.get('X-AI-Background') !== '1') {
+      res.once('finish', () => { if (res.statusCode >= 400) void refundDeductedCredit(req); });
+    }
 
     // If the client sent a session ID for a workflow_reasoning turn, register it now
     // atomically with the credit deduction. This ensures retries after a failed first
@@ -458,11 +467,59 @@ export { getUserGroupAccessControls, MergedAccessControls };
 declare global {
   namespace Express {
     interface Request {
+      aiBilling?: AiBilling;
       creditDeducted?: {
         userIdentifier: string;
         remainingCredits: number;
         creditCost: number;
+        deductedAt?: Date;
+        isAuthenticated?: boolean;
       };
     }
+  }
+}
+
+/** Stop is refunded only while the in-flight Claude call is younger than this, */
+export const CANCEL_REFUND_WINDOW_MS = 15_000;
+/** and at most this many times per user per day (per server instance). */
+export const MAX_CANCEL_REFUNDS_PER_DAY = 10;
+const cancelRefunds = new Map<string, { day: string; count: number }>();
+
+function takeCancelRefund(userIdentifier: string): boolean {
+  const day = new Date().toISOString().slice(0, 10);
+  const entry = cancelRefunds.get(userIdentifier);
+  const count = entry?.day === day ? entry.count : 0;
+  if (count >= MAX_CANCEL_REFUNDS_PER_DAY) return false;
+  if (cancelRefunds.size > 10_000) cancelRefunds.clear();
+  cancelRefunds.set(userIdentifier, { day, count: count + 1 });
+  return true;
+}
+
+/**
+ * Give back the credit `requireCredits` took, at most once, only when no Claude response was
+ * billed: the upstream call failed or was aborted, or a cancelled job never reached Claude.
+ * Output we reject after Claude replied (truncated, invalid JSON, coverage errors) stays charged.
+ */
+export async function refundDeductedCredit(
+  req: Request,
+  opts: { cancelled?: boolean; cancelledAt?: number; inFlightSince?: number } = {},
+): Promise<void> {
+  const d = req.creditDeducted as (NonNullable<Request['creditDeducted']> & { refunded?: boolean }) | undefined;
+  if (!d || d.refunded || !d.creditCost || d.remainingCredits >= 999999) return;
+  const b = req.aiBilling;
+  if (!b || b.completed) return;
+  if (opts.cancelled) {
+    // A long-running call stopped late has probably been billed upstream already.
+    if (opts.inFlightSince !== undefined && (opts.cancelledAt ?? Date.now()) - opts.inFlightSince >= CANCEL_REFUND_WINDOW_MS) return;
+    if (!takeCancelRefund(d.userIdentifier)) return;
+  } else if (!b.attempted) {
+    return;
+  }
+  d.refunded = true;
+  try {
+    await creditService.refundCredit(d.userIdentifier, d.creditCost, d.deductedAt, d.isAuthenticated, d.remainingCredits + d.creditCost);
+    console.log(`Credit refunded (cost: ${d.creditCost}). User: ${d.userIdentifier}`);
+  } catch (error) {
+    console.error('Credit refund failed:', error);
   }
 }

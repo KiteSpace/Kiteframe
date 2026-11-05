@@ -216,13 +216,23 @@ export class CreditService {
     }
   }
 
-  async refundCredit(userIdentifier: string, creditCost: number = 1): Promise<void> {
+  /**
+   * Never lifts credits above the highest of the tier's daily allowance, `preChargeBalance` (so a bonus
+   * balance gets its credit back) and the current balance (so a top-up since the charge is never lowered).
+   * With `deductedAt`, skips the refund if the daily reset ran since the deduction.
+   */
+  async refundCredit(
+    userIdentifier: string, creditCost: number = 1, deductedAt?: Date, isAuthenticated: boolean = true, preChargeBalance?: number,
+  ): Promise<void> {
+    const cap = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
+    const floor = Math.max(cap, preChargeBalance ?? 0);
+    const match = eq(userCredits.userIdentifier, userIdentifier);
     await db.update(userCredits)
       .set({ 
-        credits: sql`${userCredits.credits} + ${creditCost}`,
+        credits: sql`LEAST(${userCredits.credits} + ${creditCost}, GREATEST(${floor}::integer, ${userCredits.credits}))`,
         updatedAt: new Date(),
       })
-      .where(eq(userCredits.userIdentifier, userIdentifier));
+      .where(deductedAt ? and(match, sql`${userCredits.lastResetAt} <= ${deductedAt.toISOString()}::timestamp`) : match);
   }
 
   async redeemUnlockCode(code: string, userIdentifier: string, country?: string): Promise<{ success: boolean; message: string; credits?: number; isUnlimited?: boolean }> {

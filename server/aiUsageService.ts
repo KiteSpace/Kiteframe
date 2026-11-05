@@ -8,6 +8,7 @@ import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 const MODEL_MULTIPLIERS: Record<string, number> = {
   'claude-haiku-4-5-20251001': 100,  // 1.0x (base)
   'claude-sonnet-4-5-20250929': 100,  // 1.0x (same unit cost for Beta)
+  'claude-sonnet-5-5': 100,
   'claude-opus-4-5-20251101': 100,   // 1.0x (same unit cost for Beta)
 };
 
@@ -21,6 +22,7 @@ const TOKENS_PER_UNIT = 500;
 // Cost estimates in microdollars per 1000 tokens (input/output average)
 const COST_PER_1K_TOKENS: Record<string, number> = {
   'claude-sonnet-4-5-20250929': 9000,   // ~$0.009 per 1K tokens (average in/out)
+  'claude-sonnet-5-5': 9000,            // assumed Sonnet-tier pricing; confirm against Anthropic pricing
   'claude-haiku-4-5-20251001': 750,     // ~$0.00075 per 1K tokens
   'claude-opus-4-5-20251101': 45000,    // ~$0.045 per 1K tokens
 };

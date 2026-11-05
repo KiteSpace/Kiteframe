@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { findFreeRect, resolveMockSource, decodeSvgDataUrl, encodeSvgDataUrl, withId, withoutId, MOCK_NODE_WIDTH, MOCK_NODE_HEIGHT } from "@/lib/mockPlacement";
 import { useRetainedAiState } from '@/ai/useBackgroundOperation';
 import { runBackgroundOperation, retainedCell, failOperation } from '@/ai/backgroundOperations';
 import { fetchBackgroundAi } from '@/ai/OpenAICompatClient';
@@ -144,6 +145,15 @@ import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
 import { interfacePlanSchema, selectInterfacePages, type InterfacePlan } from "@shared/interfacePlan";
 import { collectWorkflowInterfaceContext, workflowToPlanningInput } from "@/lib/workflowInterfacePlan";
+import { generateInterfacePages, pagesToGenerate, MOCK_WORKFLOW_BATCH_FLAG, type PageRun, type PageResult } from "@/lib/batchInterfaceGeneration";
+import { selectedInterfaceSurfaces } from "@shared/interfacePlan";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
+
+/** Finished pages of a per-page generation, keyed by scope + plan, so Generate again retries only failed pages. */
+const batchPageResults = new Map<string, Map<string, PageResult>>();
+/** Plans from the stale-banner/picker paths, kept until the interface is saved, so Back or a retry doesn't run (and charge) the planner again. */
+const plannedInterfaces = new Map<string, { plan: InterfacePlan; at: number }>();
+const PLAN_REUSE_MS = 10 * 60_000;
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
@@ -2310,6 +2320,8 @@ function WorkflowEditorContent({
     ? interfaceSourceTab.projectUuid || interfaceSourceTab.cloudProjectId?.toString() || interfaceSourceTab.id : activeTabId}`;
   const [isGeneratingInterface] = useRetainedAiState(interfaceGenerationScope, 'generating', false);
   const [interfaceGenerationFeedback] = useRetainedAiState<string[]>(interfaceGenerationScope, 'feedback', []);
+  const [interfacePageProgress] = useRetainedAiState<PageRun[]>(interfaceGenerationScope, 'pageProgress', []);
+  const { isEnabled: isFlagEnabled } = useFeatureFlags();
   const [screenPickerOpen, setScreenPickerOpen] = useState(false);
   const [screenPickerClusters, setScreenPickerClusters] = useState<Array<{ name: string; nodes: Node[] }>>([]);
   const [screenPickerSourceTab, setScreenPickerSourceTab] = useState<WorkflowTab | null>(null);
@@ -2569,15 +2581,15 @@ function WorkflowEditorContent({
     [activeTabId],
   );
 
-  // Track wireframe generation loading state
+  // Track wireframe generation per source node so several mocks can run at once
   const wireframeScope = `wireframe:${activeTab?.projectUuid || activeTab?.cloudProjectId?.toString() || activeTabId}`;
-  const [generatingWireframe, setGeneratingWireframe] = useRetainedAiState(wireframeScope, 'generating', false);
+  const [generatingWireframeIds, setGeneratingWireframeIds] = useRetainedAiState<string[]>(wireframeScope, 'generatingIds', []);
   const [refineMockupNodeId, setRefineMockupNodeId] = useState<string | null>(null);
 
   // Wireframe generation handler
   useEffect(() => {
     const handleGenerateWireframe = async (event: any) => {
-      const { nodeId, node } = event.detail;
+      const { node } = event.detail;
 
       // Check credits before AI operation
       if (isOutOfCredits) {
@@ -2591,28 +2603,24 @@ function WorkflowEditorContent({
         return;
       }
 
-      if (!node || generatingWireframe) {
-        // Ignore if already generating or no node provided
-        if (generatingWireframe) {
-          toast({
-            title: "Please wait",
-            description: "Wireframe generation in progress...",
-          });
-        }
+      if (!node) return;
+      if (generatingWireframeIds.includes(node.id)) {
+        toast({
+          title: "Please wait",
+          description: `A wireframe for "${node.data?.label || "this step"}" is already being generated.`,
+        });
         return;
       }
 
       try {
-        setGeneratingWireframe(true);
-        return await runBackgroundOperation(wireframeScope, `Generating ${node.data?.label || 'node'} wireframe`, async signal => {
+        setGeneratingWireframeIds(ids => withId(ids, node.id));
+        return await runBackgroundOperation(`${wireframeScope}:${node.id}`, `Generating ${node.data?.label || 'node'} wireframe`, async signal => {
 
-        // Show loading toast
         toast({
           title: "Generating wireframe...",
           description: `Creating mockup for "${node.data?.label || "node"}"`,
         });
 
-        // Call the wireframe generation API
         const response = await fetchBackgroundAi("/api/generate-wireframe", {
           signal,
           method: "POST",
@@ -2627,6 +2635,9 @@ function WorkflowEditorContent({
         });
 
         if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Too many AI jobs are running. Wait for one to finish, then try again.");
+          }
           const errorData = await response
             .json()
             .catch(() => ({ error: "Failed to generate wireframe" }));
@@ -2634,18 +2645,19 @@ function WorkflowEditorContent({
         }
 
         const { svg } = await response.json();
+        const svgDataUrl = encodeSvgDataUrl(svg);
 
-        // Convert SVG to data URL with proper encoding for non-ASCII characters
-        const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+        // Read the latest tab state: the canvas may have changed while generating
+        const currentTab = tabsRef.current.find((tab) => tab.id === activeTabId);
+        if (!currentTab) return;
+        const currentNodes = currentTab.nodes;
+        const currentEdges = currentTab.edges;
+        const sourceNode = currentNodes.find((n) => n.id === node.id) ?? node;
 
-        // Create a new image node next to the source node
         const newImageNode: Node = {
           id: `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: "image",
-          position: {
-            x: node.position.x + (node.width || 200) + 50, // Position to the right with some spacing
-            y: node.position.y,
-          },
+          position: findFreeRect(currentNodes, sourceNode, { width: MOCK_NODE_WIDTH, height: MOCK_NODE_HEIGHT }),
           data: {
             label: `${node.data?.label || "Node"} Mockup`,
             description: "AI-generated wireframe",
@@ -2655,8 +2667,8 @@ function WorkflowEditorContent({
             imageSize: "contain",
             isMockup: true,
           },
-          width: 400,
-          height: 300,
+          width: MOCK_NODE_WIDTH,
+          height: MOCK_NODE_HEIGHT,
         };
 
         // Create auto-connection edge from source node to wireframe mockup
@@ -2679,40 +2691,26 @@ function WorkflowEditorContent({
           interactable: true,
         };
 
-        // Add the new image node and edge to the canvas
-        const currentTab = tabs.find((tab) => tab.id === activeTabId);
-        if (currentTab) {
-          const currentNodes = currentTab.nodes;
-          const currentEdges = currentTab.edges;
+        const currentState = {
+          nodes: currentNodes,
+          edges: currentEdges,
+          canvasObjects: currentTab.canvasObjects || [],
+          viewport: currentTab.viewport,
+        };
+        const newHistory = currentTab.history.slice(0, currentTab.historyIndex + 1);
+        newHistory.push(currentState);
 
-          // Save to history first
-          const currentState = {
-            nodes: currentNodes,
-            edges: currentEdges,
-            canvasObjects: currentTab.canvasObjects || [],
-            viewport: currentTab.viewport,
-          };
+        updateActiveTab({
+          nodes: [...currentNodes, newImageNode],
+          edges: [...currentEdges, newEdge],
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+        });
 
-          // Add to history
-          const newHistory = currentTab.history.slice(
-            0,
-            currentTab.historyIndex + 1,
-          );
-          newHistory.push(currentState);
-
-          // Update with new node and edge
-          updateActiveTab({
-            nodes: [...currentNodes, newImageNode],
-            edges: [...currentEdges, newEdge],
-            history: newHistory,
-            historyIndex: newHistory.length - 1,
-          });
-
-          toast({
-            title: "Wireframe generated!",
-            description: "AI-generated mockup added to canvas",
-          });
-        }
+        toast({
+          title: "Wireframe generated!",
+          description: "AI-generated mockup added to canvas",
+        });
         });
       } catch (error: any) {
         console.error("Wireframe generation error:", error);
@@ -2723,7 +2721,7 @@ function WorkflowEditorContent({
           variant: "destructive",
         });
       } finally {
-        setGeneratingWireframe(false);
+        setGeneratingWireframeIds(ids => withoutId(ids, node.id));
       }
     };
 
@@ -2731,7 +2729,7 @@ function WorkflowEditorContent({
     return () => {
       window.removeEventListener("generateWireframe", handleGenerateWireframe);
     };
-  }, [tabs, activeTabId, toast, updateActiveTab, generatingWireframe]);
+  }, [activeTabId, toast, updateActiveTab, generatingWireframeIds, wireframeScope]);
 
   // Sync subscription tier to window global so deep components (PropertiesCard) can access it
   useEffect(() => {
@@ -3308,6 +3306,20 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
+  const [creditConfirm, setCreditConfirm] = useState<{ credits: number; reused: boolean; note?: string } | null>(null);
+  const creditConfirmResolve = useRef<((ok: boolean) => void) | null>(null);
+  const settleCreditConfirm = useCallback((ok: boolean) => {
+    creditConfirmResolve.current?.(ok);
+    creditConfirmResolve.current = null;
+    setCreditConfirm(null);
+  }, []);
+  /** Asks before a per-page run, which charges 1 credit per page still to generate. */
+  const confirmCredits = useCallback((credits: number, reused: boolean, note?: string) => new Promise<boolean>((resolve) => {
+    creditConfirmResolve.current?.(false);
+    creditConfirmResolve.current = resolve;
+    setCreditConfirm({ credits, reused, note });
+  }), []);
+
   const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
     if (isOutOfCredits) {
       if (ctaAction === "signup") openSignup();
@@ -3317,9 +3329,11 @@ function WorkflowEditorContent({
     const scope = `interface-generate:${tabProjectIdentifier(sourceTab)}`;
     const setIsGeneratingInterface = retainedCell(scope + '::generating', false).write;
     const setInterfaceGenerationFeedback = retainedCell<string[]>(scope + '::feedback', []).write;
+    const setPageProgress = retainedCell<PageRun[]>(scope + '::pageProgress', []).write;
     return await runBackgroundOperation(scope, `Generating ${sourceTab.name} interface`, async signal => {
     setIsGeneratingInterface(true);
     setInterfaceGenerationFeedback([]);
+    setPageProgress([]);
     try {
       const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
       if (sessionRes.status === 401) { openSignup(); return false; }
@@ -3334,22 +3348,34 @@ function WorkflowEditorContent({
         : `${baseName} v${linkedDesignTabs.length + 1}`;
 
       let plan: InterfacePlan;
+      let plannedHere = false;
+      let forgetPlan: (() => void) | null = null;
       if (approvedPlan && !Array.isArray(approvedPlan)) {
         plan = interfacePlanSchema.parse(approvedPlan);
       } else {
         // Bulk/stale entry points also use semantic planning, not legacy chunks.
-        const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
-          signal,
-          method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workflow: workflowToPlanningInput(
-            sourceTab.nodes, sourceTab.edges, sourceTab.name, sourceTab.metadata.description,
-            collectWorkflowInterfaceContext(sourceTab),
-          ), sourceProjectId: sourceTab.cloudProjectId }),
-        });
-        const proposalData = await proposalRes.json();
-        if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
-        const interpreted = interfacePlanSchema.parse(proposalData.plan);
+        plannedHere = true;
+        const planningBody = JSON.stringify({ workflow: workflowToPlanningInput(
+          sourceTab.nodes, sourceTab.edges, sourceTab.name, sourceTab.metadata.description,
+          collectWorkflowInterfaceContext(sourceTab),
+        ), sourceProjectId: sourceTab.cloudProjectId });
+        const planKey = `${scope}::${planningBody}`;
+        const kept = plannedInterfaces.get(planKey);
+        let interpreted = kept && Date.now() - kept.at < PLAN_REUSE_MS ? kept.plan : undefined;
+        if (!interpreted) {
+          const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
+            signal,
+            method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: planningBody,
+          });
+          const proposalData = await proposalRes.json();
+          if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
+          interpreted = interfacePlanSchema.parse(proposalData.plan);
+          if (plannedInterfaces.size >= 20) plannedInterfaces.clear();
+          plannedInterfaces.set(planKey, { plan: interpreted, at: Date.now() });
+        }
+        forgetPlan = () => plannedInterfaces.delete(planKey);
         const pages = interpreted.screens.filter(s => s.kind === "page");
         if (pages.length > MAX_GENERATED_SCREENS) {
           throw new Error(`This workflow needs ${pages.length} pages. Open its interface proposal and choose up to ${MAX_GENERATED_SCREENS} pages before generating.`);
@@ -3357,16 +3383,62 @@ function WorkflowEditorContent({
         plan = selectInterfacePages(interpreted, pages.map(s => s.id));
       }
       const prompt = `Generate the approved interface for ${sourceTab.name}: ${plan.summary}`;
-      const genRes = await fetchBackgroundAi("/api/ai/design", {
-        signal,
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ prompt, source: "workflow", interfacePlan: plan }),
-      });
-      if (genRes.status === 401) { openSignup(); return false; }
-      const genData = await genRes.json();
-      if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      const pageCount = selectedInterfaceSurfaces(plan).filter((s) => s.kind === "page").length;
+      let genData: any;
+      if (isFlagEnabled(MOCK_WORKFLOW_BATCH_FLAG) && pageCount > 1) {
+        const batchKey = `${scope}::${JSON.stringify(plan)}`;
+        const completed = batchPageResults.get(batchKey) ?? new Map<string, PageResult>();
+        batchPageResults.set(batchKey, completed);
+        const credits = pagesToGenerate(plan, completed);
+        if (!(await confirmCredits(credits, credits < pageCount,
+          plannedHere ? "The page plan is kept for 10 minutes until the interface is saved, so going Back or retrying won't charge for planning again." : undefined))) return false;
+        const outcome = await generateInterfacePages(plan, {
+          signal, completed, onProgress: setPageProgress,
+          generatePage: async (pagePlan, pageBrief, pageSignal) => {
+            const page = selectedInterfaceSurfaces(pagePlan).find((s) => s.kind === "page");
+            const res = await fetchBackgroundAi("/api/ai/design", {
+              signal: pageSignal,
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                prompt: `Generate the "${page?.name ?? "selected"}" page of ${sourceTab.name}: ${plan.summary}`.slice(0, 8000),
+                source: "workflow", interfacePlan: pagePlan, pageBrief,
+              }),
+            });
+            if (res.status === 401) throw new Error("Sign in to generate the interface.");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
+            return { craftState: data.craftState, warnings: Array.isArray(data.warnings) ? data.warnings : [] };
+          },
+        });
+        if (signal.aborted || outcome.cancelled) return false;
+        if (outcome.failed.length) {
+          throw new Error(`${outcome.failed.length} of ${pageCount} pages failed (${outcome.failed.map((r) => r.name).join(", ")}). Generate again to retry only those pages; finished pages are kept.`);
+        }
+        const mergeRes = await fetch("/api/ai/design/merge-pages", {
+          signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ interfacePlan: plan, pages: outcome.pages }),
+        });
+        genData = await mergeRes.json();
+        if (!mergeRes.ok) throw new Error(genData.error || "Could not combine the generated pages");
+        genData.warnings = Array.from(new Set([...outcome.warnings, ...(Array.isArray(genData.warnings) ? genData.warnings : [])]));
+        batchPageResults.delete(batchKey);
+      } else {
+        const genRes = await fetchBackgroundAi("/api/ai/design", {
+          signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ prompt, source: "workflow", interfacePlan: plan }),
+        });
+        if (genRes.status === 401) { openSignup(); return false; }
+        genData = await genRes.json();
+        if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      }
       if (signal.aborted) return false;
       const generationWarnings = Array.isArray(genData.warnings) ? genData.warnings.filter((w: unknown) => typeof w === "string") : [];
       setInterfaceGenerationFeedback(generationWarnings);
@@ -3393,6 +3465,7 @@ function WorkflowEditorContent({
       if (createRes.status === 401) { openSignup(); return false; }
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.message || createData.error || "Failed to save design");
+      forgetPlan?.();
       if (signal.aborted) return false;
 
       // Record the generation in the project's KiteAI thread so the request,
@@ -3457,7 +3530,7 @@ function WorkflowEditorContent({
       setIsGeneratingInterface(false);
     }
     }, sourceTab.projectUuid ? `/project/${sourceTab.projectUuid}` : window.location.pathname) ?? false;
-  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast]);
+  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, isFlagEnabled, confirmCredits]);
 
   /**
    * Opens a new interface proposal tab for the given workflow tab.
@@ -9417,7 +9490,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
               }
             }}
             onOpenDesign={openDesignTab}
-            isGenerating={generatingWireframe}
+            isGenerating={generatingWireframeIds.length > 0}
             hasCloudAccess={hasCloudAccess}
           />
           
@@ -9436,6 +9509,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges={srcTab?.edges ?? []}
                 isGenerating={isGeneratingInterface}
                 generationFeedback={interfaceGenerationFeedback}
+                pageProgress={interfacePageProgress}
                 onConfirm={async (plan) => {
                   if (!srcTab) return;
                   const proposalTabId = activeTab.id;
@@ -15855,6 +15929,23 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!creditConfirm} onOpenChange={(open) => { if (!open) settleCreditConfirm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate {creditConfirm?.credits} page{creditConfirm?.credits === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This uses {creditConfirm?.credits} credit{creditConfirm?.credits === 1 ? "" : "s"}, 1 per page.
+              {creditConfirm?.reused ? " Pages already generated are reused." : ""} A page is refunded only if Claude can't be reached or you stop it before Claude replies.
+              {creditConfirm?.note ? ` ${creditConfirm.note}` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={() => settleCreditConfirm(true)}>Generate · {creditConfirm?.credits} credit{creditConfirm?.credits === 1 ? "" : "s"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Interface project destination picker */}
       <InterfaceScreenPickerModal
         open={screenPickerOpen}
@@ -17460,45 +17551,51 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             if (!nodeId) return;
             const targetNode = nodes.find(n => n.id === nodeId);
             if (!targetNode) return;
+            const source = resolveMockSource(nodes, edges, nodeId);
+            const currentSvg = decodeSvgDataUrl(targetNode.data?.src);
 
-            const response = await fetch("/api/generate-wireframe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                label: targetNode.data?.label || "Mockup",
-                description: targetNode.data?.description || "",
-                nodeType: targetNode.type || "image",
-                refinementPrompt: prompt,
-              }),
-            });
+            setGeneratingWireframeIds(ids => withId(ids, nodeId));
+            try {
+              const applied = await runBackgroundOperation(`${wireframeScope}:${nodeId}`, `Refining ${source.label} mockup`, async signal => {
+                const response = await fetchBackgroundAi("/api/generate-wireframe", {
+                  signal,
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ...source,
+                    refinementPrompt: prompt,
+                    ...(currentSvg && currentSvg.length <= 20000 ? { currentSvg } : {}),
+                  }),
+                });
 
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({ error: "Failed to refine mockup" }));
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: "Failed to refine mockup" }));
+                  throw new Error(response.status === 429
+                    ? "Too many AI jobs are running. Wait for one to finish, then try again."
+                    : errorData.error || "Could not update the mockup. Please try again.");
+                }
+
+                const { svg } = await response.json();
+                saveToHistory("Refine mockup");
+                setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, data: { ...n.data, src: encodeSvgDataUrl(svg) } } : n));
+                return true;
+              });
+              if (!applied) return;
+              setRefineMockupNodeId(null);
+              toast({
+                title: "Mockup updated",
+                description: "Your refinement has been applied.",
+              });
+            } catch (error: any) {
               toast({
                 title: "Refinement failed",
-                description: errorData.error || "Could not update the mockup. Please try again.",
+                description: error?.message || "Could not update the mockup. Please try again.",
                 variant: "destructive",
               });
-              throw new Error(errorData.error || "Failed to refine mockup");
+              throw error;
+            } finally {
+              setGeneratingWireframeIds(ids => withoutId(ids, nodeId));
             }
-
-            const { svg } = await response.json();
-            const svgDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
-
-            saveToHistory("Refine mockup");
-
-            setNodes(prev => prev.map(n => {
-              if (n.id === nodeId) {
-                return { ...n, data: { ...n.data, src: svgDataUrl } };
-              }
-              return n;
-            }));
-            setRefineMockupNodeId(null);
-
-            toast({
-              title: "Mockup updated",
-              description: "Your refinement has been applied.",
-            });
           }}
           onRefineMockupCancel={() => setRefineMockupNodeId(null)}
           onGenerateWorkflow={async () => {

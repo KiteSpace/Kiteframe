@@ -1,4 +1,5 @@
 import { sanitizeAiPrompt, MAX_AI_PROMPT_CHARS } from "./utils/sanitize";
+import { markAiAttempt, markAiSettled, type AiBilling } from './aiBillingContext';
 
 export interface AiChatExecResult {
   ok: boolean;
@@ -20,7 +21,26 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
   prd_generation: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   vision_ingestion: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
   general_chat: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: true },
+  wireframe: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  // Design + planner. The *_v2 tiers run behind the design_ai_v2 flag; they reject assistant prefill.
+  design: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  design_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
+  interface_planning: { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', allowUserOverride: false },
+  interface_planning_v2: { model: 'claude-sonnet-5-5', provider: 'anthropic', allowUserOverride: false },
+  // Condenses over-budget Specs sections for the planner.
+  spec_summary: { model: 'claude-haiku-4-5-20251001', provider: 'anthropic', allowUserOverride: false },
 };
+
+/** Task types only server routes may use; `/api/ai/chat` rejects them (they pick flagged models). */
+export const INTERNAL_ONLY_TASK_TYPES = new Set(['design', 'design_v2', 'interface_planning', 'interface_planning_v2', 'wireframe', 'spec_summary']);
+
+/** Models only the flagged *_v2 task types use; client bodies may not request them directly. */
+const V2_ONLY_MODELS = new Set(
+  Object.entries(TASK_TYPE_MODELS)
+    .filter(([k]) => k.endsWith('_v2'))
+    .map(([, p]) => p.model)
+    .filter((m) => !Object.entries(TASK_TYPE_MODELS).some(([k, p]) => !k.endsWith('_v2') && p.model === m)),
+);
 
 const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
 const MAX_OUTPUT_TOKENS = 16000;
@@ -52,11 +72,11 @@ function isSimpleWorkflowPrompt(msgs: any[]): boolean {
 const MAX_CONTENT_DEPTH = 6;
 
 /** Shared per-message allowance, so many small blocks cannot outflank a per-block cap. */
-interface TextBudget { left: number }
+interface TextBudget { left: number; clean: boolean }
 
 function takeFromBudget(text: string, budget: TextBudget): string {
   if (budget.left <= 0) return '';
-  const cleaned = sanitizeAiPrompt(text);
+  const cleaned = budget.clean ? sanitizeAiPrompt(text) : text;
   const out = cleaned.length > budget.left ? cleaned.slice(0, budget.left) : cleaned;
   budget.left -= out.length;
   return out;
@@ -99,8 +119,8 @@ function sanitizeContentNode(node: unknown, budget: TextBudget, depth: number): 
  *
  * Image blocks are the sole exception and are passed through untouched.
  */
-function sanitizeMessageContent(content: unknown): unknown {
-  return sanitizeContentNode(content, { left: MAX_AI_PROMPT_CHARS }, 0);
+function sanitizeMessageContent(content: unknown, clean = true): unknown {
+  return sanitizeContentNode(content, { left: MAX_AI_PROMPT_CHARS, clean }, 0);
 }
 
 /**
@@ -111,15 +131,33 @@ function sanitizeMessageContent(content: unknown): unknown {
 export interface AiChatInternalOptions {
   /** Trusted system prompt. Only route handlers may supply this. */
   systemPrompt?: string;
+  /** Trusted system prompt as ordered blocks; takes precedence over `systemPrompt`. */
+  systemBlocks?: string[];
+  /** Mark the first system block as a prompt-cache breakpoint (static prefix). */
+  cacheSystem?: boolean;
+  /**
+   * Skip the chat prompt-injection filter (it strips code fences and phrases like "you are now").
+   * For design/wireframe routes that build their own prompts; the length budget still applies.
+   */
+  rawUserText?: boolean;
 }
 
 export async function executeAiChat(
   body: any,
   signal?: AbortSignal,
   internal?: AiChatInternalOptions,
+  billing?: AiBilling,
 ): Promise<AiChatExecResult> {
   try {
     const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType } = body;
+
+    // Client bodies (no `internal`) can't pick server-only task types or the flagged models.
+    if (!internal && ((taskType !== undefined && typeof taskType !== 'string') || INTERNAL_ONLY_TASK_TYPES.has(taskType))) {
+      return { ok: false, status: 400, error: 'Unsupported task type.' };
+    }
+    if (!internal && typeof model === 'string' && V2_ONLY_MODELS.has(model)) {
+      return { ok: false, status: 400, error: 'Unsupported model.' };
+    }
 
     let resolvedModel = model;
     let resolvedProvider = provider;
@@ -158,7 +196,7 @@ export async function executeAiChat(
     const sanitizedMessages = (body.messages || []).map((msg: any) => ({
       ...msg,
       role: msg?.role === 'assistant' ? 'assistant' : 'user',
-      content: sanitizeMessageContent(msg?.content),
+      content: sanitizeMessageContent(msg?.content, !internal?.rawUserText),
     }));
 
     const messages = trustedSystemPrompt
@@ -221,16 +259,34 @@ export async function executeAiChat(
     requestBody = {
       model: activeModel,
       max_tokens: clampMaxTokens(maxTokens, 1024),
+      // Only trusted server routes (which pass `internal`) may set temperature.
+      ...(internal && typeof temperature === 'number' && temperature >= 0 && temperature <= 1 ? { temperature } : {}),
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: anthropicMessages,
     };
+    const trustedBlocks = (internal?.systemBlocks || []).filter((b) => typeof b === 'string' && b.length > 0);
+    if (trustedBlocks.length > 0) {
+      requestBody.system = trustedBlocks.map((text, i) => ({
+        type: 'text',
+        text,
+        ...(internal?.cacheSystem && i === 0 ? { cache_control: { type: 'ephemeral' } } : {}),
+      }));
+    }
 
-    const response: any = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-      signal,
-    });
+    const started = markAiAttempt(billing);
+    let response: any;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+        signal,
+      });
+    } catch (error) {
+      markAiSettled(billing, started, false);
+      throw error;
+    }
+    markAiSettled(billing, started, response.ok);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -257,7 +313,9 @@ export async function executeAiChat(
 
     const json = await response.json();
     let responseText = '';
-    responseText = json.content?.[0]?.text || '';
+    responseText = Array.isArray(json.content)
+      ? json.content.filter((b: any) => b?.type === 'text').map((b: any) => b.text || '').join('')
+      : '';
 
     return {
       ok: true,

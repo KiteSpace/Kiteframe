@@ -1,0 +1,176 @@
+[
+  {
+    "id": "wf-01",
+    "kind": "wireframe",
+    "label": "Account Creation",
+    "nodeType": "process",
+    "description": "User signs up with email or Google OAuth"
+  },
+  {
+    "id": "wf-02",
+    "kind": "wireframe",
+    "label": "Email Verification",
+    "nodeType": "process",
+    "description": "User enters the 6-digit code sent to their inbox"
+  },
+  {
+    "id": "wf-03",
+    "kind": "wireframe",
+    "label": "Choose Plan",
+    "nodeType": "decision",
+    "description": "Free, Pro or Team with a monthly/yearly toggle"
+  },
+  {
+    "id": "wf-04",
+    "kind": "wireframe",
+    "label": "Payment Details",
+    "nodeType": "process",
+    "description": "Card form with billing address and order summary"
+  },
+  {
+    "id": "wf-05",
+    "kind": "wireframe",
+    "label": "Onboarding Survey",
+    "nodeType": "process",
+    "description": "3 questions about role, team size and goals"
+  },
+  {
+    "id": "wf-06",
+    "kind": "wireframe",
+    "label": "Invite Teammates",
+    "nodeType": "process",
+    "description": "Add emails, pick a role, send invites"
+  },
+  {
+    "id": "wf-07",
+    "kind": "wireframe",
+    "label": "Dashboard Home",
+    "nodeType": "end",
+    "description": "Key metrics, recent activity and quick actions"
+  },
+  {
+    "id": "wf-08",
+    "kind": "wireframe",
+    "label": "Password Reset",
+    "nodeType": "process",
+    "description": "Request reset link, then set a new password"
+  },
+  {
+    "id": "wf-09",
+    "kind": "wireframe",
+    "label": "Search Results",
+    "nodeType": "process",
+    "description": "Filterable list of products with sort options"
+  },
+  {
+    "id": "wf-10",
+    "kind": "wireframe",
+    "label": "Checkout Error",
+    "nodeType": "decision",
+    "description": "Payment declined, retry or use another method"
+  },
+  {
+    "id": "wf-11",
+    "kind": "wireframe",
+    "label": "Settings: Notifications",
+    "nodeType": "process",
+    "description": "Toggles for email, push and weekly digest"
+  },
+  {
+    "id": "wf-12",
+    "kind": "wireframe",
+    "label": "Delete Account",
+    "nodeType": "end",
+    "description": "Confirmation with typed account name and warning"
+  },
+  {
+    "id": "design-01",
+    "kind": "design",
+    "prompt": "A simple login page with email, password and a sign in button"
+  },
+  {
+    "id": "design-02",
+    "kind": "design",
+    "prompt": "A settings page with a profile form and a save button"
+  },
+  {
+    "id": "design-03",
+    "kind": "design",
+    "prompt": "A pricing page with three tiers and a monthly/yearly toggle"
+  },
+  {
+    "id": "design-04",
+    "kind": "design",
+    "prompt": "An analytics dashboard with 4 KPI cards, a line chart and a recent events table"
+  },
+  {
+    "id": "design-05",
+    "kind": "design",
+    "prompt": "A checkout page with shipping form, payment card form and order summary sidebar"
+  },
+  {
+    "id": "design-06",
+    "kind": "design",
+    "prompt": "An empty state for a projects list with a create project call to action"
+  },
+  {
+    "id": "design-07",
+    "kind": "design",
+    "prompt": "A team members table with role badges, search and an invite button"
+  },
+  {
+    "id": "design-08",
+    "kind": "design",
+    "prompt": "A mobile onboarding screen with an illustration placeholder, title, body and next button"
+  },
+  {
+    "id": "design-09",
+    "kind": "design",
+    "prompt": "A notification center list grouped by today and earlier with mark all read"
+  },
+  {
+    "id": "design-10",
+    "kind": "design",
+    "prompt": "A file upload screen with drag and drop area and a list of uploaded files with progress"
+  },
+  {
+    "id": "design-11",
+    "kind": "design",
+    "prompt": "A two-step signup: account details then workspace name"
+  },
+  {
+    "id": "design-12",
+    "kind": "design",
+    "prompt": "A support ticket detail page with conversation thread and reply box"
+  },
+  {
+    "id": "design-13",
+    "kind": "design",
+    "prompt": "A product detail page with image gallery, price, size selector and add to cart"
+  },
+  {
+    "id": "design-14",
+    "kind": "design",
+    "prompt": "An admin audit log with date range filter and paginated table"
+  },
+  {
+    "id": "design-15",
+    "kind": "design",
+    "prompt": "A kanban board with three columns and draggable cards"
+  },
+  {
+    "id": "design-16",
+    "kind": "design",
+    "prompt": "An error page for 404 with search and a link home"
+  },
+  {
+    "id": "design-17",
+    "kind": "design",
+    "prompt": "A billing page showing current plan, usage meter and invoice history"
+  },
+  {
+    "id": "design-18",
+    "kind": "design",
+    "prompt": "A calendar week view with events and a create event button"
+  }
+]

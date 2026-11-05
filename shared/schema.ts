@@ -370,7 +370,7 @@ export type ShareLink = typeof shareLinks.$inferSelect;
 export type InsertShareLink = typeof shareLinks.$inferInsert;
 
 // AI feature types for usage tracking — must match CreditCostType in creditService.ts
-export const aiFeatureEnum = ['general_chat', 'vision_ingestion', 'workflow_reasoning', 'workflow_experiments', 'prd_generation'] as const;
+export const aiFeatureEnum = ['general_chat', 'vision_ingestion', 'workflow_reasoning', 'workflow_experiments', 'prd_generation', 'wireframe', 'design', 'interface_planning'] as const;
 export type AiFeature = typeof aiFeatureEnum[number];
 
 // AI model types
@@ -383,7 +383,7 @@ export const aiUsageEvents = pgTable("ai_usage_events", {
   userId: varchar("user_id").references(() => users.id),
   projectId: varchar("project_id"),
   workflowId: varchar("workflow_id"),
-  feature: varchar("feature").notNull(), // general_chat, vision_ingestion, workflow_reasoning, workflow_experiments, prd_generation
+  feature: varchar("feature").notNull(), // general_chat, vision_ingestion, workflow_reasoning, workflow_experiments, prd_generation, wireframe, design, interface_planning
   model: varchar("model").notNull(), // claude-3-haiku-20240307, claude-3-haiku-20240307, etc.
   promptTokens: integer("prompt_tokens").notNull().default(0),
   completionTokens: integer("completion_tokens").notNull().default(0),

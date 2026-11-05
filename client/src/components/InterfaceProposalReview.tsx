@@ -13,9 +13,15 @@ import {
   MAX_INTERFACE_PAGES,
   type InterfacePlan,
   type InterfaceSurface,
+  CONTEXT_EXCERPT_MARKER, parseContextReport,
 } from '@shared/interfacePlan';
 import { workflowToPlanningInput } from '@/lib/workflowInterfacePlan';
 import { SkeletonCard, UiGenerationShimmer } from './InterfaceProposalLoading';
+import type { PageRun } from '@/lib/batchInterfaceGeneration';
+
+const PAGE_STATUS_LABEL: Record<PageRun['status'], string> = {
+  queued: 'Waiting', running: 'Generating…', done: 'Done', failed: 'Failed', cancelled: 'Cancelled',
+};
 
 type ProposalPreview = { id: string; svgWireframe: string };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -45,6 +51,8 @@ export interface InterfaceProposalViewProps {
   nodes: Node[];
   edges: Edge[];
   isGenerating: boolean;
+  /** Per-page status while a batched (mock_workflow_batch) generation runs. */
+  pageProgress?: PageRun[];
   generationFeedback?: string[];
   onConfirm: (plan: InterfacePlan) => void;
   onCancel: () => void;
@@ -127,11 +135,12 @@ function UserBubble({ text }: { text: string }) {
 
 export function InterfaceProposalReview({
   workflowName, workflowDescription = '', sourceProjectId, operationTargetId, context = '', nodes, edges, isGenerating,
-  generationFeedback = [], onConfirm, onCancel,
+  generationFeedback = [], pageProgress = [], onConfirm, onCancel,
 }: InterfaceProposalViewProps) {
   const operationScope = `interface-plan:${operationTargetId || sourceProjectId || workflowName}:${nodes.map(node => node.id).sort().join(',')}`;
   const [status, setStatus] = useRetainedAiState<'loading' | 'ready' | 'refining' | 'error'>(operationScope, 'status', 'loading');
   const [plan, setPlan] = useRetainedAiState<InterfacePlan | null>(operationScope, 'plan', null);
+  const contextReport = useMemo(() => parseContextReport(plan?.workflow.context || context), [plan?.workflow.context, context]);
   const [previews, setPreviews] = useRetainedAiState<ProposalPreview[]>(operationScope, 'previews', []);
   const [apiWarnings, setApiWarnings] = useRetainedAiState<string[]>(operationScope, 'warnings', []);
   const [error, setError] = useRetainedAiState(operationScope, 'error', '');
@@ -249,8 +258,11 @@ export function InterfaceProposalReview({
   }, []);
   const selectedPages = plan?.screens.filter((surface) => surface.kind === 'page' && surface.selected) ?? [];
 
-  if (isGenerating) return <div className="h-full w-full flex overflow-hidden bg-background"><aside className="w-72 border-r border-border bg-card p-4"><h2 className="text-sm font-semibold">KiteAI</h2></aside><div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center gap-3 border-b border-border px-5 text-sm font-medium">Generating your UI</header><UiGenerationShimmer /></div></div>;
+  if (isGenerating) return <div className="h-full w-full flex overflow-hidden bg-background"><aside className="w-72 border-r border-border bg-card p-4"><h2 className="text-sm font-semibold">KiteAI</h2></aside><div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center gap-3 border-b border-border px-5 text-sm font-medium">Generating your UI</header>{pageProgress.length > 0 && <ol aria-label="Page progress" className="flex flex-wrap gap-2 border-b border-border px-5 py-2 text-xs">{pageProgress.map((run) => <li key={run.screenId} className={`rounded-full border px-2.5 py-1 ${run.status === 'done' ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : run.status === 'failed' ? 'border-destructive/50 text-destructive' : run.status === 'running' ? 'border-violet-300 text-violet-700 dark:text-violet-300' : 'border-border text-muted-foreground'}`}>{run.name} · {PAGE_STATUS_LABEL[run.status]}</li>)}</ol>}<UiGenerationShimmer /></div></div>;
 
+  const requestGenerate = () => {
+    if (plan) onConfirm(selectInterfacePages(plan, selectedPages.map((surface) => surface.id)));
+  };
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
       <aside className="flex h-full w-72 flex-shrink-0 flex-col border-r border-border bg-card">
@@ -284,7 +296,7 @@ export function InterfaceProposalReview({
           {plan && plan.screens.filter((surface) => surface.kind === 'page').length > MAX_INTERFACE_PAGES && <span className="text-[11px] text-muted-foreground">Choose up to {MAX_INTERFACE_PAGES} pages · dialogs and inline surfaces follow their parent</span>}
           <div className="ml-auto flex items-center gap-2">
             <button onClick={onCancel} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">Cancel</button>
-            <button onClick={() => plan && onConfirm(selectInterfacePages(plan, selectedPages.map((surface) => surface.id)))} disabled={!plan || !selectedPages.length || status !== 'ready'} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={12} />Generate UI</button>
+            <button onClick={requestGenerate} disabled={!plan || !selectedPages.length || status !== 'ready'} className="flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-1.5 text-xs text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={12} />Generate UI</button>
           </div>
         </header>
         <Tabs value={previewTab} onValueChange={setPreviewTab} className="flex min-h-0 flex-1 flex-col">
@@ -299,7 +311,13 @@ export function InterfaceProposalReview({
           {status === 'error' && <section role="alert" className="mx-auto max-w-xl rounded-xl border border-destructive/40 bg-card p-5"><h2 className="text-sm font-semibold text-foreground">Proposal could not be loaded</h2><p className="mt-2 text-sm text-muted-foreground">{error}</p><button onClick={() => void requestInitial()} className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-xs text-white">Retry</button></section>}
           {status !== 'loading' && status !== 'error' && plan && <>
             {!!error && <div role="alert" className="mb-4 flex items-center gap-3 rounded-lg border border-destructive/40 bg-card px-3 py-2 text-sm"><p className="flex-1 text-destructive">{error}</p><button onClick={() => { const last = messages.filter((item) => item.role === 'user').at(-1)?.content; if (last) void sendMessage(last); }} className="rounded border border-border px-3 py-1 text-xs">Retry refinement</button></div>}
-            {(plan?.workflow.context || context).startsWith('[CONTEXT EXCERPT') && <section role="note" aria-label="Specs context excerpt warning" className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
+            {contextReport && <section role="note" aria-label="Specs context condensed" className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
+              <p className="font-semibold">Specs were condensed to fit the planning budget. Confirm details from these sections before generating.</p>
+              {contextReport.condensed.length > 0 && <><p className="mt-2 font-medium">Condensed</p><ul className="list-disc pl-4">{contextReport.condensed.map((name) => <li key={name}>{name}</li>)}</ul></>}
+              {contextReport.dropped.length > 0 && <><p className="mt-2 font-medium">Headings only</p><ul className="list-disc pl-4">{contextReport.dropped.map((name) => <li key={name}>{name}</li>)}</ul></>}
+              <details className="mt-2"><summary className="cursor-pointer select-none">Inspect the context sent</summary><pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-sans">{plan?.workflow.context || context}</pre></details>
+            </section>}
+            {(plan?.workflow.context || context).startsWith(CONTEXT_EXCERPT_MARKER) && <section role="note" aria-label="Specs context excerpt warning" className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
               <p className="font-semibold">Specs context was excerpted to fit the planning budget. Missing details may affect coverage; assumptions are not verified requirements.</p>
               <details className="mt-2"><summary className="cursor-pointer select-none">Inspect the context excerpt sent</summary><pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-sans">{plan?.workflow.context || context}</pre></details>
             </section>}

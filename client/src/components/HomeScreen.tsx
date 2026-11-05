@@ -54,6 +54,7 @@ import { HomeHero } from "./HomeHero";
 import { useAuth } from "@/hooks/useAuth";
 import { usePromptContextStore } from "@/contexts/PromptContextStore";
 import { DesignProjectThumbnail } from "./DesignProjectThumbnail";
+import { prepareImageForAi } from "@/lib/aiImage";
 import {
   stashPendingTranscript,
   buildGenerationExchange,
@@ -308,23 +309,14 @@ export function HomeScreen({
 
           let genRes: Response;
           if (imageAttachment?.file) {
-            const imageBase64 = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => {
-                const dataUrl = reader.result as string;
-                // Strip the "data:<mime>;base64," prefix
-                resolve(dataUrl.split(",")[1] ?? "");
-              };
-              reader.onerror = () => reject(reader.error);
-              reader.readAsDataURL(imageAttachment.file!);
-            });
+            const { base64: imageBase64, mimeType } = await prepareImageForAi(imageAttachment.file);
             genRes = await fetch("/api/ai/design-from-image", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
               body: JSON.stringify({
                 imageBase64,
-                mimeType: imageAttachment.file!.type || "image/png",
+                mimeType,
                 frameLabel: prompt.trim() || "Screen 1",
               }),
             });

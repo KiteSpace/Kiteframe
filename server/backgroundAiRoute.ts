@@ -6,6 +6,8 @@ import {
   getActiveJobCountShared,
 } from './aiJobStore';
 import { creditService } from './creditService';
+import { oldestInFlight } from './aiBillingContext';
+import { refundDeductedCredit } from './middleware/creditCheck';
 
 /**
  * Opt-in background execution for the existing structured-response handlers.
@@ -52,6 +54,7 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       if (response.statusCode >= 400) {
         const error = body as { error?: string; message?: string };
         tryFinalizeFailure(job.id, error?.error || error?.message || 'AI action failed', response.statusCode);
+        void refundDeductedCredit(req);
       } else {
         tryFinalizeSuccess(job.id, { text: '', payload: body });
       }
@@ -59,7 +62,9 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       response.emit('close');
       return response;
     };
+    let cancel: { cancelled: true; cancelledAt: number; inFlightSince?: number } | null = null;
     controller.signal.addEventListener('abort', () => {
+      if (!response.writableEnded) cancel = { cancelled: true, cancelledAt: Date.now(), inFlightSince: oldestInFlight(req.aiBilling) };
       response.destroyed = true;
       clearTimeout(deadline);
       response.emit('close');
@@ -78,6 +83,9 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
     }).catch(error => {
       response.status(500);
       response.json({ error: error instanceof Error ? error.message : 'AI action failed' });
+    }).finally(() => {
+      // Decided after the handler settles, so a reply that arrived as Stop was pressed stays charged.
+      if (cancel) void refundDeductedCredit(req, cancel);
     });
   });
 }

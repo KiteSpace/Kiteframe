@@ -7,6 +7,7 @@ import { Loader2, Upload, X, ImageIcon, AlertCircle, Check, Link, Link2, CheckCi
 import { SiFigma } from "react-icons/si";
 import { parseFigmaUrl } from "@/lib/integration/figmaUrl";
 import { callFigmaApi, discoverFrames, type FigmaFrame } from "@/lib/integration/figmaApi";
+import { AI_IMAGE_MAX_EDGE, resizeImageDataUrl } from "@/lib/aiImage";
 
 type ImportTab = "screenshot" | "figma";
 type FigmaStep = "url" | "frames";
@@ -83,31 +84,7 @@ type ScreenshotInputMode = "upload" | "url";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
 const MIN_DIM_PX = 200; // warn below this width
-const MAX_RESIZE_PX = 1920; // resize target max dimension
-
-async function resizeImageDataUrl(dataUrl: string, maxPx: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // Guard against onload/onerror never firing (corrupt data URL, browser quirk)
-    const timer = setTimeout(() => reject(new Error("Image resize timed out")), 8000);
-
-    const img = new Image();
-    img.onload = () => {
-      clearTimeout(timer);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { resolve(dataUrl); return; }
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", 0.85));
-    };
-    img.onerror = () => { clearTimeout(timer); reject(new Error("Failed to load image for resize")); };
-    img.src = dataUrl;
-  });
-}
+const MAX_RESIZE_PX = AI_IMAGE_MAX_EDGE; // resize target max dimension
 
 function ScreenshotTab({ currentCraftState, onImport, onClose }: ScreenshotTabProps) {
   const [inputMode, setInputMode] = useState<ScreenshotInputMode>("upload");

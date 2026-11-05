@@ -170,6 +170,7 @@ import { skeletonizeCraftState } from "./lib/craftStateSkeleton";
 import { applyContrastColors, contrastTextFor } from "./lib/contrastColor";
 import { applyEqualWidthProps, applyEqualHeightProps, clearFlexSizingProps, getEqualWidthSelectionResult, getEqualHeightSelectionResult, type EqualWidthSelectionResult, type EqualHeightSelectionResult } from "./layoutSizing";
 import { useToast } from "@/hooks/use-toast";
+import { prepareImageForAi } from "@/lib/aiImage";
 import {
   AstryxButton as AstryxButtonBase,
   AstryxCard as AstryxCardBase,
@@ -7744,12 +7745,9 @@ function DesignPanel({ notes, editable, onNotesChange, designId, currentUserId }
 
   const handleImageAttach = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setAttachedImage({ base64: dataUrl.split(",")[1], mimeType: file.type || "image/png", preview: dataUrl });
-    };
-    reader.readAsDataURL(file);
+    prepareImageForAi(file)
+      .then(({ base64, mimeType, dataUrl }) => setAttachedImage({ base64, mimeType, preview: dataUrl }))
+      .catch((err) => console.error("Failed to read image:", err));
   }, []);
 
   useEffect(() => { try { localStorage.setItem(DESIGN_PANEL_COLLAPSED_KEY, String(isCollapsed)); } catch {} }, [isCollapsed]);

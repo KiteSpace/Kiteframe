@@ -292,7 +292,7 @@ describe('route-wiring sanity — requireAdvancedOrPro in routes.ts', () => {
     // Find the line that registers the route and confirm middleware is listed
     const wireframeLine = routesSrc
       .split('\n')
-      .find((line) => line.includes("app.post('/api/generate-wireframe'") || line.includes('app.post("/api/generate-wireframe"'));
+      .find((line) => line.includes("app.post('/api/generate-wireframe'") || line.includes("postBackgroundAi(app, '/api/generate-wireframe'") || line.includes('postBackgroundAi(app, "/api/generate-wireframe"'));
     expect(wireframeLine).toBeDefined();
     expect(wireframeLine).toContain('requireAdvancedOrPro');
   });
@@ -300,7 +300,7 @@ describe('route-wiring sanity — requireAdvancedOrPro in routes.ts', () => {
   it('registers requireAdvancedOrPro on POST /api/ai/analyze-workflow-image', () => {
     const analyzeImageLine = routesSrc
       .split('\n')
-      .find((line) => line.includes("app.post('/api/ai/analyze-workflow-image'") || line.includes('app.post("/api/ai/analyze-workflow-image"'));
+      .find((line) => line.includes("app.post('/api/ai/analyze-workflow-image'") || line.includes("postBackgroundAi(app, '/api/ai/analyze-workflow-image'") || line.includes('postBackgroundAi(app, "/api/ai/analyze-workflow-image"'));
     expect(analyzeImageLine).toBeDefined();
     expect(analyzeImageLine).toContain('requireAdvancedOrPro');
   });

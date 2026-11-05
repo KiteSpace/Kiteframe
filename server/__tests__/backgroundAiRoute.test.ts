@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../creditService', () => ({
   creditService: { getUserIdentifier: (req: any) => req.headers['x-test-owner'] || 'navigation-tests' },
 }));
+vi.mock('../middleware/creditCheck', () => ({ refundDeductedCredit: vi.fn() }));
 import { postBackgroundAi } from '../backgroundAiRoute';
 import { cancelJob, getJob, getActiveJobCount } from '../aiJobStore';
 
