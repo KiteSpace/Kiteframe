@@ -6,7 +6,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import multer from 'multer';
 import { storage } from "./storage";
 import { createInterfacePlanningHandlers } from "./interfacePlanningHandlers";
-import { interfacePlanSchema, buildApprovedInterfacePrompt, inspectGeneratedInterface, formatInterfaceSpecs, buildPlanningContextWithSummaries } from "@shared/interfacePlan";
+import { interfacePlanSchema, buildApprovedInterfacePrompt, inspectGeneratedInterface, formatInterfaceSpecs, buildPlanningContextWithSummaries, pageBriefSchema } from "@shared/interfacePlan";
+import { mergePageStates } from "./lib/mergePageStates";
 import { extractSharePanelDocs } from "@shared/panelDocs";
 import {
   createSnapshotHandler,
@@ -2448,7 +2449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let model: string | undefined;
       let promptTokens = 0;
       let completionTokens = 0;
-      // Spec 0.6 (strict validation, retry, fallback, temperature 0.2) rolls out behind design_ai_v2.
+      // Spec 0.6 (strict validation, one retry, temperature 0.2) rolls out behind design_ai_v2.
       const strictOutput = await isDesignAiV2(req);
       const maxAttempts = strictOutput ? 2 : 1;
       for (let attempt = 1; attempt <= maxAttempts && !svg; attempt++) {
@@ -2819,6 +2820,8 @@ Only include screens that need changes. "modify" requires both description and d
       const schema = z.object({
         prompt: z.string().min(1).max(8000),
         interfacePlan: interfacePlanSchema.optional(),
+        // Per-page (mock_workflow_batch) generation: one selected page plus the shared brief.
+        pageBrief: pageBriefSchema.optional(),
         currentCraftState: z.string().max(40000).optional(),
         targetArtboardLabel: z.string().max(200).optional(),
         source: z.enum(['workflow', 'chat']).optional(),
@@ -2846,7 +2849,7 @@ Only include screens that need changes. "modify" requires both description and d
         const field = firstIssue?.path.join('.') || 'request';
         return res.status(400).json({ error: `Invalid ${field}: ${firstIssue?.message ?? 'validation failed'}` });
       }
-      const { prompt, interfacePlan, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory, newScreen } = parsed.data;
+      const { prompt, interfacePlan, pageBrief, currentCraftState, targetArtboardLabel, source, selectedElement, conversationHistory, newScreen } = parsed.data;
       const isWorkflowGeneration = source === 'workflow';
       if (interfacePlan && (!isWorkflowGeneration || currentCraftState || newScreen)) {
         return res.status(400).json({ error: 'An approved interface plan creates a new workflow design, not an edit of an existing canvas.' });
@@ -2857,7 +2860,7 @@ Only include screens that need changes. "modify" requires both description and d
       // Do NOT truncate — a partial parent nodes[] list causes the patch to silently drop children.
       let userMessage: string;
       try {
-        userMessage = interfacePlan ? buildApprovedInterfacePrompt(interfacePlan) : prompt;
+        userMessage = interfacePlan ? buildApprovedInterfacePrompt(interfacePlan, pageBrief) : prompt;
       } catch (error) {
         return res.status(422).json({ error: error instanceof Error ? error.message : 'Invalid approved interface plan.' });
       }
@@ -2989,6 +2992,27 @@ Only include screens that need changes. "modify" requires both description and d
     } catch (err: any) {
       console.error('Design generation error:', err);
       return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Per-page Generate UI (mock_workflow_batch): merge the page states and run the plan coverage check
+  // on the merged design. No model call.
+  app.post('/api/ai/design/merge-pages', isAuthenticated, async (req: any, res) => {
+    const parsed = z.object({
+      interfacePlan: interfacePlanSchema,
+      pages: z.array(z.object({ screenId: z.string().max(200), craftState: z.string().max(400000) })).min(1).max(12),
+    }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid page results.' });
+    try {
+      const states = parsed.data.pages.map((p) => JSON.parse(p.craftState) as CraftState);
+      const finalState = layoutArtboards(sanitizeRootType(mergePageStates(states)));
+      const coverage = inspectGeneratedInterface(parsed.data.interfacePlan, finalState);
+      if (coverage.errors.length) {
+        return res.status(422).json({ error: `Some selected screens were not generated correctly. ${coverage.errors.join(' ')}`, warnings: coverage.warnings });
+      }
+      return res.json({ type: 'state', craftState: JSON.stringify(finalState), warnings: coverage.warnings });
+    } catch {
+      return res.status(400).json({ error: 'Invalid page results.' });
     }
   });
 

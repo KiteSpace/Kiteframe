@@ -145,6 +145,12 @@ import { AI_WORKFLOW_SYSTEM_PROMPT } from "@/constants/aiWorkflowPrompt";
 import { MAX_GENERATED_SCREENS } from "@/lib/buildInterfacePrompt";
 import { interfacePlanSchema, selectInterfacePages, type InterfacePlan } from "@shared/interfacePlan";
 import { collectWorkflowInterfaceContext, workflowToPlanningInput } from "@/lib/workflowInterfacePlan";
+import { generateInterfacePages, MOCK_WORKFLOW_BATCH_FLAG, type PageRun, type PageResult } from "@/lib/batchInterfaceGeneration";
+import { selectedInterfaceSurfaces } from "@shared/interfacePlan";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
+
+/** Finished pages of a per-page generation, keyed by scope + plan, so Generate again retries only failed pages. */
+const batchPageResults = new Map<string, Map<string, PageResult>>();
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
@@ -2311,6 +2317,8 @@ function WorkflowEditorContent({
     ? interfaceSourceTab.projectUuid || interfaceSourceTab.cloudProjectId?.toString() || interfaceSourceTab.id : activeTabId}`;
   const [isGeneratingInterface] = useRetainedAiState(interfaceGenerationScope, 'generating', false);
   const [interfaceGenerationFeedback] = useRetainedAiState<string[]>(interfaceGenerationScope, 'feedback', []);
+  const [interfacePageProgress] = useRetainedAiState<PageRun[]>(interfaceGenerationScope, 'pageProgress', []);
+  const { isEnabled: isFlagEnabled } = useFeatureFlags();
   const [screenPickerOpen, setScreenPickerOpen] = useState(false);
   const [screenPickerClusters, setScreenPickerClusters] = useState<Array<{ name: string; nodes: Node[] }>>([]);
   const [screenPickerSourceTab, setScreenPickerSourceTab] = useState<WorkflowTab | null>(null);
@@ -3304,9 +3312,11 @@ function WorkflowEditorContent({
     const scope = `interface-generate:${tabProjectIdentifier(sourceTab)}`;
     const setIsGeneratingInterface = retainedCell(scope + '::generating', false).write;
     const setInterfaceGenerationFeedback = retainedCell<string[]>(scope + '::feedback', []).write;
+    const setPageProgress = retainedCell<PageRun[]>(scope + '::pageProgress', []).write;
     return await runBackgroundOperation(scope, `Generating ${sourceTab.name} interface`, async signal => {
     setIsGeneratingInterface(true);
     setInterfaceGenerationFeedback([]);
+    setPageProgress([]);
     try {
       const sessionRes = await fetch("/api/auth/user", { credentials: "include" });
       if (sessionRes.status === 401) { openSignup(); return false; }
@@ -3344,16 +3354,59 @@ function WorkflowEditorContent({
         plan = selectInterfacePages(interpreted, pages.map(s => s.id));
       }
       const prompt = `Generate the approved interface for ${sourceTab.name}: ${plan.summary}`;
-      const genRes = await fetchBackgroundAi("/api/ai/design", {
-        signal,
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ prompt, source: "workflow", interfacePlan: plan }),
-      });
-      if (genRes.status === 401) { openSignup(); return false; }
-      const genData = await genRes.json();
-      if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      const pageCount = selectedInterfaceSurfaces(plan).filter((s) => s.kind === "page").length;
+      let genData: any;
+      if (isFlagEnabled(MOCK_WORKFLOW_BATCH_FLAG) && pageCount > 1) {
+        const batchKey = `${scope}::${JSON.stringify(plan)}`;
+        const completed = batchPageResults.get(batchKey) ?? new Map<string, PageResult>();
+        batchPageResults.set(batchKey, completed);
+        const outcome = await generateInterfacePages(plan, {
+          signal, completed, onProgress: setPageProgress,
+          generatePage: async (pagePlan, pageBrief, pageSignal) => {
+            const page = selectedInterfaceSurfaces(pagePlan).find((s) => s.kind === "page");
+            const res = await fetchBackgroundAi("/api/ai/design", {
+              signal: pageSignal,
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                prompt: `Generate the "${page?.name ?? "selected"}" page of ${sourceTab.name}: ${plan.summary}`.slice(0, 8000),
+                source: "workflow", interfacePlan: pagePlan, pageBrief,
+              }),
+            });
+            if (res.status === 401) throw new Error("Sign in to generate the interface.");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || data.error || "Generation failed");
+            return { craftState: data.craftState, warnings: Array.isArray(data.warnings) ? data.warnings : [] };
+          },
+        });
+        if (signal.aborted || outcome.cancelled) return false;
+        if (outcome.failed.length) {
+          throw new Error(`${outcome.failed.length} of ${pageCount} pages failed (${outcome.failed.map((r) => r.name).join(", ")}). Generate again to retry only those pages; finished pages are kept.`);
+        }
+        const mergeRes = await fetch("/api/ai/design/merge-pages", {
+          signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ interfacePlan: plan, pages: outcome.pages }),
+        });
+        genData = await mergeRes.json();
+        if (!mergeRes.ok) throw new Error(genData.error || "Could not combine the generated pages");
+        genData.warnings = Array.from(new Set([...outcome.warnings, ...(Array.isArray(genData.warnings) ? genData.warnings : [])]));
+        batchPageResults.delete(batchKey);
+      } else {
+        const genRes = await fetchBackgroundAi("/api/ai/design", {
+          signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ prompt, source: "workflow", interfacePlan: plan }),
+        });
+        if (genRes.status === 401) { openSignup(); return false; }
+        genData = await genRes.json();
+        if (!genRes.ok) throw new Error(genData.message || genData.error || "Generation failed");
+      }
       if (signal.aborted) return false;
       const generationWarnings = Array.isArray(genData.warnings) ? genData.warnings.filter((w: unknown) => typeof w === "string") : [];
       setInterfaceGenerationFeedback(generationWarnings);
@@ -3444,7 +3497,7 @@ function WorkflowEditorContent({
       setIsGeneratingInterface(false);
     }
     }, sourceTab.projectUuid ? `/project/${sourceTab.projectUuid}` : window.location.pathname) ?? false;
-  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast]);
+  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, isFlagEnabled]);
 
   /**
    * Opens a new interface proposal tab for the given workflow tab.
@@ -9423,6 +9476,7 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 edges={srcTab?.edges ?? []}
                 isGenerating={isGeneratingInterface}
                 generationFeedback={interfaceGenerationFeedback}
+                pageProgress={interfacePageProgress}
                 onConfirm={async (plan) => {
                   if (!srcTab) return;
                   const proposalTabId = activeTab.id;

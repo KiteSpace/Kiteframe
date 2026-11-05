@@ -17,6 +17,11 @@ import {
 } from '@shared/interfacePlan';
 import { workflowToPlanningInput } from '@/lib/workflowInterfacePlan';
 import { SkeletonCard, UiGenerationShimmer } from './InterfaceProposalLoading';
+import type { PageRun } from '@/lib/batchInterfaceGeneration';
+
+const PAGE_STATUS_LABEL: Record<PageRun['status'], string> = {
+  queued: 'Waiting', running: 'Generating…', done: 'Done', failed: 'Failed', cancelled: 'Cancelled',
+};
 
 type ProposalPreview = { id: string; svgWireframe: string };
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -46,6 +51,8 @@ export interface InterfaceProposalViewProps {
   nodes: Node[];
   edges: Edge[];
   isGenerating: boolean;
+  /** Per-page status while a batched (mock_workflow_batch) generation runs. */
+  pageProgress?: PageRun[];
   generationFeedback?: string[];
   onConfirm: (plan: InterfacePlan) => void;
   onCancel: () => void;
@@ -128,7 +135,7 @@ function UserBubble({ text }: { text: string }) {
 
 export function InterfaceProposalReview({
   workflowName, workflowDescription = '', sourceProjectId, operationTargetId, context = '', nodes, edges, isGenerating,
-  generationFeedback = [], onConfirm, onCancel,
+  generationFeedback = [], pageProgress = [], onConfirm, onCancel,
 }: InterfaceProposalViewProps) {
   const operationScope = `interface-plan:${operationTargetId || sourceProjectId || workflowName}:${nodes.map(node => node.id).sort().join(',')}`;
   const [status, setStatus] = useRetainedAiState<'loading' | 'ready' | 'refining' | 'error'>(operationScope, 'status', 'loading');
@@ -251,7 +258,7 @@ export function InterfaceProposalReview({
   }, []);
   const selectedPages = plan?.screens.filter((surface) => surface.kind === 'page' && surface.selected) ?? [];
 
-  if (isGenerating) return <div className="h-full w-full flex overflow-hidden bg-background"><aside className="w-72 border-r border-border bg-card p-4"><h2 className="text-sm font-semibold">KiteAI</h2></aside><div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center gap-3 border-b border-border px-5 text-sm font-medium">Generating your UI</header><UiGenerationShimmer /></div></div>;
+  if (isGenerating) return <div className="h-full w-full flex overflow-hidden bg-background"><aside className="w-72 border-r border-border bg-card p-4"><h2 className="text-sm font-semibold">KiteAI</h2></aside><div className="flex min-w-0 flex-1 flex-col"><header className="flex h-12 items-center gap-3 border-b border-border px-5 text-sm font-medium">Generating your UI</header>{pageProgress.length > 0 && <ol aria-label="Page progress" className="flex flex-wrap gap-2 border-b border-border px-5 py-2 text-xs">{pageProgress.map((run) => <li key={run.screenId} className={`rounded-full border px-2.5 py-1 ${run.status === 'done' ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : run.status === 'failed' ? 'border-destructive/50 text-destructive' : run.status === 'running' ? 'border-violet-300 text-violet-700 dark:text-violet-300' : 'border-border text-muted-foreground'}`}>{run.name} · {PAGE_STATUS_LABEL[run.status]}</li>)}</ol>}<UiGenerationShimmer /></div></div>;
 
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
