@@ -216,12 +216,16 @@ export class CreditService {
     }
   }
 
-  /** With `deductedAt`, skips the refund if the daily reset ran since, so it can't exceed the tier cap. */
-  async refundCredit(userIdentifier: string, creditCost: number = 1, deductedAt?: Date): Promise<void> {
+  /**
+   * Never lifts credits above the tier's daily allowance (a balance already above it from a bonus stays
+   * as is). With `deductedAt`, skips the refund if the daily reset ran since the deduction.
+   */
+  async refundCredit(userIdentifier: string, creditCost: number = 1, deductedAt?: Date, isAuthenticated: boolean = true): Promise<void> {
+    const cap = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
     const match = eq(userCredits.userIdentifier, userIdentifier);
     await db.update(userCredits)
       .set({ 
-        credits: sql`${userCredits.credits} + ${creditCost}`,
+        credits: sql`LEAST(${userCredits.credits} + ${creditCost}, GREATEST(${cap}, ${userCredits.credits}))`,
         updatedAt: new Date(),
       })
       .where(deductedAt ? and(match, sql`${userCredits.lastResetAt} <= ${deductedAt.toISOString()}::timestamp`) : match);

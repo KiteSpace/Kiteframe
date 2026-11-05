@@ -8,18 +8,18 @@ vi.mock('../creditService', () => ({
   getCreditCost: () => 1,
 }));
 
-import { refundDeductedCredit } from '../middleware/creditCheck';
+import { CANCEL_REFUND_WINDOW_MS, MAX_CANCEL_REFUNDS_PER_DAY, refundDeductedCredit } from '../middleware/creditCheck';
 
 describe('refundDeductedCredit', () => {
   beforeEach(() => refundCredit.mockClear());
-  const deducted = (extra: object = {}) => ({ userIdentifier: 'user:1', remainingCredits: 4, creditCost: 1, deductedAt: new Date(0), ...extra });
+  const deducted = (extra: object = {}) => ({ userIdentifier: 'user:1', remainingCredits: 4, creditCost: 1, deductedAt: new Date(0), isAuthenticated: true, ...extra });
 
   it('refunds once when Claude was called and never returned a response', async () => {
     const req: any = { creditDeducted: deducted(), aiBilling: { attempted: true, completed: false } };
     await refundDeductedCredit(req);
     await refundDeductedCredit(req);
     expect(refundCredit).toHaveBeenCalledTimes(1);
-    expect(refundCredit).toHaveBeenCalledWith('user:1', 1, new Date(0));
+    expect(refundCredit).toHaveBeenCalledWith('user:1', 1, new Date(0), true);
   });
 
   it('keeps the charge when Claude replied and we rejected the output, or the cancel came after the reply', async () => {
@@ -33,6 +33,26 @@ describe('refundDeductedCredit', () => {
     expect(refundCredit).not.toHaveBeenCalled();
     await refundDeductedCredit({ creditDeducted: deducted(), aiBilling: { attempted: false, completed: false } } as any, { cancelled: true });
     expect(refundCredit).toHaveBeenCalledTimes(1);
+  });
+
+  it('refunds a Stop only while the Claude call in flight is younger than the window', async () => {
+    const now = Date.now();
+    const pending = () => ({ attempted: true, completed: false });
+    await refundDeductedCredit({ creditDeducted: deducted({ userIdentifier: 'user:late' }), aiBilling: pending() } as any,
+      { cancelled: true, cancelledAt: now, inFlightSince: now - CANCEL_REFUND_WINDOW_MS });
+    expect(refundCredit).not.toHaveBeenCalled();
+    await refundDeductedCredit({ creditDeducted: deducted({ userIdentifier: 'user:early' }), aiBilling: pending() } as any,
+      { cancelled: true, cancelledAt: now, inFlightSince: now - 5_000 });
+    expect(refundCredit).toHaveBeenCalledTimes(1);
+  });
+
+  it('caps Stop refunds per user per day, but not refunds for failed calls', async () => {
+    for (let i = 0; i < MAX_CANCEL_REFUNDS_PER_DAY + 2; i++) {
+      await refundDeductedCredit({ creditDeducted: deducted({ userIdentifier: 'user:stopper' }), aiBilling: { attempted: false, completed: false } } as any, { cancelled: true });
+    }
+    expect(refundCredit).toHaveBeenCalledTimes(MAX_CANCEL_REFUNDS_PER_DAY);
+    await refundDeductedCredit({ creditDeducted: deducted({ userIdentifier: 'user:stopper' }), aiBilling: { attempted: true, completed: false } } as any);
+    expect(refundCredit).toHaveBeenCalledTimes(MAX_CANCEL_REFUNDS_PER_DAY + 1);
   });
 
   it('skips requests with nothing deducted, zero cost, unlimited credits or no billing state', async () => {
@@ -95,6 +115,6 @@ describe('postBackgroundAi refunds', () => {
     expect(refund).not.toHaveBeenCalled();
     finishSlow();
     await new Promise((r) => setTimeout(r, 10));
-    expect(refund).toHaveBeenCalledWith(slowReq, { cancelled: true });
+    expect(refund).toHaveBeenCalledWith(slowReq, expect.objectContaining({ cancelled: true }));
   });
 });

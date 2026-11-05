@@ -9,6 +9,7 @@ import { createInterfacePlanningHandlers } from "./interfacePlanningHandlers";
 import { interfacePlanSchema, buildApprovedInterfacePrompt, inspectGeneratedInterface, formatInterfaceSpecs, buildPlanningContextWithSummaries, pageBriefSchema, MAX_INTERFACE_PAGES } from "@shared/interfacePlan";
 import { mergePageStates } from "./lib/mergePageStates";
 import { createMergePagesHandler } from "./lib/mergePagesRoute";
+import { anthropicFetch } from "./aiBillingContext";
 import { createSpecSummaryCaches } from "./lib/specSummaryCache";
 import { extractSharePanelDocs } from "@shared/panelDocs";
 import {
@@ -40,7 +41,7 @@ const interfacePlanningHandlers = createInterfacePlanningHandlers(undefined, asy
     cacheKey: (content) => crypto.createHash('sha256').update(`${userId}\0${content}`).digest('hex'),
   });
   return context;
-}, undefined, async (req, timer) => createPlannerModel({
+}, undefined, async (req, timer) => createPlannerModel({ billing: (req as any).aiBilling,
   v2: await isDesignAiV2(req),
   timer,
   onResult: (result) => logDesignUsage(req, 'interface_planning', result),
@@ -72,7 +73,7 @@ const userSummaryCache = createSpecSummaryCaches();
 
 async function summariseSpecSection(content: string, req: any): Promise<string | null> {
   const result = await runDesignModel({
-    v2: true, taskType: { legacy: 'spec_summary', v2: 'spec_summary' }, systemBlocks: [SPEC_SUMMARY_SYSTEM],
+    billing: req?.aiBilling, v2: true, taskType: { legacy: 'spec_summary', v2: 'spec_summary' }, systemBlocks: [SPEC_SUMMARY_SYSTEM],
     messages: [{ role: 'user', content: content.slice(0, 20000) }], maxTokens: 300, parseJson: false,
   });
   logDesignUsage(req, 'interface_planning', result);
@@ -2170,7 +2171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { taskType } = req.body;
       if ((taskType !== undefined && typeof taskType !== 'string') || INTERNAL_ONLY_TASK_TYPES.has(taskType)) return res.status(400).json({ error: 'Unsupported task type.' });
-      const result = await executeAiChat(req.body);
+      const result = await executeAiChat(req.body, undefined, undefined, req.aiBilling);
       if (!result.ok) {
         return res.status(result.status).json({
           error: result.error,
@@ -2467,6 +2468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           { provider: 'anthropic', taskType: 'wireframe', maxTokens: 4000, temperature: strictOutput ? 0.2 : 0.7, messages: [{ role: 'user', content }] },
           signal,
           { systemPrompt: WIREFRAME_SYSTEM_PROMPT, rawUserText: true },
+          req.aiBilling,
         );
         if (!result.ok) {
           if (result.status === 499 || signal?.aborted) return res.status(499).json({ error: 'Cancelled' });
@@ -2577,7 +2579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const descPrompt = `In one sentence, describe what a user does on the "${screen.name}" screen of "${safeWorkflowName}" (covers: ${nodeList}).`;
 
           const callAnthropic = (systemPrompt: string, userContent: string, maxTok: number) =>
-            fetch('https://api.anthropic.com/v1/messages', {
+            anthropicFetch(req, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -2675,7 +2677,7 @@ Only include screens that need changes. "modify" requires both description and d
 
       const changeUserContent = `Screens in "${safeWorkflowName}":\n${screenSummary}\n\nUser request: "${safeUserMessage}"`;
 
-      const changeRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const changeRes = await anthropicFetch(req, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2778,7 +2780,7 @@ Only include screens that need changes. "modify" requires both description and d
           needsSvg.map(async (s) => {
             const notes = (s as any).designNotes || '';
             const prompt = `Create a wireframe for a screen called "${s.name}" in "${safeWorkflowName}". ${notes ? `Design notes: ${notes}` : `Description: ${s.description}`} 400x300 viewBox. Grayscale (#333, #666, #999, #ddd, #f5f5f5). Return ONLY SVG code.`;
-            const svgRes = await fetch('https://api.anthropic.com/v1/messages', {
+            const svgRes = await anthropicFetch(req, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -2905,6 +2907,7 @@ Only include screens that need changes. "modify" requires both description and d
       chatMessages.push({ role: 'user', content: userMessage });
       timer.mark('prompt_build', { source: source ?? 'chat', promptChars: userMessage.length, turns: chatMessages.length });
       const modelResult = await runDesignModel({
+        billing: req.aiBilling,
         v2: await isDesignAiV2(req),
         taskType: DESIGN_TASK,
         systemBlocks: [DESIGN_SYSTEM_PROMPT],
@@ -3040,6 +3043,7 @@ Only include screens that need changes. "modify" requires both description and d
       ];
 
       const modelResult = await runDesignModel({
+        billing: req.aiBilling,
         v2: await isDesignAiV2(req),
         taskType: DESIGN_TASK,
         systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
@@ -3139,6 +3143,7 @@ Only include screens that need changes. "modify" requires both description and d
       ];
 
       const modelResult = await runDesignModel({
+        billing: req.aiBilling,
         v2: await isDesignAiV2(req),
         taskType: DESIGN_TASK,
         systemBlocks: [DESIGN_SYSTEM_PROMPT],
@@ -3250,6 +3255,7 @@ Only include screens that need changes. "modify" requires both description and d
       ];
 
       const modelResult = await runDesignModel({
+        billing: req.aiBilling,
         v2: await isDesignAiV2(req),
         taskType: DESIGN_TASK,
         systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
@@ -3390,6 +3396,7 @@ Only include screens that need changes. "modify" requires both description and d
             const mimeType = imgRes.headers.get('content-type') || 'image/png';
 
             const frameResult = await runDesignModel({
+              billing: req.aiBilling,
               v2: await isDesignAiV2(req),
               taskType: DESIGN_TASK,
               systemBlocks: [DESIGN_SYSTEM_PROMPT, DESIGN_VISION_PROMPT_EXTENSION],
@@ -3524,7 +3531,7 @@ Only include screens that need changes. "modify" requires both description and d
         return res.status(400).json({ error: 'Anthropic API keys should start with "sk-ant-"' });
       }
 
-      const response: any = await fetch('https://api.anthropic.com/v1/messages', {
+      const response: any = await anthropicFetch(req, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3695,7 +3702,7 @@ Expected structure:
 
 Respond with only the corrected JSON data:`;
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await anthropicFetch(req, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4568,7 +4575,7 @@ Respond with only the corrected JSON data:`;
       const timeoutHandle = setTimeout(() => timeoutController.abort(), VISION_TIMEOUT_MS);
       let response: Response;
       try {
-        response = await fetch('https://api.anthropic.com/v1/messages', {
+        response = await anthropicFetch(req, {
         method: 'POST',
         signal: (req as any).aiOperationSignal
           ? AbortSignal.any([timeoutController.signal, (req as any).aiOperationSignal])

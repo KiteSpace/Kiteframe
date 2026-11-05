@@ -151,8 +151,9 @@ import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
 /** Finished pages of a per-page generation, keyed by scope + plan, so Generate again retries only failed pages. */
 const batchPageResults = new Map<string, Map<string, PageResult>>();
-/** Plans from the stale-banner/picker paths, so Back then Generate doesn't run (and charge) the planner again. */
-const plannedInterfaces = new Map<string, InterfacePlan>();
+/** A plan kept after Back on the stale-banner/picker paths, so the next Generate doesn't run (and charge) the planner again. */
+const plannedInterfaces = new Map<string, { plan: InterfacePlan; at: number }>();
+const PLAN_REUSE_MS = 10 * 60_000;
 import { appendTranscript, appendDesignChat, buildGenerationExchange, extractScreenLabels } from "@/lib/kiteaiTranscript";
 import { DesignTabHostProvider } from "@/design/DesignTabHost";
 import { InterfaceScreenPickerModal } from "@/components/InterfaceScreenPickerModal";
@@ -3348,6 +3349,7 @@ function WorkflowEditorContent({
 
       let plan: InterfacePlan;
       let plannedHere = false;
+      let keepPlan: (() => void) | null = null;
       if (approvedPlan && !Array.isArray(approvedPlan)) {
         plan = interfacePlanSchema.parse(approvedPlan);
       } else {
@@ -3358,7 +3360,9 @@ function WorkflowEditorContent({
           collectWorkflowInterfaceContext(sourceTab),
         ), sourceProjectId: sourceTab.cloudProjectId });
         const planKey = `${scope}::${planningBody}`;
-        let interpreted = plannedInterfaces.get(planKey);
+        const kept = plannedInterfaces.get(planKey);
+        plannedInterfaces.delete(planKey);
+        let interpreted = kept && Date.now() - kept.at < PLAN_REUSE_MS ? kept.plan : undefined;
         if (!interpreted) {
           const proposalRes = await fetchBackgroundAi("/api/ai/interface-proposal", {
             signal,
@@ -3369,9 +3373,12 @@ function WorkflowEditorContent({
           const proposalData = await proposalRes.json();
           if (!proposalRes.ok) throw new Error(proposalData.error || "Could not interpret the workflow.");
           interpreted = interfacePlanSchema.parse(proposalData.plan);
-          if (plannedInterfaces.size >= 20) plannedInterfaces.clear();
-          plannedInterfaces.set(planKey, interpreted);
         }
+        const planToKeep = interpreted;
+        keepPlan = () => {
+          if (plannedInterfaces.size >= 20) plannedInterfaces.clear();
+          plannedInterfaces.set(planKey, { plan: planToKeep, at: Date.now() });
+        };
         const pages = interpreted.screens.filter(s => s.kind === "page");
         if (pages.length > MAX_GENERATED_SCREENS) {
           throw new Error(`This workflow needs ${pages.length} pages. Open its interface proposal and choose up to ${MAX_GENERATED_SCREENS} pages before generating.`);
@@ -3387,7 +3394,10 @@ function WorkflowEditorContent({
         batchPageResults.set(batchKey, completed);
         const credits = pagesToGenerate(plan, completed);
         if (!(await confirmCredits(credits, credits < pageCount,
-          plannedHere ? "The page plan is kept, so going Back won't charge for planning again." : undefined))) return false;
+          plannedHere ? "If you go Back, the page plan is kept for 10 minutes, so generating again won't charge for planning." : undefined))) {
+          keepPlan?.();
+          return false;
+        }
         const outcome = await generateInterfacePages(plan, {
           signal, completed, onProgress: setPageProgress,
           generatePage: async (pagePlan, pageBrief, pageSignal) => {

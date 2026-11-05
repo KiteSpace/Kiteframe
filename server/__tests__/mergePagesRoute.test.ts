@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMergePagesHandler } from '../lib/mergePagesRoute';
+import { interfacePlanningFixtures } from '../../shared/__tests__/fixtures/interfacePlanningFixtures';
 
 const res = () => {
   const r: any = { statusCode: 200, body: undefined };
@@ -22,8 +23,17 @@ describe('merge-pages route', () => {
     const r1 = res();
     await handler({ body: {} } as any, r1);
     expect(r1.statusCode).toBe(400);
-    const r2 = res();
-    await handler({ body: { interfacePlan: {}, pages: [{ screenId: 's', craftState: 'x'.repeat(200001) }] } } as any, r2);
-    expect(r2.statusCode).toBe(400);
+  });
+
+  it('accepts a 200,000-character page result and rejects one character more', async () => {
+    const handler = createMergePagesHandler(async () => true);
+    const plan = Object.values(interfacePlanningFixtures)[0].plan;
+    const body = (length: number) => ({ interfacePlan: plan, pages: [{ screenId: plan.screens[0].id, craftState: '{}'.padEnd(length, ' ') }] });
+    const atLimit = res();
+    await handler({ body: body(200000) } as any, atLimit);
+    expect(atLimit.statusCode).not.toBe(400);
+    const overLimit = res();
+    await handler({ body: body(200001) } as any, overLimit);
+    expect(overLimit.statusCode).toBe(400);
   });
 });

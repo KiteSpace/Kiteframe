@@ -20,4 +20,15 @@ describe('per-user Specs summary caches', () => {
     expect(forUser('a').get('k')).toBe('v');
     expect(forUser('b').size).toBe(0);
   });
+
+  it("evicts a user's least recently read entry, not the oldest written", () => {
+    const forUser = createSpecSummaryCaches(10, 2);
+    const a = forUser('a');
+    a.set('k1', 'v1');
+    a.set('k2', 'v2');
+    a.get('k1');
+    a.set('k3', 'v3');
+    forUser('a');
+    expect([...forUser('a').keys()]).toEqual(['k1', 'k3']);
+  });
 });

@@ -1,4 +1,5 @@
 import { executeAiChat } from '../aiChatExecutor';
+import type { AiBilling } from '../aiBillingContext';
 import type { createStageTimer } from './stageTiming';
 import { parseDesignJson, readUsage, type DesignModelUsage } from './designJson';
 
@@ -27,6 +28,8 @@ export interface RunDesignModelOptions {
   timer?: StageTimer;
   /** Parse the reply as JSON (default true). The planner validates its own output. */
   parseJson?: boolean;
+  /** The request's `req.aiBilling`, so refunds know whether Claude replied. */
+  billing?: AiBilling;
 }
 
 export type RunDesignModelResult =
@@ -59,6 +62,7 @@ export async function runDesignModel(o: RunDesignModelOptions): Promise<RunDesig
           rawUserText: true }
       : { systemPrompt: blocks.join('\n\n'),
           rawUserText: true },
+    o.billing,
   );
   if (!result.ok) {
     o.timer?.mark('model', { ok: false, status: result.status });

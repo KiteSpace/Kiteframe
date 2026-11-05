@@ -6,6 +6,7 @@ import {
   getActiveJobCountShared,
 } from './aiJobStore';
 import { creditService } from './creditService';
+import { oldestInFlight } from './aiBillingContext';
 import { refundDeductedCredit } from './middleware/creditCheck';
 
 /**
@@ -61,9 +62,9 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       response.emit('close');
       return response;
     };
-    let cancelled = false;
+    let cancel: { cancelled: true; cancelledAt: number; inFlightSince?: number } | null = null;
     controller.signal.addEventListener('abort', () => {
-      if (!response.writableEnded) cancelled = true;
+      if (!response.writableEnded) cancel = { cancelled: true, cancelledAt: Date.now(), inFlightSince: oldestInFlight(req.aiBilling) };
       response.destroyed = true;
       clearTimeout(deadline);
       response.emit('close');
@@ -84,7 +85,7 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       response.json({ error: error instanceof Error ? error.message : 'AI action failed' });
     }).finally(() => {
       // Decided after the handler settles, so a reply that arrived as Stop was pressed stays charged.
-      if (cancelled) void refundDeductedCredit(req, { cancelled: true });
+      if (cancel) void refundDeductedCredit(req, cancel);
     });
   });
 }

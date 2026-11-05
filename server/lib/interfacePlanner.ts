@@ -4,6 +4,7 @@ import {
 } from '@shared/interfacePlan';
 import { runDesignModel, type RunDesignModelResult } from './designModel';
 import type { createStageTimer } from './stageTiming';
+import type { AiBilling } from '../aiBillingContext';
 
 export type PlannerModel = (system: string, user: string, signal?: AbortSignal) => Promise<string>;
 
@@ -18,7 +19,7 @@ type StageTimer = ReturnType<typeof createStageTimer>;
 
 /** Planner model call. `v2` (flag design_ai_v2) uses the current model with a cached system prompt. */
 export function createPlannerModel(
-  options: { v2?: boolean; timer?: StageTimer; onResult?: (result: RunDesignModelResult) => void } = {},
+  options: { v2?: boolean; timer?: StageTimer; billing?: AiBilling; onResult?: (result: RunDesignModelResult) => void } = {},
 ): PlannerModel {
   return async (system, user, signal) => {
     const result = await runDesignModel({
@@ -31,6 +32,7 @@ export function createPlannerModel(
       signal,
       timer: options.timer,
       parseJson: false,
+      billing: options.billing,
     });
     options.onResult?.(result);
     if (!result.ok) {
