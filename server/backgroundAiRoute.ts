@@ -6,6 +6,7 @@ import {
   getActiveJobCountShared,
 } from './aiJobStore';
 import { creditService } from './creditService';
+import { refundDeductedCredit } from './middleware/creditCheck';
 
 /**
  * Opt-in background execution for the existing structured-response handlers.
@@ -52,6 +53,7 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       if (response.statusCode >= 400) {
         const error = body as { error?: string; message?: string };
         tryFinalizeFailure(job.id, error?.error || error?.message || 'AI action failed', response.statusCode);
+        void refundDeductedCredit(req);
       } else {
         tryFinalizeSuccess(job.id, { text: '', payload: body });
       }
@@ -60,6 +62,7 @@ export function postBackgroundAi(app: Express, path: string, ...handlers: Reques
       return response;
     };
     controller.signal.addEventListener('abort', () => {
+      if (!response.writableEnded) void refundDeductedCredit(req);
       response.destroyed = true;
       clearTimeout(deadline);
       response.emit('close');

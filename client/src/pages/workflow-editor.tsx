@@ -3303,13 +3303,19 @@ function WorkflowEditorContent({
   // Used by both "Create Interface" (from workflow toolbar) and "Update Interface"
   // (from stale design tab banner). Always creates a new design + new tab;
   // version-names if prior designs from the same workflow already exist.
-  /** Credits a per-page Generate UI run will charge, or null when it is a single design call. */
-  const estimateInterfaceCredits = useCallback((sourceTab: WorkflowTab, approvedPlan: InterfacePlan): number | null => {
-    const plan = interfacePlanSchema.parse(approvedPlan);
-    if (!isFlagEnabled(MOCK_WORKFLOW_BATCH_FLAG) || selectedInterfaceSurfaces(plan).filter((s) => s.kind === "page").length <= 1) return null;
-    const scope = `interface-generate:${tabProjectIdentifier(sourceTab)}`;
-    return pagesToGenerate(plan, batchPageResults.get(`${scope}::${JSON.stringify(plan)}`));
-  }, [isFlagEnabled]);
+  const [creditConfirm, setCreditConfirm] = useState<{ credits: number; reused: boolean } | null>(null);
+  const creditConfirmResolve = useRef<((ok: boolean) => void) | null>(null);
+  const settleCreditConfirm = useCallback((ok: boolean) => {
+    creditConfirmResolve.current?.(ok);
+    creditConfirmResolve.current = null;
+    setCreditConfirm(null);
+  }, []);
+  /** Asks before a per-page run, which charges 1 credit per page still to generate. */
+  const confirmCredits = useCallback((credits: number, reused: boolean) => new Promise<boolean>((resolve) => {
+    creditConfirmResolve.current?.(false);
+    creditConfirmResolve.current = resolve;
+    setCreditConfirm({ credits, reused });
+  }), []);
 
   const generateInterfaceFromWorkflow = useCallback(async (sourceTab: WorkflowTab, approvedPlan?: InterfacePlan | Array<{ name: string; nodes: Node[] }> | null): Promise<boolean> => {
     if (isOutOfCredits) {
@@ -3368,6 +3374,8 @@ function WorkflowEditorContent({
         const batchKey = `${scope}::${JSON.stringify(plan)}`;
         const completed = batchPageResults.get(batchKey) ?? new Map<string, PageResult>();
         batchPageResults.set(batchKey, completed);
+        const credits = pagesToGenerate(plan, completed);
+        if (!(await confirmCredits(credits, credits < pageCount))) return false;
         const outcome = await generateInterfacePages(plan, {
           signal, completed, onProgress: setPageProgress,
           generatePage: async (pagePlan, pageBrief, pageSignal) => {
@@ -3505,7 +3513,7 @@ function WorkflowEditorContent({
       setIsGeneratingInterface(false);
     }
     }, sourceTab.projectUuid ? `/project/${sourceTab.projectUuid}` : window.location.pathname) ?? false;
-  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, isFlagEnabled]);
+  }, [isOutOfCredits, ctaAction, openSignup, openCreditsDialog, tabs, openDesignTab, toast, isFlagEnabled, confirmCredits]);
 
   /**
    * Opens a new interface proposal tab for the given workflow tab.
@@ -9485,7 +9493,6 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
                 isGenerating={isGeneratingInterface}
                 generationFeedback={interfaceGenerationFeedback}
                 pageProgress={interfacePageProgress}
-                creditEstimate={srcTab ? (plan) => estimateInterfaceCredits(srcTab, plan) : undefined}
                 onConfirm={async (plan) => {
                   if (!srcTab) return;
                   const proposalTabId = activeTab.id;
@@ -15901,6 +15908,22 @@ Create a logical flow. Keep descriptions brief. Return ONLY valid JSON.`;
             >
               Continue Replace
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!creditConfirm} onOpenChange={(open) => { if (!open) settleCreditConfirm(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate {creditConfirm?.credits} page{creditConfirm?.credits === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This uses {creditConfirm?.credits} credit{creditConfirm?.credits === 1 ? "" : "s"}, 1 per page.
+              {creditConfirm?.reused ? " Pages already generated are reused." : ""} Failed or cancelled pages are refunded.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Back</AlertDialogCancel>
+            <AlertDialogAction onClick={() => settleCreditConfirm(true)}>Generate · {creditConfirm?.credits} credit{creditConfirm?.credits === 1 ? "" : "s"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

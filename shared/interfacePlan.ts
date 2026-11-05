@@ -188,23 +188,33 @@ export function buildPlanningContext(projectSpec: any, workflowSpecs: any[], opt
   return { context: `${CONTEXT_CONDENSED_MARKER}: Specs headings alone exceed the planning budget; no Specs were sent. {"condensed":[],"dropped":[]}]\n{}`, report: { included: [], condensed: [], dropped } };
 }
 
+/** Most Specs sections summarised per planning call (each one is a Haiku call). */
+export const MAX_SPEC_SUMMARIES = 8;
+
 /** Async wrapper: summarise long sections in parallel (cached by content hash), then build the context. */
 export async function buildPlanningContextWithSummaries(
   projectSpec: any, workflowSpecs: any[],
-  opts: PlanningContextOptions & { summarise: (content: string) => Promise<string | null>; cache?: Map<string, string> },
+  opts: PlanningContextOptions & {
+    summarise: (content: string) => Promise<string | null>;
+    cache?: Map<string, string>;
+    /** Cache key for a section; the server scopes it to the user with a strong hash. */
+    cacheKey?: (content: string) => string;
+    maxSummaries?: number;
+  },
 ): Promise<PlanningContext> {
   const base = buildPlanningContext(projectSpec, workflowSpecs, opts);
   if (!base.report.condensed.length && !base.report.dropped.length) return base;
   const cache = opts.cache ?? new Map<string, string>();
   const summaries: Record<string, string> = { ...opts.summaries };
-  await Promise.all(specSectionsToSummarise(projectSpec, workflowSpecs).map(async (content) => {
-    const key = specSectionHash(content);
-    if (!cache.has(key)) {
+  const sections = specSectionsToSummarise(projectSpec, workflowSpecs).slice(0, opts.maxSummaries ?? MAX_SPEC_SUMMARIES);
+  await Promise.all(sections.map(async (content) => {
+    const cacheKey = opts.cacheKey?.(content) ?? specSectionHash(content);
+    if (!cache.has(cacheKey)) {
       const summary = await opts.summarise(content).catch(() => null);
-      if (summary) cache.set(key, summary);
+      if (summary) cache.set(cacheKey, summary);
     }
-    const hit = cache.get(key);
-    if (hit) summaries[key] = hit;
+    const hit = cache.get(cacheKey);
+    if (hit) summaries[specSectionHash(content)] = hit;
   }));
   return buildPlanningContext(projectSpec, workflowSpecs, { ...opts, summaries });
 }

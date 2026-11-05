@@ -33,6 +33,14 @@ const TASK_TYPE_MODELS: Record<string, { model: string; provider: string; allowU
 /** Task types only server routes may use; `/api/ai/chat` rejects them (they pick flagged models). */
 export const INTERNAL_ONLY_TASK_TYPES = new Set(['design', 'design_v2', 'interface_planning', 'interface_planning_v2', 'wireframe', 'spec_summary']);
 
+/** Models only the flagged *_v2 task types use; client bodies may not request them directly. */
+const V2_ONLY_MODELS = new Set(
+  Object.entries(TASK_TYPE_MODELS)
+    .filter(([k]) => k.endsWith('_v2'))
+    .map(([, p]) => p.model)
+    .filter((m) => !Object.entries(TASK_TYPE_MODELS).some(([k, p]) => !k.endsWith('_v2') && p.model === m)),
+);
+
 const SERVER_KEY_MODELS = new Set(Object.values(TASK_TYPE_MODELS).map((p) => p.model));
 const MAX_OUTPUT_TOKENS = 16000;
 
@@ -140,6 +148,14 @@ export async function executeAiChat(
 ): Promise<AiChatExecResult> {
   try {
     const { model, temperature, maxTokens, provider, apiKey: clientApiKey, taskType } = body;
+
+    // Client bodies (no `internal`) can't pick server-only task types or the flagged models.
+    if (!internal && ((taskType !== undefined && typeof taskType !== 'string') || INTERNAL_ONLY_TASK_TYPES.has(taskType))) {
+      return { ok: false, status: 400, error: 'Unsupported task type.' };
+    }
+    if (!internal && typeof model === 'string' && V2_ONLY_MODELS.has(model)) {
+      return { ok: false, status: 400, error: 'Unsupported model.' };
+    }
 
     let resolvedModel = model;
     let resolvedProvider = provider;

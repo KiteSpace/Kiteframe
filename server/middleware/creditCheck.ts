@@ -177,6 +177,11 @@ export async function requireCredits(
       remainingCredits: deductResult.remainingCredits,
       creditCost,
     };
+    // A failed, rejected or abandoned call is refunded (background jobs refund in postBackgroundAi).
+    if (req.get('X-AI-Background') !== '1') {
+      res.once('finish', () => { if (res.statusCode >= 400) void refundDeductedCredit(req); });
+      res.once('close', () => { if (!res.writableEnded) void refundDeductedCredit(req); });
+    }
 
     // If the client sent a session ID for a workflow_reasoning turn, register it now
     // atomically with the credit deduction. This ensures retries after a failed first
@@ -464,5 +469,18 @@ declare global {
         creditCost: number;
       };
     }
+  }
+}
+
+/** Give back the credit `requireCredits` took for this request, at most once. */
+export async function refundDeductedCredit(req: Request): Promise<void> {
+  const d = req.creditDeducted as (NonNullable<Request['creditDeducted']> & { refunded?: boolean }) | undefined;
+  if (!d || d.refunded || !d.creditCost || d.remainingCredits >= 999999) return;
+  d.refunded = true;
+  try {
+    await creditService.refundCredit(d.userIdentifier, d.creditCost);
+    console.log(`Credit refunded (cost: ${d.creditCost}). User: ${d.userIdentifier}`);
+  } catch (error) {
+    console.error('Credit refund failed:', error);
   }
 }
