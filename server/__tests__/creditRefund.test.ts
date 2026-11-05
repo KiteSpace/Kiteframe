@@ -19,7 +19,7 @@ describe('refundDeductedCredit', () => {
     await refundDeductedCredit(req);
     await refundDeductedCredit(req);
     expect(refundCredit).toHaveBeenCalledTimes(1);
-    expect(refundCredit).toHaveBeenCalledWith('user:1', 1, new Date(0), true);
+    expect(refundCredit).toHaveBeenCalledWith('user:1', 1, new Date(0), true, 5);
   });
 
   it('keeps the charge when Claude replied and we rejected the output, or the cancel came after the reply', async () => {

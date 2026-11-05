@@ -517,7 +517,7 @@ export async function refundDeductedCredit(
   }
   d.refunded = true;
   try {
-    await creditService.refundCredit(d.userIdentifier, d.creditCost, d.deductedAt, d.isAuthenticated);
+    await creditService.refundCredit(d.userIdentifier, d.creditCost, d.deductedAt, d.isAuthenticated, d.remainingCredits + d.creditCost);
     console.log(`Credit refunded (cost: ${d.creditCost}). User: ${d.userIdentifier}`);
   } catch (error) {
     console.error('Credit refund failed:', error);

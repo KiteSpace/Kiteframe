@@ -53,7 +53,7 @@ describe('requireCredits → upload middleware → direct Anthropic call → ref
     expect((await post()).status).toBe(502);
     await settle();
     expect(deductCreditAtomic).toHaveBeenCalledTimes(1);
-    expect(refundCredit).toHaveBeenCalledWith('user:u1', 1, expect.any(Date), true);
+    expect(refundCredit).toHaveBeenCalledWith('user:u1', 1, expect.any(Date), true, 5);
   });
 
   it('keeps the charge when Claude replied and the route rejected the result', async () => {

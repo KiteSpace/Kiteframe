@@ -217,15 +217,19 @@ export class CreditService {
   }
 
   /**
-   * Never lifts credits above the tier's daily allowance (a balance already above it from a bonus stays
-   * as is). With `deductedAt`, skips the refund if the daily reset ran since the deduction.
+   * Never lifts credits above the higher of the tier's daily allowance and `preChargeBalance` (the
+   * balance before this charge, so a bonus balance gets its credit back). With `deductedAt`, skips the
+   * refund if the daily reset ran since the deduction.
    */
-  async refundCredit(userIdentifier: string, creditCost: number = 1, deductedAt?: Date, isAuthenticated: boolean = true): Promise<void> {
+  async refundCredit(
+    userIdentifier: string, creditCost: number = 1, deductedAt?: Date, isAuthenticated: boolean = true, preChargeBalance?: number,
+  ): Promise<void> {
     const cap = await this.resolveDailyCredits(userIdentifier, isAuthenticated);
+    const ceiling = preChargeBalance === undefined ? userCredits.credits : Math.max(cap, preChargeBalance);
     const match = eq(userCredits.userIdentifier, userIdentifier);
     await db.update(userCredits)
       .set({ 
-        credits: sql`LEAST(${userCredits.credits} + ${creditCost}, GREATEST(${cap}, ${userCredits.credits}))`,
+        credits: sql`LEAST(${userCredits.credits} + ${creditCost}, GREATEST(${cap}, ${ceiling}))`,
         updatedAt: new Date(),
       })
       .where(deductedAt ? and(match, sql`${userCredits.lastResetAt} <= ${deductedAt.toISOString()}::timestamp`) : match);

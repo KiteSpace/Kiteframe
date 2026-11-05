@@ -21,4 +21,13 @@ describe('creditService.refundCredit', () => {
     expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2, .*"credits"\)\)$/);
     expect(credits.params).toEqual([1, 150]);
   });
+
+  it('lets a balance above the tier allowance (a code bonus) get its credit back', async () => {
+    vi.spyOn(creditService as any, 'resolveDailyCredits').mockResolvedValue(3);
+    await creditService.refundCredit('user:1', 1, new Date(), true, 13);
+    captured.pop();
+    const credits = new PgDialect().sqlToQuery(captured.pop() as any);
+    expect(credits.sql).toMatch(/^LEAST\(.*"credits" \+ \$1, GREATEST\(\$2, \$3\)\)$/);
+    expect(credits.params).toEqual([1, 3, 13]);
+  });
 });
